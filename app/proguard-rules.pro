@@ -1,0 +1,5 @@
+-keepattributes Signature
+-keepattributes *Annotation*
+-keep class com.soodalbbobgi.app.data.remote.** { *; }
+-keep class com.kakao.sdk.** { *; }
+-keep class com.google.gson.** { *; }

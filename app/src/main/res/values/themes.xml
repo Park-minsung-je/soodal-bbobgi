@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.SoodalBbobgi" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <array name="health_permissions">
+        <item>androidx.health.permission.ExerciseSession.READ</item>
+        <item>androidx.health.permission.Distance.READ</item>
+        <item>androidx.health.permission.TotalCaloriesBurned.READ</item>
+    </array>
+</resources>
