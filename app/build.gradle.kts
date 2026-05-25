@@ -4,8 +4,6 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
-    // Room plugin will be enabled when Database class is created
-    // alias(libs.plugins.room)
 }
 
 android {
@@ -40,6 +38,10 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true; buildConfig = true }
+}
+
+ksp {
+    arg("room.schemaLocation", "${projectDir}/schemas")
 }
 
 dependencies {
