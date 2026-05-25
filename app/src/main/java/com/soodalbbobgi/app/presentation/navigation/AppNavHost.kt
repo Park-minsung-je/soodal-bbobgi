@@ -6,9 +6,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.soodalbbobgi.app.presentation.auth.AuthScreen
 import com.soodalbbobgi.app.presentation.calendar.CalendarScreen
+import com.soodalbbobgi.app.presentation.gacha.GachaScreen
 import com.soodalbbobgi.app.presentation.home.HomeScreen
 import com.soodalbbobgi.app.presentation.onboarding.OnboardingNicknameScreen
 import com.soodalbbobgi.app.presentation.onboarding.OnboardingPermissionScreen
+import com.soodalbbobgi.app.presentation.profile.ProfileEditorScreen
+import com.soodalbbobgi.app.presentation.profile.ProfileFullscreenScreen
+import com.soodalbbobgi.app.presentation.settings.SettingsScreen
+import com.soodalbbobgi.app.presentation.shop.ShopScreen
 import com.soodalbbobgi.app.presentation.splash.SplashScreen
 
 @Composable
@@ -60,6 +65,43 @@ fun AppNavHost(navController: NavHostController) {
                     }
                     navController.navigate(route) { popUpTo(Screen.Home.route) }
                 },
+            )
+        }
+        composable(Screen.Gacha.route) {
+            GachaScreen(onNavigateToTab = { tab ->
+                val route = when (tab) {
+                    "home" -> Screen.Home.route
+                    "calendar" -> Screen.Calendar.route
+                    "shop" -> Screen.Shop.route
+                    else -> return@GachaScreen
+                }
+                navController.navigate(route) { popUpTo(Screen.Home.route) }
+            })
+        }
+        composable(Screen.Shop.route) {
+            ShopScreen(onNavigateToTab = { tab ->
+                val route = when (tab) {
+                    "home" -> Screen.Home.route
+                    "calendar" -> Screen.Calendar.route
+                    "gacha" -> Screen.Gacha.route
+                    else -> return@ShopScreen
+                }
+                navController.navigate(route) { popUpTo(Screen.Home.route) }
+            })
+        }
+        composable(Screen.Settings.route) {
+            SettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.ProfileEditor.route) {
+            ProfileEditorScreen(
+                onBack = { navController.popBackStack() },
+                onPreview = { navController.navigate(Screen.ProfileFullscreen.route) },
+            )
+        }
+        composable(Screen.ProfileFullscreen.route) {
+            ProfileFullscreenScreen(
+                onBack = { navController.popBackStack() },
+                onEdit = { navController.navigate(Screen.ProfileEditor.route) },
             )
         }
     }
