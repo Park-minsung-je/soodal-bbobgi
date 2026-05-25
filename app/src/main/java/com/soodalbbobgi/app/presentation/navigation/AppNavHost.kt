@@ -5,6 +5,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.soodalbbobgi.app.presentation.auth.AuthScreen
+import com.soodalbbobgi.app.presentation.calendar.CalendarScreen
 import com.soodalbbobgi.app.presentation.home.HomeScreen
 import com.soodalbbobgi.app.presentation.onboarding.OnboardingNicknameScreen
 import com.soodalbbobgi.app.presentation.onboarding.OnboardingPermissionScreen
@@ -46,6 +47,19 @@ fun AppNavHost(navController: NavHostController) {
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                 onNavigateToProfileFullscreen = { navController.navigate(Screen.ProfileFullscreen.route) },
                 onNavigateToProfileEditor = { navController.navigate(Screen.ProfileEditor.route) },
+            )
+        }
+        composable(Screen.Calendar.route) {
+            CalendarScreen(
+                onNavigateToTab = { tab ->
+                    val route = when (tab) {
+                        "home" -> Screen.Home.route
+                        "gacha" -> Screen.Gacha.route
+                        "shop" -> Screen.Shop.route
+                        else -> return@CalendarScreen
+                    }
+                    navController.navigate(route) { popUpTo(Screen.Home.route) }
+                },
             )
         }
     }
