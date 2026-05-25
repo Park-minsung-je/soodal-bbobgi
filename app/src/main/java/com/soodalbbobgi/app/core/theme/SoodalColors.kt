@@ -2,6 +2,7 @@ package com.soodalbbobgi.app.core.theme
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
@@ -49,3 +50,117 @@ data class SoodalColors(
 val LocalSoodalColors = staticCompositionLocalOf<SoodalColors> {
     error("No SoodalColors provided. Wrap your composable in SoodalTheme.")
 }
+
+private fun gradientBrush(colors: List<Color>) = Brush.linearGradient(
+    colors = colors,
+    start = Offset(0f, 0f),
+    end = Offset(Float.MAX_VALUE, Float.MAX_VALUE),
+)
+
+val LightColors = SoodalColors(
+    bgDeep = Color(0xFFEEF3F8), bgBase = Color(0xFFE4EBF4),
+    surface1 = Color(0xFFFFFFFF), surface2 = Color(0xFFF7FAFD), surface3 = Color(0xFFE8EEF7),
+    glassBg = Color.White.copy(alpha = 0.60f),
+    glassBorder = Color(0xFF1E3C64).copy(alpha = 0.10f),
+    accentCyan = Color(0xFF00A8B8), accentCyanSoft = Color(0xFF00A8B8).copy(alpha = 0.16f),
+    accentPurple = Color(0xFF8B3DDB), accentPurpleSoft = Color(0xFF8B3DDB).copy(alpha = 0.14f),
+    accentGold = Color(0xFFD99500), accentGoldSoft = Color(0xFFD99500).copy(alpha = 0.16f),
+    success = Color(0xFF1FA552), warn = Color(0xFFDC4040),
+    textPrimary = Color(0xFF1A2438), textSecondary = Color(0xFF5C6B7E), textTertiary = Color(0xFFA7B0BF),
+    gradCyan = gradientBrush(listOf(Color(0xFF00C4D2), Color(0xFF4FB8E8))),
+    gradGold = gradientBrush(listOf(Color(0xFFFFC845), Color(0xFFF09000))),
+    gradPurple = gradientBrush(listOf(Color(0xFFB57BFF), Color(0xFF6E3BD8))),
+    gradCard = gradientBrush(listOf(Color(0xFFECF7FA), Color(0xFFF0EAFA), Color(0xFFF7F1E8))),
+    glowCyan = Color(0xFF00A8B8).copy(alpha = 0.16f),
+    glowGold = Color(0xFFD99500).copy(alpha = 0.18f),
+    glowPurple = Color(0xFF8B3DDB).copy(alpha = 0.18f),
+    tabbarBg = Color.White.copy(alpha = 0.78f),
+    tabbarBorder = Color(0xFF1E3C64).copy(alpha = 0.08f),
+    cardBg = Color(0xFFFFFFFF), cardBorder = Color(0xFF1E3C64).copy(alpha = 0.08f),
+    cardShadow = Color(0xFF1E3C64).copy(alpha = 0.03f),
+    inputBg = Color(0xFFFFFFFF), inputBorder = Color(0xFF1E3C64).copy(alpha = 0.12f),
+    inputPlaceholder = Color(0xFFB8C0CC),
+    btnPrimaryText = Color.White, btnGoldText = Color.White, btnPurpleText = Color.White,
+    isDark = false,
+)
+
+val NeonColors = SoodalColors(
+    bgDeep = Color(0xFF0A0E1A), bgBase = Color(0xFF0E1426),
+    surface1 = Color(0xFF111827), surface2 = Color(0xFF1A2235), surface3 = Color(0xFF243049),
+    glassBg = Color.White.copy(alpha = 0.06f),
+    glassBorder = Color.White.copy(alpha = 0.12f),
+    accentCyan = Color(0xFF00F5FF), accentCyanSoft = Color(0xFF00F5FF).copy(alpha = 0.14f),
+    accentPurple = Color(0xFFBF5AF2), accentPurpleSoft = Color(0xFFBF5AF2).copy(alpha = 0.16f),
+    accentGold = Color(0xFFFFD60A), accentGoldSoft = Color(0xFFFFD60A).copy(alpha = 0.18f),
+    success = Color(0xFF30D158), warn = Color(0xFFFF6B6B),
+    textPrimary = Color(0xFFE8EAF6), textSecondary = Color(0xFF8892A4), textTertiary = Color(0xFF4A5568),
+    gradCyan = gradientBrush(listOf(Color(0xFF00F5FF), Color(0xFF4FB8FF))),
+    gradGold = gradientBrush(listOf(Color(0xFFFFE66B), Color(0xFFFFB02E))),
+    gradPurple = gradientBrush(listOf(Color(0xFFC679FF), Color(0xFF7C4DFF))),
+    gradCard = gradientBrush(listOf(Color(0xFF0D1A30), Color(0xFF0A1520), Color(0xFF0D1030))),
+    glowCyan = Color(0xFF00F5FF).copy(alpha = 0.18f),
+    glowGold = Color(0xFFFFD60A).copy(alpha = 0.22f),
+    glowPurple = Color(0xFFBF5AF2).copy(alpha = 0.22f),
+    tabbarBg = Color(0xFF0A0E1A).copy(alpha = 0.85f),
+    tabbarBorder = Color.White.copy(alpha = 0.12f),
+    cardBg = Color(0xFF1A2235), cardBorder = Color.White.copy(alpha = 0.05f),
+    cardShadow = Color.Transparent,
+    inputBg = Color(0xFF111827), inputBorder = Color.White.copy(alpha = 0.12f),
+    inputPlaceholder = Color(0xFF4A5568),
+    btnPrimaryText = Color(0xFF001821), btnGoldText = Color(0xFF3A2400), btnPurpleText = Color(0xFF1B0035),
+    isDark = true,
+)
+
+val CalmColors = SoodalColors(
+    bgDeep = Color(0xFF11151C), bgBase = Color(0xFF161B25),
+    surface1 = Color(0xFF1A2030), surface2 = Color(0xFF232A3D), surface3 = Color(0xFF243049),
+    glassBg = Color.White.copy(alpha = 0.06f),
+    glassBorder = Color.White.copy(alpha = 0.12f),
+    accentCyan = Color(0xFF6EE0E6), accentCyanSoft = Color(0xFF6EE0E6).copy(alpha = 0.14f),
+    accentPurple = Color(0xFFB19BE8), accentPurpleSoft = Color(0xFFB19BE8).copy(alpha = 0.16f),
+    accentGold = Color(0xFFF2C94C), accentGoldSoft = Color(0xFFF2C94C).copy(alpha = 0.18f),
+    success = Color(0xFF30D158), warn = Color(0xFFFF6B6B),
+    textPrimary = Color(0xFFE8EAF6), textSecondary = Color(0xFF8892A4), textTertiary = Color(0xFF4A5568),
+    gradCyan = gradientBrush(listOf(Color(0xFF6EE0E6), Color(0xFF5ABDD8))),
+    gradGold = gradientBrush(listOf(Color(0xFFF2C94C), Color(0xFFD4A030))),
+    gradPurple = gradientBrush(listOf(Color(0xFFB19BE8), Color(0xFF8E70D0))),
+    gradCard = gradientBrush(listOf(Color(0xFF1A2433), Color(0xFF161D2A), Color(0xFF1C1D35))),
+    glowCyan = Color(0xFF6EE0E6).copy(alpha = 0.16f),
+    glowGold = Color(0xFFF2C94C).copy(alpha = 0.18f),
+    glowPurple = Color(0xFFB19BE8).copy(alpha = 0.18f),
+    tabbarBg = Color(0xFF0A0E1A).copy(alpha = 0.85f),
+    tabbarBorder = Color.White.copy(alpha = 0.12f),
+    cardBg = Color(0xFF232A3D), cardBorder = Color.White.copy(alpha = 0.05f),
+    cardShadow = Color.Transparent,
+    inputBg = Color(0xFF1A2030), inputBorder = Color.White.copy(alpha = 0.12f),
+    inputPlaceholder = Color(0xFF4A5568),
+    btnPrimaryText = Color(0xFF001821), btnGoldText = Color(0xFF3A2400), btnPurpleText = Color(0xFF1B0035),
+    isDark = true,
+)
+
+val PastelColors = SoodalColors(
+    bgDeep = Color(0xFF1A1A2E), bgBase = Color(0xFF221F3A),
+    surface1 = Color(0xFF2A2746), surface2 = Color(0xFF322F54), surface3 = Color(0xFF3D3A66),
+    glassBg = Color.White.copy(alpha = 0.06f),
+    glassBorder = Color.White.copy(alpha = 0.12f),
+    accentCyan = Color(0xFF8EE6F2), accentCyanSoft = Color(0xFF8EE6F2).copy(alpha = 0.14f),
+    accentPurple = Color(0xFFD6A3FF), accentPurpleSoft = Color(0xFFD6A3FF).copy(alpha = 0.16f),
+    accentGold = Color(0xFFFFD8A8), accentGoldSoft = Color(0xFFFFD8A8).copy(alpha = 0.18f),
+    success = Color(0xFF30D158), warn = Color(0xFFFF6B6B),
+    textPrimary = Color(0xFFF0EBFF), textSecondary = Color(0xFF8892A4), textTertiary = Color(0xFF4A5568),
+    gradCyan = gradientBrush(listOf(Color(0xFF8EE6F2), Color(0xFF6EC8D8))),
+    gradGold = gradientBrush(listOf(Color(0xFFFFD8A8), Color(0xFFE0B080))),
+    gradPurple = gradientBrush(listOf(Color(0xFFD6A3FF), Color(0xFFB080E8))),
+    gradCard = gradientBrush(listOf(Color(0xFF2D2A4D), Color(0xFF2A2849), Color(0xFF322A4D))),
+    glowCyan = Color(0xFF8EE6F2).copy(alpha = 0.22f),
+    glowGold = Color(0xFFFFD8A8).copy(alpha = 0.25f),
+    glowPurple = Color(0xFFD6A3FF).copy(alpha = 0.25f),
+    tabbarBg = Color(0xFF0A0E1A).copy(alpha = 0.85f),
+    tabbarBorder = Color.White.copy(alpha = 0.12f),
+    cardBg = Color(0xFF322F54), cardBorder = Color.White.copy(alpha = 0.05f),
+    cardShadow = Color.Transparent,
+    inputBg = Color(0xFF2A2746), inputBorder = Color.White.copy(alpha = 0.12f),
+    inputPlaceholder = Color(0xFF4A5568),
+    btnPrimaryText = Color(0xFF001821), btnGoldText = Color(0xFF3A2400), btnPurpleText = Color(0xFF1B0035),
+    isDark = true,
+)
