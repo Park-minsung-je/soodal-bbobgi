@@ -150,14 +150,14 @@ fun GachaScreen(
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     SpinButton(
                         topText = "단발 뽑기", bottomText = "🐚 1개",
-                        background = colors.gradGold, textColor = colors.btnGoldText, glowColor = colors.glowGold,
+                        bgColors = listOf(Color(0xFFFFC845), Color(0xFFF09000)), textColor = colors.btnGoldText, glowColor = colors.glowGold,
                         enabled = state.phase == GachaPhase.Idle && state.shells >= 1,
                         onClick = { viewModel.spin(1) },
                         modifier = Modifier.weight(1f),
                     )
                     SpinButton(
                         topText = "10연 뽑기", bottomText = "🐚 9개",
-                        background = colors.gradPurple, textColor = colors.btnPurpleText, glowColor = colors.glowPurple,
+                        bgColors = listOf(Color(0xFFB57BFF), Color(0xFF6E3BD8)), textColor = colors.btnPurpleText, glowColor = colors.glowPurple,
                         enabled = state.phase == GachaPhase.Idle && state.shells >= 9,
                         onClick = { viewModel.spin(10) },
                         modifier = Modifier.weight(1f),
@@ -204,11 +204,13 @@ private fun GachaBoxCard(box: BoxInfo, focused: Boolean) {
                 else Modifier
             )
             .clip(shape)
-            .background(
-                Brush.linearGradient(
+            .drawBehind {
+                drawRect(Brush.linearGradient(
                     listOf(box.color.copy(alpha = 0.13f), box.color.copy(alpha = 0.03f)),
-                )
-            )
+                    start = androidx.compose.ui.geometry.Offset.Zero,
+                    end = androidx.compose.ui.geometry.Offset(size.width, size.height),
+                ))
+            }
             .border(1.5.dp, box.color.copy(alpha = 0.4f), shape),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -222,7 +224,7 @@ private fun GachaBoxCard(box: BoxInfo, focused: Boolean) {
 @Composable
 private fun SpinButton(
     topText: String, bottomText: String,
-    background: Brush, textColor: Color, glowColor: Color,
+    bgColors: List<Color>, textColor: Color, glowColor: Color,
     enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier,
 ) {
     val shape = SoodalShape.md
@@ -231,9 +233,11 @@ private fun SpinButton(
             .height(52.dp)
             .shadow(if (enabled) 12.dp else 0.dp, shape, ambientColor = glowColor, spotColor = glowColor)
             .clip(shape)
-            .background(background)
-            .clickable(enabled = enabled, interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
-            .then(if (!enabled) Modifier.drawBehind { drawRect(Color.Black.copy(alpha = 0.3f)) } else Modifier),
+            .drawBehind {
+                drawRect(Brush.linearGradient(bgColors, start = androidx.compose.ui.geometry.Offset.Zero, end = androidx.compose.ui.geometry.Offset(size.width, size.height)))
+                if (!enabled) drawRect(Color.Black.copy(alpha = 0.3f))
+            }
+            .clickable(enabled = enabled, interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -298,7 +302,13 @@ private fun GachaResultOverlay(
                 Modifier.padding(horizontal = 28.dp).fillMaxWidth()
                     .shadow(16.dp, RoundedCornerShape(24.dp), ambientColor = gradeGlow, spotColor = gradeGlow)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFF1A2235), Color(0xFF131A2C))))
+                    .drawBehind {
+                        drawRect(Brush.linearGradient(
+                            listOf(Color(0xFF1A2235), Color(0xFF131A2C)),
+                            start = androidx.compose.ui.geometry.Offset.Zero,
+                            end = androidx.compose.ui.geometry.Offset(size.width, size.height),
+                        ))
+                    }
                     .border(1.5.dp, gradeColor, RoundedCornerShape(24.dp))
                     .padding(28.dp, 24.dp),
             ) {
@@ -329,9 +339,7 @@ private fun GachaResultOverlay(
                     Box(
                         Modifier.size(80.dp).scale(bounceScale)
                             .clip(RoundedCornerShape(24.dp))
-                            .background(
-                                Brush.radialGradient(listOf(gradeGlow, Color.Transparent))
-                            ),
+                            .background(gradeGlow.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(itemEmoji, fontSize = 40.sp)
