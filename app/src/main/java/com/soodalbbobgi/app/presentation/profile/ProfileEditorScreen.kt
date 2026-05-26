@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.soodalbbobgi.app.R
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.ButtonStyle
@@ -50,30 +51,30 @@ import com.soodalbbobgi.app.domain.model.Grade
 
 private data class EditorItem(
     val name: String,
-    val icon: SoodalIcons,
+    @androidx.annotation.DrawableRes val imageRes: Int,
     val grade: Grade,
     val isSelected: Boolean = false,
 )
 
 private val demoBgItems = listOf(
-    EditorItem("오로라", SoodalIcons.Aurora, Grade.SR, true),
-    EditorItem("한밤", SoodalIcons.Moon, Grade.N),
-    EditorItem("산호초", SoodalIcons.Coral, Grade.R),
-    EditorItem("딥블루", SoodalIcons.Wave, Grade.R),
-    EditorItem("열대야", SoodalIcons.Star, Grade.N),
+    EditorItem("오로라", R.drawable.bg_maldives_beach, Grade.SR, true),
+    EditorItem("한밤", R.drawable.bg_maldives_pool, Grade.N),
+    EditorItem("산호초", R.drawable.bg_maldives_beach, Grade.R),
+    EditorItem("딥블루", R.drawable.bg_maldives_pool, Grade.R),
+    EditorItem("열대야", R.drawable.bg_maldives_beach, Grade.N),
 )
 
 private val demoCharItems = listOf(
-    EditorItem("수달이", SoodalIcons.Otter, Grade.N, true),
-    EditorItem("진주 수달", SoodalIcons.Otter, Grade.SR),
-    EditorItem("코랄 수달", SoodalIcons.Otter, Grade.R),
-    EditorItem("버블 수달", SoodalIcons.Otter, Grade.N),
+    EditorItem("수달이", R.drawable.otter_swim, Grade.N, true),
+    EditorItem("진주 수달", R.drawable.otter_maldives, Grade.SR),
+    EditorItem("코랄 수달", R.drawable.otter_indoor, Grade.R),
+    EditorItem("버블 수달", R.drawable.otter_swim, Grade.N),
 )
 
 private val demoFrameItems = listOf(
-    EditorItem("시안 라인", SoodalIcons.Frame, Grade.R, true),
-    EditorItem("버블", SoodalIcons.Frame, Grade.N),
-    EditorItem("별자리", SoodalIcons.Frame, Grade.R),
+    EditorItem("시안 라인", R.drawable.frame_pool, Grade.R, true),
+    EditorItem("버블", R.drawable.frame_palm, Grade.N),
+    EditorItem("별자리", R.drawable.frame_indoor, Grade.R),
 )
 
 private val editorTabs = listOf("배경", "캐릭터", "테두리", "텍스트")
@@ -423,7 +424,12 @@ private fun ItemGridCell(
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            SoodalIcon(icon = item.icon, tint = colors.textTertiary, size = 24.dp)
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(item.imageRes),
+                contentDescription = item.name,
+                modifier = Modifier.size(48.dp).clip(SoodalShape.sm),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            )
             Spacer(Modifier.height(2.dp))
             GradeBadge(grade = item.grade)
             Spacer(Modifier.height(2.dp))
