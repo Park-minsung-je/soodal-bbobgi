@@ -162,7 +162,7 @@ fun HomeScreen(
             Spacer(Modifier.height(spacing.s3))
 
             // ── Currency Row ────────────────────────────────────
-            GlassPanel(modifier = Modifier.fillMaxWidth()) {
+            SoodalCard(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -185,7 +185,6 @@ fun HomeScreen(
                     SoodalButton(
                         text = "뽑기 →",
                         onClick = { onNavigateToTab("gacha") },
-                        style = ButtonStyle.Secondary,
                     )
                 }
             }
