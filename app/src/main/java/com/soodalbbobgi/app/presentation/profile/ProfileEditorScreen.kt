@@ -15,12 +15,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -246,28 +245,32 @@ fun ProfileEditorScreen(
                 0 -> ItemGrid(items = demoBgItems, tabName = "배경")
                 1 -> {
                     ItemGrid(items = demoCharItems, tabName = "캐릭터")
-                    Spacer(Modifier.height(spacing.s4))
-                    // Character sliders
-                    Text(
-                        text = "캐릭터 위치 조정",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colors.textSecondary,
-                    )
+                    Spacer(Modifier.height(spacing.s3))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "캐릭터 위치 · 크기",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textPrimary,
+                        )
+                        Text(
+                            "초기화 ↺",
+                            fontSize = 11.sp,
+                            color = colors.textTertiary,
+                            modifier = Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) { charX = 35f; charY = 25f; charSize = 70f },
+                        )
+                    }
                     Spacer(Modifier.height(spacing.s2))
-                    SliderRow(label = "↔ 좌우", value = charX, range = 0f..70f, onValueChange = { charX = it })
-                    SliderRow(label = "↕ 상하", value = charY, range = 0f..50f, onValueChange = { charY = it })
-                    SliderRow(label = "◯ 크기", value = charSize, range = 30f..100f, onValueChange = { charSize = it })
-                    Spacer(Modifier.height(spacing.s2))
-                    SoodalButton(
-                        text = "초기화",
-                        onClick = {
-                            charX = 35f
-                            charY = 25f
-                            charSize = 70f
-                        },
-                        style = ButtonStyle.Ghost,
-                    )
+                    SliderRow("↔ 좌우 위치", charX, 0f..70f) { charX = it }
+                    SliderRow("↕ 상하 위치", charY, 0f..50f) { charY = it }
+                    SliderRow("⊕ 크기", charSize, 30f..100f) { charSize = it }
                 }
                 2 -> ItemGrid(items = demoFrameItems, tabName = "테두리")
                 3 -> {
@@ -444,55 +447,24 @@ private fun SliderRow(
     onValueChange: (Float) -> Unit,
 ) {
     val colors = SoodalDesign.colors
-    val spacing = SoodalDesign.spacing
-    val fraction = ((value - range.start) / (range.endInclusive - range.start)).coerceIn(0f, 1f)
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = label,
-            fontSize = 12.sp,
-            color = colors.textSecondary,
-            modifier = Modifier.width(56.dp),
+        Text(label, fontSize = 11.sp, color = colors.textSecondary, modifier = Modifier.width(80.dp))
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = range,
+            modifier = Modifier.weight(1f),
+            colors = SliderDefaults.colors(
+                thumbColor = colors.accentCyan,
+                activeTrackColor = colors.accentCyan,
+                inactiveTrackColor = colors.surface3,
+            ),
         )
-        Spacer(Modifier.width(spacing.s2))
-        // Simplified slider track
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(24.dp)
-                .clip(SoodalShape.sm)
-                .background(colors.surface2)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {},
-                ),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(fraction)
-                    .height(24.dp)
-                    .clip(SoodalShape.sm)
-                    .background(colors.accentCyan.copy(alpha = 0.3f)),
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 4.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = value.toInt().toString(),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colors.accentCyan,
-                )
-            }
-        }
+        Text("${value.toInt()}%", fontSize = 11.sp, color = colors.textTertiary, modifier = Modifier.width(36.dp))
     }
 }

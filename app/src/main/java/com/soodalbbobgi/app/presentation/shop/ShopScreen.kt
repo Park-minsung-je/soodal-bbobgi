@@ -265,7 +265,22 @@ private fun BoxGridItem(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            SoodalIcon(icon = item.icon, tint = colors.textTertiary, size = 28.dp)
+            val (boxBg, boxTint) = when (item.icon) {
+                SoodalIcons.Gift -> colors.accentGoldSoft to colors.accentGold
+                SoodalIcons.Aurora -> colors.accentCyanSoft to colors.accentCyan
+                SoodalIcons.Otter -> colors.accentGoldSoft to colors.accentGold
+                SoodalIcons.Frame -> colors.accentPurpleSoft to colors.accentPurple
+                else -> colors.surface2 to colors.textTertiary
+            }
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(SoodalShape.md)
+                    .background(boxBg),
+                contentAlignment = Alignment.Center,
+            ) {
+                SoodalIcon(icon = item.icon, tint = boxTint, size = 28.dp)
+            }
             Spacer(Modifier.height(4.dp))
             Text(
                 text = item.name,
@@ -316,14 +331,20 @@ private fun DirectItemCard(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            val (itemBg, itemTint) = when (item.grade) {
+                Grade.SSR -> colors.accentGoldSoft to colors.accentGold
+                Grade.SR -> colors.accentPurpleSoft to colors.accentPurple
+                Grade.R -> colors.accentCyanSoft to colors.accentCyan
+                else -> colors.surface2 to colors.textTertiary
+            }
             Box(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(SoodalShape.md)
-                    .background(colors.surface2),
+                    .background(itemBg),
                 contentAlignment = Alignment.Center,
             ) {
-                SoodalIcon(icon = item.icon, tint = colors.textTertiary.copy(alpha = bgAlpha), size = 24.dp)
+                SoodalIcon(icon = item.icon, tint = itemTint.copy(alpha = bgAlpha), size = 24.dp)
             }
             Spacer(Modifier.height(4.dp))
             if (item.grade != null) {

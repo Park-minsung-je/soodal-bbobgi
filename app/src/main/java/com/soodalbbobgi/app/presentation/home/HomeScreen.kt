@@ -145,6 +145,20 @@ fun HomeScreen(
                 )
             }
 
+            Text(
+                text = "전체화면 보기",
+                fontSize = 12.sp,
+                color = colors.textTertiary,
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onNavigateToProfileFullscreen,
+                    )
+                    .padding(top = 6.dp, bottom = 2.dp),
+            )
+
             Spacer(Modifier.height(spacing.s3))
 
             // ── Currency Row ────────────────────────────────────
@@ -304,20 +318,26 @@ private fun RecentItemCard(item: RecentItem) {
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.width(72.dp),
     ) {
+        val (icon, bgColor) = when (item.kind) {
+            "char" -> SoodalIcons.Otter to colors.accentGoldSoft
+            "frame" -> SoodalIcons.Frame to colors.accentCyanSoft
+            "bg" -> SoodalIcons.Aurora to colors.accentPurpleSoft
+            else -> SoodalIcons.Gift to colors.surface2
+        }
+        val iconTint = when (item.kind) {
+            "char" -> colors.accentGold
+            "frame" -> colors.accentCyan
+            "bg" -> colors.accentPurple
+            else -> colors.textTertiary
+        }
         Box(
             modifier = Modifier
                 .size(64.dp)
                 .clip(SoodalShape.md)
-                .background(colors.surface2),
+                .background(bgColor),
             contentAlignment = Alignment.Center,
         ) {
-            val icon = when (item.kind) {
-                "char" -> SoodalIcons.Otter
-                "frame" -> SoodalIcons.Frame
-                "bg" -> SoodalIcons.Aurora
-                else -> SoodalIcons.Gift
-            }
-            SoodalIcon(icon = icon, tint = colors.textTertiary, size = 28.dp)
+            SoodalIcon(icon = icon, tint = iconTint, size = 28.dp)
         }
         Spacer(Modifier.height(4.dp))
         GradeBadge(grade = item.grade)
