@@ -9,10 +9,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.math.pow
-import kotlin.math.roundToInt
 
 enum class GachaPhase { Idle, Spinning, Result }
 
@@ -56,6 +55,18 @@ class GachaViewModel @Inject constructor() : ViewModel() {
     private val _uiState = MutableStateFlow(GachaUiState())
     val uiState: StateFlow<GachaUiState> = _uiState
 
+    init {
+        viewModelScope.launch {
+            while (true) {
+                delay(16)
+                val current = _uiState.value
+                if (current.phase == GachaPhase.Idle) {
+                    _uiState.update { it.copy(offset = it.offset + 0.6f) }
+                }
+            }
+        }
+    }
+
     private val demoResults = listOf(
         GachaResultItem("진주 수달", Grade.SR, "char", true, 0),
         GachaResultItem("바다 수달", Grade.R, "char", false, 3),
@@ -78,24 +89,36 @@ class GachaViewModel @Inject constructor() : ViewModel() {
         _uiState.value = s.copy(phase = GachaPhase.Spinning, shells = s.shells - cost)
 
         viewModelScope.launch {
-            val initialOffset = s.offset
-            val targetBoxes = (24 + (0..3).random())
-            val targetOffset = initialOffset + targetBoxes * ITEM_WIDTH_WITH_GAP
-            val duration = 2400L
-            val startTime = System.currentTimeMillis()
+            val startOffset = _uiState.value.offset
+            val totalDistance = ((24 + (0..3).random()) * ITEM_WIDTH_WITH_GAP)
+            val duration = 3200L
 
+            val startTime = System.currentTimeMillis()
             while (true) {
                 val elapsed = System.currentTimeMillis() - startTime
-                val k = (elapsed.toFloat() / duration).coerceAtMost(1f)
-                val ease = 1f - (1f - k).pow(3)
-                val current = initialOffset + (targetOffset - initialOffset) * ease
-                _uiState.value = _uiState.value.copy(
-                    offset = current,
-                    focusedBoxIndex = (current / ITEM_WIDTH_WITH_GAP).roundToInt(),
-                )
-                if (k >= 1f) break
+                if (elapsed >= duration) break
+                val k = (elapsed.toFloat() / duration).coerceIn(0f, 1f)
+                // ease-in-out cubic
+                val eased = if (k < 0.5f) {
+                    4f * k * k * k
+                } else {
+                    val t = -2f * k + 2f
+                    1f - t * t * t / 2f
+                }
+                val current = startOffset + totalDistance * eased
+                _uiState.update {
+                    it.copy(
+                        offset = current,
+                        focusedBoxIndex = ((current / ITEM_WIDTH_WITH_GAP).toInt() % it.boxes.size).let { idx ->
+                            if (idx < 0) idx + it.boxes.size else idx
+                        },
+                    )
+                }
                 delay(16)
             }
+
+            // snap to final position
+            _uiState.update { it.copy(offset = startOffset + totalDistance) }
 
             delay(600)
 
@@ -104,11 +127,13 @@ class GachaViewModel @Inject constructor() : ViewModel() {
                 resultCursor++
                 r
             }
-            _uiState.value = _uiState.value.copy(
-                phase = GachaPhase.Result,
-                results = batch,
-                resultIndex = 0,
-            )
+            _uiState.update {
+                it.copy(
+                    phase = GachaPhase.Result,
+                    results = batch,
+                    resultIndex = 0,
+                )
+            }
         }
     }
 

@@ -118,7 +118,7 @@ fun GachaScreen(
                     )
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(32.dp))
 
                 // -- Roulette Track --
                 val screenWidth = LocalConfiguration.current.screenWidthDp.toFloat()
@@ -139,14 +139,6 @@ fun GachaScreen(
                         }
                     }
 
-                    // Center marker
-                    Box(
-                        Modifier.align(Alignment.TopCenter).width(2.dp)
-                            .padding(vertical = 8.dp).fillMaxHeight()
-                            .shadow(6.dp, RoundedCornerShape(2.dp), ambientColor = colors.accentCyan, spotColor = colors.accentCyan)
-                            .background(colors.accentCyan, RoundedCornerShape(2.dp))
-                    )
-
                     // Left edge fade
                     Box(
                         Modifier.align(Alignment.CenterStart).width(60.dp).fillMaxHeight()
@@ -159,7 +151,7 @@ fun GachaScreen(
                     )
                 }
 
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(32.dp))
 
                 // -- Spin Buttons (two-line) --
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
