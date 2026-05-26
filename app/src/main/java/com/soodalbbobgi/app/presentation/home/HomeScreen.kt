@@ -103,14 +103,13 @@ fun HomeScreen(
                 }
                 Row(
                     modifier = Modifier
-                        .height(36.dp)
                         .clip(SoodalShape.md)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                             onClick = onNavigateToSettings,
                         )
-                        .padding(horizontal = 12.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {

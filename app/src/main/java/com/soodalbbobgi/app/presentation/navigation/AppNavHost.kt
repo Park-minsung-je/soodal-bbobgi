@@ -1,7 +1,11 @@
 package com.soodalbbobgi.app.presentation.navigation
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -28,7 +32,11 @@ import com.soodalbbobgi.app.presentation.splash.SplashScreen
 fun AppNavHost(navController: NavHostController) {
     var shellRewardCount by remember { mutableIntStateOf(0) }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .windowInsetsPadding(WindowInsets.statusBars)
+        .windowInsetsPadding(WindowInsets.navigationBars)
+    ) {
         NavHost(navController = navController, startDestination = Screen.Splash.route) {
         composable(Screen.Splash.route) {
             SplashScreen(onDone = {
