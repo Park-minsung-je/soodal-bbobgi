@@ -1,6 +1,7 @@
 package com.soodalbbobgi.app.presentation.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +30,8 @@ import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.ButtonStyle
 import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalCard
+import com.soodalbbobgi.app.core.ui.SoodalIcon
+import com.soodalbbobgi.app.core.ui.SoodalIcons
 
 @Composable
 fun ProfileFullscreenScreen(
@@ -125,14 +128,20 @@ fun ProfileFullscreenScreen(
 
                     Spacer(Modifier.height(spacing.s3))
 
-                    Text(
-                        text = "누적 12,540m · 89회 · 38🐚",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.accentCyan,
-                        letterSpacing = 0.4.sp,
-                        textAlign = TextAlign.Center,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = "누적 12,540m · 89회 · 38",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.accentCyan,
+                            letterSpacing = 0.4.sp,
+                        )
+                        SoodalIcon(icon = SoodalIcons.Shell, tint = colors.accentGold, size = 12.dp)
+                    }
                 }
             }
         }
@@ -147,22 +156,59 @@ fun ProfileFullscreenScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                SoodalButton(
-                    text = "💾 저장",
-                    onClick = {},
-                    style = ButtonStyle.Secondary,
-                )
-                SoodalButton(
-                    text = "↗ 공유",
-                    onClick = {},
-                    style = ButtonStyle.Secondary,
-                )
+                Row(
+                    modifier = Modifier
+                        .height(44.dp)
+                        .clip(SoodalShape.md)
+                        .background(colors.glassBg, SoodalShape.md)
+                        .border(1.dp, colors.glassBorder, SoodalShape.md)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {},
+                        )
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    SoodalIcon(icon = SoodalIcons.Save, tint = colors.textPrimary, size = 14.dp)
+                    Text("저장", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                }
+                Row(
+                    modifier = Modifier
+                        .height(44.dp)
+                        .clip(SoodalShape.md)
+                        .background(colors.glassBg, SoodalShape.md)
+                        .border(1.dp, colors.glassBorder, SoodalShape.md)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {},
+                        )
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    SoodalIcon(icon = SoodalIcons.Share, tint = colors.textPrimary, size = 14.dp)
+                    Text("공유", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                }
             }
-            SoodalButton(
-                text = "← 돌아가기",
-                onClick = onBack,
-                style = ButtonStyle.Ghost,
-            )
+            Row(
+                modifier = Modifier
+                    .height(36.dp)
+                    .clip(SoodalShape.md)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onBack,
+                    )
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                SoodalIcon(icon = SoodalIcons.ArrowLeft, tint = colors.textSecondary, size = 14.dp)
+                Text("돌아가기", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
+            }
         }
     }
 }

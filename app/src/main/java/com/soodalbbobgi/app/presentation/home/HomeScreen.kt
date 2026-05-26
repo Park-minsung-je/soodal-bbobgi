@@ -43,6 +43,8 @@ import com.soodalbbobgi.app.core.ui.GradeBadge
 import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalChip
+import com.soodalbbobgi.app.core.ui.SoodalIcon
+import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.SoodalTabBar
 
 private fun Int.formatNumber(): String = String.format("%,d", this)
@@ -82,14 +84,35 @@ fun HomeScreen(
                         fontSize = 13.sp,
                         color = colors.textSecondary,
                     )
-                    Text(
-                        text = "${state.nickname} 🦦",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = colors.textPrimary,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = state.nickname,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = colors.textPrimary,
+                        )
+                        SoodalIcon(icon = SoodalIcons.Otter, size = 20.dp)
+                    }
                 }
-                SoodalButton("⚙️ 설정", onClick = onNavigateToSettings, style = ButtonStyle.Ghost)
+                Row(
+                    modifier = Modifier
+                        .height(36.dp)
+                        .clip(SoodalShape.md)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onNavigateToSettings,
+                        )
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    SoodalIcon(icon = SoodalIcons.Settings, tint = colors.textSecondary, size = 18.dp)
+                    Text("설정", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
+                }
             }
 
             Spacer(Modifier.height(spacing.s4))
@@ -152,12 +175,12 @@ fun HomeScreen(
                         SoodalChip(
                             text = state.shells.formatNumber(),
                             color = ChipColor.Gold,
-                            icon = "🐚",
+                            iconType = SoodalIcons.Shell,
                         )
                         SoodalChip(
                             text = state.pearls.formatNumber(),
                             color = ChipColor.Purple,
-                            icon = "🔮",
+                            iconType = SoodalIcons.Pearl,
                         )
                     }
                     SoodalButton(
@@ -189,7 +212,11 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
                     ) {
-                        Text(text = if (state.syncing) "🔄" else "⚠️", fontSize = 18.sp)
+                        SoodalIcon(
+                            icon = if (state.syncing) SoodalIcons.Sync else SoodalIcons.Warn,
+                            tint = colors.warn,
+                            size = 18.dp,
+                        )
                         Text(
                             text = if (state.syncing) "동기화 중이에요…"
                             else "오늘 수영 기록이 없어요. Health Connect를 동기화해보세요.",

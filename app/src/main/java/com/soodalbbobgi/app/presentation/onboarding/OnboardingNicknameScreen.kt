@@ -1,12 +1,15 @@
 package com.soodalbbobgi.app.presentation.onboarding
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.ui.SoodalButton
+import com.soodalbbobgi.app.core.ui.SoodalIcon
+import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.SoodalTextField
 
 @Composable
@@ -34,7 +39,7 @@ fun OnboardingNicknameScreen(onNext: (String) -> Unit) {
         Text("STEP 1 / 2", fontSize = 11.sp, fontWeight = FontWeight.Bold,
             color = colors.accentCyan, letterSpacing = 1.5.sp)
         Spacer(Modifier.height(16.dp))
-        Text("반가워요!\n닉네임을 알려주세요 🦦", style = SoodalDesign.typography.xl, color = colors.textPrimary)
+        Text("반가워요!\n닉네임을 알려주세요", style = SoodalDesign.typography.xl, color = colors.textPrimary)
         Text("닉네임은 프로필 카드와 뽑기 기록에 표시됩니다.", fontSize = 14.sp,
             color = colors.textSecondary, modifier = Modifier.padding(top = 12.dp))
         Spacer(Modifier.height(48.dp))

@@ -50,6 +50,8 @@ import com.soodalbbobgi.app.core.ui.GlassPanel
 import com.soodalbbobgi.app.core.ui.GradeBadge
 import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalChip
+import com.soodalbbobgi.app.core.ui.SoodalIcon
+import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.SoodalTabBar
 import com.soodalbbobgi.app.domain.model.Grade
 import kotlin.math.roundToInt
@@ -73,8 +75,14 @@ fun GachaScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("🎰 뽑기", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
-                    SoodalChip(state.shells.toString(), color = ChipColor.Gold, icon = "🐚")
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        SoodalIcon(icon = SoodalIcons.Gacha, size = 22.dp)
+                        Text("뽑기", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+                    }
+                    SoodalChip(state.shells.toString(), color = ChipColor.Gold, iconType = SoodalIcons.Shell)
                 }
 
                 Spacer(Modifier.height(20.dp))
@@ -97,11 +105,18 @@ fun GachaScreen(
                 Spacer(Modifier.height(16.dp))
 
                 // -- Label --
-                Text(
-                    "🎰 어떤 상자가 나올까?",
-                    fontSize = 13.sp, color = colors.textSecondary,
-                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SoodalIcon(icon = SoodalIcons.Gacha, tint = colors.textSecondary, size = 14.dp)
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        "어떤 상자가 나올까?",
+                        fontSize = 13.sp, color = colors.textSecondary,
+                    )
+                }
 
                 Spacer(Modifier.height(16.dp))
 
@@ -149,14 +164,14 @@ fun GachaScreen(
                 // -- Spin Buttons (two-line) --
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     SpinButton(
-                        topText = "단발 뽑기", bottomText = "🐚 1개",
+                        topText = "단발 뽑기", bottomText = "1개", shellIcon = true,
                         bgColors = listOf(Color(0xFFFFC845), Color(0xFFF09000)), textColor = colors.btnGoldText, glowColor = colors.glowGold,
                         enabled = state.phase == GachaPhase.Idle && state.shells >= 1,
                         onClick = { viewModel.spin(1) },
                         modifier = Modifier.weight(1f),
                     )
                     SpinButton(
-                        topText = "10연 뽑기", bottomText = "🐚 9개",
+                        topText = "10연 뽑기", bottomText = "9개", shellIcon = true,
                         bgColors = listOf(Color(0xFFB57BFF), Color(0xFF6E3BD8)), textColor = colors.btnPurpleText, glowColor = colors.glowPurple,
                         enabled = state.phase == GachaPhase.Idle && state.shells >= 9,
                         onClick = { viewModel.spin(10) },
@@ -215,7 +230,7 @@ private fun GachaBoxCard(box: BoxInfo, focused: Boolean) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(box.emoji, fontSize = 32.sp)
+        SoodalIcon(icon = box.icon, tint = box.color, size = 32.dp)
         Spacer(Modifier.height(8.dp))
         Text(box.label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = box.color, letterSpacing = (-0.05).sp)
     }
@@ -226,6 +241,7 @@ private fun SpinButton(
     topText: String, bottomText: String,
     bgColors: List<Color>, textColor: Color, glowColor: Color,
     enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier,
+    shellIcon: Boolean = false,
 ) {
     val shape = SoodalShape.md
     Column(
@@ -242,7 +258,12 @@ private fun SpinButton(
         verticalArrangement = Arrangement.Center,
     ) {
         Text(topText, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = if (enabled) textColor else textColor.copy(alpha = 0.4f))
-        Text(bottomText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (enabled) textColor.copy(alpha = 0.7f) else textColor.copy(alpha = 0.3f))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            if (shellIcon) {
+                SoodalIcon(icon = SoodalIcons.Shell, tint = if (enabled) textColor.copy(alpha = 0.7f) else textColor.copy(alpha = 0.3f), size = 11.dp)
+            }
+            Text(bottomText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (enabled) textColor.copy(alpha = 0.7f) else textColor.copy(alpha = 0.3f))
+        }
     }
 }
 
@@ -326,7 +347,7 @@ private fun GachaResultOverlay(
                     }
 
                     // Box chip
-                    SoodalChip("📦 $boxLabel 선택됨", color = ChipColor.Cyan)
+                    SoodalChip("$boxLabel 선택됨", color = ChipColor.Cyan, iconType = SoodalIcons.Box)
 
                     Spacer(Modifier.height(16.dp))
 
@@ -359,10 +380,11 @@ private fun GachaResultOverlay(
                             fontSize = 13.sp, fontWeight = FontWeight.Bold, color = gradeColor,
                         )
                     } else {
-                        Text(
-                            "이미 보유 → 🔮 진주 ${item.pearlsEarned}개로 교환!",
-                            fontSize = 13.sp, color = colors.textSecondary,
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("이미 보유 →", fontSize = 13.sp, color = colors.textSecondary)
+                            SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 14.dp)
+                            Text("진주 ${item.pearlsEarned}개로 교환!", fontSize = 13.sp, color = colors.textSecondary)
+                        }
                     }
 
                     Spacer(Modifier.height(24.dp))
@@ -384,7 +406,7 @@ private fun GachaResultOverlay(
             // Skip button (not last)
             if (!isLast && state.results.size > 1) {
                 Spacer(Modifier.height(14.dp))
-                SoodalButton("전체 결과 보기 ⏭", onClick = onSkipToLast, style = ButtonStyle.Ghost)
+                SoodalButton("전체 결과 보기", onClick = onSkipToLast, style = ButtonStyle.Ghost)
             }
         }
     }

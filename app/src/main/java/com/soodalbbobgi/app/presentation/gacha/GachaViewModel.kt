@@ -3,6 +3,7 @@ package com.soodalbbobgi.app.presentation.gacha
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.domain.model.Grade
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -17,7 +18,7 @@ enum class GachaPhase { Idle, Spinning, Result }
 
 data class BoxInfo(
     val id: String,
-    val emoji: String,
+    val icon: SoodalIcons,
     val label: String,
     val color: Color,
 )
@@ -42,10 +43,10 @@ data class GachaUiState(
 )
 
 val GACHA_BOXES = listOf(
-    BoxInfo("char", "📦", "캐릭터 상자", Color(0xFFFFD60A)),
-    BoxInfo("bg", "🌊", "배경 상자", Color(0xFF00F5FF)),
-    BoxInfo("frame", "🖼️", "테두리 상자", Color(0xFFBF5AF2)),
-    BoxInfo("mystery", "🎁", "랜덤 상자", Color(0xFFE0B0FF)),
+    BoxInfo("char", SoodalIcons.Box, "캐릭터 상자", Color(0xFFFFD60A)),
+    BoxInfo("bg", SoodalIcons.Wave, "배경 상자", Color(0xFF00F5FF)),
+    BoxInfo("frame", SoodalIcons.Frame, "테두리 상자", Color(0xFFBF5AF2)),
+    BoxInfo("mystery", SoodalIcons.Gift, "랜덤 상자", Color(0xFFE0B0FF)),
 )
 
 const val ITEM_WIDTH_WITH_GAP = 132f

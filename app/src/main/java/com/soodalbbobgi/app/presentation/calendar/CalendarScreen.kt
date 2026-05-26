@@ -37,6 +37,8 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.GlassPanel
 import com.soodalbbobgi.app.core.ui.SoodalCard
+import com.soodalbbobgi.app.core.ui.SoodalIcon
+import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.SoodalTabBar
 import java.time.DayOfWeek
 import java.time.YearMonth
@@ -67,13 +69,13 @@ fun CalendarScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                MonthNavButton(text = "◀", onClick = { viewModel.previousMonth() })
+                MonthNavButton(icon = SoodalIcons.ArrowLeft, onClick = { viewModel.previousMonth() })
                 Text(
                     text = "${state.year}년 ${state.month}월",
                     style = SoodalDesign.typography.lg,
                     color = colors.textPrimary,
                 )
-                MonthNavButton(text = "▶", onClick = { viewModel.nextMonth() })
+                MonthNavButton(icon = SoodalIcons.ArrowRight, onClick = { viewModel.nextMonth() })
             }
 
             Spacer(Modifier.height(spacing.s4))
@@ -157,7 +159,7 @@ fun CalendarScreen(
 }
 
 @Composable
-private fun MonthNavButton(text: String, onClick: () -> Unit) {
+private fun MonthNavButton(icon: SoodalIcons, onClick: () -> Unit) {
     val colors = SoodalDesign.colors
     Box(
         modifier = Modifier
@@ -171,7 +173,7 @@ private fun MonthNavButton(text: String, onClick: () -> Unit) {
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = text, fontSize = 14.sp, color = colors.textPrimary)
+        SoodalIcon(icon = icon, tint = colors.textPrimary, size = 14.dp)
     }
 }
 
@@ -311,9 +313,9 @@ private fun DayDetailCard(day: Int, data: SwimDayData) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                MetricItem(icon = "🏊", label = "거리", value = "${data.distanceM}m")
-                MetricItem(icon = "⏱️", label = "시간", value = "${data.durationMin}분")
-                MetricItem(icon = "🔥", label = "칼로리", value = "${data.kcal}kcal")
+                MetricItem(icon = SoodalIcons.Swimmer, label = "거리", value = "${data.distanceM}m")
+                MetricItem(icon = SoodalIcons.Ruler, label = "시간", value = "${data.durationMin}분")
+                MetricItem(icon = SoodalIcons.Sparkle, label = "칼로리", value = "${data.kcal}kcal")
             }
 
             Spacer(Modifier.height(spacing.s3))
@@ -362,7 +364,7 @@ private fun DayDetailCard(day: Int, data: SwimDayData) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(text = "🐚", fontSize = 14.sp)
+                SoodalIcon(icon = SoodalIcons.Shell, tint = colors.accentGold, size = 14.dp)
                 Text(
                     text = "조개 ${data.shellReward}개 획득",
                     fontSize = 12.sp,
@@ -375,10 +377,10 @@ private fun DayDetailCard(day: Int, data: SwimDayData) {
 }
 
 @Composable
-private fun MetricItem(icon: String, label: String, value: String) {
+private fun MetricItem(icon: SoodalIcons, label: String, value: String) {
     val colors = SoodalDesign.colors
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = icon, fontSize = 18.sp)
+        SoodalIcon(icon = icon, tint = colors.accentCyan, size = 18.dp)
         Spacer(Modifier.height(2.dp))
         Text(
             text = value,
@@ -414,10 +416,10 @@ private fun MonthSummaryCard(swimData: Map<Int, SwimDayData>) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                SummaryItem(icon = "📅", label = "수영 일수", value = "${swimDays}일")
-                SummaryItem(icon = "🐚", label = "획득 조개", value = "${totalShells}개")
+                SummaryItem(icon = SoodalIcons.Calendar, label = "수영 일수", value = "${swimDays}일")
+                SummaryItem(icon = SoodalIcons.Shell, label = "획득 조개", value = "${totalShells}개")
                 SummaryItem(
-                    icon = "🏊",
+                    icon = SoodalIcons.Swimmer,
                     label = "총 거리",
                     value = String.format("%.1fkm", totalDistanceKm),
                 )
@@ -427,10 +429,10 @@ private fun MonthSummaryCard(swimData: Map<Int, SwimDayData>) {
 }
 
 @Composable
-private fun SummaryItem(icon: String, label: String, value: String) {
+private fun SummaryItem(icon: SoodalIcons, label: String, value: String) {
     val colors = SoodalDesign.colors
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = icon, fontSize = 20.sp)
+        SoodalIcon(icon = icon, tint = colors.accentCyan, size = 20.dp)
         Spacer(Modifier.height(4.dp))
         Text(
             text = value,

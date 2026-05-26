@@ -21,6 +21,8 @@ import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.ChipColor
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalChip
+import com.soodalbbobgi.app.core.ui.SoodalIcon
+import com.soodalbbobgi.app.core.ui.SoodalIcons
 
 @Composable
 fun OnboardingPermissionScreen(onConnect: () -> Unit, onSkip: () -> Unit) {
@@ -44,7 +46,7 @@ fun OnboardingPermissionScreen(onConnect: () -> Unit, onSkip: () -> Unit) {
                     horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(14.dp),
                     verticalAlignment = Alignment.Top,
                 ) {
-                    Text("❤️‍🔥", fontSize = 26.sp)
+                    SoodalIcon(icon = SoodalIcons.Heart, tint = colors.warn, size = 26.dp)
                     Column(Modifier.weight(1f)) {
                         androidx.compose.foundation.layout.Row(
                             horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
@@ -66,7 +68,7 @@ fun OnboardingPermissionScreen(onConnect: () -> Unit, onSkip: () -> Unit) {
                     horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(14.dp),
                     verticalAlignment = Alignment.Top,
                 ) {
-                    Text("📷", fontSize = 26.sp)
+                    SoodalIcon(icon = SoodalIcons.Camera, tint = colors.textTertiary, size = 26.dp)
                     Column(Modifier.weight(1f)) {
                         Text("카메라 (선택)", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                         Spacer(Modifier.height(4.dp))

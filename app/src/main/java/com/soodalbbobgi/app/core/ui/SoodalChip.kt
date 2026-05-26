@@ -23,7 +23,7 @@ fun SoodalChip(
     text: String,
     modifier: Modifier = Modifier,
     color: ChipColor = ChipColor.Cyan,
-    icon: String? = null,
+    iconType: SoodalIcons? = null,
 ) {
     val colors = SoodalDesign.colors
     val (bg, border, fg) = when (color) {
@@ -40,8 +40,8 @@ fun SoodalChip(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (icon != null) {
-            Text(text = icon, fontSize = 14.sp)
+        if (iconType != null) {
+            SoodalIcon(icon = iconType, tint = fg, size = 14.dp)
         }
         Text(text = text, color = fg, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }

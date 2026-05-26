@@ -39,6 +39,8 @@ import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.ButtonStyle
 import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalCard
+import com.soodalbbobgi.app.core.ui.SoodalIcon
+import com.soodalbbobgi.app.core.ui.SoodalIcons
 
 @Composable
 fun SettingsScreen(
@@ -67,8 +69,29 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                SoodalButton("← 돌아가기", onClick = onBack, style = ButtonStyle.Ghost)
-                Text("⚙️ 설정", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+                Row(
+                    modifier = Modifier
+                        .height(36.dp)
+                        .clip(SoodalShape.md)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onBack,
+                        )
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    SoodalIcon(icon = SoodalIcons.ArrowLeft, tint = colors.textSecondary, size = 14.dp)
+                    Text("돌아가기", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    SoodalIcon(icon = SoodalIcons.Settings, tint = colors.textPrimary, size = 18.dp)
+                    Text("설정", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+                }
                 Spacer(Modifier.width(80.dp))
             }
 
@@ -194,13 +217,15 @@ fun SettingsScreen(
             Spacer(Modifier.height(spacing.s6))
 
             // -- Footer --
-            Text(
-                text = "Made with 🦦 · 수달 뽑기 v1.0.0",
-                fontSize = 11.sp,
-                color = colors.textTertiary,
-                textAlign = TextAlign.Center,
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-            )
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Made with ", fontSize = 11.sp, color = colors.textTertiary)
+                SoodalIcon(icon = SoodalIcons.Otter, size = 12.dp)
+                Text(" · 수달 뽑기 v1.0.0", fontSize = 11.sp, color = colors.textTertiary)
+            }
 
             Spacer(Modifier.height(spacing.s4))
         }
@@ -248,11 +273,7 @@ private fun SettingsRow(
         if (trailingContent != null) {
             trailingContent()
         } else if (trailing != null) {
-            Text(
-                text = trailing,
-                fontSize = 14.sp,
-                color = colors.textTertiary,
-            )
+            SoodalIcon(icon = SoodalIcons.ArrowRight, tint = colors.textTertiary, size = 14.dp)
         }
     }
 }

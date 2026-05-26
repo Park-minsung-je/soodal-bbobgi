@@ -44,6 +44,8 @@ import com.soodalbbobgi.app.core.ui.ButtonStyle
 import com.soodalbbobgi.app.core.ui.GradeBadge
 import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalCard
+import com.soodalbbobgi.app.core.ui.SoodalIcon
+import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.SoodalTabBar
 import com.soodalbbobgi.app.core.ui.SoodalTextField
 import com.soodalbbobgi.app.domain.model.Grade
@@ -134,19 +136,36 @@ fun ProfileEditorScreen(
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(text = "←", fontSize = 16.sp, color = colors.textPrimary)
+                        SoodalIcon(icon = SoodalIcons.ArrowLeft, tint = colors.textPrimary, size = 16.dp)
                     }
-                    Text(
-                        text = "🦦 프로필 편집",
-                        style = SoodalDesign.typography.lg,
-                        color = colors.textPrimary,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        SoodalIcon(icon = SoodalIcons.Otter, size = 20.dp)
+                        Text(
+                            text = "프로필 편집",
+                            style = SoodalDesign.typography.lg,
+                            color = colors.textPrimary,
+                        )
+                    }
                 }
-                SoodalButton(
-                    text = "미리보기 ↗",
-                    onClick = onPreview,
-                    style = ButtonStyle.Ghost,
-                )
+                Row(
+                    modifier = Modifier
+                        .height(36.dp)
+                        .clip(SoodalShape.md)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onPreview,
+                        )
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text("미리보기", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
+                    SoodalIcon(icon = SoodalIcons.Share, tint = colors.textSecondary, size = 14.dp)
+                }
             }
 
             Spacer(Modifier.height(spacing.s4))
@@ -330,7 +349,7 @@ fun ProfileEditorScreen(
                     modifier = Modifier.weight(1f),
                 )
                 SoodalButton(
-                    text = "💾 저장 & 적용",
+                    text = "저장 & 적용",
                     onClick = {},
                     style = ButtonStyle.Primary,
                     modifier = Modifier.weight(1f),
@@ -413,10 +432,7 @@ private fun ItemGridCell(
                     color = Color.Unspecified.copy(alpha = if (item.isOwned) 1f else 0.4f),
                 )
                 if (!item.isOwned) {
-                    Text(
-                        text = "🔒",
-                        fontSize = 16.sp,
-                    )
+                    SoodalIcon(icon = SoodalIcons.Lock, tint = colors.textTertiary, size = 16.dp)
                 }
             }
             Spacer(Modifier.height(2.dp))

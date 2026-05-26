@@ -40,6 +40,8 @@ import com.soodalbbobgi.app.core.ui.GradeBadge
 import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalChip
+import com.soodalbbobgi.app.core.ui.SoodalIcon
+import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.SoodalTabBar
 import com.soodalbbobgi.app.domain.model.Grade
 
@@ -70,15 +72,21 @@ fun ShopScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = "🛒 상점",
-                        style = SoodalDesign.typography.lg,
-                        color = colors.textPrimary,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        SoodalIcon(icon = SoodalIcons.Shop, size = 22.dp)
+                        Text(
+                            text = "상점",
+                            style = SoodalDesign.typography.lg,
+                            color = colors.textPrimary,
+                        )
+                    }
                     SoodalChip(
                         text = state.pearls.toString(),
                         color = ChipColor.Purple,
-                        icon = "🔮",
+                        iconType = SoodalIcons.Pearl,
                     )
                 }
 
@@ -134,7 +142,7 @@ fun ShopScreen(
                             )
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = "🔮", fontSize = 18.sp)
+                            SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 18.dp)
                             Text(
                                 text = "${state.featured.price}",
                                 fontSize = 15.sp,
@@ -148,11 +156,17 @@ fun ShopScreen(
                 Spacer(Modifier.height(spacing.s5))
 
                 // -- Boxes Section --
-                Text(
-                    text = "📦 상자",
-                    style = SoodalDesign.typography.md,
-                    color = colors.textPrimary,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    SoodalIcon(icon = SoodalIcons.Box, size = 18.dp)
+                    Text(
+                        text = "상자",
+                        style = SoodalDesign.typography.md,
+                        color = colors.textPrimary,
+                    )
+                }
                 Spacer(Modifier.height(spacing.s3))
 
                 // 2x2 grid
@@ -178,11 +192,17 @@ fun ShopScreen(
                 Spacer(Modifier.height(spacing.s5))
 
                 // -- Direct Items Section --
-                Text(
-                    text = "🎁 아이템 직접 구매",
-                    style = SoodalDesign.typography.md,
-                    color = colors.textPrimary,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    SoodalIcon(icon = SoodalIcons.Gift, size = 18.dp)
+                    Text(
+                        text = "아이템 직접 구매",
+                        style = SoodalDesign.typography.md,
+                        color = colors.textPrimary,
+                    )
+                }
                 Spacer(Modifier.height(spacing.s3))
 
                 // 2-column grid
@@ -261,12 +281,15 @@ private fun BoxGridItem(
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(4.dp))
-            Text(
-                text = "💎 ${item.price}",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = colors.accentPurple,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                SoodalIcon(icon = SoodalIcons.Diamond, tint = colors.accentPurple, size = 12.dp)
+                Text(
+                    text = "${item.price}",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.accentPurple,
+                )
+            }
         }
     }
 }
@@ -328,12 +351,15 @@ private fun DirectItemCard(
                     color = colors.success,
                 )
             } else {
-                Text(
-                    text = "💎 ${item.price}",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colors.accentPurple,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    SoodalIcon(icon = SoodalIcons.Diamond, tint = colors.accentPurple, size = 11.dp)
+                    Text(
+                        text = "${item.price}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.accentPurple,
+                    )
+                }
             }
         }
     }
@@ -403,12 +429,18 @@ private fun PurchaseConfirmOverlay(
 
                 Spacer(Modifier.height(spacing.s2))
 
-                Text(
-                    text = "💎 ${item.price} 진주",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.accentPurple,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    SoodalIcon(icon = SoodalIcons.Diamond, tint = colors.accentPurple, size = 16.dp)
+                    Text(
+                        text = "${item.price} 진주",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.accentPurple,
+                    )
+                }
 
                 if (!canAfford) {
                     Spacer(Modifier.height(spacing.s2))
