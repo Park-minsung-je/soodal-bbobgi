@@ -19,10 +19,15 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
     @Inject lateinit var themePreferences: ThemePreferences
 
+    @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
         WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = true
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars = true
         setContent {
             val theme by themePreferences.themeFlow.collectAsState(initial = SoodalThemeType.Light)
             val navController = rememberNavController()
