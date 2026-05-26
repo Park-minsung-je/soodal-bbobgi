@@ -78,7 +78,7 @@ fun ShopScreen(
                     SoodalChip(
                         text = state.pearls.toString(),
                         color = ChipColor.Purple,
-                        icon = "💎",
+                        icon = "🔮",
                     )
                 }
 
@@ -134,7 +134,7 @@ fun ShopScreen(
                             )
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = "💎", fontSize = 18.sp)
+                            Text(text = "🔮", fontSize = 18.sp)
                             Text(
                                 text = "${state.featured.price}",
                                 fontSize = 15.sp,

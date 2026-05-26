@@ -26,6 +26,9 @@ import com.soodalbbobgi.app.core.ui.SoodalTextField
 fun OnboardingNicknameScreen(onNext: (String) -> Unit) {
     val colors = SoodalDesign.colors
     var nickname by remember { mutableStateOf("") }
+    val validPattern = Regex("^[a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ]*$")
+    val valid = nickname.isNotBlank() && validPattern.matches(nickname)
+    val hasSpecialChar = nickname.isNotEmpty() && !validPattern.matches(nickname)
 
     Column(Modifier.fillMaxSize().background(colors.bgDeep).padding(24.dp)) {
         Text("STEP 1 / 2", fontSize = 11.sp, fontWeight = FontWeight.Bold,
@@ -39,10 +42,14 @@ fun OnboardingNicknameScreen(onNext: (String) -> Unit) {
         Spacer(Modifier.height(36.dp))
         SoodalTextField(nickname, { nickname = it }, placeholder = "닉네임 입력 (최대 10자)",
             maxLength = 10, modifier = Modifier.fillMaxWidth())
+        if (hasSpecialChar) {
+            Text("특수문자는 사용할 수 없어요.", fontSize = 12.sp, color = colors.warn,
+                modifier = Modifier.padding(top = 10.dp))
+        }
         Text("${nickname.length}/10", fontSize = 11.sp, color = colors.textTertiary,
             modifier = Modifier.align(Alignment.End).padding(top = 6.dp))
         Spacer(Modifier.weight(1f))
         SoodalButton("다음 →", onClick = { onNext(nickname) },
-            enabled = nickname.isNotBlank(), modifier = Modifier.fillMaxWidth())
+            enabled = valid, modifier = Modifier.fillMaxWidth())
     }
 }
