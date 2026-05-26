@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
+import com.soodalbbobgi.app.core.ui.ButtonStyle
+import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalCard
 
 @Composable
@@ -61,28 +63,13 @@ fun SettingsScreen(
         ) {
             // -- Header --
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(colors.surface2)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onBack,
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(text = "←", fontSize = 16.sp, color = colors.textPrimary)
-                }
-                Text(
-                    text = "⚙️ 설정",
-                    style = SoodalDesign.typography.lg,
-                    color = colors.textPrimary,
-                )
+                SoodalButton("← 돌아가기", onClick = onBack, style = ButtonStyle.Ghost)
+                Text("⚙️ 설정", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+                Spacer(Modifier.width(80.dp))
             }
 
             Spacer(Modifier.height(spacing.s5))

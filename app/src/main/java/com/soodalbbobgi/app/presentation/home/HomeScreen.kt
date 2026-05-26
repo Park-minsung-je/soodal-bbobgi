@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -88,20 +89,7 @@ fun HomeScreen(
                         color = colors.textPrimary,
                     )
                 }
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(colors.surface2)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onNavigateToSettings,
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(text = "⚙️", fontSize = 16.sp)
-                }
+                SoodalButton("⚙️ 설정", onClick = onNavigateToSettings, style = ButtonStyle.Ghost)
             }
 
             Spacer(Modifier.height(spacing.s4))
@@ -169,13 +157,13 @@ fun HomeScreen(
                         SoodalChip(
                             text = state.pearls.formatNumber(),
                             color = ChipColor.Purple,
-                            icon = "💎",
+                            icon = "🔮",
                         )
                     }
                     SoodalButton(
-                        text = "뽑기",
+                        text = "뽑기 →",
                         onClick = { onNavigateToTab("gacha") },
-                        style = ButtonStyle.Primary,
+                        style = ButtonStyle.Secondary,
                     )
                 }
             }
@@ -201,27 +189,16 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
                     ) {
-                        Text(text = "⚠️", fontSize = 16.sp)
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "오늘 수영 기록이 없어요",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = colors.warn,
-                            )
-                            Text(
-                                text = "탭하여 Health Connect에서 동기화",
-                                fontSize = 11.sp,
-                                color = colors.warn.copy(alpha = 0.7f),
-                            )
-                        }
-                        if (state.syncing) {
-                            Text(
-                                text = "동기화 중…",
-                                fontSize = 11.sp,
-                                color = colors.textTertiary,
-                            )
-                        }
+                        Text(text = if (state.syncing) "🔄" else "⚠️", fontSize = 18.sp)
+                        Text(
+                            text = if (state.syncing) "동기화 중이에요…"
+                            else "오늘 수영 기록이 없어요. Health Connect를 동기화해보세요.",
+                            fontSize = 13.sp,
+                            color = colors.warn.copy(alpha = 0.8f),
+                            modifier = Modifier.weight(1f),
+                            lineHeight = 18.sp,
+                        )
+                        Text("동기화", fontSize = 12.sp, color = colors.warn, fontWeight = FontWeight.Bold)
                     }
                 }
                 Spacer(Modifier.height(spacing.s3))
@@ -229,43 +206,37 @@ fun HomeScreen(
 
             // ── Month Stats ─────────────────────────────────────
             Text(
-                text = "이번 달 기록",
-                style = SoodalDesign.typography.md,
-                color = colors.textPrimary,
+                text = "이번 달 수영",
+                fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                color = colors.textSecondary, letterSpacing = 0.6.sp,
             )
             Spacer(Modifier.height(spacing.s2))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing.s2),
             ) {
-                StatCard(
-                    modifier = Modifier.weight(1f),
-                    icon = "🏊",
-                    label = "거리",
-                    value = "${(state.totalDistance / 1000f).let { String.format("%.1f", it) }}km",
-                )
-                StatCard(
-                    modifier = Modifier.weight(1f),
-                    icon = "📅",
-                    label = "수영 횟수",
-                    value = "${state.swimSessions}회",
-                )
-                StatCard(
-                    modifier = Modifier.weight(1f),
-                    icon = "🔥",
-                    label = "소모 칼로리",
-                    value = "${state.totalKcal.formatNumber()}kcal",
-                )
+                StatCard(modifier = Modifier.weight(1f), label = "누적거리",
+                    value = state.totalDistance.formatNumber(), unit = "m",
+                    valueColor = colors.accentCyan,
+                    onClick = { onNavigateToTab("calendar") })
+                StatCard(modifier = Modifier.weight(1f), label = "수영 횟수",
+                    value = "${state.swimSessions}", unit = "회",
+                    valueColor = colors.textPrimary,
+                    onClick = { onNavigateToTab("calendar") })
+                StatCard(modifier = Modifier.weight(1f), label = "칼로리",
+                    value = state.totalKcal.formatNumber(), unit = "kcal",
+                    valueColor = colors.success,
+                    onClick = { onNavigateToTab("calendar") })
             }
 
             Spacer(Modifier.height(spacing.s5))
 
             // ── Recent Items ────────────────────────────────────
-            Text(
-                text = "최근 획득 아이템",
-                style = SoodalDesign.typography.md,
-                color = colors.textPrimary,
-            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("최근 획득 아이템", fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                    color = colors.textSecondary, letterSpacing = 0.6.sp)
+                Text("최근 7일", fontSize = 11.sp, color = colors.textTertiary)
+            }
             Spacer(Modifier.height(spacing.s2))
             Row(
                 modifier = Modifier
@@ -288,32 +259,27 @@ fun HomeScreen(
 
 @Composable
 private fun StatCard(
-    icon: String,
     label: String,
     value: String,
+    unit: String,
+    valueColor: Color,
     modifier: Modifier = Modifier,
+    onClick: () -> Unit = {},
 ) {
     val colors = SoodalDesign.colors
-    SoodalCard(modifier = modifier) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(text = icon, fontSize = 22.sp)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = value,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = colors.accentCyan,
-                textAlign = TextAlign.Center,
-            )
-            Text(
-                text = label,
-                fontSize = 11.sp,
-                color = colors.textTertiary,
-                textAlign = TextAlign.Center,
-            )
+    SoodalCard(modifier = modifier.clickable(
+        interactionSource = remember { MutableInteractionSource() },
+        indication = null, onClick = onClick,
+    )) {
+        Column {
+            Text(label, fontSize = 10.sp, color = colors.textSecondary,
+                fontWeight = FontWeight.SemiBold, letterSpacing = 0.4.sp)
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = valueColor)
+                Spacer(Modifier.width(3.dp))
+                Text(unit, fontSize = 10.sp, color = colors.textSecondary)
+            }
         }
     }
 }
