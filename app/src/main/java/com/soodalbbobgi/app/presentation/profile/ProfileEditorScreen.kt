@@ -54,36 +54,28 @@ private data class EditorItem(
     val name: String,
     val emoji: String,
     val grade: Grade,
-    val isOwned: Boolean,
     val isSelected: Boolean = false,
 )
 
 private val demoBgItems = listOf(
-    EditorItem("오로라", "🌅", Grade.SR, true, true),
-    EditorItem("한밤", "🌙", Grade.N, true),
-    EditorItem("산호초", "🪸", Grade.R, true),
-    EditorItem("딥블루", "🌊", Grade.R, true),
-    EditorItem("노을", "🌇", Grade.SR, false),
-    EditorItem("별빛", "⭐", Grade.SSR, false),
-    EditorItem("극지방", "🧊", Grade.R, false),
-    EditorItem("열대야", "🌴", Grade.N, true),
+    EditorItem("오로라", "🌅", Grade.SR, true),
+    EditorItem("한밤", "🌙", Grade.N),
+    EditorItem("산호초", "🪸", Grade.R),
+    EditorItem("딥블루", "🌊", Grade.R),
+    EditorItem("열대야", "🌴", Grade.N),
 )
 
 private val demoCharItems = listOf(
-    EditorItem("수달이", "🦦", Grade.N, true, true),
-    EditorItem("진주 수달", "🦦", Grade.SR, true),
-    EditorItem("코랄 수달", "🦦", Grade.R, true),
-    EditorItem("황금 수달", "🦦", Grade.SSR, false),
-    EditorItem("바다 수달", "🦦", Grade.R, false),
-    EditorItem("버블 수달", "🦦", Grade.N, true),
+    EditorItem("수달이", "🦦", Grade.N, true),
+    EditorItem("진주 수달", "🦦", Grade.SR),
+    EditorItem("코랄 수달", "🦦", Grade.R),
+    EditorItem("버블 수달", "🦦", Grade.N),
 )
 
 private val demoFrameItems = listOf(
-    EditorItem("시안 라인", "🖼️", Grade.R, true, true),
-    EditorItem("골드 라인", "🖼️", Grade.SR, false),
-    EditorItem("레인보우", "🖼️", Grade.SSR, false),
-    EditorItem("버블", "🖼️", Grade.N, true),
-    EditorItem("별자리", "🖼️", Grade.R, true),
+    EditorItem("시안 라인", "🖼️", Grade.R, true),
+    EditorItem("버블", "🖼️", Grade.N),
+    EditorItem("별자리", "🖼️", Grade.R),
 )
 
 private val editorTabs = listOf("배경", "캐릭터", "테두리", "텍스트")
@@ -262,9 +254,9 @@ fun ProfileEditorScreen(
 
             // -- Tab Content --
             when (activeTab) {
-                0 -> ItemGrid(items = demoBgItems)
+                0 -> ItemGrid(items = demoBgItems, tabName = "배경")
                 1 -> {
-                    ItemGrid(items = demoCharItems)
+                    ItemGrid(items = demoCharItems, tabName = "캐릭터")
                     Spacer(Modifier.height(spacing.s4))
                     // Character sliders
                     Text(
@@ -288,7 +280,7 @@ fun ProfileEditorScreen(
                         style = ButtonStyle.Ghost,
                     )
                 }
-                2 -> ItemGrid(items = demoFrameItems)
+                2 -> ItemGrid(items = demoFrameItems, tabName = "테두리")
                 3 -> {
                     SoodalTextField(
                         value = cardText,
@@ -368,9 +360,24 @@ fun ProfileEditorScreen(
 }
 
 @Composable
-private fun ItemGrid(items: List<EditorItem>) {
+private fun ItemGrid(items: List<EditorItem>, tabName: String) {
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
+
+    if (items.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "아직 보유한 ${tabName}이 없어요.\n뽑기에서 새로 만나보세요!",
+                fontSize = 13.sp,
+                color = colors.textTertiary,
+                textAlign = TextAlign.Center,
+            )
+        }
+        return
+    }
 
     // Since we can't use LazyVerticalGrid inside verticalScroll, manually lay out
     val rows = items.chunked(4)
@@ -420,28 +427,21 @@ private fun ItemGridCell(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = {},
-                    enabled = item.isOwned,
                 )
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = item.emoji,
-                    fontSize = 24.sp,
-                    color = Color.Unspecified.copy(alpha = if (item.isOwned) 1f else 0.4f),
-                )
-                if (!item.isOwned) {
-                    SoodalIcon(icon = SoodalIcons.Lock, tint = colors.textTertiary, size = 16.dp)
-                }
-            }
+            Text(
+                text = item.emoji,
+                fontSize = 24.sp,
+            )
             Spacer(Modifier.height(2.dp))
             GradeBadge(grade = item.grade)
             Spacer(Modifier.height(2.dp))
             Text(
                 text = item.name,
                 fontSize = 10.sp,
-                color = colors.textSecondary.copy(alpha = if (item.isOwned) 1f else 0.4f),
+                color = colors.textSecondary,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
