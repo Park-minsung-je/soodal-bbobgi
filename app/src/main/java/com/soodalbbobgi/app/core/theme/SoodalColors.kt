@@ -2,7 +2,6 @@ package com.soodalbbobgi.app.core.theme
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
@@ -53,8 +52,6 @@ val LocalSoodalColors = staticCompositionLocalOf<SoodalColors> {
 
 private fun gradientBrush(colors: List<Color>) = Brush.linearGradient(
     colors = colors,
-    start = Offset(0f, 0f),
-    end = Offset(Float.MAX_VALUE, Float.MAX_VALUE),
 )
 
 val LightColors = SoodalColors(
