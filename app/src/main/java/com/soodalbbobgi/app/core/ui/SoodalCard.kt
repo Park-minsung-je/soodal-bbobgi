@@ -22,10 +22,10 @@ fun SoodalCard(
     val colors = SoodalDesign.colors
     Box(
         modifier = modifier
-            .shadow(2.dp, SoodalShape.lg, ambientColor = colors.cardShadow, spotColor = colors.cardShadow)
+            .shadow(8.dp, SoodalShape.lg, ambientColor = colors.cardShadow.copy(alpha = 0.12f), spotColor = colors.cardShadow.copy(alpha = 0.08f))
+            .shadow(2.dp, SoodalShape.lg, ambientColor = colors.cardShadow.copy(alpha = 0.06f), spotColor = colors.cardShadow.copy(alpha = 0.04f))
             .clip(SoodalShape.lg)
             .background(colors.cardBg)
-            .border(1.dp, colors.cardBorder, SoodalShape.lg)
             .padding(16.dp),
         content = content,
     )
