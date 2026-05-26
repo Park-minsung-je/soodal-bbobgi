@@ -43,7 +43,8 @@ fun OnboardingNicknameScreen(onNext: (String) -> Unit) {
         Text("닉네임은 프로필 카드와 뽑기 기록에 표시됩니다.", fontSize = 14.sp,
             color = colors.textSecondary, modifier = Modifier.padding(top = 12.dp))
         Spacer(Modifier.height(48.dp))
-        Text("✏️", fontSize = 64.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+        SoodalIcon(SoodalIcons.Edit, tint = colors.accentCyan, size = 64.dp,
+            modifier = Modifier.align(Alignment.CenterHorizontally))
         Spacer(Modifier.height(36.dp))
         SoodalTextField(nickname, { nickname = it }, placeholder = "닉네임 입력 (최대 10자)",
             maxLength = 10, modifier = Modifier.fillMaxWidth())

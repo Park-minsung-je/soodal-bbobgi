@@ -290,11 +290,11 @@ private fun GachaResultOverlay(
         else -> "아이템"
     }
     val boxLabel = GACHA_BOXES.find { it.id == item.kind }?.label ?: "상자"
-    val itemEmoji = when (item.kind) {
-        "char" -> "🦦"
-        "bg" -> "🎨"
-        "frame" -> "🖼️"
-        else -> "🎁"
+    val itemIcon = when (item.kind) {
+        "char" -> SoodalIcons.Otter
+        "bg" -> SoodalIcons.Aurora
+        "frame" -> SoodalIcons.Frame
+        else -> SoodalIcons.Gift
     }
 
     // Bounce animation
@@ -355,7 +355,7 @@ private fun GachaResultOverlay(
                             .background(gradeGlow.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(itemEmoji, fontSize = 40.sp)
+                        SoodalIcon(icon = itemIcon, tint = gradeColor, size = 40.dp)
                     }
 
                     Spacer(Modifier.height(16.dp))

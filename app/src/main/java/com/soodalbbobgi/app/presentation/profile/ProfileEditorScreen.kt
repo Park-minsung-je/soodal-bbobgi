@@ -51,30 +51,30 @@ import com.soodalbbobgi.app.domain.model.Grade
 
 private data class EditorItem(
     val name: String,
-    val emoji: String,
+    val icon: SoodalIcons,
     val grade: Grade,
     val isSelected: Boolean = false,
 )
 
 private val demoBgItems = listOf(
-    EditorItem("오로라", "🌅", Grade.SR, true),
-    EditorItem("한밤", "🌙", Grade.N),
-    EditorItem("산호초", "🪸", Grade.R),
-    EditorItem("딥블루", "🌊", Grade.R),
-    EditorItem("열대야", "🌴", Grade.N),
+    EditorItem("오로라", SoodalIcons.Aurora, Grade.SR, true),
+    EditorItem("한밤", SoodalIcons.Moon, Grade.N),
+    EditorItem("산호초", SoodalIcons.Coral, Grade.R),
+    EditorItem("딥블루", SoodalIcons.Wave, Grade.R),
+    EditorItem("열대야", SoodalIcons.Star, Grade.N),
 )
 
 private val demoCharItems = listOf(
-    EditorItem("수달이", "🦦", Grade.N, true),
-    EditorItem("진주 수달", "🦦", Grade.SR),
-    EditorItem("코랄 수달", "🦦", Grade.R),
-    EditorItem("버블 수달", "🦦", Grade.N),
+    EditorItem("수달이", SoodalIcons.Otter, Grade.N, true),
+    EditorItem("진주 수달", SoodalIcons.Otter, Grade.SR),
+    EditorItem("코랄 수달", SoodalIcons.Otter, Grade.R),
+    EditorItem("버블 수달", SoodalIcons.Otter, Grade.N),
 )
 
 private val demoFrameItems = listOf(
-    EditorItem("시안 라인", "🖼️", Grade.R, true),
-    EditorItem("버블", "🖼️", Grade.N),
-    EditorItem("별자리", "🖼️", Grade.R),
+    EditorItem("시안 라인", SoodalIcons.Frame, Grade.R, true),
+    EditorItem("버블", SoodalIcons.Frame, Grade.N),
+    EditorItem("별자리", SoodalIcons.Frame, Grade.R),
 )
 
 private val editorTabs = listOf("배경", "캐릭터", "테두리", "텍스트")
@@ -420,10 +420,7 @@ private fun ItemGridCell(
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                text = item.emoji,
-                fontSize = 24.sp,
-            )
+            SoodalIcon(icon = item.icon, tint = colors.textTertiary, size = 24.dp)
             Spacer(Modifier.height(2.dp))
             GradeBadge(grade = item.grade)
             Spacer(Modifier.height(2.dp))

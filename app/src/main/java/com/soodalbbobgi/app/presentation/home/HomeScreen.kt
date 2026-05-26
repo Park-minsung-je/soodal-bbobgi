@@ -311,13 +311,13 @@ private fun RecentItemCard(item: RecentItem) {
                 .background(colors.surface2),
             contentAlignment = Alignment.Center,
         ) {
-            val emoji = when (item.kind) {
-                "char" -> "🦦"
-                "frame" -> "🖼️"
-                "bg" -> "🎨"
-                else -> "❓"
+            val icon = when (item.kind) {
+                "char" -> SoodalIcons.Otter
+                "frame" -> SoodalIcons.Frame
+                "bg" -> SoodalIcons.Aurora
+                else -> SoodalIcons.Gift
             }
-            Text(text = emoji, fontSize = 28.sp)
+            SoodalIcon(icon = icon, tint = colors.textTertiary, size = 28.dp)
         }
         Spacer(Modifier.height(4.dp))
         GradeBadge(grade = item.grade)

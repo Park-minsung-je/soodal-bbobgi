@@ -113,7 +113,7 @@ fun ShopScreen(
                                 .background(colors.accentGoldSoft),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text(text = state.featured.emoji, fontSize = 36.sp)
+                            SoodalIcon(icon = state.featured.icon, tint = colors.accentGold, size = 36.dp)
                         }
                         Spacer(Modifier.width(spacing.s3))
                         Column(modifier = Modifier.weight(1f)) {
@@ -265,7 +265,7 @@ private fun BoxGridItem(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(text = item.emoji, fontSize = 28.sp)
+            SoodalIcon(icon = item.icon, tint = colors.textTertiary, size = 28.dp)
             Spacer(Modifier.height(4.dp))
             Text(
                 text = item.name,
@@ -323,11 +323,7 @@ private fun DirectItemCard(
                     .background(colors.surface2),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = item.emoji,
-                    fontSize = 24.sp,
-                    color = Color.Unspecified.copy(alpha = bgAlpha),
-                )
+                SoodalIcon(icon = item.icon, tint = colors.textTertiary.copy(alpha = bgAlpha), size = 24.dp)
             }
             Spacer(Modifier.height(4.dp))
             if (item.grade != null) {
@@ -411,7 +407,7 @@ private fun PurchaseConfirmOverlay(
                         .background(colors.surface2),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(text = item.emoji, fontSize = 32.sp)
+                    SoodalIcon(icon = item.icon, tint = colors.textTertiary, size = 32.dp)
                 }
 
                 Spacer(Modifier.height(spacing.s3))

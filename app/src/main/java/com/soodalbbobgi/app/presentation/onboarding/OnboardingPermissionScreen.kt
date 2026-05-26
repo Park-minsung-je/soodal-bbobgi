@@ -36,7 +36,8 @@ fun OnboardingPermissionScreen(onConnect: () -> Unit, onSkip: () -> Unit) {
             fontSize = 14.sp, color = colors.textSecondary, lineHeight = 22.sp,
             modifier = Modifier.padding(top = 12.dp))
         Spacer(Modifier.height(36.dp))
-        Text("🏊", fontSize = 64.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+        SoodalIcon(SoodalIcons.Swimmer, tint = colors.accentCyan, size = 64.dp,
+            modifier = Modifier.align(Alignment.CenterHorizontally))
         Spacer(Modifier.height(30.dp))
 
         Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
