@@ -58,6 +58,7 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToProfileFullscreen: () -> Unit,
     onNavigateToProfileEditor: () -> Unit,
+    onSyncClick: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -187,7 +188,10 @@ fun HomeScreen(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = { viewModel.onSync() },
+                            onClick = {
+                                viewModel.onSync()
+                                onSyncClick()
+                            },
                         )
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                 ) {

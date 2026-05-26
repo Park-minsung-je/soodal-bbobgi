@@ -1,9 +1,17 @@
 package com.soodalbbobgi.app.presentation.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.presentation.auth.AuthScreen
 import com.soodalbbobgi.app.presentation.calendar.CalendarScreen
 import com.soodalbbobgi.app.presentation.gacha.GachaScreen
@@ -18,7 +26,10 @@ import com.soodalbbobgi.app.presentation.splash.SplashScreen
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
-    NavHost(navController = navController, startDestination = Screen.Splash.route) {
+    var shellRewardCount by remember { mutableIntStateOf(0) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        NavHost(navController = navController, startDestination = Screen.Splash.route) {
         composable(Screen.Splash.route) {
             SplashScreen(onDone = {
                 navController.navigate(Screen.Auth.route) { popUpTo(Screen.Splash.route) { inclusive = true } }
@@ -52,6 +63,7 @@ fun AppNavHost(navController: NavHostController) {
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                 onNavigateToProfileFullscreen = { navController.navigate(Screen.ProfileFullscreen.route) },
                 onNavigateToProfileEditor = { navController.navigate(Screen.ProfileEditor.route) },
+                onSyncClick = { shellRewardCount = (1..3).random() },
             )
         }
         composable(Screen.Calendar.route) {
@@ -104,5 +116,14 @@ fun AppNavHost(navController: NavHostController) {
                 onEdit = { navController.navigate(Screen.ProfileEditor.route) },
             )
         }
+    }
+
+    if (shellRewardCount > 0) {
+        ShellRewardPopup(
+            shellCount = shellRewardCount,
+            distance = "오늘의 수영 기록",
+            onDismiss = { shellRewardCount = 0 },
+        )
+    }
     }
 }
