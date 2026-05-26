@@ -21,15 +21,15 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 
 data class TabItem(
     val key: String,
-    val icon: String,
+    val icon: SoodalIcons,
     val label: String,
 )
 
 val MainTabs = listOf(
-    TabItem("home", "🏠", "홈"),
-    TabItem("calendar", "📅", "캘린더"),
-    TabItem("gacha", "🎰", "뽑기"),
-    TabItem("shop", "🛒", "상점"),
+    TabItem("home", SoodalIcons.Home, "홈"),
+    TabItem("calendar", SoodalIcons.Calendar, "캘린더"),
+    TabItem("gacha", SoodalIcons.Gacha, "뽑기"),
+    TabItem("shop", SoodalIcons.Shop, "상점"),
 )
 
 @Composable
@@ -61,10 +61,10 @@ fun SoodalTabBar(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text(
-                    text = tab.icon,
-                    fontSize = 22.sp,
-                    color = if (isActive) colors.accentCyan else colors.textTertiary,
+                SoodalIcon(
+                    icon = tab.icon,
+                    tint = if (isActive) colors.accentCyan else colors.textTertiary,
+                    size = 22.dp,
                 )
                 Text(
                     text = tab.label,
