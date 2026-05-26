@@ -43,7 +43,6 @@ import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.ButtonStyle
 import com.soodalbbobgi.app.core.ui.GradeBadge
 import com.soodalbbobgi.app.core.ui.SoodalButton
-import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.SoodalTabBar
@@ -163,53 +162,43 @@ fun ProfileEditorScreen(
             Spacer(Modifier.height(spacing.s4))
 
             // -- Live Preview Card --
-            SoodalCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .clip(SoodalShape.sm)
-                                .background(colors.accentCyanSoft)
-                                .padding(horizontal = 6.dp, vertical = 2.dp),
-                        ) {
-                            Text(
-                                text = "LIVE PREVIEW",
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.accentCyan,
-                                letterSpacing = 0.5.sp,
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(spacing.s3))
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp)
-                            .clip(SoodalShape.md)
-                            .background(colors.surface2),
-                        contentAlignment = Alignment.Center,
+                            .clip(SoodalShape.sm)
+                            .background(colors.accentCyanSoft)
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = "🦦", fontSize = 32.sp)
-                            Text(
-                                text = cardText.ifEmpty { "수달 마스터" },
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = colors.textPrimary,
-                            )
-                        }
+                        Text(
+                            text = "LIVE PREVIEW",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.accentCyan,
+                            letterSpacing = 0.5.sp,
+                        )
                     }
-                    Spacer(Modifier.height(spacing.s2))
-                    Text(
-                        text = "배경: 오로라 · 캐릭터: 수달이 · 테두리: 시안 라인",
-                        fontSize = 10.sp,
-                        color = colors.textTertiary,
-                    )
                 }
+                Spacer(Modifier.height(spacing.s3))
+                ProfileCardComposite(
+                    layers = CardLayers(
+                        nickname = "Soodal",
+                        tagline = cardText.ifEmpty { "수달 마스터" },
+                        charX = charX / 70f,
+                        charY = charY / 50f,
+                        charScale = charSize / 100f,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(spacing.s2))
+                Text(
+                    text = "배경: 오로라 · 캐릭터: 수달이 · 테두리: 시안 라인",
+                    fontSize = 10.sp,
+                    color = colors.textTertiary,
+                )
             }
 
             Spacer(Modifier.height(spacing.s4))

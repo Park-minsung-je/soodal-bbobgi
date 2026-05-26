@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -46,6 +47,8 @@ import com.soodalbbobgi.app.core.ui.SoodalChip
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.SoodalTabBar
+import com.soodalbbobgi.app.presentation.profile.CardLayers
+import com.soodalbbobgi.app.presentation.profile.ProfileCardComposite
 
 private fun Int.formatNumber(): String = String.format("%,d", this)
 
@@ -117,49 +120,29 @@ fun HomeScreen(
 
             Spacer(Modifier.height(spacing.s4))
 
-            // ── Profile Card Placeholder ────────────────────────
-            SoodalCard(
+            // ── Profile Card ────────────────────────────────────
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .shadow(8.dp, SoodalShape.lg)
+                    .clip(SoodalShape.lg)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = onNavigateToProfileFullscreen,
                     ),
             ) {
-                Row(
+                ProfileCardComposite(
+                    layers = CardLayers(),
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // Avatar placeholder
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(SoodalShape.md)
-                            .background(colors.surface3),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(text = "🦦", fontSize = 28.sp)
-                    }
-                    Spacer(Modifier.width(spacing.s3))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = state.nickname,
-                            style = SoodalDesign.typography.md,
-                            color = colors.textPrimary,
-                        )
-                        Text(
-                            text = "프로필 카드 보기",
-                            style = SoodalDesign.typography.cap,
-                            color = colors.textTertiary,
-                        )
-                    }
-                    SoodalButton(
-                        text = "편집",
-                        onClick = onNavigateToProfileEditor,
-                        style = ButtonStyle.Ghost,
-                    )
-                }
+                )
+                // Edit button overlay (top-right)
+                SoodalButton(
+                    text = "편집",
+                    onClick = onNavigateToProfileEditor,
+                    style = ButtonStyle.Ghost,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+                )
             }
 
             Spacer(Modifier.height(spacing.s3))
