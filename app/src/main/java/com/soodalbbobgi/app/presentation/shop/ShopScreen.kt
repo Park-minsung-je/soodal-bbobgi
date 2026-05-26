@@ -115,7 +115,7 @@ fun ShopScreen(
                             ) {
                                 GradeBadge(grade = Grade.SSR)
                                 Text(
-                                    text = "추천 아이템",
+                                    text = "한정 출시",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = colors.accentGold,

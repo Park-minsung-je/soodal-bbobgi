@@ -232,11 +232,12 @@ private fun DayCell(
 
 @Composable
 private fun StrokeRatioBar(strokes: StrokeBreakdown) {
+    val colors = SoodalDesign.colors
     val strokeColors = listOf(
-        Color(0xFF00B4D8),  // freestyle - blue
-        Color(0xFFFFB703),  // backstroke - yellow
-        Color(0xFF8338EC),  // breaststroke - purple
-        Color(0xFFFF006E),  // butterfly - pink
+        colors.accentCyan,    // freestyle - 자유형
+        colors.accentPurple,  // breaststroke - 평영
+        colors.accentGold,    // backstroke - 배영
+        colors.success,       // butterfly - 접영
     )
     val ratios = listOf(strokes.freestyle, strokes.backstroke, strokes.breaststroke, strokes.butterfly)
 
@@ -263,10 +264,10 @@ private fun StrokeRatioBar(strokes: StrokeBreakdown) {
 private fun StrokeLegend() {
     val colors = SoodalDesign.colors
     val items = listOf(
-        "자유형" to Color(0xFF00B4D8),
-        "배영" to Color(0xFFFFB703),
-        "평영" to Color(0xFF8338EC),
-        "접영" to Color(0xFFFF006E),
+        "자유형" to colors.accentCyan,
+        "평영" to colors.accentPurple,
+        "배영" to colors.accentGold,
+        "접영" to colors.success,
     )
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -328,22 +329,29 @@ private fun DayDetailCard(day: Int, data: SwimDayData) {
             StrokeRatioBar(strokes = data.strokes)
             Spacer(Modifier.height(spacing.s2))
 
-            val strokeLabels = listOf(
-                "자유형" to data.strokes.freestyle,
-                "배영" to data.strokes.backstroke,
-                "평영" to data.strokes.breaststroke,
-                "접영" to data.strokes.butterfly,
+            val strokeDetails = listOf(
+                Triple("자유형", data.strokes.freestyle, colors.accentCyan),
+                Triple("평영", data.strokes.breaststroke, colors.accentPurple),
+                Triple("배영", data.strokes.backstroke, colors.accentGold),
+                Triple("접영", data.strokes.butterfly, colors.success),
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                strokeLabels.forEach { (label, ratio) ->
-                    Text(
-                        text = "$label ${(ratio * 100).toInt()}%",
-                        fontSize = 10.sp,
-                        color = colors.textTertiary,
-                    )
+                strokeDetails.forEach { (label, ratio, color) ->
+                    val pct = (ratio * 100).toInt()
+                    val meters = (data.distanceM * ratio).toInt()
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Box(Modifier.size(8.dp).clip(SoodalShape.sm).background(color))
+                            Text(label, fontSize = 10.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
+                        }
+                        Text("$pct%", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold,
+                            color = if (pct > 0) color else colors.textTertiary)
+                        Text("${meters}m", fontSize = 9.sp, color = colors.textTertiary)
+                    }
                 }
             }
 

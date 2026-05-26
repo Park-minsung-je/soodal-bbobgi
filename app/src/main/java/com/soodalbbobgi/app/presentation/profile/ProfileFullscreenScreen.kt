@@ -117,23 +117,22 @@ fun ProfileFullscreenScreen(
                     Spacer(Modifier.height(spacing.s2))
 
                     Text(
-                        text = "수달 마스터",
-                        style = SoodalDesign.typography.body,
+                        text = "수영을 사랑하는 수달",
+                        fontSize = 14.sp,
                         color = colors.textSecondary,
                         textAlign = TextAlign.Center,
                     )
 
-                    Spacer(Modifier.height(spacing.s4))
+                    Spacer(Modifier.height(spacing.s3))
 
-                    // Stats row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                    ) {
-                        ProfileStat(label = "수영", value = "18회")
-                        ProfileStat(label = "거리", value = "12.5km")
-                        ProfileStat(label = "수집", value = "7/24")
-                    }
+                    Text(
+                        text = "누적 12,540m · 89회 · 38🐚",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.accentCyan,
+                        letterSpacing = 0.4.sp,
+                        textAlign = TextAlign.Center,
+                    )
                 }
             }
         }
@@ -168,20 +167,3 @@ fun ProfileFullscreenScreen(
     }
 }
 
-@Composable
-private fun ProfileStat(label: String, value: String) {
-    val colors = SoodalDesign.colors
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = colors.accentCyan,
-        )
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            color = colors.textTertiary,
-        )
-    }
-}
