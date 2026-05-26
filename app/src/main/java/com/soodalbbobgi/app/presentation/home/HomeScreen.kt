@@ -136,28 +136,39 @@ fun HomeScreen(
                     layers = CardLayers(),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                // Edit button overlay (top-right)
-                SoodalButton(
-                    text = "편집",
-                    onClick = onNavigateToProfileEditor,
-                    style = ButtonStyle.Ghost,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
-                )
             }
 
-            Text(
-                text = "전체화면 보기",
-                fontSize = 12.sp,
-                color = colors.textTertiary,
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onNavigateToProfileFullscreen,
-                    )
-                    .padding(top = 6.dp, bottom = 2.dp),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "전체화면 보기",
+                    fontSize = 12.sp,
+                    color = colors.textTertiary,
+                    modifier = Modifier
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onNavigateToProfileFullscreen,
+                        )
+                        .padding(vertical = 4.dp),
+                )
+                Text(
+                    text = "프로필 편집",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.accentCyan,
+                    modifier = Modifier
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onNavigateToProfileEditor,
+                        )
+                        .padding(vertical = 4.dp),
+                )
+            }
 
             Spacer(Modifier.height(spacing.s3))
 
