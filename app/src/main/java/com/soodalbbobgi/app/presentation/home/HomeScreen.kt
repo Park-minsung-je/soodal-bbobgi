@@ -173,11 +173,13 @@ fun HomeScreen(
                             text = state.shells.formatNumber(),
                             color = ChipColor.Gold,
                             iconType = SoodalIcons.Shell,
+                            label = "조개",
                         )
                         SoodalChip(
                             text = state.pearls.formatNumber(),
                             color = ChipColor.Purple,
                             iconType = SoodalIcons.Pearl,
+                            label = "진주",
                         )
                     }
                     SoodalButton(

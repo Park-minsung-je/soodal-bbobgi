@@ -87,6 +87,7 @@ fun ShopScreen(
                         text = state.pearls.toString(),
                         color = ChipColor.Purple,
                         iconType = SoodalIcons.Pearl,
+                        label = "진주",
                     )
                 }
 
