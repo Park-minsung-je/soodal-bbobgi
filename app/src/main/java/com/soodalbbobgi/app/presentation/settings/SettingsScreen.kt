@@ -3,7 +3,6 @@ package com.soodalbbobgi.app.presentation.settings
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -31,13 +30,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.SoodalDesign
-import com.soodalbbobgi.app.core.theme.SoodalShape
-import com.soodalbbobgi.app.core.ui.ButtonStyle
-import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
@@ -65,20 +60,20 @@ fun SettingsScreen(
         ) {
             // -- Header --
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Row(
                     modifier = Modifier
-                        .height(36.dp)
-                        .clip(SoodalShape.md)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                             onClick = onBack,
                         )
-                        .padding(horizontal = 12.dp),
+                        .padding(vertical = 8.dp, horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
@@ -104,9 +99,15 @@ fun SettingsScreen(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     SettingsRow(
                         label = "닉네임 변경",
-                        trailing = "→",
+                        trailing = null,
                         onClick = {},
-                    )
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Soodal", fontSize = 13.sp, color = colors.textTertiary)
+                            Spacer(Modifier.width(4.dp))
+                            Text("›", fontSize = 14.sp, color = colors.textTertiary)
+                        }
+                    }
                     SettingsDivider()
                     SettingsRow(
                         label = "데이터 초기화",
