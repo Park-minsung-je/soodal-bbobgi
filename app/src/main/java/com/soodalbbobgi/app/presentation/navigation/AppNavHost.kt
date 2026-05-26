@@ -1,5 +1,6 @@
 package com.soodalbbobgi.app.presentation.navigation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,6 +17,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
+import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.presentation.auth.AuthScreen
 import com.soodalbbobgi.app.presentation.calendar.CalendarScreen
 import com.soodalbbobgi.app.presentation.gacha.GachaScreen
@@ -34,6 +36,7 @@ fun AppNavHost(navController: NavHostController) {
 
     Box(modifier = Modifier
         .fillMaxSize()
+        .background(SoodalDesign.colors.bgDeep)
         .windowInsetsPadding(WindowInsets.statusBars)
         .windowInsetsPadding(WindowInsets.navigationBars)
     ) {

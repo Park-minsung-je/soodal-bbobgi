@@ -1,7 +1,9 @@
 package com.soodalbbobgi.app.core.theme
 
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.text.TextStyle
 
 enum class SoodalThemeType {
     Light,
@@ -24,8 +26,12 @@ fun SoodalTheme(
 ) {
     CompositionLocalProvider(
         LocalSoodalColors provides soodalColors(theme),
-        content = content,
-    )
+    ) {
+        ProvideTextStyle(
+            value = TextStyle(fontFamily = PretendardFontFamily),
+            content = content,
+        )
+    }
 }
 
 object SoodalDesign {

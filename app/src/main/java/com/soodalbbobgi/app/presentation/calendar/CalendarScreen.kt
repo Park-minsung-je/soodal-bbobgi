@@ -28,13 +28,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.GlassPanel
@@ -288,13 +288,13 @@ private fun DayCell(
                 onClick = onClick,
             )
             .padding(
-                start = if (swimData != null) 3.dp else 0.dp,
-                end = if (swimData != null) 3.dp else 0.dp,
-                top = if (swimData != null) 4.dp else 0.dp,
-                bottom = if (swimData != null) 3.dp else 0.dp,
+                start = if (swimData != null) 4.dp else 0.dp,
+                end = if (swimData != null) 4.dp else 0.dp,
+                top = if (swimData != null) 5.dp else 0.dp,
+                bottom = if (swimData != null) 5.dp else 0.dp,
             ),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = if (swimData != null) Arrangement.Top else Arrangement.Center,
+        verticalArrangement = if (swimData != null) Arrangement.SpaceBetween else Arrangement.Center,
     ) {
         Text(
             text = day.toString(),
@@ -304,17 +304,15 @@ private fun DayCell(
             lineHeight = 11.sp,
         )
         if (swimData != null) {
-            Spacer(Modifier.height(3.dp))
             Text(
                 text = "${formatNumber(swimData.distanceM)}m",
                 fontSize = 8.sp,
                 fontWeight = FontWeight.Bold,
                 color = if (isSelected) colors.accentCyan else colors.textSecondary,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = JetBrainsMonoFamily,
                 letterSpacing = (-0.2).sp,
                 lineHeight = 8.sp,
             )
-            Spacer(Modifier.weight(1f))
             StrokeRatioBar(strokes = swimData.strokes, barHeight = 7.dp, compact = true)
         }
     }
@@ -375,7 +373,6 @@ private fun StrokeLegend() {
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .background(colors.glassBg)
-            .border(1.dp, colors.glassBorder, RoundedCornerShape(10.dp))
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Row(
@@ -525,7 +522,7 @@ private fun DayDetailCard(
                     Text(
                         text = "${formatNumber(data.distanceM)}m",
                         fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = JetBrainsMonoFamily,
                         color = colors.textTertiary,
                     )
                 }
@@ -589,7 +586,7 @@ private fun DayDetailCard(
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = if (pct > 0) color else colors.textTertiary,
-                                fontFamily = FontFamily.Monospace,
+                                fontFamily = JetBrainsMonoFamily,
                             )
                             Spacer(Modifier.height(1.dp))
                             Text(
