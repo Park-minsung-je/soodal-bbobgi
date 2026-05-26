@@ -3,8 +3,10 @@ package com.soodalbbobgi.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.core.view.WindowCompat
 import androidx.navigation.compose.rememberNavController
 import com.soodalbbobgi.app.core.theme.SoodalTheme
 import com.soodalbbobgi.app.core.theme.SoodalThemeType
@@ -19,6 +21,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = true
         setContent {
             val theme by themePreferences.themeFlow.collectAsState(initial = SoodalThemeType.Light)
             val navController = rememberNavController()

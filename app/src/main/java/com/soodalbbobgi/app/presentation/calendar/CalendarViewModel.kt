@@ -8,10 +8,10 @@ import java.time.YearMonth
 import javax.inject.Inject
 
 data class StrokeBreakdown(
-    val freestyle: Float = 0f,
-    val backstroke: Float = 0f,
-    val breaststroke: Float = 0f,
-    val butterfly: Float = 0f,
+    val freestyle: Float = 0f,   // free
+    val backstroke: Float = 0f,  // back
+    val breaststroke: Float = 0f, // breast
+    val butterfly: Float = 0f,   // fly
 )
 
 data class SwimDayData(
@@ -26,29 +26,31 @@ data class SwimDayData(
 data class CalendarUiState(
     val year: Int = 2026,
     val month: Int = 5,
-    val selectedDay: Int? = null,
+    val selectedDay: Int? = 22,
     val swimData: Map<Int, SwimDayData> = emptyMap(),
 )
 
 @HiltViewModel
 class CalendarViewModel @Inject constructor() : ViewModel() {
 
+    // Demo swim data matching the JSX design prototype
+    // Stroke ratios are in 0..1 range (e.g., 0.7 = 70%)
     private val demoSwimData: Map<Int, SwimDayData> = mapOf(
-        1 to SwimDayData(1, 1200, 45, 320, StrokeBreakdown(0.6f, 0.2f, 0.15f, 0.05f), 2),
-        3 to SwimDayData(3, 800, 30, 210, StrokeBreakdown(0.5f, 0.3f, 0.2f, 0f), 1),
-        5 to SwimDayData(5, 1500, 55, 400, StrokeBreakdown(0.7f, 0.1f, 0.1f, 0.1f), 3),
-        6 to SwimDayData(6, 600, 25, 160, StrokeBreakdown(0.4f, 0.4f, 0.2f, 0f), 1),
-        8 to SwimDayData(8, 1000, 40, 270, StrokeBreakdown(0.5f, 0.2f, 0.2f, 0.1f), 2),
-        10 to SwimDayData(10, 1800, 65, 480, StrokeBreakdown(0.6f, 0.15f, 0.15f, 0.1f), 3),
-        12 to SwimDayData(12, 900, 35, 240, StrokeBreakdown(0.55f, 0.25f, 0.2f, 0f), 1),
-        14 to SwimDayData(14, 1100, 42, 290, StrokeBreakdown(0.5f, 0.3f, 0.15f, 0.05f), 2),
-        16 to SwimDayData(16, 1400, 50, 370, StrokeBreakdown(0.65f, 0.15f, 0.1f, 0.1f), 2),
-        18 to SwimDayData(18, 700, 28, 190, StrokeBreakdown(0.4f, 0.3f, 0.3f, 0f), 1),
-        19 to SwimDayData(19, 1300, 48, 350, StrokeBreakdown(0.6f, 0.2f, 0.1f, 0.1f), 2),
-        21 to SwimDayData(21, 2000, 70, 530, StrokeBreakdown(0.5f, 0.2f, 0.2f, 0.1f), 3),
-        22 to SwimDayData(22, 850, 32, 225, StrokeBreakdown(0.45f, 0.35f, 0.2f, 0f), 1),
-        24 to SwimDayData(24, 1600, 58, 420, StrokeBreakdown(0.55f, 0.2f, 0.15f, 0.1f), 3),
-        25 to SwimDayData(25, 950, 36, 250, StrokeBreakdown(0.5f, 0.25f, 0.25f, 0f), 1),
+        2 to SwimDayData(2, 800, 25, 180, StrokeBreakdown(0.70f, 0f, 0.30f, 0f), 2),
+        4 to SwimDayData(4, 1000, 30, 220, StrokeBreakdown(0.50f, 0.20f, 0.30f, 0f), 2),
+        7 to SwimDayData(7, 1500, 40, 310, StrokeBreakdown(0.60f, 0.20f, 0.20f, 0f), 3),
+        9 to SwimDayData(9, 600, 20, 140, StrokeBreakdown(1.00f, 0f, 0f, 0f), 1),
+        10 to SwimDayData(10, 2000, 55, 420, StrokeBreakdown(0.40f, 0.20f, 0.30f, 0.10f), 4),
+        13 to SwimDayData(13, 1200, 35, 260, StrokeBreakdown(0.50f, 0.10f, 0.40f, 0f), 2),
+        15 to SwimDayData(15, 900, 28, 195, StrokeBreakdown(0.30f, 0f, 0.70f, 0f), 2),
+        16 to SwimDayData(16, 1800, 48, 380, StrokeBreakdown(0.55f, 0.15f, 0.25f, 0.05f), 3),
+        18 to SwimDayData(18, 2000, 55, 410, StrokeBreakdown(0.50f, 0.15f, 0.25f, 0.10f), 4),
+        20 to SwimDayData(20, 1200, 35, 280, StrokeBreakdown(0.65f, 0.15f, 0.20f, 0f), 2),
+        22 to SwimDayData(22, 1500, 42, 320, StrokeBreakdown(0.45f, 0.20f, 0.30f, 0.05f), 3),
+        24 to SwimDayData(24, 800, 22, 180, StrokeBreakdown(0f, 0.20f, 0.80f, 0f), 2),
+        25 to SwimDayData(25, 1100, 32, 240, StrokeBreakdown(0.55f, 0.20f, 0.25f, 0f), 2),
+        27 to SwimDayData(27, 1600, 45, 340, StrokeBreakdown(0.50f, 0.20f, 0.20f, 0.10f), 3),
+        29 to SwimDayData(29, 1300, 38, 270, StrokeBreakdown(0.60f, 0.10f, 0.30f, 0f), 2),
     )
 
     private val _uiState = MutableStateFlow(
@@ -57,10 +59,7 @@ class CalendarViewModel @Inject constructor() : ViewModel() {
     val uiState: StateFlow<CalendarUiState> = _uiState
 
     fun selectDay(day: Int) {
-        val current = _uiState.value.selectedDay
-        _uiState.value = _uiState.value.copy(
-            selectedDay = if (current == day) null else day,
-        )
+        _uiState.value = _uiState.value.copy(selectedDay = day)
     }
 
     fun previousMonth() {
