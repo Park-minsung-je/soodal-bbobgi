@@ -30,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -147,8 +148,10 @@ fun CalendarScreen(
                 Spacer(Modifier.height(spacing.s4))
             }
 
-            // ── Month Summary ───────────────────────────────────
-            MonthSummaryCard(swimData = state.swimData)
+            // ── Month Summary (hidden when a day is selected) ───
+            if (state.selectedDay == null) {
+                MonthSummaryCard(swimData = state.swimData)
+            }
 
             Spacer(Modifier.height(spacing.s4))
         }
@@ -233,7 +236,7 @@ private fun DayCell(
 }
 
 @Composable
-private fun StrokeRatioBar(strokes: StrokeBreakdown) {
+private fun StrokeRatioBar(strokes: StrokeBreakdown, barHeight: Dp = 7.dp) {
     val colors = SoodalDesign.colors
     val strokeColors = listOf(
         colors.accentCyan,    // freestyle - 자유형
@@ -246,7 +249,7 @@ private fun StrokeRatioBar(strokes: StrokeBreakdown) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(4.dp)
+            .height(barHeight)
             .clip(SoodalShape.sm),
     ) {
         ratios.forEachIndexed { index, ratio ->
@@ -254,7 +257,7 @@ private fun StrokeRatioBar(strokes: StrokeBreakdown) {
                 Box(
                     modifier = Modifier
                         .weight(ratio)
-                        .height(4.dp)
+                        .height(barHeight)
                         .background(strokeColors[index]),
                 )
             }
@@ -328,7 +331,7 @@ private fun DayDetailCard(day: Int, data: SwimDayData) {
                 color = colors.textSecondary,
             )
             Spacer(Modifier.height(spacing.s2))
-            StrokeRatioBar(strokes = data.strokes)
+            StrokeRatioBar(strokes = data.strokes, barHeight = 12.dp)
             Spacer(Modifier.height(spacing.s2))
 
             val strokeDetails = listOf(
