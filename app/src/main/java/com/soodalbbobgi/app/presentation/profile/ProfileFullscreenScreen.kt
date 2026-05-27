@@ -1,5 +1,6 @@
 package com.soodalbbobgi.app.presentation.profile
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,27 +14,68 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 
+/**
+ * 프로필 카드를 90도 회전하여 전체화면으로 표시한다.
+ * 갤러리 저장, 공유, 편집 화면 이동 기능을 제공한다.
+ *
+ * @param onBack 돌아가기 콜백
+ * @param onEdit 편집 화면 이동 콜백
+ */
 @Composable
 fun ProfileFullscreenScreen(
     onBack: () -> Unit,
     onEdit: () -> Unit,
+    viewModel: ProfileFullscreenViewModel = hiltViewModel(),
 ) {
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
+
+    val saveState by viewModel.saveState.collectAsState()
+    val context = LocalContext.current
+    val config = LocalConfiguration.current
+
+    val layers = CardLayers()
+    val bitmap = remember(layers) { ProfileCardRenderer.render(layers) }
+
+    // 회전 후: 카드 가로(1472) → 세로 방향, 카드 세로(704) → 가로 방향
+    // 세로 방향 기준으로 스케일을 계산하여 화면을 최대한 채운다
+    val screenW = config.screenWidthDp.toFloat()
+    val screenH = config.screenHeightDp.toFloat()
+    val fitScale = screenH / screenW
+
+    LaunchedEffect(saveState) {
+        when (saveState) {
+            is SaveState.Success -> {
+                Toast.makeText(context, "갤러리에 저장했어요!", Toast.LENGTH_SHORT).show()
+                viewModel.resetState()
+            }
+            is SaveState.Error -> {
+                Toast.makeText(context, (saveState as SaveState.Error).message, Toast.LENGTH_SHORT).show()
+                viewModel.resetState()
+            }
+            else -> {}
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -48,10 +90,14 @@ fun ProfileFullscreenScreen(
             contentAlignment = Alignment.Center,
         ) {
             ProfileCardComposite(
-                layers = CardLayers(),
+                layers = layers,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .graphicsLayer { rotationZ = 90f },
+                    .graphicsLayer {
+                        rotationZ = 90f
+                        scaleX = fitScale
+                        scaleY = fitScale
+                    },
             )
         }
 
@@ -74,7 +120,7 @@ fun ProfileFullscreenScreen(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = {},
+                            onClick = { viewModel.saveToGallery(bitmap) },
                         )
                         .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -92,7 +138,7 @@ fun ProfileFullscreenScreen(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = {},
+                            onClick = { viewModel.share(bitmap) },
                         )
                         .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -121,4 +167,3 @@ fun ProfileFullscreenScreen(
         }
     }
 }
-
