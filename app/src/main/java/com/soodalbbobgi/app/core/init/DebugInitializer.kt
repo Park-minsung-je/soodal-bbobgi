@@ -18,7 +18,15 @@ import javax.inject.Singleton
 
 /**
  * Debug 빌드 전용 초기 데이터 시딩.
- * mock 사용자, 뽑기 상자, 프로필 카드, 수영 기록을 Room DB에 삽입한다.
+ *
+ * 현재 서버 연동이 완료되어 실제 데이터는 서버에서 받아온다.
+ * 이 클래스는 **서버 없이 로컬만으로 테스트**할 때 사용한다.
+ *
+ * 활성화 방법: initialize() 내부의 주석을 해제하면 mock user, 뽑기 상자,
+ * 수영 기록, 프로필 카드가 Room DB에 삽입된다.
+ *
+ * 주의: 서버 OAuth 로그인과 동시에 사용하면 userId 충돌이 발생할 수 있다.
+ * 서버 연동 테스트 시에는 이 시딩을 비활성화 상태로 유지할 것.
  */
 @Singleton
 class DebugInitializer @Inject constructor(
@@ -28,10 +36,16 @@ class DebugInitializer @Inject constructor(
     private val swimLogDao: SwimLogDao,
 ) {
     /**
-     * 앱 시작 시 호출하여 debug mock 데이터를 삽입한다.
-     * IO 디스패처에서 비동기로 실행되며, 기존 데이터가 있으면 REPLACE 전략으로 덮어쓴다.
+     * 앱 시작 시 호출된다. 현재는 비활성화 상태.
+     * 로컬 전용 테스트가 필요하면 아래 주석을 해제한다.
      */
     fun initialize() {
+        // ──────────────────────────────────────────────────────────
+        // 서버 연동 완료로 비활성화됨 (2026-05-27)
+        // 로컬 전용 테스트 시 아래 블록의 주석을 해제할 것
+        // ──────────────────────────────────────────────────────────
+
+        /*
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 seedUser()
@@ -43,6 +57,7 @@ class DebugInitializer @Inject constructor(
                 Timber.e(e, "DebugInitializer: mock 데이터 시딩 실패")
             }
         }
+        */
     }
 
     private suspend fun seedUser() {
@@ -113,7 +128,6 @@ class DebugInitializer @Inject constructor(
         val items = mutableListOf<GachaBoxItemEntity>()
         val baseId = boxId * 100
 
-        // 5 x N grade (weight 1000 each)
         for (i in 1..5) {
             items.add(
                 GachaBoxItemEntity(
@@ -128,7 +142,6 @@ class DebugInitializer @Inject constructor(
             )
         }
 
-        // 3 x R grade (weight 1000 each)
         for (i in 1..3) {
             items.add(
                 GachaBoxItemEntity(
@@ -143,7 +156,6 @@ class DebugInitializer @Inject constructor(
             )
         }
 
-        // 1 x SR grade (weight 1500)
         items.add(
             GachaBoxItemEntity(
                 id = baseId + 20,
@@ -156,7 +168,6 @@ class DebugInitializer @Inject constructor(
             )
         )
 
-        // 1 x SSR grade (weight 500)
         items.add(
             GachaBoxItemEntity(
                 id = baseId + 30,
