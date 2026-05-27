@@ -28,16 +28,18 @@ class SwimLogRepositoryImpl @Inject constructor(
 private fun SwimLogEntity.toDomain() = SwimLog(
     id = id, userId = userId, date = date, distanceMeters = distanceMeters,
     durationSeconds = durationSeconds, calories = calories,
-    strokeFreeStyle = strokeFreeStyle, strokeBreast = strokeBreast,
-    strokeBack = strokeBack, strokeFly = strokeFly,
+    strokeFreestyleM = strokeFreestyleM, strokeBreastM = strokeBreastM,
+    strokeBackM = strokeBackM, strokeFlyM = strokeFlyM,
+    strokeMixedM = strokeMixedM, strokeKickM = strokeKickM,
     source = source, shellsEarned = shellsEarned,
 )
 
 private fun SwimLog.toEntity() = SwimLogEntity(
     id = id, userId = userId, date = date, distanceMeters = distanceMeters,
     durationSeconds = durationSeconds, calories = calories,
-    strokeFreeStyle = strokeFreeStyle, strokeBreast = strokeBreast,
-    strokeBack = strokeBack, strokeFly = strokeFly,
+    strokeFreestyleM = strokeFreestyleM, strokeBreastM = strokeBreastM,
+    strokeBackM = strokeBackM, strokeFlyM = strokeFlyM,
+    strokeMixedM = strokeMixedM, strokeKickM = strokeKickM,
     source = source, shellsEarned = shellsEarned,
     createdAt = System.currentTimeMillis(),
 )

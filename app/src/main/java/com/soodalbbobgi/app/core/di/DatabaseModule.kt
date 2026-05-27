@@ -26,7 +26,8 @@ object DatabaseModule {
             context,
             SoodalDatabase::class.java,
             "soodal_bbobgi.db"
-        ).build()
+        ).fallbackToDestructiveMigration()
+         .build()
     }
 
     @Provides fun provideUserDao(db: SoodalDatabase): UserDao = db.userDao()
