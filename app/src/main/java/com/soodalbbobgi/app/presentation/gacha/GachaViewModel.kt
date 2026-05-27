@@ -48,6 +48,17 @@ val GACHA_BOXES = listOf(
 
 const val ITEM_WIDTH_WITH_GAP = 140f
 
+/** idle 속도에서 서서히 가속하는 구간 비율 (0.25 = 전체의 25%) */
+private const val SPIN_ACCEL_PHASE = 0.25f
+/** 가속 구간에서 소화하는 거리 비율 (0.4 = 전체 거리의 40%) */
+private const val SPIN_ACCEL_PROGRESS = 0.4f
+/** 감속 강도 — 높을수록 끝에서 더 천천히 멈춤 (긴장감 조절) */
+private const val SPIN_DECEL_POWER = 4
+/** 스핀 총 시간 (ms) */
+private const val SPIN_DURATION_MS = 4500L
+/** 정지 후 결과 모달까지 대기 시간 (ms) */
+private const val SPIN_PAUSE_MS = 800L
+
 @HiltViewModel
 class GachaViewModel @Inject constructor() : ViewModel() {
     private val _uiState = MutableStateFlow(GachaUiState())
@@ -79,6 +90,14 @@ class GachaViewModel @Inject constructor() : ViewModel() {
     )
     private var resultCursor = 0
 
+    /**
+     * 뽑기를 실행한다. 결과 상자를 미리 결정한 뒤 룰렛을 자연스럽게 감속시켜 해당 상자에 정지시킨다.
+     *
+     * 비용은 단발 1개, 10연 9개(할인). 조개가 부족하거나 이미 회전 중이면 무시한다.
+     * 내부적으로 결과가 먼저 정해지고, 룰렛 애니메이션은 연출일 뿐이다.
+     *
+     * @param count 뽑기 횟수 (1 = 단발, 10 = 10연)
+     */
     fun spin(count: Int) {
         val cost = if (count >= 10) 9 else count
         val s = _uiState.value
@@ -88,11 +107,9 @@ class GachaViewModel @Inject constructor() : ViewModel() {
 
         viewModelScope.launch {
             val startOffset = _uiState.value.offset
-
-            // 1) Predetermine which box the roulette lands on
             val resultBoxIndex = (0 until GACHA_BOXES.size).random()
 
-            // 2) Calculate target offset: spin 6-8 full cycles, then land on that box
+            // 현재 위치에서 6~8바퀴 + 결과 상자까지의 잔여 슬롯으로 목표 offset 산출
             val currentSlot = (startOffset / ITEM_WIDTH_WITH_GAP).toInt()
             val extraSlots = (6 + (0..2).random()) * GACHA_BOXES.size
             var targetSlot = currentSlot + extraSlots
@@ -102,23 +119,31 @@ class GachaViewModel @Inject constructor() : ViewModel() {
             val targetOffset = targetSlot * ITEM_WIDTH_WITH_GAP
             val totalDistance = targetOffset - startOffset
 
-            // 3) Animate: fast start → natural deceleration (ease-out cubic)
-            val duration = 3800L
             val startTime = System.currentTimeMillis()
             while (true) {
                 val elapsed = System.currentTimeMillis() - startTime
-                if (elapsed >= duration) break
-                val k = (elapsed.toFloat() / duration).coerceIn(0f, 1f)
-                val eased = 1f - (1f - k).let { it * it * it }
+                if (elapsed >= SPIN_DURATION_MS) break
+                val k = (elapsed.toFloat() / SPIN_DURATION_MS).coerceIn(0f, 1f)
+
+                // 커스텀 이징: 서서히 가속 → 피크 → 끝에서 쫄깃하게 감속
+                val eased = if (k < SPIN_ACCEL_PHASE) {
+                    val t = k / SPIN_ACCEL_PHASE
+                    SPIN_ACCEL_PROGRESS * t * t
+                } else {
+                    val t = (k - SPIN_ACCEL_PHASE) / (1f - SPIN_ACCEL_PHASE)
+                    val oneMinusT = 1f - t
+                    var decel = oneMinusT
+                    repeat(SPIN_DECEL_POWER - 1) { decel *= oneMinusT }
+                    SPIN_ACCEL_PROGRESS + (1f - SPIN_ACCEL_PROGRESS) * (1f - decel)
+                }
+
                 _uiState.update { it.copy(offset = startOffset + totalDistance * eased) }
                 delay(16)
             }
 
-            // 4) Snap to exact target
             _uiState.update { it.copy(offset = targetOffset) }
-            delay(800)
+            delay(SPIN_PAUSE_MS)
 
-            // 5) Show results
             val batch = (0 until count).map {
                 val r = demoResults[resultCursor % demoResults.size]
                 resultCursor++
