@@ -34,11 +34,9 @@ data class GachaUiState(
     val shells: Int = 34,
     val phase: GachaPhase = GachaPhase.Idle,
     val offset: Float = 0f,
-    val focusedBoxIndex: Int = 0,
     val results: List<GachaResultItem> = emptyList(),
     val resultIndex: Int = 0,
     val pityRemaining: Int = 27,
-    val boxes: List<BoxInfo> = GACHA_BOXES,
 )
 
 val GACHA_BOXES = listOf(
@@ -61,7 +59,7 @@ class GachaViewModel @Inject constructor() : ViewModel() {
                 delay(16)
                 val current = _uiState.value
                 if (current.phase == GachaPhase.Idle) {
-                    _uiState.update { it.copy(offset = it.offset + 0.6f) }
+                    _uiState.update { it.copy(offset = it.offset + 0.25f) }
                 }
             }
         }
@@ -90,49 +88,44 @@ class GachaViewModel @Inject constructor() : ViewModel() {
 
         viewModelScope.launch {
             val startOffset = _uiState.value.offset
-            val totalDistance = ((24 + (0..3).random()) * ITEM_WIDTH_WITH_GAP)
-            val duration = 3200L
 
+            // 1) Predetermine which box the roulette lands on
+            val resultBoxIndex = (0 until GACHA_BOXES.size).random()
+
+            // 2) Calculate target offset: spin 6-8 full cycles, then land on that box
+            val currentSlot = (startOffset / ITEM_WIDTH_WITH_GAP).toInt()
+            val extraSlots = (6 + (0..2).random()) * GACHA_BOXES.size
+            var targetSlot = currentSlot + extraSlots
+            while (((targetSlot % GACHA_BOXES.size) + GACHA_BOXES.size) % GACHA_BOXES.size != resultBoxIndex) {
+                targetSlot++
+            }
+            val targetOffset = targetSlot * ITEM_WIDTH_WITH_GAP
+            val totalDistance = targetOffset - startOffset
+
+            // 3) Animate: fast start → natural deceleration (ease-out cubic)
+            val duration = 3800L
             val startTime = System.currentTimeMillis()
             while (true) {
                 val elapsed = System.currentTimeMillis() - startTime
                 if (elapsed >= duration) break
                 val k = (elapsed.toFloat() / duration).coerceIn(0f, 1f)
-                // ease-in-out cubic
-                val eased = if (k < 0.5f) {
-                    4f * k * k * k
-                } else {
-                    val t = -2f * k + 2f
-                    1f - t * t * t / 2f
-                }
-                val current = startOffset + totalDistance * eased
-                _uiState.update {
-                    it.copy(
-                        offset = current,
-                        focusedBoxIndex = ((current / ITEM_WIDTH_WITH_GAP).toInt() % it.boxes.size).let { idx ->
-                            if (idx < 0) idx + it.boxes.size else idx
-                        },
-                    )
-                }
+                val eased = 1f - (1f - k).let { it * it * it }
+                _uiState.update { it.copy(offset = startOffset + totalDistance * eased) }
                 delay(16)
             }
 
-            // snap to final position
-            _uiState.update { it.copy(offset = startOffset + totalDistance) }
+            // 4) Snap to exact target
+            _uiState.update { it.copy(offset = targetOffset) }
+            delay(800)
 
-            delay(600)
-
+            // 5) Show results
             val batch = (0 until count).map {
                 val r = demoResults[resultCursor % demoResults.size]
                 resultCursor++
                 r
             }
             _uiState.update {
-                it.copy(
-                    phase = GachaPhase.Result,
-                    results = batch,
-                    resultIndex = 0,
-                )
+                it.copy(phase = GachaPhase.Result, results = batch, resultIndex = 0)
             }
         }
     }

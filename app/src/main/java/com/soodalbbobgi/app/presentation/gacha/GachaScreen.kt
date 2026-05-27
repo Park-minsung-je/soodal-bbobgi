@@ -68,7 +68,7 @@ fun GachaScreen(
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().background(colors.bgDeep)) {
             Column(
-                Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 12.dp),
+                Modifier.weight(1f).padding(top = 12.dp),
             ) {
                 // -- Header --
                 Row(
@@ -103,7 +103,7 @@ fun GachaScreen(
                     }
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.weight(1f))
 
                 // -- Label --
                 Row(
@@ -119,25 +119,26 @@ fun GachaScreen(
                     )
                 }
 
-                Spacer(Modifier.height(28.dp))
+                Spacer(Modifier.height(16.dp))
 
-                // -- Roulette Track (infinite loop via position-based rendering) --
+                // -- Roulette Track (infinite loop, center = biggest) --
                 val screenWidth = LocalConfiguration.current.screenWidthDp.toFloat()
                 val itemW = 128f
-                val slotW = ITEM_WIDTH_WITH_GAP // 140 (itemW + 12 gap)
+                val slotW = ITEM_WIDTH_WITH_GAP
                 val centerX = screenWidth / 2f
                 val visibleSlots = (centerX / slotW).toInt() + 2
-                val centerSlot = (state.offset / slotW).roundToInt()
 
                 Box(Modifier.fillMaxWidth().height(170.dp).clipToBounds()) {
                     for (di in -visibleSlots..visibleSlots) {
-                        val i = centerSlot + di
+                        val i = ((state.offset / slotW).roundToInt()) + di
                         val boxIndex = ((i % GACHA_BOXES.size) + GACHA_BOXES.size) % GACHA_BOXES.size
                         val box = GACHA_BOXES[boxIndex]
                         val x = centerX + (i * slotW - state.offset) - itemW / 2f
+                        val fracDist = kotlin.math.abs(i * slotW - state.offset) / slotW
+                        val itemScale = (1.12f - fracDist * 0.12f).coerceIn(0.82f, 1.12f)
 
                         Box(Modifier.offset(x = x.dp, y = 10.dp)) {
-                            GachaBoxCard(box = box, focused = di == 0 && state.phase == GachaPhase.Spinning)
+                            GachaBoxCard(box = box, itemScale = itemScale)
                         }
                     }
 
@@ -153,9 +154,9 @@ fun GachaScreen(
                     )
                 }
 
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.weight(1.5f))
 
-                // -- Spin Buttons (two-line) --
+                // -- Spin Buttons --
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     SpinButton(
                         topText = "단발 뽑기", bottomText = "1개", shellIcon = true,
@@ -201,17 +202,12 @@ fun GachaScreen(
 }
 
 @Composable
-private fun GachaBoxCard(box: BoxInfo, focused: Boolean) {
-    val colors = SoodalDesign.colors
+private fun GachaBoxCard(box: BoxInfo, itemScale: Float = 1f) {
     val shape = RoundedCornerShape(18.dp)
-    Column(
+    Box(
         modifier = Modifier
             .size(128.dp, 140.dp)
-            .scale(if (focused) 1.06f else 1f)
-            .then(
-                if (focused) Modifier.shadow(14.dp, shape, ambientColor = box.color.copy(alpha = 0.5f), spotColor = box.color.copy(alpha = 0.5f))
-                else Modifier
-            )
+            .scale(itemScale)
             .clip(shape)
             .drawBehind {
                 drawRect(Brush.linearGradient(
@@ -221,12 +217,9 @@ private fun GachaBoxCard(box: BoxInfo, focused: Boolean) {
                 ))
             }
             .border(1.5.dp, box.color.copy(alpha = 0.4f), shape),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+        contentAlignment = Alignment.Center,
     ) {
-        SoodalIcon(icon = box.icon, tint = box.color, size = 32.dp)
-        Spacer(Modifier.height(8.dp))
-        Text(box.label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = box.color, letterSpacing = (-0.05).sp)
+        SoodalIcon(icon = box.icon, tint = box.color, size = 48.dp)
     }
 }
 
