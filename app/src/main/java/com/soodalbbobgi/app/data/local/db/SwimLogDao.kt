@@ -15,8 +15,20 @@ interface SwimLogDao {
     @Query("SELECT * FROM swim_logs WHERE date = :date LIMIT 1")
     fun getByDate(date: String): Flow<SwimLogEntity?>
 
+    @Query("SELECT * FROM swim_logs WHERE date = :date LIMIT 1")
+    suspend fun getByDateOnce(date: String): SwimLogEntity?
+
+    @Query("SELECT * FROM swim_logs WHERE hcRecordId = :hcRecordId LIMIT 1")
+    suspend fun getByHcRecordId(hcRecordId: String): SwimLogEntity?
+
     @Query("SELECT * FROM swim_logs WHERE date BETWEEN :startDate AND :endDate ORDER BY date ASC")
     fun getByDateRange(startDate: String, endDate: String): Flow<List<SwimLogEntity>>
+
+    @Query("DELETE FROM swim_logs WHERE date = :date")
+    suspend fun deleteByDate(date: String)
+
+    @Query("DELETE FROM swim_logs WHERE hcRecordId = :hcRecordId")
+    suspend fun deleteByHcRecordId(hcRecordId: String)
 
     @Query("SELECT COALESCE(SUM(distanceMeters), 0) FROM swim_logs WHERE date BETWEEN :startDate AND :endDate")
     suspend fun getTotalDistance(startDate: String, endDate: String): Int

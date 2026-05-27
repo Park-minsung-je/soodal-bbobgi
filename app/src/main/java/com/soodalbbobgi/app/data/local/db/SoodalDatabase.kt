@@ -20,7 +20,7 @@ import com.soodalbbobgi.app.data.local.entity.UserEntity
         GachaBoxEntity::class,
         GachaBoxItemEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class SoodalDatabase : RoomDatabase() {

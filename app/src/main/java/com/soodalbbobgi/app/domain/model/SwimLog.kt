@@ -15,4 +15,5 @@ data class SwimLog(
     val strokeKickM: Int = 0,
     val source: String,
     val shellsEarned: Int = 0,
+    val hcRecordId: String? = null,
 )

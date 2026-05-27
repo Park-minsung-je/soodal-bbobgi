@@ -2,10 +2,13 @@ package com.soodalbbobgi.app.data.health
 
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.changes.DeletionChange
+import androidx.health.connect.client.changes.UpsertionChange
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
+import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -23,12 +26,27 @@ import javax.inject.Singleton
  * @property distanceMeters 수영 거리 (미터)
  * @property durationSeconds 수영 시간 (초)
  * @property calories 소모 칼로리
+ * @property hcRecordId Health Connect 레코드 UID (삭제 추적용)
  */
 data class SwimSession(
     val date: String,
     val distanceMeters: Int,
     val durationSeconds: Int,
     val calories: Int,
+    val hcRecordId: String? = null,
+)
+
+/**
+ * HC Changes API 동기화 결과.
+ *
+ * @property addedSessions 추가/수정된 수영 세션 목록
+ * @property deletedRecordIds 삭제된 HC 레코드 UID 목록
+ * @property nextToken 다음 동기화에 사용할 변경 토큰
+ */
+data class HcSyncResult(
+    val addedSessions: List<SwimSession>,
+    val deletedRecordIds: List<String>,
+    val nextToken: String,
 )
 
 /**
@@ -133,11 +151,103 @@ class HealthConnectManager @Inject constructor(
                     distanceMeters = totalDistanceM,
                     durationSeconds = duration.seconds.toInt(),
                     calories = totalCalories,
+                    hcRecordId = session.metadata.id,
                 )
             }
         } catch (e: Exception) {
             Timber.e(e, "Health Connect 수영 세션 읽기 실패")
             emptyList()
+        }
+    }
+
+    /**
+     * HC Changes API용 변경 토큰을 발급받는다.
+     * ExerciseSessionRecord 변경분만 추적한다.
+     */
+    suspend fun getChangesToken(): String {
+        return healthConnectClient.getChangesToken(
+            ChangesTokenRequest(recordTypes = setOf(ExerciseSessionRecord::class))
+        )
+    }
+
+    /**
+     * 저장된 변경 토큰 이후의 HC 변경분을 읽어온다.
+     *
+     * 추가/수정된 수영 세션과 삭제된 레코드 UID를 반환한다.
+     * 토큰이 만료되면 null을 반환하여 호출자가 전체 읽기로 폴백하게 한다.
+     */
+    suspend fun getChanges(token: String): HcSyncResult? {
+        return try {
+            val addedSessions = mutableListOf<SwimSession>()
+            val deletedIds = mutableListOf<String>()
+            var currentToken = token
+
+            do {
+                val response = healthConnectClient.getChanges(currentToken)
+                if (response.changesTokenExpired) {
+                    Timber.w("HC 변경 토큰 만료 — 전체 읽기로 폴백")
+                    return null
+                }
+
+                for (change in response.changes) {
+                    when (change) {
+                        is UpsertionChange -> {
+                            val record = change.record
+                            if (record is ExerciseSessionRecord && isSwimmingSession(record)) {
+                                val session = buildSwimSession(record)
+                                if (session != null) addedSessions.add(session)
+                            }
+                        }
+                        is DeletionChange -> {
+                            deletedIds.add(change.recordId)
+                        }
+                    }
+                }
+
+                currentToken = response.nextChangesToken
+            } while (response.hasMore)
+
+            HcSyncResult(
+                addedSessions = addedSessions,
+                deletedRecordIds = deletedIds,
+                nextToken = currentToken,
+            )
+        } catch (e: Exception) {
+            Timber.e(e, "HC Changes API 호출 실패")
+            null
+        }
+    }
+
+    private fun isSwimmingSession(record: ExerciseSessionRecord): Boolean =
+        record.exerciseType == ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_POOL ||
+                record.exerciseType == ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_OPEN_WATER
+
+    /**
+     * 단일 ExerciseSessionRecord에서 거리/칼로리를 읽어 SwimSession을 구성한다.
+     */
+    private suspend fun buildSwimSession(session: ExerciseSessionRecord): SwimSession? {
+        return try {
+            val duration = Duration.between(session.startTime, session.endTime)
+            val timeFilter = TimeRangeFilter.between(session.startTime, session.endTime)
+
+            val distanceM = healthConnectClient.readRecords(
+                ReadRecordsRequest(DistanceRecord::class, timeFilter)
+            ).records.sumOf { it.distance.inMeters }.toInt()
+
+            val calories = healthConnectClient.readRecords(
+                ReadRecordsRequest(TotalCaloriesBurnedRecord::class, timeFilter)
+            ).records.sumOf { it.energy.inKilocalories }.toInt()
+
+            SwimSession(
+                date = session.startTime.atZone(ZoneId.systemDefault()).toLocalDate().toString(),
+                distanceMeters = distanceM,
+                durationSeconds = duration.seconds.toInt(),
+                calories = calories,
+                hcRecordId = session.metadata.id,
+            )
+        } catch (e: Exception) {
+            Timber.w(e, "수영 세션 상세 정보 읽기 실패: ${session.metadata.id}")
+            null
         }
     }
 

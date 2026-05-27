@@ -15,8 +15,14 @@ class SwimLogRepositoryImpl @Inject constructor(
     override suspend fun addSwimLog(log: SwimLog) = dao.insert(log.toEntity())
     override fun getByDate(date: String): Flow<SwimLog?> =
         dao.getByDate(date).map { it?.toDomain() }
+    override suspend fun getByDateOnce(date: String): SwimLog? =
+        dao.getByDateOnce(date)?.toDomain()
+    override suspend fun getByHcRecordId(hcRecordId: String): SwimLog? =
+        dao.getByHcRecordId(hcRecordId)?.toDomain()
     override fun getByDateRange(startDate: String, endDate: String): Flow<List<SwimLog>> =
         dao.getByDateRange(startDate, endDate).map { list -> list.map { it.toDomain() } }
+    override suspend fun deleteByDate(date: String) = dao.deleteByDate(date)
+    override suspend fun deleteByHcRecordId(hcRecordId: String) = dao.deleteByHcRecordId(hcRecordId)
     override suspend fun getStats(startDate: String, endDate: String) = SwimStats(
         totalDistanceMeters = dao.getTotalDistance(startDate, endDate),
         swimCount = dao.getSwimCount(startDate, endDate),
@@ -32,6 +38,7 @@ private fun SwimLogEntity.toDomain() = SwimLog(
     strokeBackM = strokeBackM, strokeFlyM = strokeFlyM,
     strokeMixedM = strokeMixedM, strokeKickM = strokeKickM,
     source = source, shellsEarned = shellsEarned,
+    hcRecordId = hcRecordId,
 )
 
 private fun SwimLog.toEntity() = SwimLogEntity(
@@ -41,5 +48,6 @@ private fun SwimLog.toEntity() = SwimLogEntity(
     strokeBackM = strokeBackM, strokeFlyM = strokeFlyM,
     strokeMixedM = strokeMixedM, strokeKickM = strokeKickM,
     source = source, shellsEarned = shellsEarned,
+    hcRecordId = hcRecordId,
     createdAt = System.currentTimeMillis(),
 )

@@ -6,7 +6,10 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "swim_logs",
-    indices = [Index(value = ["date"], unique = true)]
+    indices = [
+        Index(value = ["date"], unique = true),
+        Index(value = ["hcRecordId"]),
+    ]
 )
 data class SwimLogEntity(
     @PrimaryKey(autoGenerate = true)
@@ -25,5 +28,6 @@ data class SwimLogEntity(
     val source: String,
     val shellsEarned: Int = 0,
     val synced: Boolean = false,
+    val hcRecordId: String? = null,
     val createdAt: Long,
 )
