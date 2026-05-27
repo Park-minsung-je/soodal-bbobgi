@@ -13,6 +13,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.soodalbbobgi.app.core.theme.SoodalDesign
+import com.soodalbbobgi.app.presentation.auth.AuthRoute
 import com.soodalbbobgi.app.presentation.auth.AuthScreen
 import com.soodalbbobgi.app.presentation.calendar.CalendarScreen
 import com.soodalbbobgi.app.presentation.gacha.GachaScreen
@@ -41,16 +42,14 @@ fun AppNavHost(navController: NavHostController) {
         }
         composable(Screen.Auth.route) {
             AuthScreen(
-                // 신규 사용자 → 온보딩 닉네임 입력
-                onAuthedNewUser = {
-                    navController.navigate(Screen.OnboardingNickname.route) {
-                        popUpTo(Screen.Auth.route) { inclusive = true }
+                onNavigate = { route ->
+                    val target = when (route) {
+                        AuthRoute.Onboarding -> Screen.OnboardingNickname.route
+                        AuthRoute.Permission -> Screen.OnboardingPermission.route
+                        AuthRoute.Home -> Screen.Home.route
                     }
-                },
-                // 기존 사용자 → 홈 화면으로 바로 이동
-                onAuthedExistingUser = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(0) { inclusive = true }
+                    navController.navigate(target) {
+                        popUpTo(Screen.Auth.route) { inclusive = true }
                     }
                 },
             )

@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.session.UserSession
 import com.soodalbbobgi.app.data.health.HealthConnectManager
+import com.soodalbbobgi.app.data.remote.api.SoodalApi
+import com.soodalbbobgi.app.data.remote.dto.SwimLogRequest
 import com.soodalbbobgi.app.domain.model.Grade
 import com.soodalbbobgi.app.domain.model.InventoryItem
 import com.soodalbbobgi.app.domain.model.SwimLog
@@ -52,6 +54,7 @@ class HomeViewModel @Inject constructor(
     private val inventoryRepository: InventoryRepository,
     private val currencyUseCase: CurrencyUseCase,
     private val healthConnectManager: HealthConnectManager,
+    private val soodalApi: SoodalApi,
 ) : ViewModel() {
 
     private val _shellReward = MutableStateFlow(0)
@@ -90,6 +93,10 @@ class HomeViewModel @Inject constructor(
      * 3. SwimLogUseCase 내부에서 중복 확인 후 조개를 지급한다
      * 4. 획득한 조개 수를 [shellReward]에 반영한다
      */
+    /**
+     * Health Connect에서 오늘의 수영 세션을 읽어 서버에 전송한다.
+     * 서버가 조개 지급을 판정하고, 결과를 로컬 Room에도 반영한다.
+     */
     fun onSync() {
         viewModelScope.launch {
             _shellReward.value = 0
@@ -112,18 +119,39 @@ class HomeViewModel @Inject constructor(
 
                 var totalEarned = 0
                 for (session in sessions) {
-                    val swimLog = SwimLog(
-                        userId = userSession.userId,
-                        date = session.date,
-                        distanceMeters = session.distanceMeters,
-                        durationSeconds = session.durationSeconds,
-                        calories = session.calories,
-                        // Health Connect에서는 영법 구분 불가 → 모든 거리를 혼영으로 처리
-                        // 개별 영법 필드는 기본값 0 유지
-                        source = "health_connect",
-                    )
-                    val earned = swimLogUseCase.syncSwimLog(userSession.userId, swimLog)
-                    totalEarned += earned
+                    try {
+                        // 서버에 수영 기록 전송 → 서버가 조개 지급 판정
+                        val response = soodalApi.addSwimLog(SwimLogRequest(
+                            date = session.date,
+                            distanceMeters = session.distanceMeters,
+                            durationSeconds = session.durationSeconds,
+                            calories = session.calories,
+                            strokeFreestyleM = 0,
+                            strokeBreastM = 0,
+                            strokeBackM = 0,
+                            strokeFlyM = 0,
+                            strokeMixedM = session.distanceMeters,
+                            strokeKickM = 0,
+                            source = "health_connect",
+                        ))
+                        if (response.success && response.data != null) {
+                            totalEarned += response.data.shellReward?.earned ?: 0
+                        }
+                    } catch (e: Exception) {
+                        // 중복 날짜 등 개별 세션 실패는 무시하고 계속
+                        Timber.w(e, "수영 기록 전송 실패: ${session.date}")
+                    }
+                }
+
+                // 서버에서 최신 사용자 정보 가져와서 로컬 갱신
+                try {
+                    val userResponse = soodalApi.getMe()
+                    if (userResponse.success && userResponse.data != null) {
+                        val u = userResponse.data
+                        userRepository.updateCurrency(userSession.userId, u.shellBalance, u.pearlBalance)
+                    }
+                } catch (e: Exception) {
+                    Timber.w(e, "사용자 정보 갱신 실패")
                 }
 
                 _shellReward.value = totalEarned

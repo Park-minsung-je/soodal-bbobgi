@@ -6,6 +6,7 @@ import com.soodalbbobgi.app.BuildConfig
 import com.soodalbbobgi.app.core.session.UserSession
 import com.soodalbbobgi.app.data.auth.KakaoAuthManager
 import com.soodalbbobgi.app.data.auth.TokenStore
+import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.data.remote.dto.KakaoAuthRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,6 +27,7 @@ class AuthViewModel @Inject constructor(
     private val soodalApi: SoodalApi,
     private val tokenStore: TokenStore,
     private val userSession: UserSession,
+    private val healthConnectManager: HealthConnectManager,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
@@ -63,7 +65,15 @@ class AuthViewModel @Inject constructor(
                     // 3단계: JWT 토큰 저장 및 세션 설정
                     tokenStore.saveTokens(data.accessToken, data.refreshToken, data.expiresIn)
                     userSession.setAuthenticatedUser(data.user.id)
-                    _uiState.value = AuthUiState.Success(isNewUser = data.isNewUser)
+
+                    val needsNickname = data.isNewUser || data.user.nickname == null
+                    val hasHcPermission = healthConnectManager.hasAllPermissions()
+
+                    _uiState.value = when {
+                        needsNickname -> AuthUiState.Success(route = AuthRoute.Onboarding)
+                        !hasHcPermission -> AuthUiState.Success(route = AuthRoute.Permission)
+                        else -> AuthUiState.Success(route = AuthRoute.Home)
+                    }
                 } else {
                     val errorCode = authResponse.error?.code ?: "UNKNOWN"
                     Timber.e("서버 카카오 인증 실패: $errorCode")
@@ -106,25 +116,16 @@ class AuthViewModel @Inject constructor(
 /**
  * 로그인 화면의 UI 상태.
  */
+/** 로그인 성공 후 이동할 화면 */
+enum class AuthRoute {
+    Onboarding,  // 닉네임 입력 → 권한 → 홈
+    Permission,  // HC 권한만 → 홈
+    Home,        // 바로 홈
+}
+
 sealed interface AuthUiState {
-    /** 초기 대기 상태 */
     data object Idle : AuthUiState
-
-    /**
-     * 로그인 진행 중
-     * @param provider 현재 진행 중인 OAuth 제공자 ("kakao" | "google")
-     */
     data class Loading(val provider: String) : AuthUiState
-
-    /**
-     * 로그인 성공
-     * @param isNewUser true이면 신규 사용자 → 온보딩으로 이동, false이면 기존 사용자 → 홈으로 이동
-     */
-    data class Success(val isNewUser: Boolean) : AuthUiState
-
-    /**
-     * 로그인 실패
-     * @param message 사용자에게 표시할 에러 메시지
-     */
+    data class Success(val route: AuthRoute) : AuthUiState
     data class Error(val message: String) : AuthUiState
 }

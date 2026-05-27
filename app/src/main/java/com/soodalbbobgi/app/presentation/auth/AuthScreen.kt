@@ -46,21 +46,17 @@ import com.soodalbbobgi.app.core.ui.SoodalIcons
  */
 @Composable
 fun AuthScreen(
-    onAuthedNewUser: () -> Unit,
-    onAuthedExistingUser: () -> Unit,
+    onNavigate: (AuthRoute) -> Unit,
     viewModel: AuthViewModel = hiltViewModel(),
 ) {
     val colors = SoodalDesign.colors
     val activity = LocalContext.current as android.app.Activity
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // 인증 성공 시 네비게이션 처리
     LaunchedEffect(uiState) {
-        when (val state = uiState) {
-            is AuthUiState.Success -> {
-                if (state.isNewUser) onAuthedNewUser() else onAuthedExistingUser()
-            }
-            else -> Unit
+        val state = uiState
+        if (state is AuthUiState.Success) {
+            onNavigate(state.route)
         }
     }
 

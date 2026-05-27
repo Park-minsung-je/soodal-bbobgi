@@ -55,8 +55,9 @@ fun OnboardingPermissionScreen(onConnect: () -> Unit, onSkip: () -> Unit) {
         HealthConnectManager.isAvailable(context)
     }
 
-    // 권한이 부여되었는지 추적
     var permissionGranted by remember { mutableStateOf(false) }
+    var permissionRequested by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // Health Connect 권한 요청 런처
     val healthPermissions = remember {
@@ -64,10 +65,31 @@ fun OnboardingPermissionScreen(onConnect: () -> Unit, onSkip: () -> Unit) {
             androidx.health.connect.client.permission.HealthPermission.getReadPermission(
                 androidx.health.connect.client.records.ExerciseSessionRecord::class
             ),
+            androidx.health.connect.client.permission.HealthPermission.getWritePermission(
+                androidx.health.connect.client.records.ExerciseSessionRecord::class
+            ),
             androidx.health.connect.client.permission.HealthPermission.getReadPermission(
                 androidx.health.connect.client.records.DistanceRecord::class
             ),
+            androidx.health.connect.client.permission.HealthPermission.getWritePermission(
+                androidx.health.connect.client.records.DistanceRecord::class
+            ),
             androidx.health.connect.client.permission.HealthPermission.getReadPermission(
+                androidx.health.connect.client.records.HeartRateRecord::class
+            ),
+            androidx.health.connect.client.permission.HealthPermission.getWritePermission(
+                androidx.health.connect.client.records.HeartRateRecord::class
+            ),
+            androidx.health.connect.client.permission.HealthPermission.getReadPermission(
+                androidx.health.connect.client.records.SpeedRecord::class
+            ),
+            androidx.health.connect.client.permission.HealthPermission.getWritePermission(
+                androidx.health.connect.client.records.SpeedRecord::class
+            ),
+            androidx.health.connect.client.permission.HealthPermission.getReadPermission(
+                androidx.health.connect.client.records.TotalCaloriesBurnedRecord::class
+            ),
+            androidx.health.connect.client.permission.HealthPermission.getWritePermission(
                 androidx.health.connect.client.records.TotalCaloriesBurnedRecord::class
             ),
         )
@@ -76,10 +98,14 @@ fun OnboardingPermissionScreen(onConnect: () -> Unit, onSkip: () -> Unit) {
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
     ) { grantedPermissions ->
-        permissionGranted = healthPermissions.all { it in grantedPermissions }
+        permissionRequested = true
+        permissionGranted = grantedPermissions.isNotEmpty()
         Timber.d("Health Connect 권한 결과: granted=$permissionGranted (${grantedPermissions.size}/${healthPermissions.size})")
-        // 권한 요청 후 결과에 관계없이 다음 화면으로 이동
-        onConnect()
+        if (permissionGranted) {
+            onConnect()
+        } else {
+            errorMessage = "권한이 허용되지 않았어요. 다시 시도하거나 나중에 설정에서 허용할 수 있어요."
+        }
     }
 
     Column(Modifier.fillMaxSize().background(colors.bgDeep).padding(24.dp)) {
@@ -141,15 +167,35 @@ fun OnboardingPermissionScreen(onConnect: () -> Unit, onSkip: () -> Unit) {
             }
         }
 
+        // 에러 메시지
+        if (errorMessage != null) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = errorMessage!!,
+                fontSize = 13.sp,
+                color = colors.warn,
+                lineHeight = 20.sp,
+            )
+        }
+
         Spacer(Modifier.weight(1f))
         SoodalButton(
-            text = if (isHealthConnectAvailable) "Health Connect 연결하기" else "Health Connect 설치 필요",
+            text = when {
+                !isHealthConnectAvailable -> "Health Connect 설치 필요"
+                permissionRequested && !permissionGranted -> "다시 시도하기"
+                else -> "Health Connect 연결하기"
+            },
             onClick = {
+                errorMessage = null
                 if (isHealthConnectAvailable) {
-                    permissionLauncher.launch(healthPermissions)
+                    try {
+                        permissionLauncher.launch(healthPermissions)
+                    } catch (e: Exception) {
+                        Timber.e(e, "Health Connect 권한 요청 실패")
+                        errorMessage = "권한 요청을 실행할 수 없어요: ${e.message}"
+                    }
                 } else {
-                    // Health Connect 미설치 시에도 다음 화면으로 이동 허용
-                    onConnect()
+                    errorMessage = "Health Connect 앱이 설치되어 있지 않습니다."
                 }
             },
             modifier = Modifier.fillMaxWidth(),
