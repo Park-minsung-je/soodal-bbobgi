@@ -30,12 +30,14 @@ class UserRepositoryImpl @Inject constructor(
 private fun UserEntity.toDomain() = User(
     id = id, nickname = nickname, shellBalance = shellBalance,
     pearlBalance = pearlBalance, pityCounter = pityCounter,
-    lastShellGrantDate = lastShellGrantDate, authProvider = authProvider,
+    lastShellGrantDate = lastShellGrantDate, gender = gender,
+    ageRange = ageRange, authProvider = authProvider,
 )
 
 private fun User.toEntity(now: Long) = UserEntity(
     id = id, nickname = nickname, shellBalance = shellBalance,
     pearlBalance = pearlBalance, pityCounter = pityCounter,
-    lastShellGrantDate = lastShellGrantDate, authProvider = authProvider,
+    lastShellGrantDate = lastShellGrantDate, gender = gender,
+    ageRange = ageRange, authProvider = authProvider,
     createdAt = now, updatedAt = now,
 )

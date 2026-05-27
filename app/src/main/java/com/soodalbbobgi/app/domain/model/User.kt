@@ -7,5 +7,7 @@ data class User(
     val pearlBalance: Int,
     val pityCounter: Int,
     val lastShellGrantDate: String?,
+    val gender: String? = null,
+    val ageRange: String? = null,
     val authProvider: String,
 )

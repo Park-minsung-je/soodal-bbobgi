@@ -12,6 +12,8 @@ data class UserEntity(
     val pearlBalance: Int = 0,
     val pityCounter: Int = 0,
     val lastShellGrantDate: String? = null,
+    val gender: String? = null,
+    val ageRange: String? = null,
     val authProvider: String,
     val createdAt: Long,
     val updatedAt: Long,
