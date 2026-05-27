@@ -44,6 +44,7 @@ import com.soodalbbobgi.app.core.ui.GradeBadge
 import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalChip
+import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.SoodalTabBar
@@ -58,13 +59,14 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToProfileFullscreen: () -> Unit,
     onNavigateToProfileEditor: () -> Unit,
-    onSyncClick: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val shellReward by viewModel.shellReward.collectAsState()
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -213,10 +215,7 @@ fun HomeScreen(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = {
-                                viewModel.onSync()
-                                onSyncClick()
-                            },
+                            onClick = { viewModel.onSync() },
                         )
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                 ) {
@@ -294,6 +293,16 @@ fun HomeScreen(
         // ── Tab Bar ─────────────────────────────────────────
         SoodalTabBar(activeTab = "home", onTabSelected = onNavigateToTab)
     }
+
+    // ── 조개 획득 팝업 ──────────────────────────────────────
+    if (shellReward > 0) {
+        ShellRewardPopup(
+            shellCount = shellReward,
+            distance = "오늘의 수영 기록",
+            onDismiss = { viewModel.clearShellReward() },
+        )
+    }
+    } // Box
 }
 
 @Composable
