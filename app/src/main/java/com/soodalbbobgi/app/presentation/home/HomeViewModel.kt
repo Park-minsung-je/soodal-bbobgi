@@ -63,11 +63,8 @@ class HomeViewModel @Inject constructor(
 
     private val _syncing = MutableStateFlow(false)
 
-    init {
-        // Home 진입 시 서버에서 사용자 데이터 pull + HC 동기화
-        pullServerData()
-        onSync()
-    }
+    // HC 동기화는 사용자가 동기화 버튼을 누를 때만 실행
+    // 서버 사용자 데이터는 Splash에서 Room에 이미 저장됨
 
     /**
      * 서버에서 사용자 정보를 가져와 로컬 Room을 갱신한다.

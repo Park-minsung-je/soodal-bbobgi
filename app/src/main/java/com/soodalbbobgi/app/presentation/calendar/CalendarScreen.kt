@@ -615,7 +615,7 @@ private fun DayDetailCard(
                 ) {
                     SoodalIcon(icon = SoodalIcons.Shell, tint = colors.accentGold, size = 18.dp)
                     Text(
-                        text = "오늘 조개 ${data.shellReward}개 획득!",
+                        text = "조개 ${data.shellReward}개 획득!",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.accentGold,
