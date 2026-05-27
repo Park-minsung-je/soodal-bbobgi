@@ -2,6 +2,7 @@ package com.soodalbbobgi.app.presentation.auth
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -63,6 +64,12 @@ fun AuthScreen(
     val isLoading = uiState is AuthUiState.Loading
     val loadingProvider = (uiState as? AuthUiState.Loading)?.provider
     val errorMessage = (uiState as? AuthUiState.Error)?.message
+
+    // 자동 로그인 중이면 빈 화면 (깜빡임 방지)
+    if (loadingProvider == "auto") {
+        Box(Modifier.fillMaxSize().background(colors.bgDeep))
+        return
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().background(colors.bgDeep),

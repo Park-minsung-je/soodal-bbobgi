@@ -128,6 +128,17 @@ class HomeViewModel @Inject constructor(
                 var totalEarned = 0
                 for (session in sessions) {
                     try {
+                        // 로컬 Room에 먼저 저장
+                        val swimLog = SwimLog(
+                            userId = userSession.userId,
+                            date = session.date,
+                            distanceMeters = session.distanceMeters,
+                            durationSeconds = session.durationSeconds,
+                            calories = session.calories,
+                            source = "health_connect",
+                        )
+                        swimLogUseCase.syncSwimLog(userSession.userId, swimLog)
+
                         // 서버에 수영 기록 전송 → 서버가 조개 지급 판정
                         val response = soodalApi.addSwimLog(SwimLogRequest(
                             date = session.date,
@@ -146,7 +157,6 @@ class HomeViewModel @Inject constructor(
                             totalEarned += response.data.shellReward?.earned ?: 0
                         }
                     } catch (e: Exception) {
-                        // 중복 날짜 등 개별 세션 실패는 무시하고 계속
                         Timber.w(e, "수영 기록 전송 실패: ${session.date}")
                     }
                 }
