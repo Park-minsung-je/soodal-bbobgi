@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "12461245fec0cc699057a557194fa7ac",
+    "identityHash": "271d732d14903bc6fe997cbee62c0c17",
     "entities": [
       {
         "tableName": "users",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `nickname` TEXT NOT NULL, `shellBalance` INTEGER NOT NULL, `pearlBalance` INTEGER NOT NULL, `pityCounter` INTEGER NOT NULL, `lastShellGrantDate` TEXT, `authProvider` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `synced` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `nickname` TEXT NOT NULL, `shellBalance` INTEGER NOT NULL, `pearlBalance` INTEGER NOT NULL, `pityCounter` INTEGER NOT NULL, `lastShellGrantDate` TEXT, `gender` TEXT, `ageRange` TEXT, `authProvider` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `synced` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -41,6 +41,18 @@
           {
             "fieldPath": "lastShellGrantDate",
             "columnName": "lastShellGrantDate",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "gender",
+            "columnName": "gender",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "ageRange",
+            "columnName": "ageRange",
             "affinity": "TEXT",
             "notNull": false
           },
@@ -572,7 +584,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '12461245fec0cc699057a557194fa7ac')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '271d732d14903bc6fe997cbee62c0c17')"
     ]
   }
 }

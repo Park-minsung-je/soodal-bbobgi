@@ -17,11 +17,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,25 +29,42 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soodalbbobgi.app.R
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
+/**
+ * 로그인 화면.
+ * 카카오/Google OAuth 버튼을 제공하며, 인증 성공 시 신규/기존 사용자를 구분하여 콜백을 호출한다.
+ *
+ * @param onAuthedNewUser 신규 사용자 인증 완료 시 호출 (온보딩으로 이동)
+ * @param onAuthedExistingUser 기존 사용자 인증 완료 시 호출 (홈으로 이동)
+ */
 @Composable
-fun AuthScreen(onAuthed: () -> Unit) {
+fun AuthScreen(
+    onAuthedNewUser: () -> Unit,
+    onAuthedExistingUser: () -> Unit,
+    viewModel: AuthViewModel = hiltViewModel(),
+) {
     val colors = SoodalDesign.colors
-    var loading by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    val handleAuth: (String) -> Unit = { provider ->
-        if (loading == null) {
-            loading = provider
-            scope.launch { delay(1100); loading = null; onAuthed() }
+    // 인증 성공 시 네비게이션 처리
+    LaunchedEffect(uiState) {
+        when (val state = uiState) {
+            is AuthUiState.Success -> {
+                if (state.isNewUser) onAuthedNewUser() else onAuthedExistingUser()
+            }
+            else -> Unit
         }
     }
+
+    val isLoading = uiState is AuthUiState.Loading
+    val loadingProvider = (uiState as? AuthUiState.Loading)?.provider
+    val errorMessage = (uiState as? AuthUiState.Error)?.message
 
     Column(
         modifier = Modifier.fillMaxSize().background(colors.bgDeep),
@@ -71,25 +86,51 @@ fun AuthScreen(onAuthed: () -> Unit) {
                 color = colors.textPrimary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             Text("기록과 컬렉션은 서버에 안전하게 보관됩니다.", fontSize = 12.sp,
                 color = colors.textSecondary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+
+            // 에러 메시지 표시
+            if (errorMessage != null) {
+                Text(
+                    text = errorMessage,
+                    fontSize = 13.sp,
+                    color = colors.warn,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { viewModel.clearError() },
+                        ),
+                )
+            }
+
             Spacer(Modifier.height(6.dp))
 
-            AuthButton(
-                text = if (loading == "kakao") "카카오 연결 중…" else "카카오로 시작하기",
-                iconContent = { SoodalIcon(SoodalIcons.Otter, tint = Color(0xFF191919), size = 20.dp) },
-                bgColor = Color(0xFFFEE500),
-                textColor = Color(0xFF191919),
-                enabled = loading == null || loading == "kakao",
-                onClick = { handleAuth("kakao") },
+            // 카카오 공식 로그인 버튼 이미지
+            Image(
+                painter = painterResource(R.drawable.kakao_login_medium_wide),
+                contentDescription = "카카오로 시작하기",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(
+                        enabled = !isLoading,
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { viewModel.loginWithKakao() },
+                    ),
             )
 
+            // Google 로그인은 미구현 상태로 비활성화 유지
             AuthButton(
-                text = if (loading == "google") "Google 연결 중…" else "Google로 시작하기",
+                text = if (loadingProvider == "google") "Google 연결 중…" else "Google로 시작하기",
                 iconContent = { Text("G", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4285F4)) },
                 bgColor = Color.White,
                 textColor = Color(0xFF1F1F1F),
                 borderColor = Color(0xFFDADCE0),
-                enabled = loading == null || loading == "google",
-                onClick = { handleAuth("google") },
+                enabled = false,
+                onClick = { /* TODO: Google 로그인 구현 예정 */ },
             )
 
             Spacer(Modifier.height(6.dp))
@@ -111,7 +152,7 @@ private fun AuthButton(
         modifier = Modifier
             .fillMaxWidth().height(52.dp)
             .clip(shape)
-            .background(bgColor)
+            .background(if (enabled) bgColor else bgColor.copy(alpha = 0.5f))
             .then(if (borderColor != null) Modifier.border(1.dp, borderColor, shape) else Modifier)
             .clickable(enabled = enabled, interactionSource = remember { MutableInteractionSource() },
                 indication = null, onClick = onClick)

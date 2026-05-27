@@ -17,14 +17,14 @@ android {
         versionCode = 1
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "BASE_URL", "\"https://api.soodalbbobgi.com/\"")
-        buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"PLACEHOLDER_KAKAO_KEY\"")
-        manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = "PLACEHOLDER_KAKAO_KEY"
+        buildConfigField("String", "BASE_URL", "\"https://soodal.bbobgi.ilf.kr/v1/\"")
+        buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"1a3ed6a67587af30e145380b723dc7ac\"")
+        manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = "1a3ed6a67587af30e145380b723dc7ac"
     }
 
     buildTypes {
         debug {
-            buildConfigField("String", "BASE_URL", "\"https://api-dev.soodalbbobgi.com/\"")
+            buildConfigField("String", "BASE_URL", "\"https://soodal.bbobgi.ilf.kr/v1/\"")
         }
         release {
             isMinifyEnabled = true

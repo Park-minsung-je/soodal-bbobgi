@@ -40,9 +40,20 @@ fun AppNavHost(navController: NavHostController) {
             })
         }
         composable(Screen.Auth.route) {
-            AuthScreen(onAuthed = {
-                navController.navigate(Screen.OnboardingNickname.route) { popUpTo(Screen.Auth.route) { inclusive = true } }
-            })
+            AuthScreen(
+                // 신규 사용자 → 온보딩 닉네임 입력
+                onAuthedNewUser = {
+                    navController.navigate(Screen.OnboardingNickname.route) {
+                        popUpTo(Screen.Auth.route) { inclusive = true }
+                    }
+                },
+                // 기존 사용자 → 홈 화면으로 바로 이동
+                onAuthedExistingUser = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+            )
         }
         composable(Screen.OnboardingNickname.route) {
             OnboardingNicknameScreen(onNext = { navController.navigate(Screen.OnboardingPermission.route) })
