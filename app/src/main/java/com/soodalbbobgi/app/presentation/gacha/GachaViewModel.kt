@@ -140,6 +140,8 @@ class GachaViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GACHA_BOXES)
 
     init {
+        // 화면 진입 시 서버에서 최신 상자 목록 + 사용자 데이터 갱신
+        refreshFromServer()
         // Idle 상태에서 룰렛을 느리게 자동 회전시킨다
         viewModelScope.launch {
             while (true) {
@@ -148,6 +150,37 @@ class GachaViewModel @Inject constructor(
                     _localState.update { it.copy(offset = it.offset + 0.25f) }
                 }
             }
+        }
+    }
+
+    private fun refreshFromServer() {
+        viewModelScope.launch {
+            try {
+                // 최신 사용자 정보 (조개 잔액)
+                val userRes = soodalApi.getMe()
+                if (userRes.success && userRes.data != null) {
+                    val u = userRes.data
+                    userRepository.updateCurrency(u.id, u.shellBalance, u.pearlBalance)
+                    userRepository.updatePityCounter(u.id, u.pityCounter)
+                }
+                // 최신 상자 목록
+                val boxRes = soodalApi.getGachaBoxes()
+                if (boxRes.success && boxRes.data != null) {
+                    for (box in boxRes.data.boxes) {
+                        gachaRepository.saveBox(com.soodalbbobgi.app.domain.model.GachaBox(
+                            id = box.id, name = box.name,
+                            description = box.description, category = box.category,
+                        ))
+                        for (item in box.items) {
+                            gachaRepository.saveBoxItem(com.soodalbbobgi.app.domain.model.GachaBoxItem(
+                                id = item.id, boxId = box.id, itemKey = item.itemKey,
+                                name = item.name, grade = Grade.fromString(item.grade),
+                                weight = item.weight, imageAsset = item.imageAsset,
+                            ))
+                        }
+                    }
+                }
+            } catch (_: Exception) { }
         }
     }
 

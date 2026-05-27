@@ -107,6 +107,23 @@ class ShopViewModel @Inject constructor(
         combine(itemFlows) { arrays -> arrays.flatMap { it } }
     }
 
+    init {
+        // 화면 진입 시 서버에서 최신 데이터 갱신
+        refreshFromServer()
+    }
+
+    private fun refreshFromServer() {
+        viewModelScope.launch {
+            try {
+                val userRes = soodalApi.getMe()
+                if (userRes.success && userRes.data != null) {
+                    val u = userRes.data
+                    userRepository.updateCurrency(u.id, u.shellBalance, u.pearlBalance)
+                }
+            } catch (_: Exception) { }
+        }
+    }
+
     val uiState: StateFlow<ShopUiState> = combine(
         pearlsFlow,
         boxesFlow,

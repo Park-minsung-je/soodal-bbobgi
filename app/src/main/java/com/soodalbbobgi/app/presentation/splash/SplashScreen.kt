@@ -48,22 +48,26 @@ fun SplashScreen(
 ) {
     val colors = SoodalDesign.colors
     val destination by viewModel.destination.collectAsStateWithLifecycle()
+    val syncError by viewModel.syncError.collectAsStateWithLifecycle()
 
     var progress by remember { mutableFloatStateOf(0f) }
     val animatedProgress by animateFloatAsState(
         targetValue = progress, animationSpec = tween(100), label = "splash",
     )
 
-    // 로딩 애니메이션 + 최소 1초 대기 후 네비게이션
-    LaunchedEffect(destination) {
-        // 로딩 애니메이션 진행
+    // 로딩 애니메이션 (1회만)
+    LaunchedEffect(Unit) {
         repeat(25) {
             delay(40)
             progress = (it + 1) / 25f
         }
-        // destination이 아직 Loading이면 결정될 때까지 대기
+    }
+
+    // destination이 결정되면 네비게이션
+    LaunchedEffect(destination) {
         if (destination == SplashDestination.Loading) return@LaunchedEffect
-        delay(200)
+        // 로딩바가 최소한 어느 정도 진행된 후 전환
+        delay(300)
         onNavigate(destination)
     }
 
@@ -80,6 +84,15 @@ fun SplashScreen(
             Spacer(Modifier.height(40.dp))
             Box(Modifier.width(160.dp).height(4.dp).clip(RoundedCornerShape(999.dp)).background(colors.surface2)) {
                 Box(Modifier.fillMaxHeight().fillMaxWidth(animatedProgress).clip(RoundedCornerShape(999.dp)).background(colors.gradCyan))
+            }
+            if (syncError != null) {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = syncError!!,
+                    fontSize = 12.sp,
+                    color = colors.warn,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
             }
         }
     }

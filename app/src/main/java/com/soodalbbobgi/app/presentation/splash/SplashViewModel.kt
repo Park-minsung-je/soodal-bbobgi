@@ -47,6 +47,10 @@ class SplashViewModel @Inject constructor(
     private val _destination = MutableStateFlow<SplashDestination>(SplashDestination.Loading)
     val destination: StateFlow<SplashDestination> = _destination
 
+    private val _syncError = MutableStateFlow<String?>(null)
+    /** 동기화 실패 시 에러 메시지. UI에서 표시 후 null로 리셋. */
+    val syncError: StateFlow<String?> = _syncError
+
     init {
         checkAuth()
     }
@@ -87,12 +91,18 @@ class SplashViewModel @Inject constructor(
                     saveUserToRoom(user)
 
                     // 동기화 순서: SERVER_SPEC.md 참고
-                    // 1. 서버→로컬 (서버 원본)
-                    syncGachaBoxes()
-                    syncInventory()
-                    // 2. 로컬→서버 (로컬 원본)
+                    try {
+                        // 1. 서버→로컬 (서버 원본)
+                        syncGachaBoxes()
+                        syncInventory()
+                        // 2. 로컬→서버 (로컬 원본)
+                        val hasHcPerm = healthConnectManager.hasAllPermissions()
+                        if (hasHcPerm) syncHealthConnect()
+                    } catch (e: Exception) {
+                        Timber.w(e, "동기화 중 오류 (앱은 계속 진행)")
+                        _syncError.value = "일부 데이터 동기화에 실패했어요. 나중에 다시 시도됩니다."
+                    }
                     val hasHcPermission = healthConnectManager.hasAllPermissions()
-                    if (hasHcPermission) syncHealthConnect()
 
                     _destination.value = when {
                         user.nickname == null -> SplashDestination.Onboarding
@@ -113,6 +123,7 @@ class SplashViewModel @Inject constructor(
 
     /** 서버에서 받은 사용자 정보를 Room DB에 저장한다. */
     private suspend fun saveUserToRoom(data: UserData) {
+        Timber.d("saveUserToRoom: id=${data.id} shells=${data.shellBalance} pearls=${data.pearlBalance}")
         userRepository.createUser(User(
             id = data.id,
             nickname = data.nickname ?: "",
