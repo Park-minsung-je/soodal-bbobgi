@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -120,24 +121,23 @@ fun GachaScreen(
 
                 Spacer(Modifier.height(28.dp))
 
-                // -- Roulette Track --
+                // -- Roulette Track (infinite loop via position-based rendering) --
                 val screenWidth = LocalConfiguration.current.screenWidthDp.toFloat()
-                val loopedBoxes = remember { buildList { repeat(12) { addAll(GACHA_BOXES) } } }
-                val cycleLength = GACHA_BOXES.size * ITEM_WIDTH_WITH_GAP
-                val displayOffset = state.offset % cycleLength
+                val itemW = 128f
+                val slotW = ITEM_WIDTH_WITH_GAP // 140 (itemW + 12 gap)
+                val centerX = screenWidth / 2f
+                val visibleSlots = (centerX / slotW).toInt() + 2
+                val centerSlot = (state.offset / slotW).roundToInt()
 
-                Box(Modifier.fillMaxWidth().height(170.dp)) {
-                    val startX = screenWidth / 2f - 70f
+                Box(Modifier.fillMaxWidth().height(170.dp).clipToBounds()) {
+                    for (di in -visibleSlots..visibleSlots) {
+                        val i = centerSlot + di
+                        val boxIndex = ((i % GACHA_BOXES.size) + GACHA_BOXES.size) % GACHA_BOXES.size
+                        val box = GACHA_BOXES[boxIndex]
+                        val x = centerX + (i * slotW - state.offset) - itemW / 2f
 
-                    Row(
-                        Modifier.offset(x = (startX - displayOffset).dp, y = 10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        loopedBoxes.forEachIndexed { i, box ->
-                            val actualIndex = i % GACHA_BOXES.size
-                            val focusedActual = state.focusedBoxIndex % GACHA_BOXES.size
-                            val isFocused = state.phase == GachaPhase.Spinning && actualIndex == focusedActual
-                            GachaBoxCard(box = box, focused = isFocused)
+                        Box(Modifier.offset(x = x.dp, y = 10.dp)) {
+                            GachaBoxCard(box = box, focused = di == 0 && state.phase == GachaPhase.Spinning)
                         }
                     }
 
