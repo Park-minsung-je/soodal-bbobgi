@@ -1,7 +1,10 @@
 package com.soodalbbobgi.app.presentation.onboarding
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,12 +12,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.health.connect.client.PermissionController
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.ui.ButtonStyle
 import com.soodalbbobgi.app.core.ui.SoodalButton
@@ -23,10 +32,56 @@ import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalChip
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
+import com.soodalbbobgi.app.data.health.HealthConnectManager
+import timber.log.Timber
 
+/**
+ * 온보딩 2단계 — Health Connect 권한 요청 화면.
+ *
+ * "Health Connect 연결하기" 버튼을 누르면 Health Connect SDK가 제공하는
+ * 권한 요청 다이얼로그를 띄운다. 권한 부여 완료 또는 "나중에 하기"로
+ * 다음 화면(Home)으로 이동한다.
+ *
+ * @param onConnect 권한 부여 완료(또는 요청 후) 콜백
+ * @param onSkip "나중에 하기" 콜백
+ */
 @Composable
 fun OnboardingPermissionScreen(onConnect: () -> Unit, onSkip: () -> Unit) {
+    val context = LocalContext.current
     val colors = SoodalDesign.colors
+
+    // Health Connect SDK 가용 여부
+    val isHealthConnectAvailable = remember {
+        HealthConnectManager.isAvailable(context)
+    }
+
+    // 권한이 부여되었는지 추적
+    var permissionGranted by remember { mutableStateOf(false) }
+
+    // Health Connect 권한 요청 런처
+    val healthPermissions = remember {
+        setOf(
+            androidx.health.connect.client.permission.HealthPermission.getReadPermission(
+                androidx.health.connect.client.records.ExerciseSessionRecord::class
+            ),
+            androidx.health.connect.client.permission.HealthPermission.getReadPermission(
+                androidx.health.connect.client.records.DistanceRecord::class
+            ),
+            androidx.health.connect.client.permission.HealthPermission.getReadPermission(
+                androidx.health.connect.client.records.TotalCaloriesBurnedRecord::class
+            ),
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract(),
+    ) { grantedPermissions ->
+        permissionGranted = healthPermissions.all { it in grantedPermissions }
+        Timber.d("Health Connect 권한 결과: granted=$permissionGranted (${grantedPermissions.size}/${healthPermissions.size})")
+        // 권한 요청 후 결과에 관계없이 다음 화면으로 이동
+        onConnect()
+    }
+
     Column(Modifier.fillMaxSize().background(colors.bgDeep).padding(24.dp)) {
         Text("STEP 2 / 2", fontSize = 11.sp, fontWeight = FontWeight.Bold,
             color = colors.accentCyan, letterSpacing = 1.5.sp)
@@ -40,33 +95,39 @@ fun OnboardingPermissionScreen(onConnect: () -> Unit, onSkip: () -> Unit) {
             modifier = Modifier.align(Alignment.CenterHorizontally))
         Spacer(Modifier.height(30.dp))
 
-        Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             // Health Connect — 필수
             SoodalCard(Modifier.fillMaxWidth()) {
-                androidx.compose.foundation.layout.Row(
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(14.dp),
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalAlignment = Alignment.Top,
                 ) {
                     SoodalIcon(icon = SoodalIcons.Heart, tint = colors.warn, size = 26.dp)
                     Column(Modifier.weight(1f)) {
-                        androidx.compose.foundation.layout.Row(
-                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text("Health Connect", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                             SoodalChip("필수", color = ChipColor.Cyan)
                         }
                         Spacer(Modifier.height(4.dp))
-                        Text("수영 운동 데이터(거리·시간·칼로리)를 읽어오는 권한이 필요합니다.",
-                            fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp)
+                        Text(
+                            text = if (!isHealthConnectAvailable) {
+                                "Health Connect가 설치되어 있지 않습니다. Google Play에서 설치해주세요."
+                            } else {
+                                "수영 운동 데이터(거리·시간·칼로리)를 읽어오는 권한이 필요합니다."
+                            },
+                            fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp,
+                        )
                     }
                 }
             }
 
             // 카메라 — 선택 (비활성)
             SoodalCard(Modifier.fillMaxWidth().then(Modifier.alpha(0.45f))) {
-                androidx.compose.foundation.layout.Row(
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(14.dp),
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalAlignment = Alignment.Top,
                 ) {
                     SoodalIcon(icon = SoodalIcons.Camera, tint = colors.textTertiary, size = 26.dp)
@@ -81,7 +142,18 @@ fun OnboardingPermissionScreen(onConnect: () -> Unit, onSkip: () -> Unit) {
         }
 
         Spacer(Modifier.weight(1f))
-        SoodalButton("Health Connect 연결하기", onClick = onConnect, modifier = Modifier.fillMaxWidth())
+        SoodalButton(
+            text = if (isHealthConnectAvailable) "Health Connect 연결하기" else "Health Connect 설치 필요",
+            onClick = {
+                if (isHealthConnectAvailable) {
+                    permissionLauncher.launch(healthPermissions)
+                } else {
+                    // Health Connect 미설치 시에도 다음 화면으로 이동 허용
+                    onConnect()
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
         Spacer(Modifier.height(8.dp))
         SoodalButton("나중에 하기", onClick = onSkip, style = ButtonStyle.Ghost, modifier = Modifier.fillMaxWidth())
     }
