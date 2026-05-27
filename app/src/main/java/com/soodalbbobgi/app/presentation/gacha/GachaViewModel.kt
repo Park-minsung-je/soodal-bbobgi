@@ -48,7 +48,7 @@ val GACHA_BOXES = listOf(
     BoxInfo("mystery", SoodalIcons.Gift, "랜덤 상자", Color(0xFFE0B0FF)),
 )
 
-const val ITEM_WIDTH_WITH_GAP = 132f
+const val ITEM_WIDTH_WITH_GAP = 140f
 
 @HiltViewModel
 class GachaViewModel @Inject constructor() : ViewModel() {

@@ -313,7 +313,9 @@ private fun DayCell(
                 letterSpacing = (-0.2).sp,
                 lineHeight = 8.sp,
             )
-            StrokeRatioBar(strokes = swimData.strokes, barHeight = 7.dp, compact = true)
+            Box(Modifier.fillMaxWidth().padding(horizontal = 2.dp)) {
+                StrokeRatioBar(strokes = swimData.strokes, barHeight = 7.dp, compact = true)
+            }
         }
     }
 }

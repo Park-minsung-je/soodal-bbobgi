@@ -36,12 +36,12 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.ButtonStyle
@@ -118,23 +118,25 @@ fun GachaScreen(
                     )
                 }
 
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(28.dp))
 
                 // -- Roulette Track --
                 val screenWidth = LocalConfiguration.current.screenWidthDp.toFloat()
-                val loopedBoxes = remember { buildList { repeat(8) { addAll(GACHA_BOXES) } } }
+                val loopedBoxes = remember { buildList { repeat(12) { addAll(GACHA_BOXES) } } }
+                val cycleLength = GACHA_BOXES.size * ITEM_WIDTH_WITH_GAP
+                val displayOffset = state.offset % cycleLength
 
-                Box(Modifier.fillMaxWidth().height(160.dp)) {
-                    // Track items
-                    val trackOffset = state.offset
-                    val startX = screenWidth / 2f - 60f
+                Box(Modifier.fillMaxWidth().height(170.dp)) {
+                    val startX = screenWidth / 2f - 70f
 
                     Row(
-                        Modifier.offset(x = (startX - trackOffset).dp, y = 14.dp),
+                        Modifier.offset(x = (startX - displayOffset).dp, y = 10.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         loopedBoxes.forEachIndexed { i, box ->
-                            val isFocused = i == state.focusedBoxIndex
+                            val actualIndex = i % GACHA_BOXES.size
+                            val focusedActual = state.focusedBoxIndex % GACHA_BOXES.size
+                            val isFocused = state.phase == GachaPhase.Spinning && actualIndex == focusedActual
                             GachaBoxCard(box = box, focused = isFocused)
                         }
                     }
@@ -151,7 +153,7 @@ fun GachaScreen(
                     )
                 }
 
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.weight(1f))
 
                 // -- Spin Buttons (two-line) --
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -204,7 +206,7 @@ private fun GachaBoxCard(box: BoxInfo, focused: Boolean) {
     val shape = RoundedCornerShape(18.dp)
     Column(
         modifier = Modifier
-            .size(120.dp, 130.dp)
+            .size(128.dp, 140.dp)
             .scale(if (focused) 1.06f else 1f)
             .then(
                 if (focused) Modifier.shadow(14.dp, shape, ambientColor = box.color.copy(alpha = 0.5f), spotColor = box.color.copy(alpha = 0.5f))
@@ -238,7 +240,7 @@ private fun SpinButton(
     val shape = SoodalShape.md
     Column(
         modifier = modifier
-            .height(52.dp)
+            .height(60.dp)
             .shadow(if (enabled) 12.dp else 0.dp, shape, ambientColor = glowColor, spotColor = glowColor)
             .clip(shape)
             .drawBehind {
@@ -331,7 +333,7 @@ private fun GachaResultOverlay(
                         Text(
                             "${state.resultIndex + 1} / ${state.results.size}",
                             fontSize = 11.sp, color = colors.textSecondary,
-                            fontFamily = FontFamily.Monospace,
+                            fontFamily = JetBrainsMonoFamily,
                             modifier = Modifier.align(Alignment.End)
                                 .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(999.dp))
                                 .padding(horizontal = 8.dp, vertical = 4.dp),
