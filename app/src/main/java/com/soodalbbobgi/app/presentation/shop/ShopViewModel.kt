@@ -1,11 +1,26 @@
 package com.soodalbbobgi.app.presentation.shop
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.soodalbbobgi.app.core.session.UserSession
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.domain.model.Grade
+import com.soodalbbobgi.app.domain.repository.GachaRepository
+import com.soodalbbobgi.app.domain.repository.UserRepository
+import com.soodalbbobgi.app.domain.usecase.CurrencyUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class ShopItem(
@@ -18,54 +33,124 @@ data class ShopItem(
 )
 
 data class ShopUiState(
-    val pearls: Int = 12,
+    val pearls: Int = 0,
     val confirmItem: ShopItem? = null,
-    val featured: ShopItem = ShopItem(
-        name = "황금 수달",
-        icon = SoodalIcons.Otter,
-        grade = Grade.SSR,
-        price = 30,
-        desc = "빛나는 황금빛 수달 캐릭터",
-    ),
-    val boxes: List<ShopItem> = listOf(
-        ShopItem("랜덤 상자", SoodalIcons.Gift, null, 5, desc = "모든 종류 랜덤"),
-        ShopItem("배경 상자", SoodalIcons.Aurora, null, 5, desc = "배경 아이템 랜덤"),
-        ShopItem("캐릭터 상자", SoodalIcons.Otter, null, 5, desc = "캐릭터 랜덤"),
-        ShopItem("테두리 상자", SoodalIcons.Frame, null, 5, desc = "테두리 랜덤"),
-    ),
-    val directItems: List<ShopItem> = listOf(
-        ShopItem("진주 수달", SoodalIcons.Otter, Grade.SR, 10),
-        ShopItem("오로라", SoodalIcons.Aurora, Grade.SR, 10),
-        ShopItem("시안 라인", SoodalIcons.Frame, Grade.R, 5),
-        ShopItem("코랄 수달", SoodalIcons.Otter, Grade.R, 5, isOwned = true),
-        ShopItem("한밤", SoodalIcons.Moon, Grade.N, 2),
-        ShopItem("수달이", SoodalIcons.Otter, Grade.N, 2, isOwned = true),
-    ),
+    val featured: ShopItem = ShopItem("", SoodalIcons.Otter, null, 0),
+    val boxes: List<ShopItem> = emptyList(),
+    val directItems: List<ShopItem> = emptyList(),
 )
 
+/**
+ * 상점 화면 ViewModel.
+ * User(진주 잔액)와 GachaBox(상자 목록)를 Room DB에서 관찰하고,
+ * [CurrencyUseCase]를 통해 진주 구매를 처리한다.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
-class ShopViewModel @Inject constructor() : ViewModel() {
-    private val _uiState = MutableStateFlow(ShopUiState())
-    val uiState: StateFlow<ShopUiState> = _uiState
+class ShopViewModel @Inject constructor(
+    private val userSession: UserSession,
+    private val userRepository: UserRepository,
+    private val gachaRepository: GachaRepository,
+    private val currencyUseCase: CurrencyUseCase,
+) : ViewModel() {
 
-    fun selectForPurchase(item: ShopItem) {
-        if (!item.isOwned) {
-            _uiState.value = _uiState.value.copy(confirmItem = item)
+    private val userId get() = userSession.userId
+
+    private val _confirmItem = MutableStateFlow<ShopItem?>(null)
+
+    /** 진주 잔액을 User Flow에서 관찰 */
+    private val pearlsFlow = userRepository.getUser(userId)
+        .filterNotNull()
+        .map { it.pearlBalance }
+
+    /** 활성 상자 목록을 ShopItem으로 변환 */
+    private val boxesFlow = gachaRepository.getAllActiveBoxes().map { boxes ->
+        boxes.map { box ->
+            ShopItem(
+                name = box.name,
+                icon = when (box.category) {
+                    "bg" -> SoodalIcons.Aurora
+                    "char" -> SoodalIcons.Otter
+                    "frame" -> SoodalIcons.Frame
+                    else -> SoodalIcons.Gift
+                },
+                grade = null,
+                price = 5,
+                desc = box.description,
+            )
         }
     }
 
-    fun cancelPurchase() {
-        _uiState.value = _uiState.value.copy(confirmItem = null)
+    /** 각 상자의 SSR/SR 아이템을 직접 구매 목록으로 변환 */
+    private val directItemsFlow = gachaRepository.getAllActiveBoxes().flatMapLatest { boxes ->
+        if (boxes.isEmpty()) return@flatMapLatest flowOf(emptyList<ShopItem>())
+
+        val itemFlows = boxes.map { box ->
+            gachaRepository.getBoxItems(box.id).map { items ->
+                items
+                    .filter { it.grade == Grade.SSR || it.grade == Grade.SR }
+                    .map { item ->
+                        ShopItem(
+                            name = item.name,
+                            icon = when (box.category) {
+                                "bg" -> SoodalIcons.Aurora
+                                "char" -> SoodalIcons.Otter
+                                "frame" -> SoodalIcons.Frame
+                                else -> SoodalIcons.Gift
+                            },
+                            grade = item.grade,
+                            price = item.grade.pearlValue,
+                        )
+                    }
+            }
+        }
+        combine(itemFlows) { arrays -> arrays.flatMap { it } }
     }
 
-    fun confirmPurchase() {
-        val item = _uiState.value.confirmItem ?: return
-        val current = _uiState.value
-        if (current.pearls < item.price) return
+    val uiState: StateFlow<ShopUiState> = combine(
+        pearlsFlow,
+        boxesFlow,
+        directItemsFlow,
+        _confirmItem,
+    ) { pearls, boxes, directItems, confirm ->
+        val featured = directItems.firstOrNull { it.grade == Grade.SSR }
+            ?: directItems.firstOrNull()
+            ?: ShopItem("", SoodalIcons.Otter, null, 0)
 
-        _uiState.value = current.copy(
-            pearls = current.pearls - item.price,
-            confirmItem = null,
+        ShopUiState(
+            pearls = pearls,
+            confirmItem = confirm,
+            featured = featured,
+            boxes = boxes,
+            directItems = directItems,
         )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ShopUiState())
+
+    /** 구매 확인 다이얼로그를 표시한다. 이미 보유한 아이템은 무시. */
+    fun selectForPurchase(item: ShopItem) {
+        if (!item.isOwned) {
+            _confirmItem.value = item
+        }
+    }
+
+    /** 구매를 취소한다. */
+    fun cancelPurchase() {
+        _confirmItem.value = null
+    }
+
+    /** 구매를 확정하여 진주를 차감한다. 잔액 부족 시 무시. */
+    fun confirmPurchase() {
+        val item = _confirmItem.value ?: return
+        if (uiState.value.pearls < item.price) return
+
+        viewModelScope.launch {
+            try {
+                currencyUseCase.spendPearls(userId, item.price)
+            } catch (_: IllegalStateException) {
+                // 잔액 부족 또는 유저 미존재
+            } finally {
+                _confirmItem.value = null
+            }
+        }
     }
 }

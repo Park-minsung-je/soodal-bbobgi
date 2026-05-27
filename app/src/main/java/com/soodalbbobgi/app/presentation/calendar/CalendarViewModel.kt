@@ -1,21 +1,29 @@
 package com.soodalbbobgi.app.presentation.calendar
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.soodalbbobgi.app.core.session.UserSession
+import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import java.time.YearMonth
 import javax.inject.Inject
 
 data class StrokeBreakdown(
-    val freestyle: Float = 0f,   // free
-    val backstroke: Float = 0f,  // back
-    val breaststroke: Float = 0f, // breast
-    val butterfly: Float = 0f,   // fly
+    val freestyle: Float = 0f,
+    val backstroke: Float = 0f,
+    val breaststroke: Float = 0f,
+    val butterfly: Float = 0f,
 )
 
 data class SwimDayData(
-    val day: Int,
     val distanceM: Int,
     val durationMin: Int,
     val kcal: Int,
@@ -24,61 +32,69 @@ data class SwimDayData(
 )
 
 data class CalendarUiState(
-    val year: Int = 2026,
-    val month: Int = 5,
-    val selectedDay: Int? = 22,
+    val year: Int = YearMonth.now().year,
+    val month: Int = YearMonth.now().monthValue,
+    val selectedDay: Int? = null,
     val swimData: Map<Int, SwimDayData> = emptyMap(),
 )
 
+/**
+ * 캘린더 화면 ViewModel.
+ * 선택된 월의 수영 기록을 Room DB에서 관찰하여 UI 상태를 구성한다.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
-class CalendarViewModel @Inject constructor() : ViewModel() {
+class CalendarViewModel @Inject constructor(
+    private val userSession: UserSession,
+    private val swimLogUseCase: SwimLogUseCase,
+) : ViewModel() {
 
-    // Demo swim data matching the JSX design prototype
-    // Stroke ratios are in 0..1 range (e.g., 0.7 = 70%)
-    private val demoSwimData: Map<Int, SwimDayData> = mapOf(
-        2 to SwimDayData(2, 800, 25, 180, StrokeBreakdown(0.70f, 0f, 0.30f, 0f), 2),
-        4 to SwimDayData(4, 1000, 30, 220, StrokeBreakdown(0.50f, 0.20f, 0.30f, 0f), 2),
-        7 to SwimDayData(7, 1500, 40, 310, StrokeBreakdown(0.60f, 0.20f, 0.20f, 0f), 3),
-        9 to SwimDayData(9, 600, 20, 140, StrokeBreakdown(1.00f, 0f, 0f, 0f), 1),
-        10 to SwimDayData(10, 2000, 55, 420, StrokeBreakdown(0.40f, 0.20f, 0.30f, 0.10f), 4),
-        13 to SwimDayData(13, 1200, 35, 260, StrokeBreakdown(0.50f, 0.10f, 0.40f, 0f), 2),
-        15 to SwimDayData(15, 900, 28, 195, StrokeBreakdown(0.30f, 0f, 0.70f, 0f), 2),
-        16 to SwimDayData(16, 1800, 48, 380, StrokeBreakdown(0.55f, 0.15f, 0.25f, 0.05f), 3),
-        18 to SwimDayData(18, 2000, 55, 410, StrokeBreakdown(0.50f, 0.15f, 0.25f, 0.10f), 4),
-        20 to SwimDayData(20, 1200, 35, 280, StrokeBreakdown(0.65f, 0.15f, 0.20f, 0f), 2),
-        22 to SwimDayData(22, 1500, 42, 320, StrokeBreakdown(0.45f, 0.20f, 0.30f, 0.05f), 3),
-        24 to SwimDayData(24, 800, 22, 180, StrokeBreakdown(0f, 0.20f, 0.80f, 0f), 2),
-        25 to SwimDayData(25, 1100, 32, 240, StrokeBreakdown(0.55f, 0.20f, 0.25f, 0f), 2),
-        27 to SwimDayData(27, 1600, 45, 340, StrokeBreakdown(0.50f, 0.20f, 0.20f, 0.10f), 3),
-        29 to SwimDayData(29, 1300, 38, 270, StrokeBreakdown(0.60f, 0.10f, 0.30f, 0f), 2),
-    )
+    private val _yearMonth = MutableStateFlow(YearMonth.now())
+    private val _selectedDay = MutableStateFlow<Int?>(null)
 
-    private val _uiState = MutableStateFlow(
-        CalendarUiState(swimData = demoSwimData),
-    )
-    val uiState: StateFlow<CalendarUiState> = _uiState
+    val uiState: StateFlow<CalendarUiState> = combine(
+        _yearMonth,
+        _selectedDay,
+        _yearMonth.flatMapLatest { ym ->
+            val start = "${ym.year}-${"%02d".format(ym.monthValue)}-01"
+            val end = "${ym.year}-${"%02d".format(ym.monthValue)}-${"%02d".format(ym.lengthOfMonth())}"
+            swimLogUseCase.getLogsByDateRange(start, end)
+        },
+    ) { ym, selected, logs ->
+        val swimMap = logs.associate { log ->
+            val day = log.date.substringAfterLast("-").toInt()
+            day to SwimDayData(
+                distanceM = log.distanceMeters,
+                durationMin = log.durationSeconds / 60,
+                kcal = log.calories,
+                strokes = StrokeBreakdown(
+                    freestyle = log.strokeFreeStyle / 100f,
+                    breaststroke = log.strokeBreast / 100f,
+                    backstroke = log.strokeBack / 100f,
+                    butterfly = log.strokeFly / 100f,
+                ),
+                shellReward = log.shellsEarned,
+            )
+        }
+        CalendarUiState(
+            year = ym.year,
+            month = ym.monthValue,
+            selectedDay = selected,
+            swimData = swimMap,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CalendarUiState())
 
     fun selectDay(day: Int) {
-        _uiState.value = _uiState.value.copy(selectedDay = day)
+        _selectedDay.value = day
     }
 
     fun previousMonth() {
-        val ym = YearMonth.of(_uiState.value.year, _uiState.value.month).minusMonths(1)
-        _uiState.value = _uiState.value.copy(
-            year = ym.year,
-            month = ym.monthValue,
-            selectedDay = null,
-            swimData = if (ym.year == 2026 && ym.monthValue == 5) demoSwimData else emptyMap(),
-        )
+        _yearMonth.update { it.minusMonths(1) }
+        _selectedDay.value = null
     }
 
     fun nextMonth() {
-        val ym = YearMonth.of(_uiState.value.year, _uiState.value.month).plusMonths(1)
-        _uiState.value = _uiState.value.copy(
-            year = ym.year,
-            month = ym.monthValue,
-            selectedDay = null,
-            swimData = if (ym.year == 2026 && ym.monthValue == 5) demoSwimData else emptyMap(),
-        )
+        _yearMonth.update { it.plusMonths(1) }
+        _selectedDay.value = null
     }
 }
