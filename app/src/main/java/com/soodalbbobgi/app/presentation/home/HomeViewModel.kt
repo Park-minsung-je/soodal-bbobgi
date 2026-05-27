@@ -63,6 +63,11 @@ class HomeViewModel @Inject constructor(
 
     private val _syncing = MutableStateFlow(false)
 
+    private val _syncError = MutableStateFlow<String?>(null)
+    val syncError: StateFlow<String?> = _syncError
+
+    fun clearSyncError() { _syncError.value = null }
+
     // HC 동기화는 사용자가 동기화 버튼을 누를 때만 실행
     // 서버 사용자 데이터는 Splash에서 Room에 이미 저장됨
 
@@ -193,6 +198,11 @@ class HomeViewModel @Inject constructor(
                 _shellReward.value = totalEarned
             } catch (e: Exception) {
                 Timber.e(e, "Health Connect 동기화 실패")
+                _syncError.value = when {
+                    e.message?.contains("timeout") == true -> "서버 응답이 없어요. 네트워크를 확인해주세요."
+                    e.message?.contains("Unable to resolve") == true -> "인터넷 연결을 확인해주세요."
+                    else -> "동기화에 실패했어요. 다시 시도해주세요."
+                }
             } finally {
                 _syncing.value = false
             }
