@@ -81,17 +81,14 @@ class AuthViewModel @Inject constructor(
      * @param provider 로그인 시도한 OAuth 제공자
      */
     private fun handleAuthFallback(error: Throwable, provider: String) {
-        if (BuildConfig.DEBUG) {
-            Timber.d("Debug 모드: 서버 연결 실패, 로컬 전용 모드로 진행 ($provider)")
-            _uiState.value = AuthUiState.Success(isNewUser = false)
-        } else {
-            val message = when {
-                error.message?.contains("Unable to resolve host") == true -> "네트워크 연결을 확인해주세요."
-                error.message?.contains("timeout") == true -> "서버 응답이 없어요. 잠시 후 다시 시도해주세요."
-                else -> "로그인에 실패했어요. 다시 시도해주세요."
-            }
-            _uiState.value = AuthUiState.Error(message)
+        Timber.e(error, "인증 실패 ($provider)")
+        val message = when {
+            error.message?.contains("Unable to resolve host") == true -> "네트워크 연결을 확인해주세요."
+            error.message?.contains("timeout") == true -> "서버 응답이 없어요. 잠시 후 다시 시도해주세요."
+            error.message?.contains("카카오") == true -> error.message ?: "카카오 로그인에 실패했어요."
+            else -> "로그인에 실패했어요. 다시 시도해주세요."
         }
+        _uiState.value = AuthUiState.Error(message)
     }
 
     /** 에러 상태를 초기화하여 재시도를 허용한다. */
