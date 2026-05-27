@@ -6,9 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.session.UserSession
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.domain.model.Grade
+import com.soodalbbobgi.app.data.remote.api.SoodalApi
+import com.soodalbbobgi.app.data.remote.dto.GachaPullRequest
 import com.soodalbbobgi.app.domain.repository.GachaRepository
 import com.soodalbbobgi.app.domain.repository.UserRepository
-import com.soodalbbobgi.app.domain.usecase.GachaUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -81,8 +82,8 @@ private const val SPIN_PAUSE_MS = 800L
 class GachaViewModel @Inject constructor(
     private val userSession: UserSession,
     private val userRepository: UserRepository,
-    private val gachaUseCase: GachaUseCase,
     private val gachaRepository: GachaRepository,
+    private val soodalApi: SoodalApi,
 ) : ViewModel() {
 
     private val userId get() = userSession.userId
@@ -174,9 +175,9 @@ class GachaViewModel @Inject constructor(
             val selectedBox = activeBoxes.random()
             val resultBoxIndex = activeBoxes.indexOf(selectedBox)
 
-            // 애니메이션과 병행: 실제 뽑기 결과를 UseCase에서 받는다
+            // 애니메이션과 병행: 서버에서 뽑기 실행 (확률 계산 + 재화 차감은 서버가 판정)
             val pullDeferred = async(Dispatchers.IO) {
-                gachaUseCase.pull(userId, selectedBox.id, count)
+                soodalApi.gachaPull(GachaPullRequest(boxId = selectedBox.id, count = count))
             }
 
             // 현재 위치에서 6~8바퀴 + 결과 상자까지의 잔여 슬롯으로 목표 offset 산출
@@ -216,18 +217,27 @@ class GachaViewModel @Inject constructor(
             delay(SPIN_PAUSE_MS)
 
             // 애니메이션 완료 후 결과 수집
-            val gachaResults = pullDeferred.await()
-            val batch = gachaResults.map { r ->
-                GachaResultItem(
-                    name = r.item.name,
-                    grade = r.item.grade,
-                    kind = selectedBox.category,
-                    isNew = r.wasNew,
-                    pearlsEarned = r.pearlsEarned,
-                )
-            }
-            _localState.update {
-                it.copy(phase = GachaPhase.Result, results = batch, resultIndex = 0)
+            val response = pullDeferred.await()
+            if (response.success && response.data != null) {
+                val batch = response.data.results.map { r ->
+                    GachaResultItem(
+                        name = r.item.name,
+                        grade = Grade.fromString(r.item.grade),
+                        kind = selectedBox.category,
+                        isNew = r.wasNew,
+                        pearlsEarned = r.pearlsEarned,
+                    )
+                }
+                // 서버에서 받은 최신 잔액으로 로컬 갱신
+                val currency = response.data.currency
+                userRepository.updateCurrency(userId, currency.shellBalance, currency.pearlBalance)
+                userRepository.updatePityCounter(userId, currency.pityCounter)
+
+                _localState.update {
+                    it.copy(phase = GachaPhase.Result, results = batch, resultIndex = 0)
+                }
+            } else {
+                _localState.update { it.copy(phase = GachaPhase.Idle) }
             }
         }
     }

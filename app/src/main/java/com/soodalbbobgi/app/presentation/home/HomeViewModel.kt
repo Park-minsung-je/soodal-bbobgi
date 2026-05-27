@@ -64,8 +64,29 @@ class HomeViewModel @Inject constructor(
     private val _syncing = MutableStateFlow(false)
 
     init {
-        // Home 진입 시 자동으로 HC 동기화 실행
+        // Home 진입 시 서버에서 사용자 데이터 pull + HC 동기화
+        pullServerData()
         onSync()
+    }
+
+    /**
+     * 서버에서 사용자 정보를 가져와 로컬 Room을 갱신한다.
+     * 조개/진주 잔액, 닉네임 등 서버 원본 데이터를 로컬에 반영.
+     */
+    private fun pullServerData() {
+        viewModelScope.launch {
+            try {
+                val response = soodalApi.getMe()
+                if (response.success && response.data != null) {
+                    val u = response.data
+                    userSession.setAuthenticatedUser(u.id)
+                    userRepository.updateCurrency(u.id, u.shellBalance, u.pearlBalance)
+                    u.nickname?.let { userRepository.updateNickname(u.id, it) }
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "서버 데이터 pull 실패 (오프라인일 수 있음)")
+            }
+        }
     }
 
     val uiState: StateFlow<HomeUiState> = combine(
