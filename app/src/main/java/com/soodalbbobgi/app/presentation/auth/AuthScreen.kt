@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -50,6 +51,7 @@ fun AuthScreen(
     viewModel: AuthViewModel = hiltViewModel(),
 ) {
     val colors = SoodalDesign.colors
+    val activity = LocalContext.current as android.app.Activity
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     // 인증 성공 시 네비게이션 처리
@@ -118,7 +120,7 @@ fun AuthScreen(
                         enabled = !isLoading,
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                        onClick = { viewModel.loginWithKakao() },
+                        onClick = { viewModel.loginWithKakao(activity) },
                     ),
             )
 

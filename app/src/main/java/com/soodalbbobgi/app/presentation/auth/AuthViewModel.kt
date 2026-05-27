@@ -37,14 +37,18 @@ class AuthViewModel @Inject constructor(
      * 2) 서버 /auth/kakao 호출 → JWT 발급
      * 3) 토큰 저장 후 신규/기존 사용자 구분하여 완료 상태 전환
      */
-    fun loginWithKakao() {
+    /**
+     * 카카오 로그인을 시작한다.
+     *
+     * @param activity 현재 Activity (카카오 SDK가 로그인 화면을 띄우기 위해 필요)
+     */
+    fun loginWithKakao(activity: android.app.Activity) {
         if (_uiState.value is AuthUiState.Loading) return
         _uiState.value = AuthUiState.Loading("kakao")
 
         viewModelScope.launch {
             try {
-                // 1단계: 카카오 SDK로 카카오 액세스 토큰 획득
-                val kakaoTokenResult = kakaoAuthManager.signIn()
+                val kakaoTokenResult = kakaoAuthManager.signIn(activity)
                 val kakaoToken = kakaoTokenResult.getOrElse { error ->
                     Timber.e(error, "카카오 로그인 실패")
                     handleAuthFallback(error, "kakao")

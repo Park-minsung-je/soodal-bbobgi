@@ -18,8 +18,8 @@ android {
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "BASE_URL", "\"https://soodal.bbobgi.ilf.kr/v1/\"")
-        buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"1a3ed6a67587af30e145380b723dc7ac\"")
-        manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = "1a3ed6a67587af30e145380b723dc7ac"
+        buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"ff9ecdb8cae1ebf2c9541f3aee571cca\"")
+        manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = "ff9ecdb8cae1ebf2c9541f3aee571cca"
     }
 
     buildTypes {
