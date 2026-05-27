@@ -9,6 +9,8 @@ import com.soodalbbobgi.app.data.auth.TokenStore
 import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.data.remote.dto.KakaoAuthRequest
+import com.soodalbbobgi.app.domain.model.User
+import com.soodalbbobgi.app.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +29,7 @@ class AuthViewModel @Inject constructor(
     private val soodalApi: SoodalApi,
     private val tokenStore: TokenStore,
     private val userSession: UserSession,
+    private val userRepository: UserRepository,
     private val healthConnectManager: HealthConnectManager,
 ) : ViewModel() {
 
@@ -58,6 +61,17 @@ class AuthViewModel @Inject constructor(
                     // 3단계: JWT 토큰 저장 및 세션 설정
                     tokenStore.saveTokens(data.accessToken, data.refreshToken, data.expiresIn)
                     userSession.setAuthenticatedUser(data.user.id)
+
+                    // 서버 사용자 정보를 Room에 저장
+                    userRepository.createUser(User(
+                        id = data.user.id,
+                        nickname = data.user.nickname ?: "",
+                        shellBalance = data.user.shellBalance,
+                        pearlBalance = data.user.pearlBalance,
+                        pityCounter = data.user.pityCounter,
+                        lastShellGrantDate = null,
+                        authProvider = data.user.authProvider,
+                    ))
 
                     val needsNickname = data.isNewUser || data.user.nickname == null
                     val hasHcPermission = healthConnectManager.hasAllPermissions()

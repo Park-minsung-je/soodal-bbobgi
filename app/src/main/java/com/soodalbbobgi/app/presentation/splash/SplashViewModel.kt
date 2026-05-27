@@ -7,6 +7,9 @@ import com.soodalbbobgi.app.data.auth.TokenStore
 import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.data.remote.dto.RefreshRequest
+import com.soodalbbobgi.app.data.remote.dto.UserData
+import com.soodalbbobgi.app.domain.model.User
+import com.soodalbbobgi.app.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +25,7 @@ class SplashViewModel @Inject constructor(
     private val tokenStore: TokenStore,
     private val soodalApi: SoodalApi,
     private val userSession: UserSession,
+    private val userRepository: UserRepository,
     private val healthConnectManager: HealthConnectManager,
 ) : ViewModel() {
 
@@ -60,11 +64,12 @@ class SplashViewModel @Inject constructor(
                     }
                 }
 
-                // 서버에서 사용자 정보 확인
+                // 서버에서 사용자 정보 확인 → Room에 저장
                 val userRes = soodalApi.getMe()
                 if (userRes.success && userRes.data != null) {
                     val user = userRes.data
                     userSession.setAuthenticatedUser(user.id)
+                    saveUserToRoom(user)
 
                     val hasHcPermission = healthConnectManager.hasAllPermissions()
                     _destination.value = when {
@@ -82,6 +87,19 @@ class SplashViewModel @Inject constructor(
                 _destination.value = SplashDestination.Auth
             }
         }
+    }
+
+    /** 서버에서 받은 사용자 정보를 Room DB에 저장한다. */
+    private suspend fun saveUserToRoom(data: UserData) {
+        userRepository.createUser(User(
+            id = data.id,
+            nickname = data.nickname ?: "",
+            shellBalance = data.shellBalance,
+            pearlBalance = data.pearlBalance,
+            pityCounter = data.pityCounter,
+            lastShellGrantDate = null,
+            authProvider = data.authProvider,
+        ))
     }
 }
 
