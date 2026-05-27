@@ -5,9 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.session.UserSession
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.domain.model.Grade
+import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.domain.repository.GachaRepository
 import com.soodalbbobgi.app.domain.repository.UserRepository
-import com.soodalbbobgi.app.domain.usecase.CurrencyUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,7 +51,7 @@ class ShopViewModel @Inject constructor(
     private val userSession: UserSession,
     private val userRepository: UserRepository,
     private val gachaRepository: GachaRepository,
-    private val currencyUseCase: CurrencyUseCase,
+    private val soodalApi: SoodalApi,
 ) : ViewModel() {
 
     private val userId get() = userSession.userId
@@ -138,16 +138,25 @@ class ShopViewModel @Inject constructor(
         _confirmItem.value = null
     }
 
-    /** 구매를 확정하여 진주를 차감한다. 잔액 부족 시 무시. */
+    /** 구매를 확정하여 서버에서 진주 차감 + 아이템 지급을 처리한다. */
     fun confirmPurchase() {
         val item = _confirmItem.value ?: return
         if (uiState.value.pearls < item.price) return
 
         viewModelScope.launch {
             try {
-                currencyUseCase.spendPearls(userId, item.price)
-            } catch (_: IllegalStateException) {
-                // 잔액 부족 또는 유저 미존재
+                val response = soodalApi.shopPurchase(
+                    com.soodalbbobgi.app.data.remote.dto.ShopPurchaseRequest(
+                        boxItemId = 0, // TODO: ShopItem에 boxItemId 추가 필요
+                        price = item.price,
+                    )
+                )
+                if (response.success && response.data != null) {
+                    val currency = response.data.currency
+                    userRepository.updateCurrency(userId, currency.shellBalance, currency.pearlBalance)
+                }
+            } catch (e: Exception) {
+                timber.log.Timber.w(e, "상점 구매 실패")
             } finally {
                 _confirmItem.value = null
             }

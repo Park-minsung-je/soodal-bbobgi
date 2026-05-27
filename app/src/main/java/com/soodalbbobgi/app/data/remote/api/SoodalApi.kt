@@ -53,6 +53,12 @@ interface SoodalApi {
     @GET("inventory")
     suspend fun getInventory(@Query("category") category: String? = null): ApiResponse<InventoryData>
 
+    // ── Shop ──
+
+    /** 진주로 아이템 직접 구매 */
+    @POST("shop/purchase")
+    suspend fun shopPurchase(@Body request: ShopPurchaseRequest): ApiResponse<ShopPurchaseData>
+
     // ── Swim Logs ──
 
     /** 수영 기록 추가 */

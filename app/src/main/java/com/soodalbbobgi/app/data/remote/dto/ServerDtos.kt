@@ -1,5 +1,19 @@
 package com.soodalbbobgi.app.data.remote.dto
 
+// ── Shop ──
+
+/** POST /shop/purchase 요청 */
+data class ShopPurchaseRequest(
+    val boxItemId: Long,
+    val price: Int,
+)
+
+/** POST /shop/purchase 응답 */
+data class ShopPurchaseData(
+    val inventoryItem: ServerInventoryItem,
+    val currency: ServerCurrency,
+)
+
 // ── User ──
 
 /** PATCH /users/me 요청 */
