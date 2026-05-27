@@ -63,6 +63,11 @@ class HomeViewModel @Inject constructor(
 
     private val _syncing = MutableStateFlow(false)
 
+    init {
+        // Home 진입 시 자동으로 HC 동기화 실행
+        onSync()
+    }
+
     val uiState: StateFlow<HomeUiState> = combine(
         userRepository.getUser(userSession.userId).filterNotNull(),
         inventoryRepository.getAll(userSession.userId),
@@ -109,9 +114,12 @@ class HomeViewModel @Inject constructor(
                     return@launch
                 }
 
-                val today = LocalDate.now()
+                // 새벽 2시 이전이면 전날 기록도 포함 (조개 지급 마감이 익일 2시)
+                val now = java.time.LocalDateTime.now()
+                val today = now.toLocalDate()
                 val zone = ZoneId.systemDefault()
-                val startOfDay = today.atStartOfDay(zone).toInstant()
+                val fetchFrom = if (now.hour < 2) today.minusDays(1) else today
+                val startOfDay = fetchFrom.atStartOfDay(zone).toInstant()
                 val endOfDay = today.plusDays(1).atStartOfDay(zone).toInstant()
 
                 val sessions = healthConnectManager.readSwimSessions(startOfDay, endOfDay)

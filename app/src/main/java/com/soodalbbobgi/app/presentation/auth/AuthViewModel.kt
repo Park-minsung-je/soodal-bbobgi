@@ -9,6 +9,7 @@ import com.soodalbbobgi.app.data.auth.TokenStore
 import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.data.remote.dto.KakaoAuthRequest
+import com.soodalbbobgi.app.data.remote.dto.RefreshRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,12 +34,65 @@ class AuthViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
+    init {
+        tryAutoLogin()
+    }
+
     /**
-     * 카카오 로그인을 시작한다.
-     * 1) 카카오 SDK로 카카오 액세스 토큰 획득
-     * 2) 서버 /auth/kakao 호출 → JWT 발급
-     * 3) 토큰 저장 후 신규/기존 사용자 구분하여 완료 상태 전환
+     * 저장된 토큰이 있으면 서버에서 사용자 정보를 확인하고 자동 로그인한다.
+     * 토큰 만료 시 refresh를 시도하고, 실패하면 로그인 화면을 보여준다.
      */
+    private fun tryAutoLogin() {
+        val token = tokenStore.getAccessToken()
+        Timber.d("자동 로그인 시도: token=${if (token != null) "있음" else "없음"}, expired=${tokenStore.isAccessTokenExpired()}")
+        if (token == null) return
+        _uiState.value = AuthUiState.Loading("auto")
+
+        viewModelScope.launch {
+            try {
+                // 토큰 만료 시 refresh 시도
+                if (tokenStore.isAccessTokenExpired()) {
+                    val refreshToken = tokenStore.getRefreshToken()
+                    if (refreshToken != null) {
+                        val refreshResponse = soodalApi.refreshToken(RefreshRequest(refreshToken))
+                        if (refreshResponse.success && refreshResponse.data != null) {
+                            val data = refreshResponse.data
+                            tokenStore.saveTokens(data.accessToken, data.refreshToken, data.expiresIn)
+                        } else {
+                            tokenStore.clearTokens()
+                            _uiState.value = AuthUiState.Idle
+                            return@launch
+                        }
+                    } else {
+                        tokenStore.clearTokens()
+                        _uiState.value = AuthUiState.Idle
+                        return@launch
+                    }
+                }
+
+                // 서버에서 사용자 정보 조회
+                val userResponse = soodalApi.getMe()
+                if (userResponse.success && userResponse.data != null) {
+                    val user = userResponse.data
+                    userSession.setAuthenticatedUser(user.id)
+
+                    val hasHcPermission = healthConnectManager.hasAllPermissions()
+                    _uiState.value = when {
+                        user.nickname == null -> AuthUiState.Success(route = AuthRoute.Onboarding)
+                        !hasHcPermission -> AuthUiState.Success(route = AuthRoute.Permission)
+                        else -> AuthUiState.Success(route = AuthRoute.Home)
+                    }
+                } else {
+                    tokenStore.clearTokens()
+                    _uiState.value = AuthUiState.Idle
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "자동 로그인 실패")
+                tokenStore.clearTokens()
+                _uiState.value = AuthUiState.Idle
+            }
+        }
+    }
     /**
      * 카카오 로그인을 시작한다.
      *
