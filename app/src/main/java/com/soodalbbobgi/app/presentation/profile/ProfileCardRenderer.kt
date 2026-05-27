@@ -14,6 +14,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
 
+/**
+ * 프로필 카드 합성에 필요한 4레이어 데이터.
+ * 실제 에셋이 준비되면 색상 대신 Bitmap 참조로 교체 예정.
+ *
+ * @property bgColor 배경 레이어 색상
+ * @property borderColor 테두리/액자 색상
+ * @property charColor 캐릭터 플레이스홀더 색상
+ * @property nickname 카드에 표시할 닉네임
+ * @property tagline 한 줄 소개 문구
+ * @property stats 누적 거리·횟수 통계 텍스트
+ * @property charX 캐릭터 X 위치 (0.0~1.0 정규화)
+ * @property charY 캐릭터 Y 위치 (0.0~1.0 정규화)
+ * @property charScale 캐릭터 크기 배율 (0.3~1.0)
+ */
 data class CardLayers(
     val bgColor: Color = Color(0xFF87CEEB),
     val borderColor: Color = Color(0xFF00A8B8),
@@ -26,10 +40,20 @@ data class CardLayers(
     val charScale: Float = 0.7f,
 )
 
+/**
+ * 1472×704 도트아트 프로필 카드를 Canvas로 합성한다.
+ * 배경 → 테두리 → 캐릭터 → 텍스트 순서로 4레이어를 그린다.
+ */
 object ProfileCardRenderer {
     const val CARD_WIDTH = 1472
     const val CARD_HEIGHT = 704
 
+    /**
+     * CardLayers 데이터를 기반으로 프로필 카드 Bitmap을 생성한다.
+     *
+     * @param layers 합성할 4레이어 데이터
+     * @return 1472×704 ARGB_8888 Bitmap
+     */
     fun render(layers: CardLayers): Bitmap {
         val bitmap = Bitmap.createBitmap(CARD_WIDTH, CARD_HEIGHT, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -102,6 +126,13 @@ object ProfileCardRenderer {
     }
 }
 
+/**
+ * ProfileCardRenderer의 결과를 Compose Image로 표시하는 래퍼.
+ * layers가 변경될 때만 Bitmap을 재생성한다.
+ *
+ * @param layers 카드 합성 데이터
+ * @param modifier Compose Modifier
+ */
 @Composable
 fun ProfileCardComposite(
     layers: CardLayers,
