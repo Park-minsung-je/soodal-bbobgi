@@ -142,6 +142,12 @@ data class ServerSwimLog(
     val createdAt: Long,
 )
 
+/** DELETE /swim-logs/by-date/:date 응답 */
+data class DeleteSwimLogData(
+    val date: String,
+    val deleted: Boolean,
+)
+
 /** GET /swim-logs/stats 응답 */
 data class SwimStatsData(
     val totalDistanceMeters: Int,

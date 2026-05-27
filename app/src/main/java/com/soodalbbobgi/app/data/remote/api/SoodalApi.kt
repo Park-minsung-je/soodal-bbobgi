@@ -2,9 +2,11 @@ package com.soodalbbobgi.app.data.remote.api
 
 import com.soodalbbobgi.app.data.remote.dto.*
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
@@ -71,6 +73,10 @@ interface SoodalApi {
         @Query("startDate") startDate: String,
         @Query("endDate") endDate: String,
     ): ApiResponse<SwimLogsData>
+
+    /** 수영 기록 삭제 (soft-delete, 조개 미회수) */
+    @DELETE("swim-logs/by-date/{date}")
+    suspend fun deleteSwimLog(@Path("date") date: String): ApiResponse<DeleteSwimLogData>
 
     /** 수영 통계 조회 */
     @GET("swim-logs/stats")
