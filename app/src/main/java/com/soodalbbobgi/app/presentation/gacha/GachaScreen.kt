@@ -367,10 +367,42 @@ private fun GachaResultOverlay(
                             fontSize = 13.sp, fontWeight = FontWeight.Bold, color = gradeColor,
                         )
                     } else {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("이미 보유 →", fontSize = 13.sp, color = colors.textSecondary)
-                            SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 14.dp)
-                            Text("진주 ${item.pearlsEarned}개로 교환!", fontSize = 13.sp, color = colors.textSecondary)
+                        // 중복 아이템 → 진주 교환 강조 표현
+                        Text(
+                            "이미 보유 중인 $kindLabel",
+                            fontSize = 12.sp, color = colors.textTertiary,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(
+                                            colors.accentPurple.copy(alpha = 0.15f),
+                                            colors.accentPurple.copy(alpha = 0.05f),
+                                        )
+                                    ),
+                                    RoundedCornerShape(12.dp),
+                                )
+                                .border(1.dp, colors.accentPurple.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 18.dp)
+                            Text(
+                                "진주 +${item.pearlsEarned}",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontFamily = JetBrainsMonoFamily,
+                                color = colors.accentPurple,
+                            )
+                            Text(
+                                "교환 완료",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = colors.accentPurple.copy(alpha = 0.7f),
+                            )
                         }
                     }
 
