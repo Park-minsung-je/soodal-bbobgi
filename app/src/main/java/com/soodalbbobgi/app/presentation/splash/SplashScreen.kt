@@ -29,25 +29,42 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soodalbbobgi.app.R
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import kotlinx.coroutines.delay
 
+/**
+ * 스플래시 화면. 로딩 애니메이션을 보여주면서 자동 로그인을 체크한다.
+ * 토큰이 유효하면 Auth 화면을 건너뛰고 바로 Home으로 이동한다.
+ *
+ * @param onNavigate 목적지가 결정되면 호출되는 콜백
+ */
 @Composable
-fun SplashScreen(onDone: () -> Unit) {
+fun SplashScreen(
+    onNavigate: (SplashDestination) -> Unit,
+    viewModel: SplashViewModel = hiltViewModel(),
+) {
     val colors = SoodalDesign.colors
+    val destination by viewModel.destination.collectAsStateWithLifecycle()
+
     var progress by remember { mutableFloatStateOf(0f) }
     val animatedProgress by animateFloatAsState(
         targetValue = progress, animationSpec = tween(100), label = "splash",
     )
 
-    LaunchedEffect(Unit) {
+    // 로딩 애니메이션 + 최소 1초 대기 후 네비게이션
+    LaunchedEffect(destination) {
+        // 로딩 애니메이션 진행
         repeat(25) {
-            delay(60)
+            delay(40)
             progress = (it + 1) / 25f
         }
+        // destination이 아직 Loading이면 결정될 때까지 대기
+        if (destination == SplashDestination.Loading) return@LaunchedEffect
         delay(200)
-        onDone()
+        onNavigate(destination)
     }
 
     Box(Modifier.fillMaxSize().background(colors.bgDeep), contentAlignment = Alignment.Center) {

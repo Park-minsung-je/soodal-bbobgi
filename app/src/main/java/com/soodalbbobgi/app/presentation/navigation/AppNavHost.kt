@@ -24,6 +24,7 @@ import com.soodalbbobgi.app.presentation.profile.ProfileEditorScreen
 import com.soodalbbobgi.app.presentation.profile.ProfileFullscreenScreen
 import com.soodalbbobgi.app.presentation.settings.SettingsScreen
 import com.soodalbbobgi.app.presentation.shop.ShopScreen
+import com.soodalbbobgi.app.presentation.splash.SplashDestination
 import com.soodalbbobgi.app.presentation.splash.SplashScreen
 
 @Composable
@@ -36,8 +37,17 @@ fun AppNavHost(navController: NavHostController) {
     ) {
         NavHost(navController = navController, startDestination = Screen.Splash.route) {
         composable(Screen.Splash.route) {
-            SplashScreen(onDone = {
-                navController.navigate(Screen.Auth.route) { popUpTo(Screen.Splash.route) { inclusive = true } }
+            SplashScreen(onNavigate = { dest ->
+                val target = when (dest) {
+                    SplashDestination.Auth -> Screen.Auth.route
+                    SplashDestination.Onboarding -> Screen.OnboardingNickname.route
+                    SplashDestination.Permission -> Screen.OnboardingPermission.route
+                    SplashDestination.Home -> Screen.Home.route
+                    SplashDestination.Loading -> return@SplashScreen
+                }
+                navController.navigate(target) {
+                    popUpTo(Screen.Splash.route) { inclusive = true }
+                }
             })
         }
         composable(Screen.Auth.route) {
