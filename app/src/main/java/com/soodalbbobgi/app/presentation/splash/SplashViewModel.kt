@@ -9,8 +9,14 @@ import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.data.remote.dto.RefreshRequest
 import com.soodalbbobgi.app.data.remote.dto.SwimLogRequest
 import com.soodalbbobgi.app.data.remote.dto.UserData
+import com.soodalbbobgi.app.domain.model.GachaBox
+import com.soodalbbobgi.app.domain.model.GachaBoxItem
+import com.soodalbbobgi.app.domain.model.Grade
+import com.soodalbbobgi.app.domain.model.InventoryItem
 import com.soodalbbobgi.app.domain.model.SwimLog
 import com.soodalbbobgi.app.domain.model.User
+import com.soodalbbobgi.app.domain.repository.GachaRepository
+import com.soodalbbobgi.app.domain.repository.InventoryRepository
 import com.soodalbbobgi.app.domain.repository.UserRepository
 import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
 import java.time.LocalDate
@@ -32,6 +38,8 @@ class SplashViewModel @Inject constructor(
     private val soodalApi: SoodalApi,
     private val userSession: UserSession,
     private val userRepository: UserRepository,
+    private val gachaRepository: GachaRepository,
+    private val inventoryRepository: InventoryRepository,
     private val healthConnectManager: HealthConnectManager,
     private val swimLogUseCase: SwimLogUseCase,
 ) : ViewModel() {
@@ -78,9 +86,12 @@ class SplashViewModel @Inject constructor(
                     userSession.setAuthenticatedUser(user.id)
                     saveUserToRoom(user)
 
+                    // 동기화 순서: SERVER_SPEC.md 참고
+                    // 1. 서버→로컬 (서버 원본)
+                    syncGachaBoxes()
+                    syncInventory()
+                    // 2. 로컬→서버 (로컬 원본)
                     val hasHcPermission = healthConnectManager.hasAllPermissions()
-
-                    // HC 권한이 있으면 앱 실행 시 1회 동기화
                     if (hasHcPermission) syncHealthConnect()
 
                     _destination.value = when {
@@ -111,6 +122,65 @@ class SplashViewModel @Inject constructor(
             lastShellGrantDate = null,
             authProvider = data.authProvider,
         ))
+    }
+
+    /**
+     * 서버에서 뽑기 상자 + 아이템 목록을 받아 Room에 저장한다.
+     * 뽑기/상점 화면이 이 데이터를 Room에서 읽는다.
+     */
+    private suspend fun syncGachaBoxes() {
+        try {
+            val res = soodalApi.getGachaBoxes()
+            if (res.success && res.data != null) {
+                for (box in res.data.boxes) {
+                    gachaRepository.saveBox(GachaBox(
+                        id = box.id,
+                        name = box.name,
+                        description = box.description,
+                        category = box.category,
+                    ))
+                    for (item in box.items) {
+                        gachaRepository.saveBoxItem(GachaBoxItem(
+                            id = item.id,
+                            boxId = box.id,
+                            itemKey = item.itemKey,
+                            name = item.name,
+                            grade = Grade.fromString(item.grade),
+                            weight = item.weight,
+                            imageAsset = item.imageAsset,
+                        ))
+                    }
+                }
+                Timber.d("뽑기 상자 동기화 완료: ${res.data.boxes.size}개")
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "뽑기 상자 동기화 실패")
+        }
+    }
+
+    /**
+     * 서버에서 인벤토리를 받아 Room에 저장한다.
+     */
+    private suspend fun syncInventory() {
+        try {
+            val res = soodalApi.getInventory()
+            if (res.success && res.data != null) {
+                for (item in res.data.items) {
+                    inventoryRepository.addItem(InventoryItem(
+                        id = item.id,
+                        userId = userSession.userId,
+                        boxItemId = item.boxItemId,
+                        grade = Grade.fromString(item.grade),
+                        category = item.category,
+                        isEquippedAs = item.isEquippedAs,
+                        acquiredAt = item.acquiredAt,
+                    ))
+                }
+                Timber.d("인벤토리 동기화 완료: ${res.data.items.size}개")
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "인벤토리 동기화 실패")
+        }
     }
 
     /**
