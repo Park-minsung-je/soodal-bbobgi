@@ -3,7 +3,7 @@ package com.soodalbbobgi.app.data.auth
 import android.content.Context
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.soodalbbobgi.app.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -13,8 +13,13 @@ import javax.inject.Singleton
 /**
  * Google Credential Manager 래퍼.
  *
- * `setServerClientId`에 Web Client ID를 넘기면 발급되는 idToken의 `aud` 클레임이
+ * 생성자에 Web Client ID를 넘기면 발급되는 idToken의 `aud` 클레임이
  * 그 값으로 박힌다. 서버는 audience 비교로 토큰이 우리 백엔드 대상임을 검증한다.
+ *
+ * 옵션 선택 — [GetSignInWithGoogleOption]을 사용한다.
+ * Android 14+에서 `GetGoogleIdOption` + 다중 Google 계정 환경 + GMS 24.40 미만 조합에서는
+ * `CredentialSelectorActivity` 시작 시 `TransactionTooLargeException`이 터져 로그인 시트가
+ * 뜨지 않는 알려진 버그가 있다. `GetSignInWithGoogleOption`은 이 버그의 영향을 받지 않는다.
  */
 @Singleton
 class GoogleAuthManager @Inject constructor(
@@ -30,14 +35,11 @@ class GoogleAuthManager @Inject constructor(
      */
     suspend fun signIn(activityContext: Context): Result<String> {
         return try {
-            val googleIdOption = GetGoogleIdOption.Builder()
-                .setServerClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
-                .setFilterByAuthorizedAccounts(false)
-                .setAutoSelectEnabled(false)
+            val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(BuildConfig.GOOGLE_WEB_CLIENT_ID)
                 .build()
 
             val request = GetCredentialRequest.Builder()
-                .addCredentialOption(googleIdOption)
+                .addCredentialOption(signInWithGoogleOption)
                 .build()
 
             val result = credentialManager.getCredential(activityContext, request)
