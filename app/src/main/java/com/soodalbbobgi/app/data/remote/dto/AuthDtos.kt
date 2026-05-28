@@ -62,6 +62,9 @@ data class UserData(
     val shellBalance: Int,
     val pearlBalance: Int,
     val pityCounter: Int,
+    val lastShellGrantDate: String? = null,
+    val gender: String? = null,
+    val ageRange: String? = null,
     val authProvider: String,
     val createdAt: Long,
 )
