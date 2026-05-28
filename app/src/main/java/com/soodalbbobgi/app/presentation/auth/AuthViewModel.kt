@@ -3,10 +3,12 @@ package com.soodalbbobgi.app.presentation.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.state.AppStateLoader
+import com.soodalbbobgi.app.data.auth.GoogleAuthManager
 import com.soodalbbobgi.app.data.auth.KakaoAuthManager
 import com.soodalbbobgi.app.data.auth.TokenStore
 import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
+import com.soodalbbobgi.app.data.remote.dto.GoogleAuthRequest
 import com.soodalbbobgi.app.data.remote.dto.KakaoAuthRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +25,7 @@ import javax.inject.Inject
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val kakaoAuthManager: KakaoAuthManager,
+    private val googleAuthManager: GoogleAuthManager,
     private val soodalApi: SoodalApi,
     private val tokenStore: TokenStore,
     private val appStateLoader: AppStateLoader,
@@ -81,11 +84,63 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Google 로그인을 시작한다.
+     *
+     * Credential Manager로 idToken을 받은 뒤 서버 `/auth/google`에 전달.
+     * 성공 시 [AppStateLoader.loadAll]로 메모리 채운 뒤 다음 화면을 결정한다.
+     *
+     * @param activity 현재 Activity (Credential Manager가 계정 선택 시스템 UI를 띄울 때 필요)
+     */
+    fun loginWithGoogle(activity: android.app.Activity) {
+        if (_uiState.value is AuthUiState.Loading) return
+        _uiState.value = AuthUiState.Loading("google")
+
+        viewModelScope.launch {
+            try {
+                val idTokenResult = googleAuthManager.signIn(activity)
+                val idToken = idTokenResult.getOrElse { error ->
+                    Timber.e(error, "구글 로그인 실패")
+                    showError(error)
+                    return@launch
+                }
+
+                val authResponse = soodalApi.authGoogle(GoogleAuthRequest(idToken))
+                if (authResponse.success && authResponse.data != null) {
+                    val data = authResponse.data
+                    tokenStore.saveTokens(data.accessToken, data.refreshToken, data.expiresIn)
+
+                    val loaded = appStateLoader.loadAll()
+                    if (loaded.isFailure) {
+                        Timber.w(loaded.exceptionOrNull(), "AppState 로드 실패")
+                    }
+
+                    val needsNickname = data.isNewUser || data.user.nickname.isNullOrBlank()
+                    val hasHcPermission = healthConnectManager.hasAllPermissions()
+
+                    _uiState.value = when {
+                        needsNickname -> AuthUiState.Success(route = AuthRoute.Onboarding)
+                        !hasHcPermission -> AuthUiState.Success(route = AuthRoute.Permission)
+                        else -> AuthUiState.Success(route = AuthRoute.Home)
+                    }
+                } else {
+                    val errorCode = authResponse.error?.code ?: "UNKNOWN"
+                    Timber.e("서버 구글 인증 실패: $errorCode")
+                    showError(RuntimeException("서버 인증 실패: $errorCode"))
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "구글 인증 중 예외")
+                showError(e)
+            }
+        }
+    }
+
     private fun showError(error: Throwable) {
         val message = when {
             error.message?.contains("Unable to resolve host") == true -> "네트워크 연결을 확인해주세요."
             error.message?.contains("timeout") == true -> "서버 응답이 없어요. 잠시 후 다시 시도해주세요."
             error.message?.contains("카카오") == true -> error.message ?: "카카오 로그인에 실패했어요."
+            error.message?.contains("구글") == true -> error.message ?: "구글 로그인에 실패했어요."
             else -> "로그인에 실패했어요. 다시 시도해주세요."
         }
         _uiState.value = AuthUiState.Error(message)
