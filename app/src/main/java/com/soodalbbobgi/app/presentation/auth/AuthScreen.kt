@@ -127,15 +127,14 @@ fun AuthScreen(
                     ),
             )
 
-            // Google 로그인은 미구현 상태로 비활성화 유지
             AuthButton(
                 text = if (loadingProvider == "google") "Google 연결 중…" else "Google로 시작하기",
                 iconContent = { Text("G", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4285F4)) },
                 bgColor = Color.White,
                 textColor = Color(0xFF1F1F1F),
                 borderColor = Color(0xFFDADCE0),
-                enabled = false,
-                onClick = { /* TODO: Google 로그인 구현 예정 */ },
+                enabled = !isLoading,
+                onClick = { viewModel.loginWithGoogle(activity) },
             )
 
             Spacer(Modifier.height(6.dp))
