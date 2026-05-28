@@ -5,10 +5,10 @@ import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.data.remote.dto.ApiResponse
 import com.soodalbbobgi.app.data.remote.dto.AssetManifestData
 import com.soodalbbobgi.app.data.remote.dto.ServerAssetFile
-import io.mockk.Runs
+import com.soodalbbobgi.app.domain.model.AssetFile
+import com.soodalbbobgi.app.domain.model.AssetManifest
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -118,12 +118,12 @@ class AssetManagerTest {
         store.writeFile("char/c1.png", helloBytes)
         store.writeFile("bg/b1.png", worldBytes)
         store.saveLocalManifest(
-            com.soodalbbobgi.app.domain.model.AssetManifest(
+            AssetManifest(
                 version = "1.0.0",
                 updatedAt = 100L,
                 files = listOf(
-                    com.soodalbbobgi.app.domain.model.AssetFile("char/c1.png", helloHash, helloBytes.size.toLong()),
-                    com.soodalbbobgi.app.domain.model.AssetFile("bg/b1.png", worldHash, worldBytes.size.toLong()),
+                    AssetFile("char/c1.png", helloHash, helloBytes.size.toLong()),
+                    AssetFile("bg/b1.png", worldHash, worldBytes.size.toLong()),
                 ),
             ),
         )
@@ -167,12 +167,12 @@ class AssetManagerTest {
         store.writeFile("keep/a.png", aBytes)
         store.writeFile("gone/orphan.png", orphanBytes)
         store.saveLocalManifest(
-            com.soodalbbobgi.app.domain.model.AssetManifest(
+            AssetManifest(
                 version = "1.0.0",
                 updatedAt = 100L,
                 files = listOf(
-                    com.soodalbbobgi.app.domain.model.AssetFile("keep/a.png", aHash, aBytes.size.toLong()),
-                    com.soodalbbobgi.app.domain.model.AssetFile("gone/orphan.png", orphanHash, orphanBytes.size.toLong()),
+                    AssetFile("keep/a.png", aHash, aBytes.size.toLong()),
+                    AssetFile("gone/orphan.png", orphanHash, orphanBytes.size.toLong()),
                 ),
             ),
         )
@@ -204,7 +204,7 @@ class AssetManagerTest {
     @Test
     fun `manifest fetch network failure returns failure and leaves local manifest untouched`() = runTest {
         // 기존 매니페스트가 있다는 상황을 만든다.
-        val before = com.soodalbbobgi.app.domain.model.AssetManifest("0.9.0", 99L, emptyList())
+        val before = AssetManifest("0.9.0", 99L, emptyList())
         store.saveLocalManifest(before)
 
         coEvery { api.getAssetManifest() } throws java.io.IOException("network down")
@@ -249,6 +249,51 @@ class AssetManagerTest {
         assertThat(store.loadLocalManifest()).isNull()
         assertThat(manager.progress.value).isInstanceOf(AssetSyncProgress.Error::class.java)
         // 부분 파일이 디스크에 남을 수도/안 남을 수도 있다 (네트워크 호출 자체가 실패했으므로 여기서는 안 남음).
+        // 부분 성공 시 디스크/매니페스트 상태는 별도 테스트로 pinning되어 있다 →
+        // `partial success keeps downloaded files but does not update local manifest`.
+    }
+
+    // ─── 부분 성공 pinning ────────────────────────────────────────
+
+    /**
+     * 파일 A는 성공적으로 다운로드되고, 파일 B에서 HTTP 실패가 발생하는 시나리오.
+     *
+     * 보장:
+     * - A는 디스크에 남는다 (이미 atomic-write 완료됨, 재시도 시 hash 비교로 스킵 가능)
+     * - 로컬 매니페스트는 *갱신되지 않는다* — 다음 sync에서 A는 hash match로 건너뛰고
+     *   B만 재시도되도록 하는 핵심 invariant
+     */
+    @Test
+    fun `partial success keeps downloaded files but does not update local manifest`() = runTest {
+        val aBytes = "alpha".toByteArray()
+        val bBytes = "bravo".toByteArray()
+        val aHash = sha256("alpha")
+        val bHash = sha256("bravo")
+
+        val serverManifest = AssetManifestData(
+            version = "1.0.0",
+            updatedAt = 100L,
+            files = listOf(
+                ServerAssetFile("dir/a.png", aHash, aBytes.size.toLong()),
+                ServerAssetFile("dir/b.png", bHash, bBytes.size.toLong()),
+            ),
+        )
+        coEvery { api.getAssetManifest() } returns ApiResponse(true, serverManifest, null)
+        coEvery { api.downloadAssetFile("dir/a.png") } returns successBody(aBytes)
+        val errorBody = "Not Found".toResponseBody("text/plain".toMediaTypeOrNull())
+        coEvery { api.downloadAssetFile("dir/b.png") } returns Response.error(404, errorBody)
+
+        val result = manager.sync()
+
+        assertThat(result.isFailure).isTrue()
+        // A는 디스크에 남는다 (성공한 다운로드는 보존).
+        assertThat(store.exists("dir/a.png")).isTrue()
+        assertThat(store.fileFor("dir/a.png").readBytes()).isEqualTo(aBytes)
+        // B는 남지 않는다 (다운로드 자체가 실패).
+        assertThat(store.exists("dir/b.png")).isFalse()
+        // 로컬 매니페스트는 절대 갱신되면 안 된다 — 다음 sync 재시도의 기준.
+        assertThat(store.loadLocalManifest()).isNull()
+        assertThat(manager.progress.value).isInstanceOf(AssetSyncProgress.Error::class.java)
     }
 
     // ─── 해시 불일치 검증 ─────────────────────────────────────────
