@@ -138,14 +138,37 @@ class HomeViewModel @Inject constructor(
             cardNickname = profile?.nickname ?: "",
             cardTagline = cardTaglineText,
             cardStats = cardStatsText,
-            cardBgAsset = profileCard?.backgroundItemId?.let { itemsMap[it]?.imageAsset },
-            cardCharAsset = profileCard?.characterItemId?.let { itemsMap[it]?.imageAsset },
-            cardFrameAsset = profileCard?.borderItemId?.let { itemsMap[it]?.imageAsset },
+            cardBgAsset = resolveCardAsset(profileCard?.backgroundItemId, inventory, itemsMap),
+            cardCharAsset = resolveCardAsset(profileCard?.characterItemId, inventory, itemsMap),
+            cardFrameAsset = resolveCardAsset(profileCard?.borderItemId, inventory, itemsMap),
             cardCharX = profileCard?.characterX ?: 0.16f,
             cardCharY = profileCard?.characterY ?: 0.06f,
             cardCharScale = profileCard?.characterScale ?: 0.70f,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
+
+    /**
+     * 저장된 ProfileCard의 슬롯 값으로 표시할 이미지 에셋 경로를 해결한다.
+     *
+     * 서버 `authService.js`가 신규 가입 시 `profile_cards` 슬롯에 인벤토리 행의 PK
+     * (`inv.id`)를 저장한다. 필드 이름은 `characterItemId`지만 내용물은 사실상
+     * inventory id다. 따라서 ProfileEditor와 동일한 경로(인벤토리 id → itemId → 마스터)로
+     * 두 단계 조회를 거쳐야 올바른 imageAsset을 얻는다.
+     *
+     * @param inventoryId ProfileCard 슬롯 값 (실제로는 inventory.id)
+     * @param inventory 사용자 인벤토리 목록
+     * @param items 아이템 마스터 캐시
+     * @return 매니페스트 상대 경로 (없거나 매칭 실패 시 null)
+     */
+    private fun resolveCardAsset(
+        inventoryId: Long?,
+        inventory: List<com.soodalbbobgi.app.domain.model.InventoryItem>,
+        items: Map<Long, com.soodalbbobgi.app.domain.model.Item>,
+    ): String? {
+        if (inventoryId == null) return null
+        val inv = inventory.firstOrNull { it.id == inventoryId } ?: return null
+        return items[inv.itemId]?.imageAsset
+    }
 
     /** 수동 동기화 — Splash와 동일한 HC sync 흐름. */
     fun onSync() {

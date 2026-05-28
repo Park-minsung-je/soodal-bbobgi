@@ -9,11 +9,17 @@ import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.soodalbbobgi.app.core.state.AppState
+import com.soodalbbobgi.app.domain.model.InventoryItem
+import com.soodalbbobgi.app.domain.model.Item
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
@@ -28,15 +34,71 @@ sealed interface SaveState {
 }
 
 /**
- * 프로필 카드 전체보기 화면의 저장/공유 상태를 관리한다.
+ * 전체보기 카드 렌더링에 필요한 상태 묶음.
+ * [statsText]는 Fullscreen 화면에 월간 통계 소스가 없어 공란으로 두며,
+ * 추후 필요 시 SwimLog 통계를 추가로 주입할 수 있다.
+ */
+data class FullscreenCardState(
+    val nickname: String = "",
+    val tagline: String = "수영을 사랑하는 수달",
+    val statsText: String = "",
+    val bgAsset: String? = null,
+    val charAsset: String? = null,
+    val frameAsset: String? = null,
+    val charX: Float = 0.16f,
+    val charY: Float = 0.06f,
+    val charScale: Float = 0.70f,
+)
+
+/**
+ * 프로필 카드 전체보기 화면의 카드 데이터와 저장/공유 상태를 관리한다.
+ *
+ * Home과 동일하게 [AppState]의 profile + profileCard + inventory + items를 결합해
+ * [FullscreenCardState]를 노출한다. ProfileCard 슬롯이 서버에서 inventory.id로
+ * 저장되는 점도 동일하게 인벤토리 한 단계 인다이렉션으로 해결한다.
  */
 @HiltViewModel
 class ProfileFullscreenViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val appState: AppState,
 ) : ViewModel() {
 
     private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
     val saveState: StateFlow<SaveState> = _saveState
+
+    val cardState: StateFlow<FullscreenCardState> = combine(
+        appState.profile,
+        appState.profileCard,
+        appState.inventory,
+        appState.items,
+    ) { profile, card, inventory, items ->
+        FullscreenCardState(
+            nickname = profile?.nickname ?: "",
+            tagline = card?.customText?.takeIf { it.isNotBlank() } ?: "수영을 사랑하는 수달",
+            statsText = "",
+            bgAsset = resolveCardAsset(card?.backgroundItemId, inventory, items),
+            charAsset = resolveCardAsset(card?.characterItemId, inventory, items),
+            frameAsset = resolveCardAsset(card?.borderItemId, inventory, items),
+            charX = card?.characterX ?: 0.16f,
+            charY = card?.characterY ?: 0.06f,
+            charScale = card?.characterScale ?: 0.70f,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FullscreenCardState())
+
+    /**
+     * 저장된 ProfileCard 슬롯 값으로 표시할 이미지 에셋 경로를 해결한다.
+     * 서버가 인벤토리 PK(`inv.id`)를 슬롯에 저장하는 관행 때문에 inventory를 한번 더
+     * 조회한 뒤 itemId로 아이템 마스터에서 imageAsset을 가져온다.
+     */
+    private fun resolveCardAsset(
+        inventoryId: Long?,
+        inventory: List<InventoryItem>,
+        items: Map<Long, Item>,
+    ): String? {
+        if (inventoryId == null) return null
+        val inv = inventory.firstOrNull { it.id == inventoryId } ?: return null
+        return items[inv.itemId]?.imageAsset
+    }
 
     /** 상태를 초기화한다. Success/Error 토스트 표시 후 호출. */
     fun resetState() {

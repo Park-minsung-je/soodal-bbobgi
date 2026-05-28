@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
@@ -23,6 +24,13 @@ import com.soodalbbobgi.app.core.theme.SoodalShape
 
 enum class ButtonStyle { Primary, Gold, Purple, Secondary, Ghost }
 
+/**
+ * 공용 버튼 컴포저블.
+ *
+ * @param heightOverride 스타일별 기본 높이(Primary/Gold/Purple 52dp, Secondary 44dp,
+ *   Ghost 36dp)를 무시하고 강제로 적용할 높이. null이면 스타일 기본 사용.
+ *   같은 행에 다른 스타일 버튼을 나란히 둘 때 시각적 높이를 맞추기 위해 사용.
+ */
 @Composable
 fun SoodalButton(
     text: String,
@@ -30,6 +38,7 @@ fun SoodalButton(
     modifier: Modifier = Modifier,
     style: ButtonStyle = ButtonStyle.Primary,
     enabled: Boolean = true,
+    heightOverride: Dp? = null,
 ) {
     val colors = SoodalDesign.colors
     val background = when (style) {
@@ -51,7 +60,7 @@ fun SoodalButton(
         ButtonStyle.Purple -> colors.glowPurple
         else -> null
     }
-    val height = when (style) {
+    val height = heightOverride ?: when (style) {
         ButtonStyle.Ghost -> 36.dp
         ButtonStyle.Secondary -> 44.dp
         else -> 52.dp

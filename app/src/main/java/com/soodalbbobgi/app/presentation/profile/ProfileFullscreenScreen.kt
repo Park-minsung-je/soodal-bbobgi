@@ -51,10 +51,21 @@ fun ProfileFullscreenScreen(
     val spacing = SoodalDesign.spacing
 
     val saveState by viewModel.saveState.collectAsState()
+    val cardState by viewModel.cardState.collectAsState()
     val context = LocalContext.current
     val config = LocalConfiguration.current
 
-    val layers = CardLayers()
+    // AppState에서 가져온 실제 카드 데이터로 layers를 구성. bg/char/frame Bitmap은
+    // ProfileCardComposite 내부에서 비동기 로딩되므로 여기서는 null로 두고 텍스트/
+    // 위치 등 메타만 채운다. 저장/공유용 Bitmap은 동일 layers로 별도 렌더.
+    val layers = CardLayers(
+        nickname = cardState.nickname,
+        tagline = cardState.tagline,
+        stats = cardState.statsText,
+        charX = cardState.charX,
+        charY = cardState.charY,
+        charScale = cardState.charScale,
+    )
     val bitmap = remember(layers) { ProfileCardRenderer.render(layers) }
 
     // 회전 후: 카드 가로(1472) → 세로 방향, 카드 세로(704) → 가로 방향
@@ -91,6 +102,9 @@ fun ProfileFullscreenScreen(
         ) {
             ProfileCardComposite(
                 layers = layers,
+                bgAsset = cardState.bgAsset,
+                charAsset = cardState.charAsset,
+                frameAsset = cardState.frameAsset,
                 modifier = Modifier
                     .fillMaxWidth()
                     .graphicsLayer {
