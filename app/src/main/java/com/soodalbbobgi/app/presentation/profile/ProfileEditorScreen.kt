@@ -135,7 +135,7 @@ fun ProfileEditorScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Text("미리보기", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
+                    Text("크게보기", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
                     SoodalIcon(icon = SoodalIcons.Share, tint = colors.textSecondary, size = 14.dp)
                 }
             }
@@ -144,26 +144,6 @@ fun ProfileEditorScreen(
 
             // -- Live Preview Card --
             Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(SoodalShape.sm)
-                            .background(colors.accentCyanSoft)
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                    ) {
-                        Text(
-                            text = "LIVE PREVIEW",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.accentCyan,
-                            letterSpacing = 0.5.sp,
-                        )
-                    }
-                }
-                Spacer(Modifier.height(spacing.s3))
                 val selectedBg = state.bgItems.firstOrNull { it.isSelected }
                 val selectedChar = state.charItems.firstOrNull { it.isSelected }
                 val selectedFrame = state.frameItems.firstOrNull { it.isSelected }
@@ -334,8 +314,8 @@ fun ProfileEditorScreen(
                 horizontalArrangement = Arrangement.spacedBy(spacing.s3),
             ) {
                 SoodalButton(
-                    text = "미리보기",
-                    onClick = onPreview,
+                    text = "취소",
+                    onClick = onBack,
                     style = ButtonStyle.Secondary,
                     modifier = Modifier.weight(1f),
                 )
@@ -352,7 +332,7 @@ fun ProfileEditorScreen(
                     }
                 } else {
                     SoodalButton(
-                        text = "저장 & 적용",
+                        text = "적용",
                         onClick = { viewModel.save() },
                         style = ButtonStyle.Primary,
                         modifier = Modifier.weight(1f),
