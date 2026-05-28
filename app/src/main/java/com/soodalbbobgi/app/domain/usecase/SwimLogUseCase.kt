@@ -5,17 +5,22 @@ import com.soodalbbobgi.app.domain.model.SwimStats
 import com.soodalbbobgi.app.domain.repository.SwimLogRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
+// CurrencyUseCase 의존성 제거: 조개 지급은 서버 권한.
 
 class SwimLogUseCase @Inject constructor(
     private val swimLogRepo: SwimLogRepository,
-    private val currencyUseCase: CurrencyUseCase,
 ) {
+    /**
+     * 같은 날짜의 로컬 swim_log가 없으면 저장한다.
+     * 조개 지급은 서버에서 처리하므로 여기서는 로컬 저장만 담당.
+     *
+     * @return 저장된 행이 있으면 1, 이미 있어서 스킵하면 0
+     */
     suspend fun syncSwimLog(userId: String, log: SwimLog): Int {
         val existing = swimLogRepo.getByDateOnce(log.date)
         if (existing != null) return 0
-
         swimLogRepo.addSwimLog(log)
-        return currencyUseCase.grantDailyShells(userId, log.date)
+        return 1
     }
 
     /** 서버에서 pull한 기록을 로컬에 저장한다 (조개 지급 없이). */

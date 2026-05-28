@@ -3,28 +3,28 @@ package com.soodalbbobgi.app.presentation.shop
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.session.UserSession
+import com.soodalbbobgi.app.core.state.AppState
+import com.soodalbbobgi.app.core.state.AppStateLoader
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
-import com.soodalbbobgi.app.data.remote.dto.ServerShopListing
 import com.soodalbbobgi.app.data.remote.dto.ShopPurchaseRequest
 import com.soodalbbobgi.app.domain.model.Grade
-import com.soodalbbobgi.app.domain.repository.UserRepository
+import com.soodalbbobgi.app.domain.model.ShopListingDomain
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 
-/** 상점 진열 카드 UI 모델 (서버 응답을 화면용으로 변환한 것) */
+/** 상점 카드 UI 모델. AppState의 listings에서 변환된 형태. */
 data class ShopItem(
     val shopListingId: Long,
-    val productType: String,             // 'item' | 'box'
+    val productType: String,
     val name: String,
     val description: String,
     val icon: SoodalIcons,
@@ -49,34 +49,24 @@ data class ShopUiState(
     val error: String? = null,
 )
 
-/**
- * 상점 화면 ViewModel.
- * 서버의 shop_listings 응답을 받아 진열하고, 구매 요청은 shopListingId 기반으로 보낸다.
- */
 @HiltViewModel
 class ShopViewModel @Inject constructor(
     private val userSession: UserSession,
-    private val userRepository: UserRepository,
+    private val appState: AppState,
+    private val appStateLoader: AppStateLoader,
     private val soodalApi: SoodalApi,
 ) : ViewModel() {
 
-    private val userId get() = userSession.userId
-
-    private val _listings = MutableStateFlow<List<ShopItem>>(emptyList())
     private val _confirmItem = MutableStateFlow<ShopItem?>(null)
     private val _loading = MutableStateFlow(false)
     private val _error = MutableStateFlow<String?>(null)
 
-    private val pearlsFlow = userRepository.getUser(userId)
-        .filterNotNull()
-        .map { it.pearlBalance }
-
     val uiState: StateFlow<ShopUiState> = combine(
-        pearlsFlow, _listings, _confirmItem, _loading, _error,
-    ) { pearls, listings, confirm, loading, error ->
+        appState.currency, appState.shopListings, _confirmItem, _loading, _error,
+    ) { currency, listings, confirm, loading, error ->
         ShopUiState(
-            pearls = pearls,
-            listings = listings,
+            pearls = currency.pearlBalance,
+            listings = listings.map { it.toUi() },
             confirmItem = confirm,
             isLoading = loading,
             error = error,
@@ -85,20 +75,13 @@ class ShopViewModel @Inject constructor(
 
     init { refresh() }
 
-    /** 상점 진열 + 사용자 진주 잔액 새로고침. */
+    /** 진열 + 잔액 새로고침. */
     fun refresh() {
         viewModelScope.launch {
             _loading.value = true
             try {
-                val userRes = soodalApi.getMe()
-                if (userRes.success && userRes.data != null) {
-                    val u = userRes.data
-                    userRepository.updateCurrency(u.id, u.shellBalance, u.pearlBalance)
-                }
-                val shopRes = soodalApi.getShop()
-                if (shopRes.success && shopRes.data != null) {
-                    _listings.value = shopRes.data.listings.map { it.toUi() }
-                }
+                appStateLoader.refreshCurrency()
+                appStateLoader.refreshShop()
             } catch (e: Exception) {
                 Timber.w(e, "상점 새로고침 실패")
                 _error.value = "상점을 불러오지 못했어요"
@@ -113,10 +96,8 @@ class ShopViewModel @Inject constructor(
     }
 
     fun cancelPurchase() { _confirmItem.value = null }
-
     fun clearError() { _error.value = null }
 
-    /** 서버에 구매 요청. 성공 시 잔액 갱신 + 진열 갱신. */
     fun confirmPurchase() {
         val item = _confirmItem.value ?: return
         if (uiState.value.pearls < item.price) {
@@ -124,14 +105,16 @@ class ShopViewModel @Inject constructor(
             _confirmItem.value = null
             return
         }
-
         viewModelScope.launch {
             try {
                 val res = soodalApi.shopPurchase(ShopPurchaseRequest(shopListingId = item.shopListingId))
                 if (res.success && res.data != null) {
-                    val c = res.data.currency
-                    userRepository.updateCurrency(userId, c.shellBalance, c.pearlBalance)
-                    userRepository.updatePityCounter(userId, c.pityCounter)
+                    // currency 즉시 갱신
+                    appStateLoader.applyServerCurrency(res.data.currency)
+                    // box 구매면 결과 아이템들도 인벤토리에 반영
+                    res.data.acquiredItems?.let { acquired ->
+                        appStateLoader.applyGachaResults(acquired, res.data.currency)
+                    }
                     refresh()
                 } else {
                     _error.value = res.error?.message ?: "구매에 실패했어요"
@@ -145,9 +128,7 @@ class ShopViewModel @Inject constructor(
         }
     }
 
-    private fun ServerShopListing.toUi(): ShopItem {
-        val name = product.name
-        val grade = product.grade?.let { Grade.fromString(it) }
+    private fun ShopListingDomain.toUi(): ShopItem {
         val category = product.category ?: ""
         val icon = when (category) {
             "char" -> SoodalIcons.Otter
@@ -158,11 +139,11 @@ class ShopViewModel @Inject constructor(
         return ShopItem(
             shopListingId = id,
             productType = productType,
-            name = name,
+            name = product.name,
             description = product.description ?: "",
             icon = icon,
             imageAsset = product.imageAsset ?: product.iconAsset,
-            grade = grade,
+            grade = product.grade,
             price = pearlPrice,
             maxPerUser = maxPerUser,
             purchasedTotal = purchasedTotal,
@@ -170,7 +151,7 @@ class ShopViewModel @Inject constructor(
             periodType = periodType,
             purchasedThisPeriod = purchasedThisPeriod,
             periodResetAt = periodResetAt,
-            isLimited = product.isLimited == true,
+            isLimited = product.isLimited,
             canBuy = canBuy,
         )
     }
