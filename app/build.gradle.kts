@@ -21,6 +21,9 @@ android {
         buildConfigField("String", "ASSET_BASE_URL", "\"https://soodal.bbobgi.ilf.kr\"")
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"ff9ecdb8cae1ebf2c9541f3aee571cca\"")
         manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = "ff9ecdb8cae1ebf2c9541f3aee571cca"
+        // Google Sign-In: idToken의 audience(aud) 클레임이 이 값으로 박힌다.
+        // 서버 검증 시 audience 비교용 ID. Android client ID(SHA-1 매칭용)는 코드에 안 들어감.
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"338800630296-qrm3niallrtf804gi2n12qbcu2e0gg40.apps.googleusercontent.com\"")
     }
 
     buildTypes {
