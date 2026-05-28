@@ -148,8 +148,8 @@ fun ProfileEditorScreen(
                 val selectedFrame = state.frameItems.firstOrNull { it.isSelected }
                 ProfileCardComposite(
                     layers = CardLayers(
-                        nickname = "Soodal",
-                        tagline = state.customText.ifEmpty { "수달 마스터" },
+                        nickname = state.nickname,
+                        tagline = state.customText.ifEmpty { state.taglineFallback },
                         charX = state.charX,
                         charY = state.charY,
                         charScale = state.charScale,

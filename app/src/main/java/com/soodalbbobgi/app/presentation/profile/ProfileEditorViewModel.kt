@@ -53,6 +53,10 @@ data class ProfileEditorUiState(
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,
     val saveError: String? = null,
+    /** Live Preview 카드 닉네임 — 현재 로그인 사용자의 닉네임. 미로드 상태에선 빈 문자열. */
+    val nickname: String = "",
+    /** [customText]가 비었을 때 카드에 표시할 기본 한 줄 소개 (Home과 동일 문구). */
+    val taglineFallback: String = "수영을 사랑하는 수달",
 )
 
 /**
@@ -92,8 +96,9 @@ class ProfileEditorViewModel @Inject constructor(
         appState.inventory,
         appState.items,
         appState.profileCard,
+        appState.profile,
         _editState,
-    ) { inventory, itemsMap, savedCard, edit ->
+    ) { inventory, itemsMap, savedCard, profile, edit ->
         val state = if (!edit.initialized && savedCard != null) {
             val initialized = edit.copy(
                 selectedBgInventoryId = savedCard.backgroundItemId,
@@ -130,6 +135,7 @@ class ProfileEditorViewModel @Inject constructor(
             isSaving = state.isSaving,
             saveSuccess = state.saveSuccess,
             saveError = state.saveError,
+            nickname = profile?.nickname ?: "",
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProfileEditorUiState())
 
