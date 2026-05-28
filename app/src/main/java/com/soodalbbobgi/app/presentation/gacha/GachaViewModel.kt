@@ -41,6 +41,7 @@ data class GachaResultItem(
     val kind: String,
     val isNew: Boolean,
     val pearlsEarned: Int,
+    val imageAsset: String? = null,
 )
 
 data class GachaUiState(
@@ -259,6 +260,7 @@ class GachaViewModel @Inject constructor(
                         kind = selectedBox.category,
                         isNew = r.wasNew,
                         pearlsEarned = r.pearlsEarned,
+                        imageAsset = r.item.imageAsset,
                     )
                 }
                 // 서버에서 받은 최신 잔액으로 로컬 갱신

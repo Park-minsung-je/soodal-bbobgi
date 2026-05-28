@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -39,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import android.widget.Toast
+import coil.compose.AsyncImage
+import com.soodalbbobgi.app.BuildConfig
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.ButtonStyle
@@ -162,6 +165,9 @@ fun ProfileEditorScreen(
                     }
                 }
                 Spacer(Modifier.height(spacing.s3))
+                val selectedBg = state.bgItems.firstOrNull { it.isSelected }
+                val selectedChar = state.charItems.firstOrNull { it.isSelected }
+                val selectedFrame = state.frameItems.firstOrNull { it.isSelected }
                 ProfileCardComposite(
                     layers = CardLayers(
                         nickname = "Soodal",
@@ -170,6 +176,9 @@ fun ProfileEditorScreen(
                         charY = state.charY,
                         charScale = state.charScale,
                     ),
+                    bgUrl = selectedBg?.imageAsset?.let { BuildConfig.ASSET_BASE_URL + it },
+                    charUrl = selectedChar?.imageAsset?.let { BuildConfig.ASSET_BASE_URL + it },
+                    frameUrl = selectedFrame?.imageAsset?.let { BuildConfig.ASSET_BASE_URL + it },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(spacing.s2))
@@ -433,8 +442,7 @@ private fun ItemGridCell(
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // 에셋 다운로드 전 임시 플레이스홀더 (등급별 색)
-            val placeholderColor = when (item.grade) {
+            val gradeColor = when (item.grade) {
                 com.soodalbbobgi.app.domain.model.Grade.SSR -> colors.accentGold
                 com.soodalbbobgi.app.domain.model.Grade.SR -> colors.accentPurple
                 com.soodalbbobgi.app.domain.model.Grade.R -> colors.accentCyan
@@ -444,10 +452,14 @@ private fun ItemGridCell(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(SoodalShape.sm)
-                    .background(placeholderColor.copy(alpha = 0.2f)),
+                    .background(gradeColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center,
             ) {
-                SoodalIcon(icon = SoodalIcons.Box, tint = placeholderColor, size = 24.dp)
+                AsyncImage(
+                    model = BuildConfig.ASSET_BASE_URL + item.imageAsset,
+                    contentDescription = item.name,
+                    modifier = Modifier.fillMaxWidth().fillMaxHeight(),
+                )
             }
             Spacer(Modifier.height(2.dp))
             GradeBadge(grade = item.grade)

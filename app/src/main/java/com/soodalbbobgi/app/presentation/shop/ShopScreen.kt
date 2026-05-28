@@ -216,7 +216,15 @@ private fun BoxGridItem(
                     .background(boxBg),
                 contentAlignment = Alignment.Center,
             ) {
-                SoodalIcon(icon = item.icon, tint = boxTint, size = 28.dp)
+                if (!item.imageAsset.isNullOrBlank()) {
+                    coil.compose.AsyncImage(
+                        model = com.soodalbbobgi.app.BuildConfig.ASSET_BASE_URL + item.imageAsset,
+                        contentDescription = item.name,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    SoodalIcon(icon = item.icon, tint = boxTint, size = 28.dp)
+                }
             }
             Spacer(Modifier.height(4.dp))
             Text(
@@ -281,7 +289,15 @@ private fun DirectItemCard(
                     .background(itemBg),
                 contentAlignment = Alignment.Center,
             ) {
-                SoodalIcon(icon = item.icon, tint = itemTint.copy(alpha = bgAlpha), size = 24.dp)
+                if (!item.imageAsset.isNullOrBlank()) {
+                    coil.compose.AsyncImage(
+                        model = com.soodalbbobgi.app.BuildConfig.ASSET_BASE_URL + item.imageAsset,
+                        contentDescription = item.name,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    SoodalIcon(icon = item.icon, tint = itemTint.copy(alpha = bgAlpha), size = 24.dp)
+                }
             }
             Spacer(Modifier.height(4.dp))
             if (item.grade != null) {

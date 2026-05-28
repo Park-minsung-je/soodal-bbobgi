@@ -18,6 +18,7 @@ android {
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "BASE_URL", "\"https://soodal.bbobgi.ilf.kr/v1/\"")
+        buildConfigField("String", "ASSET_BASE_URL", "\"https://soodal.bbobgi.ilf.kr\"")
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"ff9ecdb8cae1ebf2c9541f3aee571cca\"")
         manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = "ff9ecdb8cae1ebf2c9541f3aee571cca"
     }
@@ -25,6 +26,7 @@ android {
     buildTypes {
         debug {
             buildConfigField("String", "BASE_URL", "\"https://soodal.bbobgi.ilf.kr/v1/\"")
+            buildConfigField("String", "ASSET_BASE_URL", "\"https://soodal.bbobgi.ilf.kr\"")
         }
         release {
             isMinifyEnabled = true
@@ -84,6 +86,8 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.timber)
     implementation(libs.coroutines.android)
+    implementation(libs.coil)
+    implementation(libs.coil.compose)
 
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)

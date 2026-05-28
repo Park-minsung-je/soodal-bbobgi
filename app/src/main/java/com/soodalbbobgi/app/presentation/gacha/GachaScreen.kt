@@ -350,7 +350,15 @@ private fun GachaResultOverlay(
                             .background(gradeGlow.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        SoodalIcon(icon = itemIcon, tint = gradeColor, size = 40.dp)
+                        if (!item.imageAsset.isNullOrBlank()) {
+                            coil.compose.AsyncImage(
+                                model = com.soodalbbobgi.app.BuildConfig.ASSET_BASE_URL + item.imageAsset,
+                                contentDescription = item.name,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        } else {
+                            SoodalIcon(icon = itemIcon, tint = gradeColor, size = 40.dp)
+                        }
                     }
 
                     Spacer(Modifier.height(16.dp))
