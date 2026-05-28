@@ -136,7 +136,17 @@ fun HomeScreen(
                     ),
             ) {
                 ProfileCardComposite(
-                    layers = CardLayers(),
+                    layers = CardLayers(
+                        nickname = state.cardNickname,
+                        tagline = state.cardTagline,
+                        stats = state.cardStats,
+                        charX = state.cardCharX,
+                        charY = state.cardCharY,
+                        charScale = state.cardCharScale,
+                    ),
+                    bgAsset = state.cardBgAsset,
+                    charAsset = state.cardCharAsset,
+                    frameAsset = state.cardFrameAsset,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
