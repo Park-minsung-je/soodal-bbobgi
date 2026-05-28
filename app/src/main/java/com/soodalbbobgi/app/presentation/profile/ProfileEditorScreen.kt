@@ -48,7 +48,6 @@ import com.soodalbbobgi.app.core.ui.GradeBadge
 import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
-import com.soodalbbobgi.app.core.ui.SoodalTabBar
 import com.soodalbbobgi.app.core.ui.SoodalTextField
 
 @Composable
@@ -342,12 +341,8 @@ fun ProfileEditorScreen(
 
             Spacer(Modifier.height(spacing.s4))
         }
-
-        // -- Tab Bar --
-        SoodalTabBar(
-            activeTab = "home",
-            onTabSelected = {},
-        )
+        // 편집 화면에서는 하단 탭 바를 노출하지 않는다.
+        // 탭 바는 onBack/취소/적용으로 홈에 돌아간 뒤에만 보인다.
     }
 }
 
