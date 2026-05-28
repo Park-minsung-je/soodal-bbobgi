@@ -176,7 +176,7 @@ class GachaViewModel @Inject constructor(
                             gachaRepository.saveBoxItem(com.soodalbbobgi.app.domain.model.GachaBoxItem(
                                 id = item.id, boxId = box.id, itemKey = item.itemKey,
                                 name = item.name, grade = Grade.fromString(item.grade),
-                                weight = item.weight, imageAsset = item.imageAsset,
+                                weight = item.weight, imageAsset = item.imageAsset ?: "",
                             ))
                         }
                     }

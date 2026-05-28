@@ -163,7 +163,7 @@ class SplashViewModel @Inject constructor(
                             name = item.name,
                             grade = Grade.fromString(item.grade),
                             weight = item.weight,
-                            imageAsset = item.imageAsset,
+                            imageAsset = item.imageAsset ?: "",
                         ))
                     }
                 }

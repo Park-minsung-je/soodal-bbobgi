@@ -103,8 +103,10 @@ data class ServerGachaBoxItem(
     val itemKey: String,
     val name: String,
     val grade: String,
+    val category: String? = null,
     val weight: Int,
-    val imageAsset: String,
+    val imageAsset: String?,
+    val isLimited: Boolean? = null,
 )
 
 /** POST /gacha/pull 요청 */
@@ -125,6 +127,8 @@ data class ServerGachaResult(
     val pearlsEarned: Int,
     val shellsSpent: Int,
     val pityCountAtPull: Int,
+    val historyId: Long? = null,
+    val inventoryItemId: Long? = null,
 )
 
 data class ServerCurrency(
