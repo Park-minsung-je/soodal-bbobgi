@@ -56,6 +56,12 @@ interface SoodalApi {
     @GET("inventory")
     suspend fun getInventory(@Query("category") category: String? = null): ApiResponse<InventoryData>
 
+    // ── Items (마스터 카탈로그) ──
+
+    /** 활성 아이템 마스터 전체 목록 (Splash에서 한 번 받아 캐시) */
+    @GET("items")
+    suspend fun getItems(): ApiResponse<ItemsData>
+
     // ── Profile Card ──
 
     /** 프로필 카드 설정 조회 */

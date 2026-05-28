@@ -12,4 +12,5 @@ data class Item(
     val category: String,
     val imageAsset: String?,
     val isLimited: Boolean = false,
+    val isDefault: Boolean = false,
 )

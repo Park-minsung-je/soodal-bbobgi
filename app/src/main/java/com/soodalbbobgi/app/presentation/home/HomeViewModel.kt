@@ -89,10 +89,15 @@ class HomeViewModel @Inject constructor(
 
         val stats = swimLogUseCase.getMonthStats(monthStart(), monthEnd())
         val today = LocalDate.now().toString()
-        val recent = inventory.take(8).map { inv ->
-            val meta = itemsMap[inv.itemId]
-            RecentItem(name = meta?.name ?: "아이템 #${inv.itemId}", kind = inv.category, grade = inv.grade)
-        }
+        // "최근 획득"은 가챠/상점으로 얻은 아이템만 노출. 신규 가입 시 자동 지급되는
+        // 기본 아이템(isDefault=true)은 '획득'이 아니라 출발점이라 제외.
+        val recent = inventory
+            .filterNot { inv -> itemsMap[inv.itemId]?.isDefault == true }
+            .take(8)
+            .map { inv ->
+                val meta = itemsMap[inv.itemId]
+                RecentItem(name = meta?.name ?: "아이템 #${inv.itemId}", kind = inv.category, grade = inv.grade)
+            }
 
         HomeUiState(
             nickname = profile?.nickname ?: "",

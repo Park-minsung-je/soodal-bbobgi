@@ -6,6 +6,7 @@ import com.soodalbbobgi.app.data.remote.dto.ServerCurrency
 import com.soodalbbobgi.app.data.remote.dto.ServerGachaBox
 import com.soodalbbobgi.app.data.remote.dto.ServerGachaResult
 import com.soodalbbobgi.app.data.remote.dto.ServerInventoryItem
+import com.soodalbbobgi.app.data.remote.dto.ServerItem
 import com.soodalbbobgi.app.data.remote.dto.ServerProfileCard
 import com.soodalbbobgi.app.data.remote.dto.ServerShopListing
 import com.soodalbbobgi.app.data.remote.dto.UserData
@@ -48,11 +49,13 @@ class AppStateLoader @Inject constructor(
         coroutineScope {
             // 병렬 호출
             val meDef = async { api.getMe() }
+            val itemsDef = async { api.getItems() }
             val inventoryDef = async { api.getInventory() }
             val gachaDef = async { api.getGachaBoxes() }
             val profileCardDef = async { api.getProfileCard() }
 
             val meRes = meDef.await()
+            val itemsRes = itemsDef.await()
             val inventoryRes = inventoryDef.await()
             val gachaRes = gachaDef.await()
             val profileCardRes = profileCardDef.await()
@@ -60,6 +63,10 @@ class AppStateLoader @Inject constructor(
             if (meRes.success && meRes.data != null) {
                 userSession.setAuthenticatedUser(meRes.data.id)
                 applyUserData(meRes.data)
+            }
+            // items 마스터 먼저 채우면 inventory/gacha/shop이 메타 룩업 가능
+            if (itemsRes.success && itemsRes.data != null) {
+                appState.mergeItems(itemsRes.data.items.map { it.toDomain() })
             }
             if (inventoryRes.success && inventoryRes.data != null) {
                 appState.applyInventory(inventoryRes.data.items.map { it.toDomain() })
@@ -72,6 +79,14 @@ class AppStateLoader @Inject constructor(
             }
         }
     }.onFailure { Timber.w(it, "AppStateLoader.loadAll 실패") }
+
+    /** items 마스터 카탈로그 단독 새로고침. */
+    suspend fun refreshItems(): Result<Unit> = runCatching {
+        val res = api.getItems()
+        if (res.success && res.data != null) {
+            appState.mergeItems(res.data.items.map { it.toDomain() })
+        }
+    }
 
     suspend fun refreshCurrency(): Result<Unit> = runCatching {
         val res = api.getMe()
@@ -197,6 +212,12 @@ private fun ServerInventoryItem.toDomain() = InventoryItem(
     category = category,
     isEquippedAs = isEquippedAs,
     acquiredAt = acquiredAt,
+)
+
+private fun ServerItem.toDomain() = Item(
+    id = id, itemKey = itemKey, name = name,
+    grade = Grade.fromString(grade), category = category,
+    imageAsset = imageAsset, isLimited = isLimited, isDefault = isDefault,
 )
 
 private fun ServerGachaBox.toDomain(): GachaBoxWithDrops {

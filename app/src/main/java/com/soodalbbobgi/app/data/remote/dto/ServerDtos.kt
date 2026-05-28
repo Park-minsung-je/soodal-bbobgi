@@ -153,6 +153,24 @@ data class ServerInventoryItem(
     val acquiredAt: Long,
 )
 
+// ── Items 마스터 카탈로그 ──
+
+/** GET /items 응답 */
+data class ItemsData(
+    val items: List<ServerItem>,
+)
+
+data class ServerItem(
+    val id: Long,
+    val itemKey: String,
+    val name: String,
+    val grade: String,
+    val category: String,
+    val imageAsset: String?,
+    val isLimited: Boolean = false,
+    val isDefault: Boolean = false,
+)
+
 // ── Swim Logs ──
 
 /** POST /swim-logs 요청 */
