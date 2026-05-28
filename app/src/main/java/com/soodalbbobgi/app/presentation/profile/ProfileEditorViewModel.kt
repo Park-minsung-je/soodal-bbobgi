@@ -3,21 +3,18 @@ package com.soodalbbobgi.app.presentation.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.session.UserSession
+import com.soodalbbobgi.app.core.state.AppState
+import com.soodalbbobgi.app.core.state.AppStateLoader
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.data.remote.dto.ServerProfileCard
 import com.soodalbbobgi.app.domain.model.Grade
 import com.soodalbbobgi.app.domain.model.InventoryItem
 import com.soodalbbobgi.app.domain.model.ProfileCard
-import com.soodalbbobgi.app.domain.repository.GachaRepository
-import com.soodalbbobgi.app.domain.repository.InventoryRepository
-import com.soodalbbobgi.app.domain.usecase.ProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -33,7 +30,6 @@ data class EditorItemUi(
     val isSelected: Boolean,
 )
 
-/** 카테고리 탭 키 */
 enum class EditorCategory(val key: String, val label: String) {
     Background("bg", "배경"),
     Character("char", "캐릭터"),
@@ -41,7 +37,6 @@ enum class EditorCategory(val key: String, val label: String) {
     Text("text", "텍스트"),
 }
 
-/** 프로필 에디터 화면의 UI 상태 */
 data class ProfileEditorUiState(
     val activeTab: EditorCategory = EditorCategory.Background,
     val bgItems: List<EditorItemUi> = emptyList(),
@@ -63,21 +58,18 @@ data class ProfileEditorUiState(
 /**
  * 프로필 에디터 ViewModel.
  *
- * 사용자의 보유 아이템과 현재 프로필 카드 설정을 Room에서 관찰하고,
- * 사용자의 편집 내용을 로컬 + 서버에 저장한다.
+ * AppState의 inventory + items master + profileCard를 결합해 그리드/Live Preview를
+ * 구성한다. 진입 시 [AppStateLoader.refreshInventory/refreshGachaBoxes/refreshProfileCard]로
+ * 메모리를 최신화. 저장 시 서버 PUT + AppState에 즉시 반영.
  */
 @HiltViewModel
 class ProfileEditorViewModel @Inject constructor(
     private val userSession: UserSession,
-    private val profileUseCase: ProfileUseCase,
-    private val inventoryRepository: InventoryRepository,
-    private val gachaRepository: GachaRepository,
+    private val appState: AppState,
+    private val appStateLoader: AppStateLoader,
     private val soodalApi: SoodalApi,
 ) : ViewModel() {
 
-    private val userId get() = userSession.userId
-
-    /** 사용자가 편집 중인 로컬 상태 */
     private val _editState = MutableStateFlow(EditState())
 
     private data class EditState(
@@ -93,23 +85,15 @@ class ProfileEditorViewModel @Inject constructor(
         val isSaving: Boolean = false,
         val saveSuccess: Boolean = false,
         val saveError: String? = null,
-        /** Room에서 받은 초기 ProfileCard로 한 번만 초기화됐는지 */
         val initialized: Boolean = false,
     )
 
-    /** 인벤토리 + items 마스터 캐시를 결합해 카테고리별 UI 리스트 생성 */
-    private val itemsByCategoryFlow = inventoryRepository.getAll(userId).map { inventory ->
-        val itemIds = inventory.map { it.itemId }.distinct()
-        val itemsMap = gachaRepository.getBoxItemsByIds(itemIds).associateBy { it.id }
-        inventory to itemsMap
-    }
-
     val uiState: StateFlow<ProfileEditorUiState> = combine(
-        itemsByCategoryFlow,
-        profileUseCase.getProfileCard(userId),
+        appState.inventory,
+        appState.items,
+        appState.profileCard,
         _editState,
-    ) { (inventory, itemsMap), savedCard, edit ->
-        // 최초 1회: Room의 ProfileCard로 편집 상태 초기화
+    ) { inventory, itemsMap, savedCard, edit ->
         val state = if (!edit.initialized && savedCard != null) {
             val initialized = edit.copy(
                 selectedBgInventoryId = savedCard.backgroundItemId,
@@ -125,7 +109,6 @@ class ProfileEditorViewModel @Inject constructor(
             _editState.value = initialized
             initialized
         } else if (!edit.initialized) {
-            // 카드가 없으면 기본값으로 초기화 완료 처리
             val initialized = edit.copy(initialized = true)
             _editState.value = initialized
             initialized
@@ -151,36 +134,14 @@ class ProfileEditorViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProfileEditorUiState())
 
     init {
-        refreshFromServer()
-    }
-
-    /** 서버에서 최신 ProfileCard를 받아 Room을 갱신한다. */
-    private fun refreshFromServer() {
         viewModelScope.launch {
-            try {
-                val res = soodalApi.getProfileCard()
-                if (res.success && res.data != null) {
-                    val s = res.data
-                    profileUseCase.saveProfileCard(ProfileCard(
-                        userId = userId,
-                        backgroundItemId = s.backgroundItemId,
-                        characterItemId = s.characterItemId,
-                        borderItemId = s.borderItemId,
-                        characterX = s.characterX,
-                        characterY = s.characterY,
-                        characterScale = s.characterScale,
-                        customText = s.customText ?: "",
-                        textStyle = s.textStyle,
-                    ))
-                }
-            } catch (e: Exception) {
-                Timber.w(e, "ProfileCard 서버 조회 실패 (오프라인일 수 있음)")
-            }
+            appStateLoader.refreshInventory()
+            appStateLoader.refreshGachaBoxes()
+            appStateLoader.refreshProfileCard()
         }
     }
 
     fun setActiveTab(tab: EditorCategory) { _editState.value = _editState.value.copy(activeTab = tab) }
-
     fun selectItem(category: EditorCategory, inventoryId: Long) {
         _editState.value = when (category) {
             EditorCategory.Background -> _editState.value.copy(selectedBgInventoryId = inventoryId)
@@ -189,52 +150,42 @@ class ProfileEditorViewModel @Inject constructor(
             EditorCategory.Text -> _editState.value
         }
     }
+    fun setCharX(v: Float) { _editState.value = _editState.value.copy(charX = v) }
+    fun setCharY(v: Float) { _editState.value = _editState.value.copy(charY = v) }
+    fun setCharScale(v: Float) { _editState.value = _editState.value.copy(charScale = v) }
+    fun setCustomText(v: String) { _editState.value = _editState.value.copy(customText = v) }
+    fun setTextStyle(v: String) { _editState.value = _editState.value.copy(textStyle = v) }
+    fun clearSaveResult() { _editState.value = _editState.value.copy(saveSuccess = false, saveError = null) }
 
-    fun setCharX(value: Float) { _editState.value = _editState.value.copy(charX = value) }
-    fun setCharY(value: Float) { _editState.value = _editState.value.copy(charY = value) }
-    fun setCharScale(value: Float) { _editState.value = _editState.value.copy(charScale = value) }
-    fun setCustomText(value: String) { _editState.value = _editState.value.copy(customText = value) }
-    fun setTextStyle(value: String) { _editState.value = _editState.value.copy(textStyle = value) }
-
-    fun clearSaveResult() {
-        _editState.value = _editState.value.copy(saveSuccess = false, saveError = null)
-    }
-
-    /** 편집 내용을 로컬 Room + 서버에 저장한다. */
     fun save() {
         val s = _editState.value
         viewModelScope.launch {
             _editState.value = s.copy(isSaving = true, saveError = null)
             try {
                 val card = ProfileCard(
-                    userId = userId,
+                    userId = userSession.userId,
                     backgroundItemId = s.selectedBgInventoryId,
                     characterItemId = s.selectedCharInventoryId,
                     borderItemId = s.selectedFrameInventoryId,
-                    characterX = s.charX,
-                    characterY = s.charY,
-                    characterScale = s.charScale,
+                    characterX = s.charX.coerceIn(0f, 1f),
+                    characterY = s.charY.coerceIn(0f, 1f),
+                    characterScale = s.charScale.coerceIn(0.3f, 1f),
                     customText = s.customText,
                     textStyle = s.textStyle,
                 )
-                profileUseCase.saveProfileCard(card)
-
-                // 서버에도 저장 (실패해도 로컬은 저장됨)
-                try {
-                    soodalApi.updateProfileCard(ServerProfileCard(
-                        backgroundItemId = card.backgroundItemId,
-                        characterItemId = card.characterItemId,
-                        borderItemId = card.borderItemId,
-                        characterX = card.characterX,
-                        characterY = card.characterY,
-                        characterScale = card.characterScale,
-                        customText = card.customText.ifEmpty { null },
-                        textStyle = card.textStyle,
-                    ))
-                } catch (e: Exception) {
-                    Timber.w(e, "ProfileCard 서버 저장 실패 (로컬 저장은 완료)")
-                }
-
+                // 메모리 즉시 반영
+                appStateLoader.applyProfileCardSaved(card)
+                // 서버 PUT
+                soodalApi.updateProfileCard(ServerProfileCard(
+                    backgroundItemId = card.backgroundItemId,
+                    characterItemId = card.characterItemId,
+                    borderItemId = card.borderItemId,
+                    characterX = card.characterX,
+                    characterY = card.characterY,
+                    characterScale = card.characterScale,
+                    customText = card.customText.ifEmpty { null },
+                    textStyle = card.textStyle,
+                ))
                 _editState.value = _editState.value.copy(isSaving = false, saveSuccess = true)
             } catch (e: Exception) {
                 Timber.e(e, "ProfileCard 저장 실패")
@@ -248,7 +199,7 @@ class ProfileEditorViewModel @Inject constructor(
 
     private fun List<InventoryItem>.toUiList(
         category: String,
-        itemsMap: Map<Long, com.soodalbbobgi.app.domain.model.GachaBoxItem>,
+        itemsMap: Map<Long, com.soodalbbobgi.app.domain.model.Item>,
         selectedId: Long?,
     ): List<EditorItemUi> = this
         .filter { it.category == category }
@@ -259,7 +210,7 @@ class ProfileEditorViewModel @Inject constructor(
                 itemId = inv.itemId,
                 name = meta.name,
                 grade = inv.grade,
-                imageAsset = meta.imageAsset,
+                imageAsset = meta.imageAsset ?: "",
                 isSelected = inv.id == selectedId,
             )
         }
