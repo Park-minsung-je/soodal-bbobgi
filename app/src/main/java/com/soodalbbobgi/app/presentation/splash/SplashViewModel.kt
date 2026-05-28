@@ -215,6 +215,10 @@ class SplashViewModel @Inject constructor(
                 if (response.success && response.data != null) {
                     val earned = response.data.shellReward?.earned ?: 0
                     totalEarned += earned
+                    // 서버가 지급한 조개량을 로컬 swim_log에도 즉시 반영 (캘린더 표시용)
+                    if (earned > 0) {
+                        swimLogUseCase.updateShellsEarned(session.date, earned)
+                    }
                     response.data.shellReward?.newBalance?.let { appStateLoader.applyShellReward(it) }
                 }
             } catch (e: Exception) {
