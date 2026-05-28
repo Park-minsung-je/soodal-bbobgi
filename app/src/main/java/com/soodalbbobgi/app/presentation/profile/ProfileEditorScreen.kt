@@ -40,16 +40,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import android.widget.Toast
-import coil.compose.AsyncImage
-import com.soodalbbobgi.app.BuildConfig
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
+import com.soodalbbobgi.app.core.ui.AssetImage
 import com.soodalbbobgi.app.core.ui.ButtonStyle
 import com.soodalbbobgi.app.core.ui.GradeBadge
 import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
-import com.soodalbbobgi.app.core.ui.SoodalTabBar
 import com.soodalbbobgi.app.core.ui.SoodalTextField
 
 @Composable
@@ -136,7 +134,7 @@ fun ProfileEditorScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Text("미리보기", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
+                    Text("크게보기", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
                     SoodalIcon(icon = SoodalIcons.Share, tint = colors.textSecondary, size = 14.dp)
                 }
             }
@@ -145,26 +143,6 @@ fun ProfileEditorScreen(
 
             // -- Live Preview Card --
             Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(SoodalShape.sm)
-                            .background(colors.accentCyanSoft)
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                    ) {
-                        Text(
-                            text = "LIVE PREVIEW",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.accentCyan,
-                            letterSpacing = 0.5.sp,
-                        )
-                    }
-                }
-                Spacer(Modifier.height(spacing.s3))
                 val selectedBg = state.bgItems.firstOrNull { it.isSelected }
                 val selectedChar = state.charItems.firstOrNull { it.isSelected }
                 val selectedFrame = state.frameItems.firstOrNull { it.isSelected }
@@ -176,9 +154,9 @@ fun ProfileEditorScreen(
                         charY = state.charY,
                         charScale = state.charScale,
                     ),
-                    bgUrl = selectedBg?.imageAsset?.let { BuildConfig.ASSET_BASE_URL + it },
-                    charUrl = selectedChar?.imageAsset?.let { BuildConfig.ASSET_BASE_URL + it },
-                    frameUrl = selectedFrame?.imageAsset?.let { BuildConfig.ASSET_BASE_URL + it },
+                    bgAsset = selectedBg?.imageAsset,
+                    charAsset = selectedChar?.imageAsset,
+                    frameAsset = selectedFrame?.imageAsset,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(spacing.s2))
@@ -335,8 +313,8 @@ fun ProfileEditorScreen(
                 horizontalArrangement = Arrangement.spacedBy(spacing.s3),
             ) {
                 SoodalButton(
-                    text = "미리보기",
-                    onClick = onPreview,
+                    text = "취소",
+                    onClick = onBack,
                     style = ButtonStyle.Secondary,
                     modifier = Modifier.weight(1f),
                 )
@@ -353,7 +331,7 @@ fun ProfileEditorScreen(
                     }
                 } else {
                     SoodalButton(
-                        text = "저장 & 적용",
+                        text = "적용",
                         onClick = { viewModel.save() },
                         style = ButtonStyle.Primary,
                         modifier = Modifier.weight(1f),
@@ -363,12 +341,8 @@ fun ProfileEditorScreen(
 
             Spacer(Modifier.height(spacing.s4))
         }
-
-        // -- Tab Bar --
-        SoodalTabBar(
-            activeTab = "home",
-            onTabSelected = {},
-        )
+        // 편집 화면에서는 하단 탭 바를 노출하지 않는다.
+        // 탭 바는 onBack/취소/적용으로 홈에 돌아간 뒤에만 보인다.
     }
 }
 
@@ -455,8 +429,8 @@ private fun ItemGridCell(
                     .background(gradeColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center,
             ) {
-                AsyncImage(
-                    model = BuildConfig.ASSET_BASE_URL + item.imageAsset,
+                AssetImage(
+                    imageAsset = item.imageAsset,
                     contentDescription = item.name,
                     modifier = Modifier.fillMaxWidth().fillMaxHeight(),
                 )

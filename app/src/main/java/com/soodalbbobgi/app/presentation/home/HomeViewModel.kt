@@ -39,6 +39,24 @@ data class HomeUiState(
     val todayHasRecord: Boolean = false,
     val syncing: Boolean = false,
     val recentItems: List<RecentItem> = emptyList(),
+    /** 프로필 카드에 표시할 닉네임 (없으면 빈 문자열). */
+    val cardNickname: String = "",
+    /** 프로필 카드 하단 한 줄 소개 문구. 사용자 입력 텍스트 또는 기본값. */
+    val cardTagline: String = "수영을 사랑하는 수달",
+    /** 프로필 카드 좌하단 누적 통계 ("12,540m · 89회" 형식). */
+    val cardStats: String = "",
+    /** 배경 아이템 이미지 에셋 경로 (없으면 null). */
+    val cardBgAsset: String? = null,
+    /** 캐릭터 아이템 이미지 에셋 경로 (없으면 null). */
+    val cardCharAsset: String? = null,
+    /** 테두리 아이템 이미지 에셋 경로 (없으면 null). */
+    val cardFrameAsset: String? = null,
+    /** 캐릭터 가로 위치 (0..1). */
+    val cardCharX: Float = 0.16f,
+    /** 캐릭터 세로 위치 (0..1). */
+    val cardCharY: Float = 0.06f,
+    /** 캐릭터 크기 배율 (0.3..1). */
+    val cardCharScale: Float = 0.70f,
 )
 
 /**
@@ -77,6 +95,7 @@ class HomeViewModel @Inject constructor(
         appState.currency,
         appState.inventory,
         appState.items,
+        appState.profileCard,
         swimLogUseCase.getLogsByDateRange(monthStart(), monthEnd()),
         _syncing,
     ) { values ->
@@ -84,8 +103,9 @@ class HomeViewModel @Inject constructor(
         val currency = values[1] as com.soodalbbobgi.app.domain.model.Currency
         val inventory = values[2] as List<com.soodalbbobgi.app.domain.model.InventoryItem>
         val itemsMap = values[3] as Map<Long, com.soodalbbobgi.app.domain.model.Item>
-        val monthLogs = values[4] as List<SwimLog>
-        val syncing = values[5] as Boolean
+        val profileCard = values[4] as com.soodalbbobgi.app.domain.model.ProfileCard?
+        val monthLogs = values[5] as List<SwimLog>
+        val syncing = values[6] as Boolean
 
         val stats = swimLogUseCase.getMonthStats(monthStart(), monthEnd())
         val today = LocalDate.now().toString()
@@ -99,6 +119,12 @@ class HomeViewModel @Inject constructor(
                 RecentItem(name = meta?.name ?: "아이템 #${inv.itemId}", kind = inv.category, grade = inv.grade)
             }
 
+        // 저장된 프로필 카드를 ProfileCardComposite에 전달할 형태로 매핑.
+        // 장착된 아이템의 imageAsset 경로를 ItemsMap에서 조회해 카드 합성에 사용.
+        val cardTaglineText = profileCard?.customText?.takeIf { it.isNotBlank() }
+            ?: "수영을 사랑하는 수달"
+        val cardStatsText = "${stats.totalDistanceMeters}m · ${stats.swimCount}회"
+
         HomeUiState(
             nickname = profile?.nickname ?: "",
             shells = currency.shellBalance,
@@ -109,6 +135,15 @@ class HomeViewModel @Inject constructor(
             todayHasRecord = monthLogs.any { it.date == today },
             syncing = syncing,
             recentItems = recent,
+            cardNickname = profile?.nickname ?: "",
+            cardTagline = cardTaglineText,
+            cardStats = cardStatsText,
+            cardBgAsset = profileCard?.backgroundItemId?.let { itemsMap[it]?.imageAsset },
+            cardCharAsset = profileCard?.characterItemId?.let { itemsMap[it]?.imageAsset },
+            cardFrameAsset = profileCard?.borderItemId?.let { itemsMap[it]?.imageAsset },
+            cardCharX = profileCard?.characterX ?: 0.16f,
+            cardCharY = profileCard?.characterY ?: 0.06f,
+            cardCharScale = profileCard?.characterScale ?: 0.70f,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 

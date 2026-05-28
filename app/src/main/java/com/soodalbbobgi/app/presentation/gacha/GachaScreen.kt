@@ -45,6 +45,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
+import com.soodalbbobgi.app.core.ui.AssetImage
 import com.soodalbbobgi.app.core.ui.ButtonStyle
 import com.soodalbbobgi.app.core.ui.ChipColor
 import com.soodalbbobgi.app.core.ui.GlassPanel
@@ -351,8 +352,8 @@ private fun GachaResultOverlay(
                         contentAlignment = Alignment.Center,
                     ) {
                         if (!item.imageAsset.isNullOrBlank()) {
-                            coil.compose.AsyncImage(
-                                model = com.soodalbbobgi.app.BuildConfig.ASSET_BASE_URL + item.imageAsset,
+                            AssetImage(
+                                imageAsset = item.imageAsset,
                                 contentDescription = item.name,
                                 modifier = Modifier.fillMaxWidth(),
                             )

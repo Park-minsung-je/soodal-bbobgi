@@ -1,6 +1,8 @@
 package com.soodalbbobgi.app.data.remote.api
 
 import com.soodalbbobgi.app.data.remote.dto.*
+import okhttp3.ResponseBody
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -9,6 +11,7 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Streaming
 
 /**
  * 수달 뽑기 서버 REST API 인터페이스.
@@ -105,4 +108,20 @@ interface SoodalApi {
         @Query("startDate") startDate: String,
         @Query("endDate") endDate: String,
     ): ApiResponse<SwimStatsData>
+
+    // ── Assets ──
+
+    /** 에셋 매니페스트 조회 (인증 불필요) */
+    @GET("assets/version")
+    suspend fun getAssetManifest(): ApiResponse<AssetManifestData>
+
+    /**
+     * 개별 에셋 파일 다운로드 (streaming, 인증 불필요).
+     *
+     * @param path forward-slash 상대경로. 슬래시를 살리려 encoded=true.
+     * @return raw [ResponseBody]를 [Response]로 감싸 HTTP 에러 코드를 분리 처리할 수 있게 한다.
+     */
+    @Streaming
+    @GET("assets/files/{path}")
+    suspend fun downloadAssetFile(@Path("path", encoded = true) path: String): Response<ResponseBody>
 }
