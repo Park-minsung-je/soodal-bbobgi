@@ -24,11 +24,14 @@ import javax.inject.Singleton
  * - 큰 파일도 메모리에 안 올리도록 스트리밍 해시 계산
  *
  * 네트워크 다운로드/매니페스트 diff/정리(orphan cleanup)는 상위 `AssetManager`가 담당.
+ *
+ * 주의: 동시성 보장 없음. 호출자가 단일 스레드(또는 단일 코루틴)에서 순차 호출해야 하며,
+ * 디스패치 책임은 상위 `AssetManager`에 있다.
  */
 @Singleton
 class AssetStore @VisibleForTesting internal constructor(
     /** 에셋이 저장될 루트 디렉토리. context.filesDir/assets */
-    val rootDir: File,
+    @VisibleForTesting val rootDir: File,
 ) {
 
     @Inject
@@ -43,7 +46,11 @@ class AssetStore @VisibleForTesting internal constructor(
         }
     }
 
-    /** path(assets 루트 기준 상대경로)에 해당하는 로컬 File. */
+    /**
+     * path(assets 루트 기준 상대경로)에 해당하는 로컬 File.
+     *
+     * 주의: 반환된 File을 통해 직접 쓰기 시 원자성 보장이 없다. 쓰기는 [writeFile]을 사용한다.
+     */
     fun fileFor(path: String): File = resolveSafely(path)
 
     /** 로컬에 해당 파일이 존재하는지. */
