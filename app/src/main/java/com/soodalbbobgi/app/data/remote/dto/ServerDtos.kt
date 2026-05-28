@@ -234,3 +234,18 @@ data class SwimStatsData(
     val totalCalories: Int,
     val totalShellsEarned: Int,
 )
+
+// ── Assets ──
+
+/** GET /assets/version 응답 */
+data class AssetManifestData(
+    val version: String,
+    val updatedAt: Long,
+    val files: List<ServerAssetFile>,
+)
+
+data class ServerAssetFile(
+    val path: String,
+    val hash: String,
+    val size: Long,
+)

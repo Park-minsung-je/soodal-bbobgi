@@ -105,4 +105,10 @@ interface SoodalApi {
         @Query("startDate") startDate: String,
         @Query("endDate") endDate: String,
     ): ApiResponse<SwimStatsData>
+
+    // ── Assets ──
+
+    /** 에셋 매니페스트 조회 (인증 불필요) */
+    @GET("assets/version")
+    suspend fun getAssetManifest(): ApiResponse<AssetManifestData>
 }
