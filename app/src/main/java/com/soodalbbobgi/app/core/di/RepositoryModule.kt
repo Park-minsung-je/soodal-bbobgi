@@ -1,12 +1,10 @@
 package com.soodalbbobgi.app.core.di
 
-import com.soodalbbobgi.app.data.repository.GachaHistoryRepositoryImpl
 import com.soodalbbobgi.app.data.repository.GachaRepositoryImpl
 import com.soodalbbobgi.app.data.repository.InventoryRepositoryImpl
 import com.soodalbbobgi.app.data.repository.ProfileCardRepositoryImpl
 import com.soodalbbobgi.app.data.repository.SwimLogRepositoryImpl
 import com.soodalbbobgi.app.data.repository.UserRepositoryImpl
-import com.soodalbbobgi.app.domain.repository.GachaHistoryRepository
 import com.soodalbbobgi.app.domain.repository.GachaRepository
 import com.soodalbbobgi.app.domain.repository.InventoryRepository
 import com.soodalbbobgi.app.domain.repository.ProfileCardRepository
@@ -25,6 +23,5 @@ abstract class RepositoryModule {
     @Binds @Singleton abstract fun bindSwimLogRepo(impl: SwimLogRepositoryImpl): SwimLogRepository
     @Binds @Singleton abstract fun bindGachaRepo(impl: GachaRepositoryImpl): GachaRepository
     @Binds @Singleton abstract fun bindInventoryRepo(impl: InventoryRepositoryImpl): InventoryRepository
-    @Binds @Singleton abstract fun bindGachaHistoryRepo(impl: GachaHistoryRepositoryImpl): GachaHistoryRepository
     @Binds @Singleton abstract fun bindProfileCardRepo(impl: ProfileCardRepositoryImpl): ProfileCardRepository
 }

@@ -3,7 +3,6 @@ package com.soodalbbobgi.app.core.di
 import android.content.Context
 import androidx.room.Room
 import com.soodalbbobgi.app.data.local.db.GachaBoxDao
-import com.soodalbbobgi.app.data.local.db.GachaHistoryDao
 import com.soodalbbobgi.app.data.local.db.InventoryDao
 import com.soodalbbobgi.app.data.local.db.ProfileCardDao
 import com.soodalbbobgi.app.data.local.db.SoodalDatabase
@@ -34,6 +33,5 @@ object DatabaseModule {
     @Provides fun provideSwimLogDao(db: SoodalDatabase): SwimLogDao = db.swimLogDao()
     @Provides fun provideInventoryDao(db: SoodalDatabase): InventoryDao = db.inventoryDao()
     @Provides fun provideProfileCardDao(db: SoodalDatabase): ProfileCardDao = db.profileCardDao()
-    @Provides fun provideGachaHistoryDao(db: SoodalDatabase): GachaHistoryDao = db.gachaHistoryDao()
     @Provides fun provideGachaBoxDao(db: SoodalDatabase): GachaBoxDao = db.gachaBoxDao()
 }
