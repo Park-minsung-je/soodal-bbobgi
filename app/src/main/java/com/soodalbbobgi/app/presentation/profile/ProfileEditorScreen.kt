@@ -317,10 +317,11 @@ fun ProfileEditorScreen(
                     onClick = onBack,
                     style = ButtonStyle.Secondary,
                     modifier = Modifier.weight(1f),
+                    heightOverride = 52.dp,
                 )
                 if (state.isSaving) {
                     Box(
-                        modifier = Modifier.weight(1f).height(48.dp),
+                        modifier = Modifier.weight(1f).height(52.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(
@@ -335,6 +336,7 @@ fun ProfileEditorScreen(
                         onClick = { viewModel.save() },
                         style = ButtonStyle.Primary,
                         modifier = Modifier.weight(1f),
+                        heightOverride = 52.dp,
                     )
                 }
             }
