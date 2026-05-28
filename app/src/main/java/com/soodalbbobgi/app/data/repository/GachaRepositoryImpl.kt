@@ -22,6 +22,8 @@ class GachaRepositoryImpl @Inject constructor(
         dao.getItemsForBox(boxId).map { list -> list.map { it.toDomain() } }
     override suspend fun getBoxItemById(itemId: Long): GachaBoxItem? =
         dao.getItemById(itemId)?.toDomain()
+    override suspend fun getBoxItemsByIds(itemIds: List<Long>): List<GachaBoxItem> =
+        if (itemIds.isEmpty()) emptyList() else dao.getItemsByIds(itemIds).map { it.toDomain() }
     override suspend fun saveBox(box: GachaBox) =
         dao.insertBox(box.toEntity())
     override suspend fun saveBoxItem(item: GachaBoxItem) =

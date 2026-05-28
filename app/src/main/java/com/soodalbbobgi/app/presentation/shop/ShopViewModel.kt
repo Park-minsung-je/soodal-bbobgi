@@ -4,179 +4,174 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.session.UserSession
 import com.soodalbbobgi.app.core.ui.SoodalIcons
-import com.soodalbbobgi.app.domain.model.Grade
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
-import com.soodalbbobgi.app.domain.repository.GachaRepository
+import com.soodalbbobgi.app.data.remote.dto.ServerShopListing
+import com.soodalbbobgi.app.data.remote.dto.ShopPurchaseRequest
+import com.soodalbbobgi.app.domain.model.Grade
 import com.soodalbbobgi.app.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
+/** 상점 진열 카드 UI 모델 (서버 응답을 화면용으로 변환한 것) */
 data class ShopItem(
+    val shopListingId: Long,
+    val productType: String,             // 'item' | 'box'
     val name: String,
+    val description: String,
     val icon: SoodalIcons,
+    val imageAsset: String?,
     val grade: Grade?,
     val price: Int,
-    val isOwned: Boolean = false,
-    val desc: String = "",
+    val maxPerUser: Int?,
+    val purchasedTotal: Int,
+    val maxPerPeriod: Int?,
+    val periodType: String?,
+    val purchasedThisPeriod: Int,
+    val periodResetAt: Long?,
+    val isLimited: Boolean,
+    val canBuy: Boolean,
 )
 
 data class ShopUiState(
     val pearls: Int = 0,
+    val listings: List<ShopItem> = emptyList(),
     val confirmItem: ShopItem? = null,
-    val featured: ShopItem = ShopItem("", SoodalIcons.Otter, null, 0),
-    val boxes: List<ShopItem> = emptyList(),
-    val directItems: List<ShopItem> = emptyList(),
+    val isLoading: Boolean = false,
+    val error: String? = null,
 )
 
 /**
  * 상점 화면 ViewModel.
- * User(진주 잔액)와 GachaBox(상자 목록)를 Room DB에서 관찰하고,
- * [CurrencyUseCase]를 통해 진주 구매를 처리한다.
+ * 서버의 shop_listings 응답을 받아 진열하고, 구매 요청은 shopListingId 기반으로 보낸다.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ShopViewModel @Inject constructor(
     private val userSession: UserSession,
     private val userRepository: UserRepository,
-    private val gachaRepository: GachaRepository,
     private val soodalApi: SoodalApi,
 ) : ViewModel() {
 
     private val userId get() = userSession.userId
 
+    private val _listings = MutableStateFlow<List<ShopItem>>(emptyList())
     private val _confirmItem = MutableStateFlow<ShopItem?>(null)
+    private val _loading = MutableStateFlow(false)
+    private val _error = MutableStateFlow<String?>(null)
 
-    /** 진주 잔액을 User Flow에서 관찰 */
     private val pearlsFlow = userRepository.getUser(userId)
         .filterNotNull()
         .map { it.pearlBalance }
 
-    /** 활성 상자 목록을 ShopItem으로 변환 */
-    private val boxesFlow = gachaRepository.getAllActiveBoxes().map { boxes ->
-        boxes.map { box ->
-            ShopItem(
-                name = box.name,
-                icon = when (box.category) {
-                    "bg" -> SoodalIcons.Aurora
-                    "char" -> SoodalIcons.Otter
-                    "frame" -> SoodalIcons.Frame
-                    else -> SoodalIcons.Gift
-                },
-                grade = null,
-                price = 5,
-                desc = box.description,
-            )
-        }
-    }
+    val uiState: StateFlow<ShopUiState> = combine(
+        pearlsFlow, _listings, _confirmItem, _loading, _error,
+    ) { pearls, listings, confirm, loading, error ->
+        ShopUiState(
+            pearls = pearls,
+            listings = listings,
+            confirmItem = confirm,
+            isLoading = loading,
+            error = error,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ShopUiState())
 
-    /** 각 상자의 SSR/SR 아이템을 직접 구매 목록으로 변환 */
-    private val directItemsFlow = gachaRepository.getAllActiveBoxes().flatMapLatest { boxes ->
-        if (boxes.isEmpty()) return@flatMapLatest flowOf(emptyList<ShopItem>())
+    init { refresh() }
 
-        val itemFlows = boxes.map { box ->
-            gachaRepository.getBoxItems(box.id).map { items ->
-                items
-                    .filter { it.grade == Grade.SSR || it.grade == Grade.SR }
-                    .map { item ->
-                        ShopItem(
-                            name = item.name,
-                            icon = when (box.category) {
-                                "bg" -> SoodalIcons.Aurora
-                                "char" -> SoodalIcons.Otter
-                                "frame" -> SoodalIcons.Frame
-                                else -> SoodalIcons.Gift
-                            },
-                            grade = item.grade,
-                            price = item.grade.pearlValue,
-                        )
-                    }
-            }
-        }
-        combine(itemFlows) { arrays -> arrays.flatMap { it } }
-    }
-
-    init {
-        // 화면 진입 시 서버에서 최신 데이터 갱신
-        refreshFromServer()
-    }
-
-    private fun refreshFromServer() {
+    /** 상점 진열 + 사용자 진주 잔액 새로고침. */
+    fun refresh() {
         viewModelScope.launch {
+            _loading.value = true
             try {
                 val userRes = soodalApi.getMe()
                 if (userRes.success && userRes.data != null) {
                     val u = userRes.data
                     userRepository.updateCurrency(u.id, u.shellBalance, u.pearlBalance)
                 }
-            } catch (_: Exception) { }
+                val shopRes = soodalApi.getShop()
+                if (shopRes.success && shopRes.data != null) {
+                    _listings.value = shopRes.data.listings.map { it.toUi() }
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "상점 새로고침 실패")
+                _error.value = "상점을 불러오지 못했어요"
+            } finally {
+                _loading.value = false
+            }
         }
     }
 
-    val uiState: StateFlow<ShopUiState> = combine(
-        pearlsFlow,
-        boxesFlow,
-        directItemsFlow,
-        _confirmItem,
-    ) { pearls, boxes, directItems, confirm ->
-        val featured = directItems.firstOrNull { it.grade == Grade.SSR }
-            ?: directItems.firstOrNull()
-            ?: ShopItem("", SoodalIcons.Otter, null, 0)
-
-        ShopUiState(
-            pearls = pearls,
-            confirmItem = confirm,
-            featured = featured,
-            boxes = boxes,
-            directItems = directItems,
-        )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ShopUiState())
-
-    /** 구매 확인 다이얼로그를 표시한다. 이미 보유한 아이템은 무시. */
     fun selectForPurchase(item: ShopItem) {
-        if (!item.isOwned) {
-            _confirmItem.value = item
-        }
+        if (item.canBuy) _confirmItem.value = item
     }
 
-    /** 구매를 취소한다. */
-    fun cancelPurchase() {
-        _confirmItem.value = null
-    }
+    fun cancelPurchase() { _confirmItem.value = null }
 
-    /** 구매를 확정하여 서버에서 진주 차감 + 아이템 지급을 처리한다. */
+    fun clearError() { _error.value = null }
+
+    /** 서버에 구매 요청. 성공 시 잔액 갱신 + 진열 갱신. */
     fun confirmPurchase() {
         val item = _confirmItem.value ?: return
-        if (uiState.value.pearls < item.price) return
+        if (uiState.value.pearls < item.price) {
+            _error.value = "진주가 부족해요"
+            _confirmItem.value = null
+            return
+        }
 
         viewModelScope.launch {
             try {
-                val response = soodalApi.shopPurchase(
-                    com.soodalbbobgi.app.data.remote.dto.ShopPurchaseRequest(
-                        boxItemId = 0, // TODO: ShopItem에 boxItemId 추가 필요
-                        price = item.price,
-                    )
-                )
-                if (response.success && response.data != null) {
-                    val currency = response.data.currency
-                    userRepository.updateCurrency(userId, currency.shellBalance, currency.pearlBalance)
+                val res = soodalApi.shopPurchase(ShopPurchaseRequest(shopListingId = item.shopListingId))
+                if (res.success && res.data != null) {
+                    val c = res.data.currency
+                    userRepository.updateCurrency(userId, c.shellBalance, c.pearlBalance)
+                    userRepository.updatePityCounter(userId, c.pityCounter)
+                    refresh()
+                } else {
+                    _error.value = res.error?.message ?: "구매에 실패했어요"
                 }
             } catch (e: Exception) {
-                timber.log.Timber.w(e, "상점 구매 실패")
+                Timber.w(e, "상점 구매 실패")
+                _error.value = "구매에 실패했어요"
             } finally {
                 _confirmItem.value = null
             }
         }
+    }
+
+    private fun ServerShopListing.toUi(): ShopItem {
+        val name = product.name
+        val grade = product.grade?.let { Grade.fromString(it) }
+        val category = product.category ?: ""
+        val icon = when (category) {
+            "char" -> SoodalIcons.Otter
+            "bg" -> SoodalIcons.Aurora
+            "frame" -> SoodalIcons.Frame
+            else -> SoodalIcons.Gift
+        }
+        return ShopItem(
+            shopListingId = id,
+            productType = productType,
+            name = name,
+            description = product.description ?: "",
+            icon = icon,
+            imageAsset = product.imageAsset ?: product.iconAsset,
+            grade = grade,
+            price = pearlPrice,
+            maxPerUser = maxPerUser,
+            purchasedTotal = purchasedTotal,
+            maxPerPeriod = maxPerPeriod,
+            periodType = periodType,
+            purchasedThisPeriod = purchasedThisPeriod,
+            periodResetAt = periodResetAt,
+            isLimited = product.isLimited == true,
+            canBuy = canBuy,
+        )
     }
 }

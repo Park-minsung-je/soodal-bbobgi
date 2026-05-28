@@ -9,6 +9,7 @@ interface GachaRepository {
     suspend fun getBoxById(boxId: Long): GachaBox?
     fun getBoxItems(boxId: Long): Flow<List<GachaBoxItem>>
     suspend fun getBoxItemById(itemId: Long): GachaBoxItem?
+    suspend fun getBoxItemsByIds(itemIds: List<Long>): List<GachaBoxItem>
     suspend fun saveBox(box: GachaBox)
     suspend fun saveBoxItem(item: GachaBoxItem)
 }

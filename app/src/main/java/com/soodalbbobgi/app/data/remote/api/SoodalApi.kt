@@ -6,6 +6,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -55,9 +56,23 @@ interface SoodalApi {
     @GET("inventory")
     suspend fun getInventory(@Query("category") category: String? = null): ApiResponse<InventoryData>
 
+    // ── Profile Card ──
+
+    /** 프로필 카드 설정 조회 */
+    @GET("profile-card")
+    suspend fun getProfileCard(): ApiResponse<ServerProfileCard>
+
+    /** 프로필 카드 설정 저장 */
+    @PUT("profile-card")
+    suspend fun updateProfileCard(@Body request: ServerProfileCard): ApiResponse<ProfileCardUpdateData>
+
     // ── Shop ──
 
-    /** 진주로 아이템 직접 구매 */
+    /** 진열 중인 상품 목록 + 사용자별 구매 카운트 */
+    @GET("shop")
+    suspend fun getShop(): ApiResponse<ShopListingsData>
+
+    /** 상점 상품 구매 (item이면 인벤토리 추가, box면 즉시 가챠 실행) */
     @POST("shop/purchase")
     suspend fun shopPurchase(@Body request: ShopPurchaseRequest): ApiResponse<ShopPurchaseData>
 

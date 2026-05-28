@@ -183,7 +183,7 @@ class SplashViewModel @Inject constructor(
                     inventoryRepository.addItem(InventoryItem(
                         id = item.id,
                         userId = userSession.userId,
-                        boxItemId = item.boxItemId,
+                        itemId = item.itemId,
                         grade = Grade.fromString(item.grade),
                         category = item.category,
                         isEquippedAs = item.isEquippedAs,
@@ -202,38 +202,65 @@ class SplashViewModel @Inject constructor(
      *
      * 1. 저장된 토큰이 있으면 Changes API로 변경분만 처리
      * 2. 토큰이 없거나 만료되면 전체 읽기 후 토큰 발급
-     * 3. 추가된 세션 → 로컬 Room + 서버 POST
+     * 3. 추가된 세션 → 로컬 Room + 서버 POST → 서버 응답의 shellReward 누적
      * 4. 삭제된 세션 → 로컬 Room 삭제 + 서버 DELETE
      * 5. 서버에서 수영 기록 pull → 로컬에 없는 것만 저장 (다른 기기 대응)
+     * 6. 누적된 shellReward를 UserSession에 전달 (Home에서 팝업 표시)
+     * 7. 최신 사용자 정보 다시 가져와서 Room 갱신 (서버에서 지급된 조개 반영)
      */
     private suspend fun syncHealthConnect() {
         try {
             if (!healthConnectManager.hasAllPermissions()) return
 
             val storedToken = hcSyncPreferences.getChangesToken()
+            var totalEarned = 0
 
             if (storedToken != null) {
                 val result = healthConnectManager.getChanges(storedToken)
                 if (result != null) {
-                    processAddedSessions(result.addedSessions)
+                    totalEarned = processAddedSessions(result.addedSessions)
                     processDeletedRecords(result.deletedRecordIds)
                     hcSyncPreferences.saveChangesToken(result.nextToken)
                 } else {
-                    fullReadAndInitToken()
+                    totalEarned = fullReadAndInitToken()
                 }
             } else {
-                fullReadAndInitToken()
+                totalEarned = fullReadAndInitToken()
             }
 
             // 서버에서 수영 기록 pull (다른 기기에서 등록한 기록 반영)
             pullServerSwimLogs()
+
+            // HC 동기화 중 지급된 조개를 Home에 전달 (팝업 표시용)
+            if (totalEarned > 0) {
+                userSession.setPendingShellReward(totalEarned)
+            }
+
+            // 서버에서 최신 잔액을 다시 가져와 Room 갱신
+            // (saveUserToRoom 시점의 잔액은 HC 지급 전 값이므로 stale)
+            refreshUserDataFromServer()
         } catch (e: Exception) {
             Timber.w(e, "HC 동기화 실패")
         }
     }
 
-    /** 토큰 없을 때: 전체 읽기 + 초기 토큰 발급 */
-    private suspend fun fullReadAndInitToken() {
+    /** HC 동기화 후 서버의 최신 사용자 정보로 Room을 갱신한다. */
+    private suspend fun refreshUserDataFromServer() {
+        try {
+            val res = soodalApi.getMe()
+            if (res.success && res.data != null) {
+                val u = res.data
+                userRepository.updateCurrency(userSession.userId, u.shellBalance, u.pearlBalance)
+                userRepository.updatePityCounter(userSession.userId, u.pityCounter)
+                Timber.d("Splash 후 사용자 갱신: shells=${u.shellBalance} pearls=${u.pearlBalance}")
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "사용자 정보 재조회 실패")
+        }
+    }
+
+    /** 토큰 없을 때: 전체 읽기 + 초기 토큰 발급. @return 획득한 조개 수. */
+    private suspend fun fullReadAndInitToken(): Int {
         val token = healthConnectManager.getChangesToken()
 
         val now = LocalDateTime.now()
@@ -245,13 +272,15 @@ class SplashViewModel @Inject constructor(
 
         val sessions = healthConnectManager.readSwimSessions(startOfDay, endOfDay)
         Timber.d("Splash HC 전체 읽기: ${sessions.size}개 세션")
-        processAddedSessions(sessions)
+        val earned = processAddedSessions(sessions)
 
         hcSyncPreferences.saveChangesToken(token)
+        return earned
     }
 
-    /** 추가/수정된 수영 세션을 로컬 Room + 서버에 저장한다. */
-    private suspend fun processAddedSessions(sessions: List<SwimSession>) {
+    /** 추가/수정된 수영 세션을 로컬 Room + 서버에 저장한다. @return 획득한 조개 수. */
+    private suspend fun processAddedSessions(sessions: List<SwimSession>): Int {
+        var totalEarned = 0
         for (session in sessions) {
             try {
                 swimLogUseCase.syncSwimLog(userSession.userId, SwimLog(
@@ -264,7 +293,7 @@ class SplashViewModel @Inject constructor(
                     source = "health_connect",
                     hcRecordId = session.hcRecordId,
                 ))
-                soodalApi.addSwimLog(SwimLogRequest(
+                val response = soodalApi.addSwimLog(SwimLogRequest(
                     date = session.date,
                     distanceMeters = session.distanceMeters,
                     durationSeconds = session.durationSeconds,
@@ -274,10 +303,14 @@ class SplashViewModel @Inject constructor(
                     strokeMixedM = session.distanceMeters, strokeKickM = 0,
                     source = "health_connect",
                 ))
+                if (response.success && response.data != null) {
+                    totalEarned += response.data.shellReward?.earned ?: 0
+                }
             } catch (e: Exception) {
                 Timber.w(e, "수영 기록 동기화 실패: ${session.date}")
             }
         }
+        return totalEarned
     }
 
     /** HC에서 삭제된 레코드를 로컬 Room + 서버에서 삭제한다. */

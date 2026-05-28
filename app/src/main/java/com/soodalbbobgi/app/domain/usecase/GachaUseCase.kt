@@ -39,7 +39,7 @@ class GachaUseCase @Inject constructor(
             inventoryRepo.addItem(
                 InventoryItem(
                     userId = userId,
-                    boxItemId = selected.id,
+                    itemId = selected.id,
                     grade = selected.grade,
                     category = gachaRepo.getBoxById(boxId)!!.category,
                     acquiredAt = System.currentTimeMillis(),

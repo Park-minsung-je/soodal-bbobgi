@@ -1,17 +1,74 @@
 package com.soodalbbobgi.app.data.remote.dto
 
+// ── Profile Card ──
+
+/** GET /profile-card 응답, PUT /profile-card 요청 (공용) */
+data class ServerProfileCard(
+    val backgroundItemId: Long? = null,
+    val characterItemId: Long? = null,
+    val borderItemId: Long? = null,
+    val characterX: Float = 0.16f,
+    val characterY: Float = 0.06f,
+    val characterScale: Float = 0.70f,
+    val customText: String? = null,
+    val textStyle: String = "REGULAR",
+    val lastEditedAt: Long? = null,
+)
+
+/** PUT /profile-card 응답 */
+data class ProfileCardUpdateData(
+    val lastEditedAt: Long,
+)
+
 // ── Shop ──
 
 /** POST /shop/purchase 요청 */
 data class ShopPurchaseRequest(
-    val boxItemId: Long,
-    val price: Int,
+    val shopListingId: Long,
 )
 
 /** POST /shop/purchase 응답 */
 data class ShopPurchaseData(
-    val inventoryItem: ServerInventoryItem,
+    val shopListingId: Long,
+    val productType: String,
+    val inventoryItemId: Long?,
+    val gachaHistoryId: Long?,
+    val acquiredItems: List<ServerGachaResult>?,
     val currency: ServerCurrency,
+)
+
+/** GET /shop 응답 */
+data class ShopListingsData(
+    val listings: List<ServerShopListing>,
+)
+
+data class ServerShopListing(
+    val id: Long,
+    val productType: String,                  // 'item' | 'box'
+    val product: ServerShopProduct,
+    val pearlPrice: Int,
+    val maxPerUser: Int?,
+    val purchasedTotal: Int,
+    val maxPerPeriod: Int?,
+    val periodType: String?,                  // 'daily' | 'weekly' | 'monthly'
+    val purchasedThisPeriod: Int,
+    val periodResetAt: Long?,
+    val startAt: Long?,
+    val endAt: Long?,
+    val canBuy: Boolean,
+)
+
+/** product 필드는 item이면 ServerItemProduct, box면 ServerBoxProduct 형태 */
+data class ServerShopProduct(
+    val id: Long,
+    val itemKey: String? = null,        // item만
+    val name: String,
+    val grade: String? = null,          // item만
+    val category: String? = null,
+    val imageAsset: String? = null,
+    val isLimited: Boolean? = null,     // item만
+    val description: String? = null,    // box만
+    val iconAsset: String? = null,      // box만
 )
 
 // ── User ──
@@ -85,7 +142,7 @@ data class InventoryData(
 
 data class ServerInventoryItem(
     val id: Long,
-    val boxItemId: Long,
+    val itemId: Long,
     val grade: String,
     val category: String,
     val isEquippedAs: String,

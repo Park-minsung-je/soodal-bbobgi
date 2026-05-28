@@ -21,17 +21,17 @@ class InventoryRepositoryImpl @Inject constructor(
     override suspend fun addItem(item: InventoryItem): Long = dao.insert(item.toEntity())
     override suspend fun equipItem(itemId: Long, slot: String) = dao.equip(itemId, slot)
     override suspend fun unequipSlot(userId: String, slot: String) = dao.unequipSlot(userId, slot)
-    override suspend fun countDuplicates(userId: String, boxItemId: Long): Int =
-        dao.countByBoxItemId(userId, boxItemId)
+    override suspend fun countDuplicates(userId: String, itemId: Long): Int =
+        dao.countByItemId(userId, itemId)
 }
 
 private fun InventoryItemEntity.toDomain() = InventoryItem(
-    id = id, userId = userId, boxItemId = boxItemId,
+    id = id, userId = userId, itemId = itemId,
     grade = Grade.fromString(grade), category = category,
     isEquippedAs = isEquippedAs, acquiredAt = acquiredAt,
 )
 private fun InventoryItem.toEntity() = InventoryItemEntity(
-    id = id, userId = userId, boxItemId = boxItemId,
+    id = id, userId = userId, itemId = itemId,
     grade = grade.name, category = category,
     isEquippedAs = isEquippedAs, acquiredAt = acquiredAt,
 )

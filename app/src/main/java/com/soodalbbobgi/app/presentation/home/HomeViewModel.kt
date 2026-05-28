@@ -72,6 +72,14 @@ class HomeViewModel @Inject constructor(
 
     fun clearSyncError() { _syncError.value = null }
 
+    init {
+        // 스플래시에서 지급된 조개가 있으면 팝업 트리거
+        val pending = userSession.consumePendingShellReward()
+        if (pending > 0) {
+            _shellReward.value = pending
+        }
+    }
+
     // HC 동기화는 사용자가 동기화 버튼을 누를 때만 실행
     // 서버 사용자 데이터는 Splash에서 Room에 이미 저장됨
 
@@ -277,7 +285,7 @@ class HomeViewModel @Inject constructor(
 }
 
 private fun InventoryItem.toRecentItem(): RecentItem = RecentItem(
-    name = "아이템 #$boxItemId",
+    name = "아이템 #$itemId",
     kind = category,
     grade = grade,
 )

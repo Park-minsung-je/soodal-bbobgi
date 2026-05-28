@@ -18,26 +18,27 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.soodalbbobgi.app.R
+import androidx.hilt.navigation.compose.hiltViewModel
+import android.widget.Toast
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.ButtonStyle
@@ -47,52 +48,30 @@ import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.SoodalTabBar
 import com.soodalbbobgi.app.core.ui.SoodalTextField
-import com.soodalbbobgi.app.domain.model.Grade
-
-private data class EditorItem(
-    val name: String,
-    @androidx.annotation.DrawableRes val imageRes: Int,
-    val grade: Grade,
-    val isSelected: Boolean = false,
-)
-
-private val demoBgItems = listOf(
-    EditorItem("오로라", R.drawable.bg_maldives_beach, Grade.SR, true),
-    EditorItem("한밤", R.drawable.bg_maldives_pool, Grade.N),
-    EditorItem("산호초", R.drawable.bg_maldives_beach, Grade.R),
-    EditorItem("딥블루", R.drawable.bg_maldives_pool, Grade.R),
-    EditorItem("열대야", R.drawable.bg_maldives_beach, Grade.N),
-)
-
-private val demoCharItems = listOf(
-    EditorItem("수달이", R.drawable.otter_swim, Grade.N, true),
-    EditorItem("진주 수달", R.drawable.otter_maldives, Grade.SR),
-    EditorItem("코랄 수달", R.drawable.otter_indoor, Grade.R),
-    EditorItem("버블 수달", R.drawable.otter_swim, Grade.N),
-)
-
-private val demoFrameItems = listOf(
-    EditorItem("시안 라인", R.drawable.frame_pool, Grade.R, true),
-    EditorItem("버블", R.drawable.frame_palm, Grade.N),
-    EditorItem("별자리", R.drawable.frame_indoor, Grade.R),
-)
-
-private val editorTabs = listOf("배경", "캐릭터", "테두리", "텍스트")
 
 @Composable
 fun ProfileEditorScreen(
     onBack: () -> Unit,
     onPreview: () -> Unit,
+    viewModel: ProfileEditorViewModel = hiltViewModel(),
 ) {
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
+    val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
-    var activeTab by remember { mutableIntStateOf(0) }
-    var cardText by remember { mutableStateOf("수달 마스터") }
-    var fontStyleIndex by remember { mutableIntStateOf(0) }
-    var charX by remember { mutableFloatStateOf(35f) }
-    var charY by remember { mutableFloatStateOf(25f) }
-    var charSize by remember { mutableFloatStateOf(70f) }
+    // 저장 결과 토스트
+    LaunchedEffect(state.saveSuccess, state.saveError) {
+        if (state.saveSuccess) {
+            Toast.makeText(context, "프로필 카드가 저장됐어요", Toast.LENGTH_SHORT).show()
+            viewModel.clearSaveResult()
+            onBack()
+        }
+        state.saveError?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            viewModel.clearSaveResult()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -186,16 +165,19 @@ fun ProfileEditorScreen(
                 ProfileCardComposite(
                     layers = CardLayers(
                         nickname = "Soodal",
-                        tagline = cardText.ifEmpty { "수달 마스터" },
-                        charX = charX / 70f,
-                        charY = charY / 50f,
-                        charScale = charSize / 100f,
+                        tagline = state.customText.ifEmpty { "수달 마스터" },
+                        charX = state.charX,
+                        charY = state.charY,
+                        charScale = state.charScale,
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(spacing.s2))
+                val bgName = state.bgItems.firstOrNull { it.isSelected }?.name ?: "미선택"
+                val charName = state.charItems.firstOrNull { it.isSelected }?.name ?: "미선택"
+                val frameName = state.frameItems.firstOrNull { it.isSelected }?.name ?: "미선택"
                 Text(
-                    text = "배경: 오로라 · 캐릭터: 수달이 · 테두리: 시안 라인",
+                    text = "배경: $bgName · 캐릭터: $charName · 테두리: $frameName",
                     fontSize = 10.sp,
                     color = colors.textTertiary,
                 )
@@ -210,8 +192,8 @@ fun ProfileEditorScreen(
                     .clip(SoodalShape.md)
                     .background(colors.surface2),
             ) {
-                editorTabs.forEachIndexed { index, label ->
-                    val isActive = index == activeTab
+                EditorCategory.values().forEach { tab ->
+                    val isActive = tab == state.activeTab
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -224,13 +206,13 @@ fun ProfileEditorScreen(
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
-                                onClick = { activeTab = index },
+                                onClick = { viewModel.setActiveTab(tab) },
                             )
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = label,
+                            text = tab.label,
                             fontSize = 13.sp,
                             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
                             color = if (isActive) colors.accentCyan else colors.textTertiary,
@@ -242,10 +224,18 @@ fun ProfileEditorScreen(
             Spacer(Modifier.height(spacing.s4))
 
             // -- Tab Content --
-            when (activeTab) {
-                0 -> ItemGrid(items = demoBgItems, tabName = "배경")
-                1 -> {
-                    ItemGrid(items = demoCharItems, tabName = "캐릭터")
+            when (state.activeTab) {
+                EditorCategory.Background -> ItemGrid(
+                    items = state.bgItems,
+                    tabName = "배경",
+                    onClick = { viewModel.selectItem(EditorCategory.Background, it) },
+                )
+                EditorCategory.Character -> {
+                    ItemGrid(
+                        items = state.charItems,
+                        tabName = "캐릭터",
+                        onClick = { viewModel.selectItem(EditorCategory.Character, it) },
+                    )
                     Spacer(Modifier.height(spacing.s3))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -265,21 +255,29 @@ fun ProfileEditorScreen(
                             modifier = Modifier.clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
-                            ) { charX = 35f; charY = 25f; charSize = 70f },
+                            ) {
+                                viewModel.setCharX(0.16f)
+                                viewModel.setCharY(0.06f)
+                                viewModel.setCharScale(0.70f)
+                            },
                         )
                     }
                     Spacer(Modifier.height(spacing.s2))
-                    SliderRow("↔ 좌우 위치", charX, 0f..70f) { charX = it }
-                    SliderRow("↕ 상하 위치", charY, 0f..50f) { charY = it }
-                    SliderRow("⊕ 크기", charSize, 30f..100f) { charSize = it }
+                    SliderRow("↔ 좌우", state.charX, 0f..1f) { viewModel.setCharX(it) }
+                    SliderRow("↕ 상하", state.charY, 0f..1f) { viewModel.setCharY(it) }
+                    SliderRow("⊕ 크기", state.charScale, 0.3f..1f) { viewModel.setCharScale(it) }
                 }
-                2 -> ItemGrid(items = demoFrameItems, tabName = "테두리")
-                3 -> {
+                EditorCategory.Frame -> ItemGrid(
+                    items = state.frameItems,
+                    tabName = "테두리",
+                    onClick = { viewModel.selectItem(EditorCategory.Frame, it) },
+                )
+                EditorCategory.Text -> {
                     SoodalTextField(
-                        value = cardText,
-                        onValueChange = { cardText = it },
-                        placeholder = "카드 텍스트 입력 (최대 30자)",
-                        maxLength = 30,
+                        value = state.customText,
+                        onValueChange = { viewModel.setCustomText(it) },
+                        placeholder = "카드 텍스트 입력 (최대 20자)",
+                        maxLength = 20,
                     )
                     Spacer(Modifier.height(spacing.s3))
                     Text(
@@ -290,9 +288,9 @@ fun ProfileEditorScreen(
                     )
                     Spacer(Modifier.height(spacing.s2))
                     Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                        val fontLabels = listOf("기본", "이탤릭", "굵게")
-                        fontLabels.forEachIndexed { index, label ->
-                            val isActive = index == fontStyleIndex
+                        val styles = listOf("REGULAR" to "기본", "ITALIC" to "이탤릭", "BOLD" to "굵게")
+                        styles.forEach { (value, label) ->
+                            val isActive = value == state.textStyle
                             Box(
                                 modifier = Modifier
                                     .clip(SoodalShape.md)
@@ -304,7 +302,7 @@ fun ProfileEditorScreen(
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null,
-                                        onClick = { fontStyleIndex = index },
+                                        onClick = { viewModel.setTextStyle(value) },
                                     )
                                     .padding(horizontal = 16.dp, vertical = 8.dp),
                             ) {
@@ -333,12 +331,25 @@ fun ProfileEditorScreen(
                     style = ButtonStyle.Secondary,
                     modifier = Modifier.weight(1f),
                 )
-                SoodalButton(
-                    text = "저장 & 적용",
-                    onClick = {},
-                    style = ButtonStyle.Primary,
-                    modifier = Modifier.weight(1f),
-                )
+                if (state.isSaving) {
+                    Box(
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = colors.accentCyan,
+                            strokeWidth = 2.dp,
+                        )
+                    }
+                } else {
+                    SoodalButton(
+                        text = "저장 & 적용",
+                        onClick = { viewModel.save() },
+                        style = ButtonStyle.Primary,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
 
             Spacer(Modifier.height(spacing.s4))
@@ -353,7 +364,11 @@ fun ProfileEditorScreen(
 }
 
 @Composable
-private fun ItemGrid(items: List<EditorItem>, tabName: String) {
+private fun ItemGrid(
+    items: List<EditorItemUi>,
+    tabName: String,
+    onClick: (Long) -> Unit,
+) {
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
 
@@ -372,7 +387,6 @@ private fun ItemGrid(items: List<EditorItem>, tabName: String) {
         return
     }
 
-    // Since we can't use LazyVerticalGrid inside verticalScroll, manually lay out
     val rows = items.chunked(4)
     rows.forEachIndexed { rowIndex, rowItems ->
         Row(
@@ -382,10 +396,10 @@ private fun ItemGrid(items: List<EditorItem>, tabName: String) {
             rowItems.forEach { item ->
                 ItemGridCell(
                     item = item,
+                    onClick = { onClick(item.inventoryId) },
                     modifier = Modifier.weight(1f),
                 )
             }
-            // Fill remaining cells if row is not full
             repeat(4 - rowItems.size) {
                 Spacer(Modifier.weight(1f))
             }
@@ -396,15 +410,13 @@ private fun ItemGrid(items: List<EditorItem>, tabName: String) {
 
 @Composable
 private fun ItemGridCell(
-    item: EditorItem,
+    item: EditorItemUi,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = SoodalDesign.colors
-    val borderColor = when {
-        item.isSelected -> colors.accentCyan
-        else -> Color.Transparent
-    }
-    val borderWidth = if (item.isSelected) 2.dp else 0.dp
+    val borderColor = if (item.isSelected) colors.accentCyan else colors.cardBorder
+    val borderWidth = if (item.isSelected) 2.dp else 1.dp
 
     Box(modifier = modifier) {
         Column(
@@ -412,24 +424,31 @@ private fun ItemGridCell(
                 .fillMaxWidth()
                 .clip(SoodalShape.md)
                 .background(colors.cardBg)
-                .then(
-                    if (item.isSelected) Modifier.border(borderWidth, borderColor, SoodalShape.md)
-                    else Modifier.border(1.dp, colors.cardBorder, SoodalShape.md)
-                )
+                .border(borderWidth, borderColor, SoodalShape.md)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = {},
+                    onClick = onClick,
                 )
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(item.imageRes),
-                contentDescription = item.name,
-                modifier = Modifier.size(48.dp).clip(SoodalShape.sm),
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-            )
+            // 에셋 다운로드 전 임시 플레이스홀더 (등급별 색)
+            val placeholderColor = when (item.grade) {
+                com.soodalbbobgi.app.domain.model.Grade.SSR -> colors.accentGold
+                com.soodalbbobgi.app.domain.model.Grade.SR -> colors.accentPurple
+                com.soodalbbobgi.app.domain.model.Grade.R -> colors.accentCyan
+                com.soodalbbobgi.app.domain.model.Grade.N -> colors.textTertiary
+            }
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(SoodalShape.sm)
+                    .background(placeholderColor.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                SoodalIcon(icon = SoodalIcons.Box, tint = placeholderColor, size = 24.dp)
+            }
             Spacer(Modifier.height(2.dp))
             GradeBadge(grade = item.grade)
             Spacer(Modifier.height(2.dp))
@@ -459,7 +478,7 @@ private fun SliderRow(
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, fontSize = 11.sp, color = colors.textSecondary, modifier = Modifier.width(80.dp))
+        Text(label, fontSize = 11.sp, color = colors.textSecondary, modifier = Modifier.width(60.dp))
         Slider(
             value = value,
             onValueChange = onValueChange,
@@ -471,6 +490,7 @@ private fun SliderRow(
                 inactiveTrackColor = colors.surface3,
             ),
         )
-        Text("${value.toInt()}%", fontSize = 11.sp, color = colors.textTertiary, modifier = Modifier.width(36.dp))
+        val pct = ((value - range.start) / (range.endInclusive - range.start) * 100).toInt()
+        Text("$pct%", fontSize = 11.sp, color = colors.textTertiary, modifier = Modifier.width(36.dp))
     }
 }

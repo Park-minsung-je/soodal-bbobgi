@@ -27,6 +27,6 @@ interface InventoryDao {
     @Query("UPDATE inventory_items SET isEquippedAs = :slot WHERE id = :itemId")
     suspend fun equip(itemId: Long, slot: String)
 
-    @Query("SELECT COUNT(*) FROM inventory_items WHERE boxItemId = :boxItemId AND userId = :userId")
-    suspend fun countByBoxItemId(userId: String, boxItemId: Long): Int
+    @Query("SELECT COUNT(*) FROM inventory_items WHERE itemId = :itemId AND userId = :userId")
+    suspend fun countByItemId(userId: String, itemId: Long): Int
 }
