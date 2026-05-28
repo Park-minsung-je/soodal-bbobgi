@@ -69,7 +69,9 @@ class AuthViewModel @Inject constructor(
                         shellBalance = data.user.shellBalance,
                         pearlBalance = data.user.pearlBalance,
                         pityCounter = data.user.pityCounter,
-                        lastShellGrantDate = null,
+                        lastShellGrantDate = data.user.lastShellGrantDate,
+                        gender = data.user.gender,
+                        ageRange = data.user.ageRange,
                         authProvider = data.user.authProvider,
                     ))
 

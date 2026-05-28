@@ -133,7 +133,9 @@ class SplashViewModel @Inject constructor(
             shellBalance = data.shellBalance,
             pearlBalance = data.pearlBalance,
             pityCounter = data.pityCounter,
-            lastShellGrantDate = null,
+            lastShellGrantDate = data.lastShellGrantDate,
+            gender = data.gender,
+            ageRange = data.ageRange,
             authProvider = data.authProvider,
         ))
     }
