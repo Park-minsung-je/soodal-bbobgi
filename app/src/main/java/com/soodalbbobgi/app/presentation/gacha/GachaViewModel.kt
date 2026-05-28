@@ -15,6 +15,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -122,9 +123,9 @@ class GachaViewModel @Inject constructor(
             appStateLoader.refreshInventory()
             appStateLoader.refreshCurrency()
         }
-        // Idle 룰렛 자동 회전
+        // Idle 룰렛 자동 회전 (코루틴 cancel 시 종료되도록 isActive 체크)
         viewModelScope.launch {
-            while (true) {
+            while (isActive) {
                 delay(16)
                 if (_localState.value.phase == GachaPhase.Idle) {
                     _localState.update { it.copy(offset = it.offset + 0.25f) }
