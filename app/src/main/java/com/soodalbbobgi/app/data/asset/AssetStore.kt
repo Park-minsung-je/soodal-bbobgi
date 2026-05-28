@@ -11,6 +11,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.security.DigestInputStream
 import java.security.MessageDigest
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -39,6 +40,18 @@ class AssetStore @VisibleForTesting internal constructor(
 
     private val gson: Gson = Gson()
 
+    /**
+     * 입력 path 문자열 → 해석된 File 캐시.
+     *
+     * `resolveSafely`는 매 호출마다 `candidate.canonicalPath` + `rootDir.canonicalPath`(stat 2회)를
+     * 수행하므로 Compose 렌더에서 AssetImage 수십 개가 [fileFor]를 호출하면 disk I/O가 누적된다.
+     * 입력 path는 immutable + deterministic이므로 path → File 매핑은 캐싱해도 안전하다.
+     *
+     * 캐시하지 않는 값: `.exists()`. 다운로드 직후 새 파일이 보이지 않으면 안 되므로 stateful한
+     * 존재 여부는 캐시 대상이 아니다 — 해석된 File 객체 자체만 캐시한다.
+     */
+    private val resolvedPathCache = ConcurrentHashMap<String, File>()
+
     init {
         // 첫 호출 시 루트 디렉토리를 보장한다. mkdirs 실패는 무시(상위에서 write 시 다시 시도).
         if (!rootDir.exists()) {
@@ -49,12 +62,15 @@ class AssetStore @VisibleForTesting internal constructor(
     /**
      * path(assets 루트 기준 상대경로)에 해당하는 로컬 File.
      *
+     * 결과 File 객체는 캐시된다(path-traversal 검사는 새 path에 대해서만 실행). `.exists()` 등
+     * 상태 의존 호출은 캐시되지 않으므로 다운로드/삭제 직후에도 정확한 결과를 반환한다.
+     *
      * 주의: 반환된 File을 통해 직접 쓰기 시 원자성 보장이 없다. 쓰기는 [writeFile]을 사용한다.
      */
-    fun fileFor(path: String): File = resolveSafely(path)
+    fun fileFor(path: String): File = resolvedPathCache.getOrPut(path) { resolveSafely(path) }
 
     /** 로컬에 해당 파일이 존재하는지. */
-    fun exists(path: String): Boolean = resolveSafely(path).isFile
+    fun exists(path: String): Boolean = fileFor(path).isFile
 
     /**
      * 파일 바이트를 원자적으로 쓴다. 부모 디렉토리를 자동 생성하며,
@@ -64,7 +80,7 @@ class AssetStore @VisibleForTesting internal constructor(
      * @throws IOException 디렉토리 생성/쓰기/rename 실패 시
      */
     fun writeFile(path: String, bytes: ByteArray) {
-        val target = resolveSafely(path)
+        val target = fileFor(path)
         ensureParent(target)
         val tmp = File(target.parentFile, target.name + TMP_SUFFIX)
         try {
@@ -82,7 +98,7 @@ class AssetStore @VisibleForTesting internal constructor(
      * @throws IOException 디렉토리 생성/쓰기/rename 실패 시
      */
     fun writeFile(path: String, input: InputStream) {
-        val target = resolveSafely(path)
+        val target = fileFor(path)
         ensureParent(target)
         val tmp = File(target.parentFile, target.name + TMP_SUFFIX)
         try {
@@ -95,7 +111,7 @@ class AssetStore @VisibleForTesting internal constructor(
 
     /** 파일 삭제. 존재하지 않아도 예외 없이 noop. */
     fun deleteFile(path: String) {
-        val target = resolveSafely(path)
+        val target = fileFor(path)
         if (target.exists()) target.delete()
     }
 
@@ -104,7 +120,7 @@ class AssetStore @VisibleForTesting internal constructor(
      * 존재하지 않으면 null. 전체를 메모리에 올리지 않고 스트리밍으로 처리한다.
      */
     fun hashOf(path: String): String? {
-        val target = resolveSafely(path)
+        val target = fileFor(path)
         if (!target.isFile) return null
         val digest = MessageDigest.getInstance("SHA-256")
         DigestInputStream(target.inputStream().buffered(), digest).use { dis ->

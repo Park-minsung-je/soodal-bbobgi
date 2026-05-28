@@ -15,6 +15,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +32,7 @@ import org.junit.Test
  *
  * 검증 목표:
  * - AssetManager.sync()가 실패해도 destination 해결이 막히지 않는다 (graceful degradation).
- * - sync 성공 시 기존 destination 결정 흐름은 그대로 동작한다.
+ * - sync 코루틴이 진행 중이어도 destination 해결은 독립적으로 진행된다 (병렬 launch 보장).
  * - assetSyncProgress가 AssetManager.progress와 동일 인스턴스로 노출된다.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -94,13 +95,27 @@ class SplashViewModelTest {
     }
 
     @Test
-    fun `sync success does not change destination flow`() = runTest {
-        coEvery { assetManager.sync() } returns Result.success(Unit)
-        coEvery { tokenStore.getAccessToken() } returns null // → Auth
+    fun `sync coroutine running while checkAuth completes does not block destination`() = runTest {
+        // sync()를 미완료 상태로 매달아 둔다 — destination 결정이 sync 완료를 기다리지 않음을 검증.
+        val syncGate = CompletableDeferred<Result<Unit>>()
+        coEvery { assetManager.sync() } coAnswers { syncGate.await() }
+        coEvery { tokenStore.getAccessToken() } returns null // → Auth (checkAuth 빠르게 끝남)
+        assetProgress.value = AssetSyncProgress.FetchingManifest
 
         val viewModel = vm()
 
+        // sync는 여전히 진행 중인데 destination은 이미 결정되어 있어야 한다 (병렬 launch).
         assertThat(viewModel.destination.value).isEqualTo(SplashDestination.Auth)
+        assertThat(viewModel.assetSyncProgress.value)
+            .isEqualTo(AssetSyncProgress.FetchingManifest)
+
+        // 이제 sync 완료시켜 후속 상태 전이를 확인.
+        assetProgress.value = AssetSyncProgress.Done(version = "v1", downloaded = 0, removed = 0)
+        syncGate.complete(Result.success(Unit))
+
+        assertThat(viewModel.destination.value).isEqualTo(SplashDestination.Auth)
+        assertThat(viewModel.assetSyncProgress.value)
+            .isInstanceOf(AssetSyncProgress.Done::class.java)
         coVerify { assetManager.sync() }
     }
 

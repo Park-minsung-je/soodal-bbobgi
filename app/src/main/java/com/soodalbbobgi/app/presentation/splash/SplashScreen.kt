@@ -19,6 +19,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,10 +52,15 @@ fun SplashScreen(
     val syncError by viewModel.syncError.collectAsStateWithLifecycle()
     val assetProgress by viewModel.assetSyncProgress.collectAsStateWithLifecycle()
 
-    // 실제 에셋 동기화 진행률을 progress bar에 바인딩. Error 상태는 마지막 값을 유지한다.
-    val progress = assetProgressValue(assetProgress)
+    // 실제 에셋 동기화 진행률을 progress bar에 바인딩. Error 상태는 마지막 값을 유지한다
+    // (실패 시 시각적으로 0으로 되돌아가지 않도록 직전 값을 기억).
+    var lastNonErrorFraction by remember { mutableFloatStateOf(0f) }
+    val targetFraction = assetProgressValue(assetProgress, lastNonErrorFraction)
+    LaunchedEffect(targetFraction, assetProgress) {
+        if (assetProgress !is AssetSyncProgress.Error) lastNonErrorFraction = targetFraction
+    }
     val animatedProgress by animateFloatAsState(
-        targetValue = progress, animationSpec = tween(200), label = "splash",
+        targetValue = targetFraction, animationSpec = tween(200), label = "splash",
     )
 
     // destination이 결정되고 + 에셋 동기화가 끝나야(또는 Error여도 graceful degradation) 전환한다.
@@ -108,16 +116,18 @@ fun SplashScreen(
  * - Idle / FetchingManifest: 0.0 (시작 직전)
  * - Downloading: completed / max(total, 1)
  * - Done: 1.0
- * - Error: 0.0 (실패 시에도 화면 진입은 차단하지 않으므로 progress 자체는 의미 없음)
+ * - Error: 직전 값(lastNonError) 유지 — 시각적으로 0으로 스냅백되지 않도록.
+ *
+ * @param lastNonError 직전 비-Error 진행률. Error 상태일 때 반환된다.
  */
-private fun assetProgressValue(state: AssetSyncProgress): Float = when (state) {
+private fun assetProgressValue(state: AssetSyncProgress, lastNonError: Float): Float = when (state) {
     AssetSyncProgress.Idle, AssetSyncProgress.FetchingManifest -> 0f
     is AssetSyncProgress.Downloading -> {
         val total = if (state.total <= 0) 1 else state.total
         state.completed.toFloat() / total.toFloat()
     }
     is AssetSyncProgress.Done -> 1f
-    is AssetSyncProgress.Error -> 0f
+    is AssetSyncProgress.Error -> lastNonError
 }
 
 /**

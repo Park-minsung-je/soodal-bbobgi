@@ -22,11 +22,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import coil.ImageLoader
+import coil.Coil
 import coil.request.ImageRequest
 import com.soodalbbobgi.app.core.ui.AssetStoreEntryPoint
 import com.soodalbbobgi.app.core.ui.resolveAssetModel
 import dagger.hilt.android.EntryPointAccessors
+import timber.log.Timber
 
 /**
  * 프로필 카드 합성에 필요한 4레이어 데이터.
@@ -161,14 +162,17 @@ fun rememberAssetBitmap(imageAsset: String?): Bitmap? {
                 .fromApplication(context.applicationContext, AssetStoreEntryPoint::class.java)
                 .assetStore()
             val model = resolveAssetModel(assetStore, imageAsset) ?: return@LaunchedEffect
-            val loader = ImageLoader(context)
+            // Coil ImageLoader 싱글톤을 사용 — 매 호출마다 새 인스턴스를 만들면 캐시/스레드풀이 분산된다.
+            val loader = Coil.imageLoader(context)
             val request = ImageRequest.Builder(context)
                 .data(model)
                 .allowHardware(false)
                 .build()
             val result = loader.execute(request)
             bmp = (result.drawable as? BitmapDrawable)?.bitmap
-        } catch (_: Exception) { /* keep null */ }
+        } catch (e: Exception) {
+            Timber.w(e, "에셋 비트맵 로딩 실패: $imageAsset")
+        }
     }
     return bmp
 }

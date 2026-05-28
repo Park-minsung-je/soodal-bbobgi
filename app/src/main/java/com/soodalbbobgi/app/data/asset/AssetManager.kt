@@ -61,68 +61,72 @@ class AssetManager @Inject constructor(
      * @return 성공 시 Result.success(Unit). 실패 시 Result.failure with 원본 예외.
      *         실패해도 이미 받은 파일은 디스크에 남고, 로컬 매니페스트만 미갱신 상태로 유지된다.
      */
-    suspend fun sync(): Result<Unit> = syncMutex.withLock {
-        // 1. 서버 매니페스트 조회
+    suspend fun sync(): Result<Unit> {
+        // 초기 호출 직후 progress가 즉시 FetchingManifest로 전환되도록 한다 (Idle race 방지).
+        // Splash 네비게이션 게이트가 Idle을 "동기화 끝남"으로 오인해 통과시키는 race를 막는다.
         _progress.value = AssetSyncProgress.FetchingManifest
-        val serverManifest: AssetManifest = try {
-            val response = api.getAssetManifest()
-            val data = response.data
-            if (!response.success || data == null) {
-                return@withLock fail("Failed to fetch asset manifest: server returned error")
-            }
-            data.toDomain()
-        } catch (t: Throwable) {
-            return@withLock fail("Failed to fetch asset manifest", t)
-        }
-
-        // 2. diff
-        val localManifest = store.loadLocalManifest()
-        val localByPath: Map<String, String> =
-            localManifest?.files?.associate { it.path to it.hash } ?: emptyMap()
-        val serverByPath: Map<String, String> =
-            serverManifest.files.associate { it.path to it.hash }
-
-        val toDownload: List<AssetFile> =
-            serverManifest.files.filter { localByPath[it.path] != it.hash }
-        val toDelete: List<String> =
-            localByPath.keys.filter { it !in serverByPath }
-
-        // 3. 순차 다운로드 + 해시 검증.
-        // toDownload가 비어 있으면 Downloading(0, 0) 발행을 생략한다 — UI가 completed/total로
-        // 진행률을 계산할 때 0/0으로 NaN이 나오는 걸 막기 위함.
-        // TODO(perf): cold-start 시 많은 파일을 순차 요청한다. 프로파일링으로 지연이 보이면
-        //   coroutineScope { ... awaitAll() } + Semaphore(4) 등으로 병렬화 고려.
-        if (toDownload.isNotEmpty()) {
-            _progress.value = AssetSyncProgress.Downloading(completed = 0, total = toDownload.size)
-            var completed = 0
-            for (file in toDownload) {
-                val downloadResult = downloadOne(file.path, file.hash)
-                if (downloadResult.isFailure) {
-                    return@withLock Result.failure(downloadResult.exceptionOrNull()!!)
+        return syncMutex.withLock {
+            // 1. 서버 매니페스트 조회
+            val serverManifest: AssetManifest = try {
+                val response = api.getAssetManifest()
+                val data = response.data
+                if (!response.success || data == null) {
+                    return@withLock fail("Failed to fetch asset manifest: server returned error")
                 }
-                completed += 1
-                _progress.value = AssetSyncProgress.Downloading(completed = completed, total = toDownload.size)
+                data.toDomain()
+            } catch (t: Throwable) {
+                return@withLock fail("Failed to fetch asset manifest", t)
             }
-        }
 
-        // 4. orphan 삭제
-        for (path in toDelete) {
-            store.deleteFile(path)
-        }
+            // 2. diff
+            val localManifest = store.loadLocalManifest()
+            val localByPath: Map<String, String> =
+                localManifest?.files?.associate { it.path to it.hash } ?: emptyMap()
+            val serverByPath: Map<String, String> =
+                serverManifest.files.associate { it.path to it.hash }
 
-        // 5. 로컬 매니페스트 갱신 (all-or-nothing 경계)
-        try {
-            store.saveLocalManifest(serverManifest)
-        } catch (t: Throwable) {
-            return@withLock fail("Failed to save local manifest", t)
-        }
+            val toDownload: List<AssetFile> =
+                serverManifest.files.filter { localByPath[it.path] != it.hash }
+            val toDelete: List<String> =
+                localByPath.keys.filter { it !in serverByPath }
 
-        _progress.value = AssetSyncProgress.Done(
-            version = serverManifest.version,
-            downloaded = toDownload.size,
-            removed = toDelete.size,
-        )
-        Result.success(Unit)
+            // 3. 순차 다운로드 + 해시 검증.
+            // toDownload가 비어 있으면 Downloading(0, 0) 발행을 생략한다 — UI가 completed/total로
+            // 진행률을 계산할 때 0/0으로 NaN이 나오는 걸 막기 위함.
+            // TODO(perf): cold-start 시 많은 파일을 순차 요청한다. 프로파일링으로 지연이 보이면
+            //   coroutineScope { ... awaitAll() } + Semaphore(4) 등으로 병렬화 고려.
+            if (toDownload.isNotEmpty()) {
+                _progress.value = AssetSyncProgress.Downloading(completed = 0, total = toDownload.size)
+                var completed = 0
+                for (file in toDownload) {
+                    val downloadResult = downloadOne(file.path, file.hash)
+                    if (downloadResult.isFailure) {
+                        return@withLock Result.failure(downloadResult.exceptionOrNull()!!)
+                    }
+                    completed += 1
+                    _progress.value = AssetSyncProgress.Downloading(completed = completed, total = toDownload.size)
+                }
+            }
+
+            // 4. orphan 삭제
+            for (path in toDelete) {
+                store.deleteFile(path)
+            }
+
+            // 5. 로컬 매니페스트 갱신 (all-or-nothing 경계)
+            try {
+                store.saveLocalManifest(serverManifest)
+            } catch (t: Throwable) {
+                return@withLock fail("Failed to save local manifest", t)
+            }
+
+            _progress.value = AssetSyncProgress.Done(
+                version = serverManifest.version,
+                downloaded = toDownload.size,
+                removed = toDelete.size,
+            )
+            Result.success(Unit)
+        }
     }
 
     /**
