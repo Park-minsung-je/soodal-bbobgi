@@ -8,6 +8,7 @@ import com.soodalbbobgi.app.data.health.HcSyncPreferences
 import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.domain.model.Grade
+import com.soodalbbobgi.app.domain.model.InventoryItem
 import com.soodalbbobgi.app.domain.model.Item
 import com.soodalbbobgi.app.domain.model.ProfileCard
 import com.soodalbbobgi.app.domain.model.SwimLog
@@ -84,6 +85,8 @@ class HomeViewModelTest {
                 ageRange = null,
                 authProvider = "google",
             ))
+            // 서버가 ProfileCard 슬롯에 inventory.id (PK)를 저장한다는 점을 반영해서
+            // inventory.id != itemId 로 분리한 레이아웃으로 검증한다.
             appState.mergeItems(listOf(
                 Item(
                     id = 42L, itemKey = "char_42", name = "수달 캐릭터",
@@ -91,9 +94,19 @@ class HomeViewModelTest {
                     imageAsset = "/assets/char/c1.png",
                 ),
             ))
+            appState.applyInventory(listOf(
+                InventoryItem(
+                    id = 100L,
+                    userId = "u1",
+                    itemId = 42L,
+                    grade = Grade.SR,
+                    category = "char",
+                    acquiredAt = 0L,
+                ),
+            ))
             appState.applyProfileCard(ProfileCard(
                 userId = "u1",
-                characterItemId = 42L,
+                characterItemId = 100L, // 서버가 저장한 inventory.id (← itemId 42 가 아님)
                 characterX = 0.3f,
                 characterY = 0.4f,
                 characterScale = 0.85f,
