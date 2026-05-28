@@ -3,6 +3,8 @@ package com.soodalbbobgi.app.core.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -80,12 +82,17 @@ fun AssetImage(
 ) {
     val assetStore = rememberAssetStore()
     val model = remember(assetStore, imageAsset) { resolveAssetModel(assetStore, imageAsset) }
+    // placeholder/error를 명시적으로 안 넘기면 Coil 기본 placeholder(작은 회색 동그라미)가
+    // 로딩/실패 사이에 깜빡 보인다. 투명 ColorPainter로 깔아 시각적 잔상을 제거한다.
+    // 호출자가 명시적으로 Painter를 넘기면 그 값이 그대로 적용된다.
+    val effectivePlaceholder = placeholder ?: ColorPainter(Color.Transparent)
+    val effectiveError = error ?: ColorPainter(Color.Transparent)
     AsyncImage(
         model = model,
         contentDescription = contentDescription,
         modifier = modifier,
         contentScale = contentScale,
-        placeholder = placeholder,
-        error = error,
+        placeholder = effectivePlaceholder,
+        error = effectiveError,
     )
 }
