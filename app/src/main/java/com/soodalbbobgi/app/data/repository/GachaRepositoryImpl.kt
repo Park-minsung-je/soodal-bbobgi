@@ -22,6 +22,12 @@ class GachaRepositoryImpl @Inject constructor(
         dao.getItemsForBox(boxId).map { list -> list.map { it.toDomain() } }
     override suspend fun getBoxItemById(itemId: Long): GachaBoxItem? =
         dao.getItemById(itemId)?.toDomain()
+    override suspend fun getBoxItemsByIds(itemIds: List<Long>): List<GachaBoxItem> =
+        if (itemIds.isEmpty()) emptyList() else dao.getItemsByIds(itemIds).map { it.toDomain() }
+    override suspend fun saveBox(box: GachaBox) =
+        dao.insertBox(box.toEntity())
+    override suspend fun saveBoxItem(item: GachaBoxItem) =
+        dao.insertBoxItems(listOf(item.toEntity()))
 }
 
 private fun GachaBoxEntity.toDomain() = GachaBox(
@@ -30,4 +36,12 @@ private fun GachaBoxEntity.toDomain() = GachaBox(
 private fun GachaBoxItemEntity.toDomain() = GachaBoxItem(
     id = id, boxId = boxId, itemKey = itemKey, name = name,
     grade = Grade.fromString(grade), weight = weight, imageAsset = imageAsset,
+)
+private fun GachaBox.toEntity() = GachaBoxEntity(
+    id = id, name = name, description = description, category = category,
+    updatedAt = System.currentTimeMillis(),
+)
+private fun GachaBoxItem.toEntity() = GachaBoxItemEntity(
+    id = id, boxId = boxId, itemKey = itemKey, name = name,
+    grade = grade.name, weight = weight, imageAsset = imageAsset,
 )

@@ -27,4 +27,7 @@ interface GachaBoxDao {
 
     @Query("SELECT * FROM gacha_box_items WHERE id = :itemId")
     suspend fun getItemById(itemId: Long): GachaBoxItemEntity?
+
+    @Query("SELECT * FROM gacha_box_items WHERE id IN (:itemIds)")
+    suspend fun getItemsByIds(itemIds: List<Long>): List<GachaBoxItemEntity>
 }

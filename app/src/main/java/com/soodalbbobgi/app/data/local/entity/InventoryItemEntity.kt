@@ -6,13 +6,13 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "inventory_items",
-    indices = [Index(value = ["boxItemId"])]
+    indices = [Index(value = ["itemId"])]
 )
 data class InventoryItemEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val userId: String,
-    val boxItemId: Long,
+    val itemId: Long,
     val grade: String,
     val category: String,
     val isEquippedAs: String = "NONE",

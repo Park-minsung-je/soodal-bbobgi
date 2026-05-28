@@ -10,5 +10,5 @@ interface InventoryRepository {
     suspend fun addItem(item: InventoryItem): Long
     suspend fun equipItem(itemId: Long, slot: String)
     suspend fun unequipSlot(userId: String, slot: String)
-    suspend fun countDuplicates(userId: String, boxItemId: Long): Int
+    suspend fun countDuplicates(userId: String, itemId: Long): Int
 }

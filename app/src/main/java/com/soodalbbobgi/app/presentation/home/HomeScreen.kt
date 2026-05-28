@@ -63,6 +63,7 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val shellReward by viewModel.shellReward.collectAsState()
+    val syncError by viewModel.syncError.collectAsState()
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
 
@@ -292,6 +293,20 @@ fun HomeScreen(
 
         // ── Tab Bar ─────────────────────────────────────────
         SoodalTabBar(activeTab = "home", onTabSelected = onNavigateToTab)
+    }
+
+    // ── 동기화 로딩 오버레이 ────────────────────────────────
+    if (state.syncing) {
+        com.soodalbbobgi.app.core.ui.SyncLoadingOverlay("수영 기록 동기화 중이에요...")
+    }
+
+    // ── 동기화 에러 표시 ─────────────────────────────────────
+    if (syncError != null) {
+        val context = androidx.compose.ui.platform.LocalContext.current
+        androidx.compose.runtime.LaunchedEffect(syncError) {
+            android.widget.Toast.makeText(context, syncError, android.widget.Toast.LENGTH_LONG).show()
+            viewModel.clearSyncError()
+        }
     }
 
     // ── 조개 획득 팝업 ──────────────────────────────────────

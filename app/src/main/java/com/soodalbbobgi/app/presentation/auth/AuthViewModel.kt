@@ -6,8 +6,11 @@ import com.soodalbbobgi.app.BuildConfig
 import com.soodalbbobgi.app.core.session.UserSession
 import com.soodalbbobgi.app.data.auth.KakaoAuthManager
 import com.soodalbbobgi.app.data.auth.TokenStore
+import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.data.remote.dto.KakaoAuthRequest
+import com.soodalbbobgi.app.domain.model.User
+import com.soodalbbobgi.app.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,17 +29,12 @@ class AuthViewModel @Inject constructor(
     private val soodalApi: SoodalApi,
     private val tokenStore: TokenStore,
     private val userSession: UserSession,
+    private val userRepository: UserRepository,
+    private val healthConnectManager: HealthConnectManager,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
-
-    /**
-     * 카카오 로그인을 시작한다.
-     * 1) 카카오 SDK로 카카오 액세스 토큰 획득
-     * 2) 서버 /auth/kakao 호출 → JWT 발급
-     * 3) 토큰 저장 후 신규/기존 사용자 구분하여 완료 상태 전환
-     */
     /**
      * 카카오 로그인을 시작한다.
      *
@@ -63,7 +61,28 @@ class AuthViewModel @Inject constructor(
                     // 3단계: JWT 토큰 저장 및 세션 설정
                     tokenStore.saveTokens(data.accessToken, data.refreshToken, data.expiresIn)
                     userSession.setAuthenticatedUser(data.user.id)
-                    _uiState.value = AuthUiState.Success(isNewUser = data.isNewUser)
+
+                    // 서버 사용자 정보를 Room에 저장
+                    userRepository.createUser(User(
+                        id = data.user.id,
+                        nickname = data.user.nickname ?: "",
+                        shellBalance = data.user.shellBalance,
+                        pearlBalance = data.user.pearlBalance,
+                        pityCounter = data.user.pityCounter,
+                        lastShellGrantDate = data.user.lastShellGrantDate,
+                        gender = data.user.gender,
+                        ageRange = data.user.ageRange,
+                        authProvider = data.user.authProvider,
+                    ))
+
+                    val needsNickname = data.isNewUser || data.user.nickname == null
+                    val hasHcPermission = healthConnectManager.hasAllPermissions()
+
+                    _uiState.value = when {
+                        needsNickname -> AuthUiState.Success(route = AuthRoute.Onboarding)
+                        !hasHcPermission -> AuthUiState.Success(route = AuthRoute.Permission)
+                        else -> AuthUiState.Success(route = AuthRoute.Home)
+                    }
                 } else {
                     val errorCode = authResponse.error?.code ?: "UNKNOWN"
                     Timber.e("서버 카카오 인증 실패: $errorCode")
@@ -106,25 +125,16 @@ class AuthViewModel @Inject constructor(
 /**
  * 로그인 화면의 UI 상태.
  */
+/** 로그인 성공 후 이동할 화면 */
+enum class AuthRoute {
+    Onboarding,  // 닉네임 입력 → 권한 → 홈
+    Permission,  // HC 권한만 → 홈
+    Home,        // 바로 홈
+}
+
 sealed interface AuthUiState {
-    /** 초기 대기 상태 */
     data object Idle : AuthUiState
-
-    /**
-     * 로그인 진행 중
-     * @param provider 현재 진행 중인 OAuth 제공자 ("kakao" | "google")
-     */
     data class Loading(val provider: String) : AuthUiState
-
-    /**
-     * 로그인 성공
-     * @param isNewUser true이면 신규 사용자 → 온보딩으로 이동, false이면 기존 사용자 → 홈으로 이동
-     */
-    data class Success(val isNewUser: Boolean) : AuthUiState
-
-    /**
-     * 로그인 실패
-     * @param message 사용자에게 표시할 에러 메시지
-     */
+    data class Success(val route: AuthRoute) : AuthUiState
     data class Error(val message: String) : AuthUiState
 }

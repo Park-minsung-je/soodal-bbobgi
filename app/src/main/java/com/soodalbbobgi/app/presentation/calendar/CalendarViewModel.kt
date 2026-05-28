@@ -67,12 +67,15 @@ class CalendarViewModel @Inject constructor(
                 distanceM = log.distanceMeters,
                 durationMin = log.durationSeconds / 60,
                 kcal = log.calories,
-                strokes = StrokeBreakdown(
-                    freestyle = log.strokeFreeStyle / 100f,
-                    breaststroke = log.strokeBreast / 100f,
-                    backstroke = log.strokeBack / 100f,
-                    butterfly = log.strokeFly / 100f,
-                ),
+                strokes = run {
+                    val total = log.distanceMeters.toFloat().coerceAtLeast(1f)
+                    StrokeBreakdown(
+                        freestyle = log.strokeFreestyleM / total,
+                        breaststroke = log.strokeBreastM / total,
+                        backstroke = log.strokeBackM / total,
+                        butterfly = log.strokeFlyM / total,
+                    )
+                },
                 shellReward = log.shellsEarned,
             )
         }

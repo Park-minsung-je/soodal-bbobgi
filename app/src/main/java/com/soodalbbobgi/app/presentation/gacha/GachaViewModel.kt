@@ -6,9 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.session.UserSession
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.domain.model.Grade
+import com.soodalbbobgi.app.data.remote.api.SoodalApi
+import com.soodalbbobgi.app.data.remote.dto.GachaPullRequest
 import com.soodalbbobgi.app.domain.repository.GachaRepository
 import com.soodalbbobgi.app.domain.repository.UserRepository
-import com.soodalbbobgi.app.domain.usecase.GachaUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -40,6 +41,7 @@ data class GachaResultItem(
     val kind: String,
     val isNew: Boolean,
     val pearlsEarned: Int,
+    val imageAsset: String? = null,
 )
 
 data class GachaUiState(
@@ -81,8 +83,8 @@ private const val SPIN_PAUSE_MS = 800L
 class GachaViewModel @Inject constructor(
     private val userSession: UserSession,
     private val userRepository: UserRepository,
-    private val gachaUseCase: GachaUseCase,
     private val gachaRepository: GachaRepository,
+    private val soodalApi: SoodalApi,
 ) : ViewModel() {
 
     private val userId get() = userSession.userId
@@ -139,6 +141,8 @@ class GachaViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GACHA_BOXES)
 
     init {
+        // 화면 진입 시 서버에서 최신 상자 목록 + 사용자 데이터 갱신
+        refreshFromServer()
         // Idle 상태에서 룰렛을 느리게 자동 회전시킨다
         viewModelScope.launch {
             while (true) {
@@ -147,6 +151,37 @@ class GachaViewModel @Inject constructor(
                     _localState.update { it.copy(offset = it.offset + 0.25f) }
                 }
             }
+        }
+    }
+
+    private fun refreshFromServer() {
+        viewModelScope.launch {
+            try {
+                // 최신 사용자 정보 (조개 잔액)
+                val userRes = soodalApi.getMe()
+                if (userRes.success && userRes.data != null) {
+                    val u = userRes.data
+                    userRepository.updateCurrency(u.id, u.shellBalance, u.pearlBalance)
+                    userRepository.updatePityCounter(u.id, u.pityCounter)
+                }
+                // 최신 상자 목록
+                val boxRes = soodalApi.getGachaBoxes()
+                if (boxRes.success && boxRes.data != null) {
+                    for (box in boxRes.data.boxes) {
+                        gachaRepository.saveBox(com.soodalbbobgi.app.domain.model.GachaBox(
+                            id = box.id, name = box.name,
+                            description = box.description, category = box.category,
+                        ))
+                        for (item in box.items) {
+                            gachaRepository.saveBoxItem(com.soodalbbobgi.app.domain.model.GachaBoxItem(
+                                id = item.id, boxId = box.id, itemKey = item.itemKey,
+                                name = item.name, grade = Grade.fromString(item.grade),
+                                weight = item.weight, imageAsset = item.imageAsset,
+                            ))
+                        }
+                    }
+                }
+            } catch (_: Exception) { }
         }
     }
 
@@ -174,9 +209,9 @@ class GachaViewModel @Inject constructor(
             val selectedBox = activeBoxes.random()
             val resultBoxIndex = activeBoxes.indexOf(selectedBox)
 
-            // 애니메이션과 병행: 실제 뽑기 결과를 UseCase에서 받는다
+            // 애니메이션과 병행: 서버에서 뽑기 실행 (확률 계산 + 재화 차감은 서버가 판정)
             val pullDeferred = async(Dispatchers.IO) {
-                gachaUseCase.pull(userId, selectedBox.id, count)
+                soodalApi.gachaPull(GachaPullRequest(boxId = selectedBox.id, count = count))
             }
 
             // 현재 위치에서 6~8바퀴 + 결과 상자까지의 잔여 슬롯으로 목표 offset 산출
@@ -216,18 +251,28 @@ class GachaViewModel @Inject constructor(
             delay(SPIN_PAUSE_MS)
 
             // 애니메이션 완료 후 결과 수집
-            val gachaResults = pullDeferred.await()
-            val batch = gachaResults.map { r ->
-                GachaResultItem(
-                    name = r.item.name,
-                    grade = r.item.grade,
-                    kind = selectedBox.category,
-                    isNew = r.wasNew,
-                    pearlsEarned = r.pearlsEarned,
-                )
-            }
-            _localState.update {
-                it.copy(phase = GachaPhase.Result, results = batch, resultIndex = 0)
+            val response = pullDeferred.await()
+            if (response.success && response.data != null) {
+                val batch = response.data.results.map { r ->
+                    GachaResultItem(
+                        name = r.item.name,
+                        grade = Grade.fromString(r.item.grade),
+                        kind = selectedBox.category,
+                        isNew = r.wasNew,
+                        pearlsEarned = r.pearlsEarned,
+                        imageAsset = r.item.imageAsset,
+                    )
+                }
+                // 서버에서 받은 최신 잔액으로 로컬 갱신
+                val currency = response.data.currency
+                userRepository.updateCurrency(userId, currency.shellBalance, currency.pearlBalance)
+                userRepository.updatePityCounter(userId, currency.pityCounter)
+
+                _localState.update {
+                    it.copy(phase = GachaPhase.Result, results = batch, resultIndex = 0)
+                }
+            } else {
+                _localState.update { it.copy(phase = GachaPhase.Idle) }
             }
         }
     }

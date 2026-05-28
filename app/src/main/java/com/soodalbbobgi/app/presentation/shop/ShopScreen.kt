@@ -93,142 +93,78 @@ fun ShopScreen(
 
                 Spacer(Modifier.height(spacing.s4))
 
-                // -- Featured Item --
-                SoodalCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { viewModel.selectForPurchase(state.featured) },
-                        ),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .clip(SoodalShape.lg)
-                                .background(colors.accentGoldSoft),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            SoodalIcon(icon = state.featured.icon, tint = colors.accentGold, size = 36.dp)
-                        }
-                        Spacer(Modifier.width(spacing.s3))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                            ) {
-                                GradeBadge(grade = Grade.SSR)
-                                Text(
-                                    text = "한정 출시",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = colors.accentGold,
-                                )
-                            }
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = state.featured.name,
-                                style = SoodalDesign.typography.md,
-                                color = colors.textPrimary,
-                            )
-                            Text(
-                                text = state.featured.desc,
-                                fontSize = 12.sp,
-                                color = colors.textTertiary,
-                            )
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 18.dp)
-                            Text(
-                                text = "${state.featured.price}",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.accentPurple,
-                            )
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(spacing.s5))
+                val boxListings = state.listings.filter { it.productType == "box" }
+                val itemListings = state.listings.filter { it.productType == "item" }
 
                 // -- Boxes Section --
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    SoodalIcon(icon = SoodalIcons.Box, size = 18.dp)
-                    Text(
-                        text = "상자",
-                        style = SoodalDesign.typography.md,
-                        color = colors.textPrimary,
-                    )
-                }
-                Spacer(Modifier.height(spacing.s3))
-
-                // 2x2 grid
-                for (row in 0 until 2) {
+                if (boxListings.isNotEmpty()) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        for (col in 0 until 2) {
-                            val index = row * 2 + col
-                            if (index < state.boxes.size) {
+                        SoodalIcon(icon = SoodalIcons.Box, size = 18.dp)
+                        Text(
+                            text = "상자",
+                            style = SoodalDesign.typography.md,
+                            color = colors.textPrimary,
+                        )
+                    }
+                    Spacer(Modifier.height(spacing.s3))
+
+                    val boxRows = boxListings.chunked(2)
+                    boxRows.forEachIndexed { rowIndex, rowItems ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                        ) {
+                            rowItems.forEach { item ->
                                 BoxGridItem(
-                                    item = state.boxes[index],
-                                    onClick = { viewModel.selectForPurchase(state.boxes[index]) },
+                                    item = item,
+                                    onClick = { viewModel.selectForPurchase(item) },
                                     modifier = Modifier.weight(1f),
                                 )
                             }
+                            if (rowItems.size == 1) Spacer(Modifier.weight(1f))
                         }
+                        if (rowIndex < boxRows.size - 1) Spacer(Modifier.height(spacing.s3))
                     }
-                    if (row == 0) Spacer(Modifier.height(spacing.s3))
+                    Spacer(Modifier.height(spacing.s5))
                 }
-
-                Spacer(Modifier.height(spacing.s5))
 
                 // -- Direct Items Section --
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    SoodalIcon(icon = SoodalIcons.Gift, size = 18.dp)
-                    Text(
-                        text = "아이템 직접 구매",
-                        style = SoodalDesign.typography.md,
-                        color = colors.textPrimary,
-                    )
-                }
-                Spacer(Modifier.height(spacing.s3))
-
-                // 2-column grid
-                val itemRows = state.directItems.chunked(2)
-                itemRows.forEachIndexed { rowIndex, rowItems ->
+                if (itemListings.isNotEmpty()) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        rowItems.forEach { item ->
-                            DirectItemCard(
-                                item = item,
-                                onClick = { viewModel.selectForPurchase(item) },
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                        // Fill empty space if odd number
-                        if (rowItems.size == 1) {
-                            Spacer(Modifier.weight(1f))
-                        }
+                        SoodalIcon(icon = SoodalIcons.Gift, size = 18.dp)
+                        Text(
+                            text = "아이템 직접 구매",
+                            style = SoodalDesign.typography.md,
+                            color = colors.textPrimary,
+                        )
                     }
-                    if (rowIndex < itemRows.size - 1) Spacer(Modifier.height(spacing.s3))
-                }
+                    Spacer(Modifier.height(spacing.s3))
 
-                Spacer(Modifier.height(spacing.s5))
+                    val itemRows = itemListings.chunked(2)
+                    itemRows.forEachIndexed { rowIndex, rowItems ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                        ) {
+                            rowItems.forEach { item ->
+                                DirectItemCard(
+                                    item = item,
+                                    onClick = { viewModel.selectForPurchase(item) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+                        }
+                        if (rowIndex < itemRows.size - 1) Spacer(Modifier.height(spacing.s3))
+                    }
+                    Spacer(Modifier.height(spacing.s5))
+                }
             }
 
             // -- Tab Bar --
@@ -280,7 +216,15 @@ private fun BoxGridItem(
                     .background(boxBg),
                 contentAlignment = Alignment.Center,
             ) {
-                SoodalIcon(icon = item.icon, tint = boxTint, size = 28.dp)
+                if (!item.imageAsset.isNullOrBlank()) {
+                    coil.compose.AsyncImage(
+                        model = com.soodalbbobgi.app.BuildConfig.ASSET_BASE_URL + item.imageAsset,
+                        contentDescription = item.name,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    SoodalIcon(icon = item.icon, tint = boxTint, size = 28.dp)
+                }
             }
             Spacer(Modifier.height(4.dp))
             Text(
@@ -291,7 +235,7 @@ private fun BoxGridItem(
                 textAlign = TextAlign.Center,
             )
             Text(
-                text = item.desc,
+                text = item.description,
                 fontSize = 10.sp,
                 color = colors.textTertiary,
                 textAlign = TextAlign.Center,
@@ -317,7 +261,7 @@ private fun DirectItemCard(
     modifier: Modifier = Modifier,
 ) {
     val colors = SoodalDesign.colors
-    val bgAlpha = if (item.isOwned) 0.5f else 1f
+    val bgAlpha = if (!item.canBuy) 0.5f else 1f
 
     SoodalCard(
         modifier = modifier
@@ -325,7 +269,7 @@ private fun DirectItemCard(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,
-                enabled = !item.isOwned,
+                enabled = item.canBuy,
             ),
     ) {
         Column(
@@ -345,7 +289,15 @@ private fun DirectItemCard(
                     .background(itemBg),
                 contentAlignment = Alignment.Center,
             ) {
-                SoodalIcon(icon = item.icon, tint = itemTint.copy(alpha = bgAlpha), size = 24.dp)
+                if (!item.imageAsset.isNullOrBlank()) {
+                    coil.compose.AsyncImage(
+                        model = com.soodalbbobgi.app.BuildConfig.ASSET_BASE_URL + item.imageAsset,
+                        contentDescription = item.name,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    SoodalIcon(icon = item.icon, tint = itemTint.copy(alpha = bgAlpha), size = 24.dp)
+                }
             }
             Spacer(Modifier.height(4.dp))
             if (item.grade != null) {
@@ -361,7 +313,7 @@ private fun DirectItemCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (item.isOwned) {
+            if (!item.canBuy) {
                 Text(
                     text = "보유 중",
                     fontSize = 10.sp,

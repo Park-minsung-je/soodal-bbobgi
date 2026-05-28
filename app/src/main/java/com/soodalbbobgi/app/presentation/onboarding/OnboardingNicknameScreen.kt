@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,17 +38,28 @@ import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.SoodalTextField
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun OnboardingNicknameScreen(onNext: (String) -> Unit) {
+fun OnboardingNicknameScreen(
+    onNext: () -> Unit,
+    viewModel: OnboardingViewModel = hiltViewModel(),
+) {
     val colors = SoodalDesign.colors
+    val saveState by viewModel.saveState.collectAsStateWithLifecycle()
     var nickname by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf<String?>(null) }
     var ageRange by remember { mutableStateOf<String?>(null) }
     val validPattern = Regex("^[a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ]*$")
     val valid = nickname.isNotBlank() && validPattern.matches(nickname)
     val hasSpecialChar = nickname.isNotEmpty() && !validPattern.matches(nickname)
+
+    // 저장 성공 시 다음 화면으로 이동
+    LaunchedEffect(saveState) {
+        if (saveState is OnboardingSaveState.Success) onNext()
+    }
 
     Column(Modifier.fillMaxSize().background(colors.bgDeep).padding(24.dp)) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
@@ -103,8 +115,13 @@ fun OnboardingNicknameScreen(onNext: (String) -> Unit) {
             }
         }
         Spacer(Modifier.height(16.dp))
-        SoodalButton("다음 →", onClick = { onNext(nickname) },
-            enabled = valid, modifier = Modifier.fillMaxWidth())
+        val isSaving = saveState is OnboardingSaveState.Saving
+        SoodalButton(
+            text = if (isSaving) "저장 중…" else "다음 →",
+            onClick = { viewModel.saveProfile(nickname, gender, ageRange) },
+            enabled = valid && !isSaving,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
