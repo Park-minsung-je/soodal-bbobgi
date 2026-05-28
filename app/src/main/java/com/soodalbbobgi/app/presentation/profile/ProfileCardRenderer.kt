@@ -24,6 +24,9 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import coil.ImageLoader
 import coil.request.ImageRequest
+import com.soodalbbobgi.app.core.ui.AssetStoreEntryPoint
+import com.soodalbbobgi.app.core.ui.resolveAssetModel
+import dagger.hilt.android.EntryPointAccessors
 
 /**
  * 프로필 카드 합성에 필요한 4레이어 데이터.
@@ -140,19 +143,27 @@ object ProfileCardRenderer {
 }
 
 /**
- * URL로부터 Bitmap을 비동기 로딩하고 Compose 상태로 보관한다.
- * URL이 null/빈 문자열이면 null 반환.
+ * 매니페스트 상대 경로로부터 Bitmap을 비동기 로딩하고 Compose 상태로 보관한다.
+ *
+ * 로컬 에셋이 있으면 디스크에서 바로 읽고, 없으면 fallback URL로 네트워크 다운로드.
+ * 빈 문자열/null이면 null 반환.
+ *
+ * @param imageAsset 매니페스트 기준 상대 경로 (예: "characters/ssr_01.png").
  */
 @Composable
-fun rememberRemoteBitmap(url: String?): Bitmap? {
-    if (url.isNullOrBlank()) return null
+fun rememberAssetBitmap(imageAsset: String?): Bitmap? {
+    if (imageAsset.isNullOrBlank()) return null
     val context = LocalContext.current
-    var bmp by remember(url) { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(url) {
+    var bmp by remember(imageAsset) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(imageAsset) {
         try {
+            val assetStore = EntryPointAccessors
+                .fromApplication(context.applicationContext, AssetStoreEntryPoint::class.java)
+                .assetStore()
+            val model = resolveAssetModel(assetStore, imageAsset) ?: return@LaunchedEffect
             val loader = ImageLoader(context)
             val request = ImageRequest.Builder(context)
-                .data(url)
+                .data(model)
                 .allowHardware(false)
                 .build()
             val result = loader.execute(request)
@@ -163,20 +174,25 @@ fun rememberRemoteBitmap(url: String?): Bitmap? {
 }
 
 /**
- * ProfileCardRenderer 결과를 Compose Image로 표시.
- * bg/char/frame URL이 있으면 다운로드하여 layers에 비트맵으로 주입.
+ * ProfileCardRenderer 결과를 Compose Image로 표시한다.
+ *
+ * bg/char/frame 경로가 있으면 로컬 우선(없으면 네트워크 폴백) Bitmap을 받아 layers에 주입한다.
+ *
+ * @param bgAsset 배경 에셋 상대 경로
+ * @param charAsset 캐릭터 에셋 상대 경로
+ * @param frameAsset 테두리 에셋 상대 경로
  */
 @Composable
 fun ProfileCardComposite(
     layers: CardLayers,
-    bgUrl: String? = null,
-    charUrl: String? = null,
-    frameUrl: String? = null,
+    bgAsset: String? = null,
+    charAsset: String? = null,
+    frameAsset: String? = null,
     modifier: Modifier = Modifier,
 ) {
-    val bgBitmap = rememberRemoteBitmap(bgUrl)
-    val charBitmap = rememberRemoteBitmap(charUrl)
-    val frameBitmap = rememberRemoteBitmap(frameUrl)
+    val bgBitmap = rememberAssetBitmap(bgAsset)
+    val charBitmap = rememberAssetBitmap(charAsset)
+    val frameBitmap = rememberAssetBitmap(frameAsset)
 
     val finalLayers = layers.copy(
         bgBitmap = bgBitmap,

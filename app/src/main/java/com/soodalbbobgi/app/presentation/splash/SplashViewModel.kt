@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.session.UserSession
 import com.soodalbbobgi.app.core.state.AppState
 import com.soodalbbobgi.app.core.state.AppStateLoader
+import com.soodalbbobgi.app.data.asset.AssetManager
+import com.soodalbbobgi.app.data.asset.AssetSyncProgress
 import com.soodalbbobgi.app.data.auth.TokenStore
 import com.soodalbbobgi.app.data.health.HcSyncPreferences
 import com.soodalbbobgi.app.data.health.HealthConnectManager
@@ -42,6 +44,7 @@ class SplashViewModel @Inject constructor(
     private val healthConnectManager: HealthConnectManager,
     private val swimLogUseCase: SwimLogUseCase,
     private val hcSyncPreferences: HcSyncPreferences,
+    private val assetManager: AssetManager,
 ) : ViewModel() {
 
     private val _destination = MutableStateFlow<SplashDestination>(SplashDestination.Loading)
@@ -50,8 +53,30 @@ class SplashViewModel @Inject constructor(
     private val _syncError = MutableStateFlow<String?>(null)
     val syncError: StateFlow<String?> = _syncError
 
+    /**
+     * 에셋 동기화 진행 상태. SplashScreen이 collect해서 진행률/라벨을 표시한다.
+     * AssetManager.progress를 그대로 위임 — 별도 State를 두지 않아 단일 출처를 유지한다.
+     */
+    val assetSyncProgress: StateFlow<AssetSyncProgress> = assetManager.progress
+
     init {
+        // 자동 로그인과 에셋 동기화는 독립이라 병렬 실행한다.
+        // 에셋 동기화가 실패해도 화면 진입은 막지 않는다 — AssetImage가 네트워크 fallback으로 graceful degradation.
+        syncAssets()
         checkAuth()
+    }
+
+    /**
+     * 백그라운드로 서버 에셋 매니페스트를 동기화한다.
+     * 실패해도 destination 결정에 영향을 주지 않으며, AssetImage는 네트워크 URL로 폴백된다.
+     */
+    private fun syncAssets() {
+        viewModelScope.launch {
+            val result = assetManager.sync()
+            if (result.isFailure) {
+                Timber.w(result.exceptionOrNull(), "에셋 동기화 실패 (앱 계속 진행)")
+            }
+        }
     }
 
     private fun checkAuth() {

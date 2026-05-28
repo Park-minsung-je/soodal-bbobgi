@@ -40,10 +40,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import android.widget.Toast
-import coil.compose.AsyncImage
-import com.soodalbbobgi.app.BuildConfig
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
+import com.soodalbbobgi.app.core.ui.AssetImage
 import com.soodalbbobgi.app.core.ui.ButtonStyle
 import com.soodalbbobgi.app.core.ui.GradeBadge
 import com.soodalbbobgi.app.core.ui.SoodalButton
@@ -176,9 +175,9 @@ fun ProfileEditorScreen(
                         charY = state.charY,
                         charScale = state.charScale,
                     ),
-                    bgUrl = selectedBg?.imageAsset?.let { BuildConfig.ASSET_BASE_URL + it },
-                    charUrl = selectedChar?.imageAsset?.let { BuildConfig.ASSET_BASE_URL + it },
-                    frameUrl = selectedFrame?.imageAsset?.let { BuildConfig.ASSET_BASE_URL + it },
+                    bgAsset = selectedBg?.imageAsset,
+                    charAsset = selectedChar?.imageAsset,
+                    frameAsset = selectedFrame?.imageAsset,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(spacing.s2))
@@ -455,8 +454,8 @@ private fun ItemGridCell(
                     .background(gradeColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center,
             ) {
-                AsyncImage(
-                    model = BuildConfig.ASSET_BASE_URL + item.imageAsset,
+                AssetImage(
+                    imageAsset = item.imageAsset,
                     contentDescription = item.name,
                     modifier = Modifier.fillMaxWidth().fillMaxHeight(),
                 )
