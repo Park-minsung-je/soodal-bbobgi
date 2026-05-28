@@ -24,6 +24,10 @@ interface SwimLogDao {
     @Query("SELECT * FROM swim_logs WHERE date BETWEEN :startDate AND :endDate ORDER BY date ASC")
     fun getByDateRange(startDate: String, endDate: String): Flow<List<SwimLogEntity>>
 
+    /** 서버 POST 응답으로 받은 조개 지급량을 같은 날짜의 로컬 row에 반영. */
+    @Query("UPDATE swim_logs SET shellsEarned = :shellsEarned WHERE date = :date")
+    suspend fun updateShellsEarned(date: String, shellsEarned: Int)
+
     @Query("DELETE FROM swim_logs WHERE date = :date")
     suspend fun deleteByDate(date: String)
 
