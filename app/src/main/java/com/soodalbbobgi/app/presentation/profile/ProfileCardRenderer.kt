@@ -70,6 +70,10 @@ object ProfileCardRenderer {
         }
 
         // Layer 3: Character (먼저 → 테두리 위에 안 가리도록)
+        // charBitmap == null은 항상 일시적 상태다 — 비동기 로딩 중이거나 ProfileCard
+        // 데이터가 아직 준비되지 않은 경우. 서버 주도 모델에서 캐릭터는 기본값이 항상
+        // 장착되므로 "캐릭터 없음" 최종 상태는 존재하지 않는다. 따라서 폴백 도형을 그리면
+        // 홈 진입/캐릭터 변경 시 깜빡임만 유발하므로, bitmap이 있을 때만 그린다.
         if (layers.charBitmap != null) {
             val charSize = CARD_HEIGHT * 0.85f * layers.charScale
             val charCx = layers.charX * CARD_WIDTH * 0.6f + CARD_WIDTH * 0.05f
@@ -81,19 +85,6 @@ object ProfileCardRenderer {
                 charCy + charSize,
             )
             canvas.drawBitmap(layers.charBitmap, null, dst, paint)
-        } else {
-            // 폴백: 동그라미 + 눈
-            val charSize = CARD_HEIGHT * 0.5f * layers.charScale
-            val charCx = layers.charX * CARD_WIDTH * 0.6f + CARD_WIDTH * 0.1f
-            val charCy = layers.charY * CARD_HEIGHT * 0.6f + CARD_HEIGHT * 0.15f
-            paint.color = layers.charColor.toArgb()
-            canvas.drawCircle(charCx, charCy, charSize, paint)
-            paint.color = android.graphics.Color.WHITE
-            canvas.drawCircle(charCx - charSize * 0.2f, charCy - charSize * 0.1f, charSize * 0.12f, paint)
-            canvas.drawCircle(charCx + charSize * 0.2f, charCy - charSize * 0.1f, charSize * 0.12f, paint)
-            paint.color = android.graphics.Color.BLACK
-            canvas.drawCircle(charCx - charSize * 0.15f, charCy - charSize * 0.08f, charSize * 0.05f, paint)
-            canvas.drawCircle(charCx + charSize * 0.15f, charCy - charSize * 0.08f, charSize * 0.05f, paint)
         }
 
         // Layer 2 (캐릭터 위에 덮어쓰기): 테두리
