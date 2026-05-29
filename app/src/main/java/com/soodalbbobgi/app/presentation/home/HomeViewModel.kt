@@ -112,6 +112,9 @@ class HomeViewModel @Inject constructor(
         // 스플래시에서 누적된 조개 보상 팝업으로 표시
         val pending = appState.consumePendingShellReward()
         if (pending > 0) _shellReward.value = pending
+
+        // 프로세스 사망 후 Splash를 거치지 않고 복원된 경우 메모리 상태를 재수화한다.
+        viewModelScope.launch { appStateLoader.ensureHydrated() }
     }
 
     val uiState: StateFlow<HomeUiState> = combine(

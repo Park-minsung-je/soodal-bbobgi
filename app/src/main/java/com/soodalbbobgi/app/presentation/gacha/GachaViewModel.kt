@@ -114,6 +114,8 @@ class GachaViewModel @Inject constructor(
     init {
         // 화면 진입 시 박스 목록 + 인벤토리 + 잔액 새로고침
         viewModelScope.launch {
+            // 프로세스 사망 후 이 탭으로 복원됐을 수 있으니 먼저 전체 재수화
+            appStateLoader.ensureHydrated()
             appStateLoader.refreshGachaBoxes()
             appStateLoader.refreshInventory()
             appStateLoader.refreshCurrency()

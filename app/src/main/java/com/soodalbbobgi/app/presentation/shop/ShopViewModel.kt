@@ -84,7 +84,11 @@ class ShopViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ShopUiState())
 
-    init { refresh() }
+    init {
+        // 프로세스 사망 후 이 탭으로 복원됐을 수 있으니 먼저 전체 재수화
+        viewModelScope.launch { appStateLoader.ensureHydrated() }
+        refresh()
+    }
 
     /** 진열 + 잔액 새로고침. */
     fun refresh() {
