@@ -181,10 +181,12 @@ fun rememberAssetBitmap(imageAsset: String?): Bitmap? {
  * ProfileCardRenderer 결과를 Compose Image로 표시한다.
  *
  * bg/char/frame 경로가 있으면 로컬 우선(없으면 네트워크 폴백) Bitmap을 받아 layers에 주입한다.
+ * 에셋 경로가 null이면 해당 레이어는 호출 측이 [layers]에 미리 주입한 Bitmap을 그대로 사용한다.
+ * (null 경로가 이미 로딩된 [layers]의 Bitmap을 덮어쓰지 않도록 `?: layers.xxxBitmap` 폴백)
  *
- * @param bgAsset 배경 에셋 상대 경로
- * @param charAsset 캐릭터 에셋 상대 경로
- * @param frameAsset 테두리 에셋 상대 경로
+ * @param bgAsset 배경 에셋 상대 경로 (null이면 layers.bgBitmap 사용)
+ * @param charAsset 캐릭터 에셋 상대 경로 (null이면 layers.charBitmap 사용)
+ * @param frameAsset 테두리 에셋 상대 경로 (null이면 layers.frameBitmap 사용)
  */
 @Composable
 fun ProfileCardComposite(
@@ -194,9 +196,9 @@ fun ProfileCardComposite(
     frameAsset: String? = null,
     modifier: Modifier = Modifier,
 ) {
-    val bgBitmap = rememberAssetBitmap(bgAsset)
-    val charBitmap = rememberAssetBitmap(charAsset)
-    val frameBitmap = rememberAssetBitmap(frameAsset)
+    val bgBitmap = rememberAssetBitmap(bgAsset) ?: layers.bgBitmap
+    val charBitmap = rememberAssetBitmap(charAsset) ?: layers.charBitmap
+    val frameBitmap = rememberAssetBitmap(frameAsset) ?: layers.frameBitmap
 
     val finalLayers = layers.copy(
         bgBitmap = bgBitmap,
