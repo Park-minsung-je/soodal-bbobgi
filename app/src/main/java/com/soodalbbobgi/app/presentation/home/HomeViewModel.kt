@@ -27,7 +27,13 @@ import java.time.YearMonth
 import java.time.ZoneId
 import javax.inject.Inject
 
-data class RecentItem(val name: String, val kind: String, val grade: Grade)
+data class RecentItem(
+    val name: String,
+    val kind: String,
+    val grade: Grade,
+    /** items 마스터의 imageAsset 경로. 없으면 카드는 정적 아이콘으로 폴백. */
+    val imageAsset: String? = null,
+)
 
 data class HomeUiState(
     val nickname: String = "",
@@ -116,7 +122,12 @@ class HomeViewModel @Inject constructor(
             .take(8)
             .map { inv ->
                 val meta = itemsMap[inv.itemId]
-                RecentItem(name = meta?.name ?: "아이템 #${inv.itemId}", kind = inv.category, grade = inv.grade)
+                RecentItem(
+                    name = meta?.name ?: "아이템 #${inv.itemId}",
+                    kind = inv.category,
+                    grade = inv.grade,
+                    imageAsset = meta?.imageAsset,
+                )
             }
 
         // 저장된 프로필 카드를 ProfileCardComposite에 전달할 형태로 매핑.
