@@ -194,6 +194,53 @@ class ProfileEditorViewModelTest {
     }
 
     @Test
+    fun `text position defaults on fresh state`() = runTest(testDispatcher) {
+        val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
+        startCollect(vm)
+        advanceUntilIdle()
+
+        val s = vm.uiState.value
+        assertThat(s.textX).isEqualTo(0.95f)
+        assertThat(s.textY).isEqualTo(0.5f)
+    }
+
+    @Test
+    fun `text position seeded from saved profile card`() = runTest(testDispatcher) {
+        appState.applyProfileCard(ProfileCard(
+            userId = "u1",
+            textX = 0.2f,
+            textY = 0.8f,
+        ))
+
+        val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
+        startCollect(vm)
+        advanceUntilIdle()
+
+        val s = vm.uiState.value
+        assertThat(s.textX).isEqualTo(0.2f)
+        assertThat(s.textY).isEqualTo(0.8f)
+    }
+
+    @Test
+    fun `setTextX and setTextY update uiState and clamp to 0 to 1`() = runTest(testDispatcher) {
+        val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
+        startCollect(vm)
+        advanceUntilIdle()
+
+        vm.setTextX(0.3f)
+        vm.setTextY(0.7f)
+        advanceUntilIdle()
+        assertThat(vm.uiState.value.textX).isEqualTo(0.3f)
+        assertThat(vm.uiState.value.textY).isEqualTo(0.7f)
+
+        vm.setTextX(1.5f)
+        vm.setTextY(-0.5f)
+        advanceUntilIdle()
+        assertThat(vm.uiState.value.textX).isEqualTo(1.0f)
+        assertThat(vm.uiState.value.textY).isEqualTo(0.0f)
+    }
+
+    @Test
     fun `text block setters update uiState`() = runTest(testDispatcher) {
         val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
         startCollect(vm)

@@ -63,8 +63,12 @@ data class HomeUiState(
     val cardCharY: Float = 0.5f,
     /** 캐릭터 크기 배율 (0.3..1). */
     val cardCharScale: Float = 1.0f,
-    /** 텍스트 블록 가로 정렬 ("LEFT" | "RIGHT"). */
+    /** 텍스트 블록 내부 줄 정렬 ("LEFT" | "RIGHT"). */
     val cardTextAlign: String = "RIGHT",
+    /** 텍스트 블록 가로 위치 (0~1). */
+    val cardTextX: Float = 0.95f,
+    /** 텍스트 블록 세로 중심 위치 (0~1). */
+    val cardTextY: Float = 0.5f,
     /** 텍스트 블록 크기 단계 (1~5). */
     val cardTextScaleStep: Int = 3,
     /** 기록 줄 표시 여부. */
@@ -168,6 +172,8 @@ class HomeViewModel @Inject constructor(
             cardCharY = profileCard?.characterY ?: 0.5f,
             cardCharScale = profileCard?.characterScale ?: 1.0f,
             cardTextAlign = profileCard?.textAlign ?: "RIGHT",
+            cardTextX = profileCard?.textX ?: 0.95f,
+            cardTextY = profileCard?.textY ?: 0.5f,
             cardTextScaleStep = profileCard?.textScaleStep ?: 3,
             cardShowStats = profileCard?.showStats ?: true,
             cardNicknameColor = profileCard?.nicknameColor ?: "#FFFFFF",

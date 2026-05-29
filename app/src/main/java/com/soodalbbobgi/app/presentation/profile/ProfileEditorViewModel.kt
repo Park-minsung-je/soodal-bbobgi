@@ -52,8 +52,12 @@ data class ProfileEditorUiState(
     val charScale: Float = 1.0f,
     val customText: String = "",
     val textStyle: String = "REGULAR",
-    /** 텍스트 블록 가로 정렬 ("LEFT" | "RIGHT"). */
+    /** 텍스트 블록 내부 줄 정렬 ("LEFT" | "RIGHT"). */
     val textAlign: String = "RIGHT",
+    /** 텍스트 블록 가로 위치 (0~1). */
+    val textX: Float = 0.95f,
+    /** 텍스트 블록 세로 중심 위치 (0~1). */
+    val textY: Float = 0.5f,
     /** 텍스트 블록 크기 단계 (1~5). */
     val textScaleStep: Int = 3,
     /** 기록(통계) 줄 표시 여부. */
@@ -104,6 +108,8 @@ class ProfileEditorViewModel @Inject constructor(
         val customText: String = "",
         val textStyle: String = "REGULAR",
         val textAlign: String = "RIGHT",
+        val textX: Float = 0.95f,
+        val textY: Float = 0.5f,
         val textScaleStep: Int = 3,
         val showStats: Boolean = true,
         val nicknameColor: String = "#FFFFFF",
@@ -133,6 +139,8 @@ class ProfileEditorViewModel @Inject constructor(
                 customText = savedCard.customText,
                 textStyle = savedCard.textStyle,
                 textAlign = savedCard.textAlign,
+                textX = savedCard.textX,
+                textY = savedCard.textY,
                 textScaleStep = savedCard.textScaleStep,
                 showStats = savedCard.showStats,
                 nicknameColor = savedCard.nicknameColor,
@@ -165,6 +173,8 @@ class ProfileEditorViewModel @Inject constructor(
             customText = state.customText,
             textStyle = state.textStyle,
             textAlign = state.textAlign,
+            textX = state.textX,
+            textY = state.textY,
             textScaleStep = state.textScaleStep,
             showStats = state.showStats,
             nicknameColor = state.nicknameColor,
@@ -215,8 +225,14 @@ class ProfileEditorViewModel @Inject constructor(
     fun setCustomText(v: String) { _editState.value = _editState.value.copy(customText = v) }
     fun setTextStyle(v: String) { _editState.value = _editState.value.copy(textStyle = v) }
 
-    /** 텍스트 블록 가로 정렬 설정 ("LEFT" | "RIGHT"). */
+    /** 텍스트 블록 내부 줄 정렬 설정 ("LEFT" | "RIGHT"). */
     fun setTextAlign(v: String) { _editState.value = _editState.value.copy(textAlign = v) }
+
+    /** 텍스트 블록 가로 위치 설정 (0~1로 강제). */
+    fun setTextX(v: Float) { _editState.value = _editState.value.copy(textX = v.coerceIn(0f, 1f)) }
+
+    /** 텍스트 블록 세로 중심 위치 설정 (0~1로 강제). */
+    fun setTextY(v: Float) { _editState.value = _editState.value.copy(textY = v.coerceIn(0f, 1f)) }
 
     /** 텍스트 블록 크기 단계 설정 (1~5로 강제). */
     fun setTextScaleStep(v: Int) { _editState.value = _editState.value.copy(textScaleStep = v.coerceIn(1, 5)) }
@@ -250,6 +266,8 @@ class ProfileEditorViewModel @Inject constructor(
                     customText = s.customText,
                     textStyle = s.textStyle,
                     textAlign = s.textAlign,
+                    textX = s.textX.coerceIn(0f, 1f),
+                    textY = s.textY.coerceIn(0f, 1f),
                     textScaleStep = s.textScaleStep,
                     showStats = s.showStats,
                     nicknameColor = s.nicknameColor,
@@ -269,6 +287,8 @@ class ProfileEditorViewModel @Inject constructor(
                     customText = card.customText.ifEmpty { null },
                     textStyle = card.textStyle,
                     textAlign = card.textAlign,
+                    textX = card.textX,
+                    textY = card.textY,
                     textScaleStep = card.textScaleStep,
                     showStats = card.showStats,
                     nicknameColor = card.nicknameColor,

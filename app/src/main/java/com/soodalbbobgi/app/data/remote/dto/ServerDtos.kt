@@ -13,6 +13,8 @@ data class ServerProfileCard(
     val customText: String? = null,
     val textStyle: String = "REGULAR",
     val textAlign: String = "RIGHT",
+    val textX: Float = 0.95f,
+    val textY: Float = 0.5f,
     val textScaleStep: Int = 3,
     val showStats: Boolean = true,
     val nicknameColor: String = "#FFFFFF",

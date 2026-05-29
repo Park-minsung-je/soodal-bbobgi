@@ -145,6 +145,8 @@ fun HomeScreen(
                         charY = state.cardCharY,
                         charScale = state.cardCharScale,
                         textAlign = state.cardTextAlign,
+                        textX = state.cardTextX,
+                        textY = state.cardTextY,
                         textScaleStep = state.cardTextScaleStep,
                         showStats = state.cardShowStats,
                         nicknameColor = state.cardNicknameColor,

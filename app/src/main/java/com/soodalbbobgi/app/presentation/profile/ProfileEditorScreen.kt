@@ -161,6 +161,8 @@ fun ProfileEditorScreen(
                         charY = state.charY,
                         charScale = state.charScale,
                         textAlign = state.textAlign,
+                        textX = state.textX,
+                        textY = state.textY,
                         textScaleStep = state.textScaleStep,
                         showStats = state.showStats,
                         nicknameColor = state.nicknameColor,
@@ -298,7 +300,7 @@ fun ProfileEditorScreen(
                         maxLength = 20,
                     )
 
-                    // -- 정렬 (좌/우) --
+                    // -- 정렬 (줄 정렬: 좌/우) --
                     Spacer(Modifier.height(spacing.s3))
                     Text("정렬", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
                     Spacer(Modifier.height(spacing.s2))
@@ -311,6 +313,31 @@ fun ProfileEditorScreen(
                             )
                         }
                     }
+
+                    // -- 텍스트 위치 (블록 전체를 카드 위에서 이동) --
+                    Spacer(Modifier.height(spacing.s3))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("텍스트 위치", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+                        Text(
+                            "초기화 ↺",
+                            fontSize = 11.sp,
+                            color = colors.textTertiary,
+                            modifier = Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) {
+                                viewModel.setTextX(0.95f)
+                                viewModel.setTextY(0.5f)
+                            },
+                        )
+                    }
+                    Spacer(Modifier.height(spacing.s2))
+                    SliderRow("↔ 좌우", state.textX, 0f..1f) { viewModel.setTextX(it) }
+                    SliderRow("↕ 상하", state.textY, 0f..1f) { viewModel.setTextY(it) }
 
                     // -- 크기 (5단계) --
                     Spacer(Modifier.height(spacing.s3))

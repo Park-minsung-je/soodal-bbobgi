@@ -46,8 +46,12 @@ data class CardLayers(
     val charX: Float = 0.5f,
     val charY: Float = 0.5f,
     val charScale: Float = 1.0f,
-    /** 텍스트 블록 가로 정렬 ("LEFT" | "RIGHT"). */
+    /** 텍스트 블록 내부 줄 정렬 ("LEFT" | "RIGHT"). */
     val textAlign: String = "RIGHT",
+    /** 텍스트 블록 가로 위치 (0~1). 정렬에 따라 좌/우 앵커 기준. */
+    val textX: Float = 0.95f,
+    /** 텍스트 블록 세로 중심 위치 (0~1). */
+    val textY: Float = 0.5f,
     /** 텍스트 블록 크기 단계 (1~5). 3 = 기본 배율. */
     val textScaleStep: Int = 3,
     /** 기록(통계) 줄 표시 여부. false면 줄과 여백 모두 생략. */
@@ -130,13 +134,13 @@ object ProfileCardRenderer {
         // 블록 전체 높이 = 세 줄 높이 + 줄 간 여백 (showStats=false면 기록 줄/여백 제외).
         val blockHeight = nicknameSize + gapAfterNickname + taglineSize +
             (if (layers.showStats) gapAfterTagline + statsSize else 0f)
-        // 카드 세로 중앙(0.5H)을 기준으로 블록을 수직 중앙 정렬한다.
-        val blockTop = CARD_HEIGHT * 0.5f - blockHeight / 2f
+        // textY는 블록의 세로 '중심'. 슬라이더로 블록 전체를 위아래로 옮긴다.
+        val blockTop = layers.textY * CARD_HEIGHT - blockHeight / 2f
 
-        // 정렬에 따라 앵커 X와 Paint.Align 결정. RIGHT는 우측 여백, LEFT는 좌측 여백 기준.
-        val margin = 64f
+        // 정렬은 블록 내부 줄 정렬(Paint.Align). textX가 앵커 가로 위치를 정한다.
+        // LEFT면 textX가 좌측 모서리(왼쪽 정렬), RIGHT면 textX가 우측 모서리(오른쪽 정렬).
         val isRight = layers.textAlign != "LEFT"
-        val textX = if (isRight) CARD_WIDTH - margin else margin
+        val textX = layers.textX * CARD_WIDTH
         textPaint.textAlign = if (isRight) Paint.Align.RIGHT else Paint.Align.LEFT
 
         val shadow = android.graphics.Color.argb(128, 0, 0, 0)
