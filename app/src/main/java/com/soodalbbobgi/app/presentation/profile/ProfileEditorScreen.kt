@@ -150,6 +150,7 @@ fun ProfileEditorScreen(
                     layers = CardLayers(
                         nickname = state.nickname,
                         tagline = state.customText.ifEmpty { state.taglineFallback },
+                        stats = state.statsText,
                         charX = state.charX,
                         charY = state.charY,
                         charScale = state.charScale,
