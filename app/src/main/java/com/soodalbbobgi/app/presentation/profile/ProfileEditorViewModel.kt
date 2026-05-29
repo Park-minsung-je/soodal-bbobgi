@@ -163,7 +163,15 @@ class ProfileEditorViewModel @Inject constructor(
     }
 
     fun setActiveTab(tab: EditorCategory) { _editState.value = _editState.value.copy(activeTab = tab) }
-    fun selectItem(category: EditorCategory, inventoryId: Long) {
+
+    /**
+     * 카테고리별 장착 아이템을 선택한다.
+     *
+     * @param category 대상 슬롯 (배경/캐릭터/테두리). 텍스트 탭은 무시된다.
+     * @param inventoryId 선택할 인벤토리 id. `null`이면 "선택안함" — 해당 슬롯을 비운다
+     *   (배경/테두리만 해당, 캐릭터는 항상 하나가 장착됨).
+     */
+    fun selectItem(category: EditorCategory, inventoryId: Long?) {
         _editState.value = when (category) {
             EditorCategory.Background -> _editState.value.copy(selectedBgInventoryId = inventoryId)
             EditorCategory.Character -> _editState.value.copy(selectedCharInventoryId = inventoryId)

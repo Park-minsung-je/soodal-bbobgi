@@ -132,6 +132,28 @@ class ProfileEditorViewModelTest {
     }
 
     @Test
+    fun `selectItem with null clears background and frame slots`() = runTest(testDispatcher) {
+        appState.applyProfileCard(ProfileCard(
+            userId = "u1",
+            backgroundItemId = 2L,
+            borderItemId = 3L,
+        ))
+
+        val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
+        startCollect(vm)
+        advanceUntilIdle()
+        assertThat(vm.uiState.value.selectedBgInventoryId).isEqualTo(2L)
+        assertThat(vm.uiState.value.selectedFrameInventoryId).isEqualTo(3L)
+
+        vm.selectItem(EditorCategory.Background, null)
+        vm.selectItem(EditorCategory.Frame, null)
+        advanceUntilIdle()
+
+        assertThat(vm.uiState.value.selectedBgInventoryId).isNull()
+        assertThat(vm.uiState.value.selectedFrameInventoryId).isNull()
+    }
+
+    @Test
     fun `statsText reflects month stats in Home format`() = runTest(testDispatcher) {
         coEvery { swimLogUseCase.getMonthStats(any(), any()) } returns SwimStats(1200, 3, 200)
 
