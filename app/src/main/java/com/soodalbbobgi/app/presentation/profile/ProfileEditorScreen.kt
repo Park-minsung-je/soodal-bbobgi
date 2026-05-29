@@ -244,9 +244,9 @@ fun ProfileEditorScreen(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                             ) {
-                                viewModel.setCharX(0.16f)
-                                viewModel.setCharY(0.06f)
-                                viewModel.setCharScale(0.70f)
+                                viewModel.setCharX(0.5f)
+                                viewModel.setCharY(0.5f)
+                                viewModel.setCharScale(1.0f)
                             },
                         )
                     }

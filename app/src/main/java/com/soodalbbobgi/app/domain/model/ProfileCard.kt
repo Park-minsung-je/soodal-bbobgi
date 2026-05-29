@@ -5,9 +5,9 @@ data class ProfileCard(
     val backgroundItemId: Long? = null,
     val characterItemId: Long? = null,
     val borderItemId: Long? = null,
-    val characterX: Float = 0.16f,
-    val characterY: Float = 0.06f,
-    val characterScale: Float = 0.70f,
+    val characterX: Float = 0.5f,
+    val characterY: Float = 0.5f,
+    val characterScale: Float = 1.0f,
     val customText: String = "",
     val textStyle: String = "REGULAR",
 )

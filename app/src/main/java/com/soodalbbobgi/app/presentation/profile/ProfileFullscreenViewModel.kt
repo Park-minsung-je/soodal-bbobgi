@@ -46,9 +46,9 @@ data class FullscreenCardState(
     val bgAsset: String? = null,
     val charAsset: String? = null,
     val frameAsset: String? = null,
-    val charX: Float = 0.16f,
-    val charY: Float = 0.06f,
-    val charScale: Float = 0.70f,
+    val charX: Float = 0.5f,
+    val charY: Float = 0.5f,
+    val charScale: Float = 1.0f,
 )
 
 /**
@@ -84,9 +84,9 @@ class ProfileFullscreenViewModel @Inject constructor(
             bgAsset = resolveCardAsset(card?.backgroundItemId, inventory, items),
             charAsset = resolveCardAsset(card?.characterItemId, inventory, items),
             frameAsset = resolveCardAsset(card?.borderItemId, inventory, items),
-            charX = card?.characterX ?: 0.16f,
-            charY = card?.characterY ?: 0.06f,
-            charScale = card?.characterScale ?: 0.70f,
+            charX = card?.characterX ?: 0.5f,
+            charY = card?.characterY ?: 0.5f,
+            charScale = card?.characterScale ?: 1.0f,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FullscreenCardState())
 

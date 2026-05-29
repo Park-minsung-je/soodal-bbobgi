@@ -43,9 +43,9 @@ data class CardLayers(
     val nickname: String = "Soodal",
     val tagline: String = "수영을 사랑하는 수달",
     val stats: String = "12,540m · 89회",
-    val charX: Float = 0.2f,
-    val charY: Float = 0.3f,
-    val charScale: Float = 0.7f,
+    val charX: Float = 0.5f,
+    val charY: Float = 0.5f,
+    val charScale: Float = 1.0f,
 )
 
 /**
