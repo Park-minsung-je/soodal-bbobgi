@@ -7,7 +7,10 @@ import com.soodalbbobgi.app.domain.model.Grade
 import com.soodalbbobgi.app.domain.model.InventoryItem
 import com.soodalbbobgi.app.domain.model.Item
 import com.soodalbbobgi.app.domain.model.ProfileCard
+import com.soodalbbobgi.app.domain.model.SwimStats
 import com.soodalbbobgi.app.domain.model.UserProfile
+import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
+import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -36,12 +39,17 @@ class ProfileFullscreenViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var appState: AppState
     private lateinit var context: Context
+    private lateinit var swimLogUseCase: SwimLogUseCase
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         appState = AppState()
         context = mockk(relaxed = true)
+        swimLogUseCase = mockk(relaxed = true)
+        // 기본: 0 통계 (개별 테스트에서 필요 시 덮어씀)
+        coEvery { swimLogUseCase.getMonthStats(any(), any()) } returns
+            SwimStats(totalDistanceMeters = 0, swimCount = 0, totalCalories = 0)
     }
 
     @After fun tearDown() { Dispatchers.resetMain() }
@@ -86,7 +94,11 @@ class ProfileFullscreenViewModelTest {
                 customText = "오늘도 한 바퀴",
             ))
 
-            val vm = ProfileFullscreenViewModel(context = context, appState = appState)
+            val vm = ProfileFullscreenViewModel(
+                context = context,
+                appState = appState,
+                swimLogUseCase = swimLogUseCase,
+            )
             startCollect(vm)
             advanceUntilIdle()
 
@@ -99,13 +111,33 @@ class ProfileFullscreenViewModelTest {
             assertThat(s.charY).isEqualTo(0.4f)
             assertThat(s.charScale).isEqualTo(0.85f)
             assertThat(s.tagline).isEqualTo("오늘도 한 바퀴")
-            assertThat(s.statsText).isEmpty()
+        }
+
+    @Test
+    fun `cardState reflects month stats in Home format`() =
+        runTest(testDispatcher) {
+            coEvery { swimLogUseCase.getMonthStats(any(), any()) } returns
+                SwimStats(totalDistanceMeters = 1200, swimCount = 3, totalCalories = 200)
+
+            val vm = ProfileFullscreenViewModel(
+                context = context,
+                appState = appState,
+                swimLogUseCase = swimLogUseCase,
+            )
+            startCollect(vm)
+            advanceUntilIdle()
+
+            assertThat(vm.cardState.value.statsText).isEqualTo("1200m · 3회")
         }
 
     @Test
     fun `cardState falls back to defaults when nothing is saved`() =
         runTest(testDispatcher) {
-            val vm = ProfileFullscreenViewModel(context = context, appState = appState)
+            val vm = ProfileFullscreenViewModel(
+                context = context,
+                appState = appState,
+                swimLogUseCase = swimLogUseCase,
+            )
             startCollect(vm)
             advanceUntilIdle()
 

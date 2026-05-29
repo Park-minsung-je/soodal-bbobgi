@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.state.AppState
 import com.soodalbbobgi.app.domain.model.InventoryItem
 import com.soodalbbobgi.app.domain.model.Item
+import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
+import java.time.YearMonth
 import javax.inject.Inject
 
 /** 갤러리 저장/공유 작업 상태 */
@@ -35,8 +37,7 @@ sealed interface SaveState {
 
 /**
  * 전체보기 카드 렌더링에 필요한 상태 묶음.
- * [statsText]는 Fullscreen 화면에 월간 통계 소스가 없어 공란으로 두며,
- * 추후 필요 시 SwimLog 통계를 추가로 주입할 수 있다.
+ * [statsText]는 Home과 동일하게 이번 달 누적 거리/횟수를 "Nm · N회" 형식으로 담는다.
  */
 data class FullscreenCardState(
     val nickname: String = "",
@@ -61,6 +62,7 @@ data class FullscreenCardState(
 class ProfileFullscreenViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val appState: AppState,
+    private val swimLogUseCase: SwimLogUseCase,
 ) : ViewModel() {
 
     private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
@@ -72,10 +74,13 @@ class ProfileFullscreenViewModel @Inject constructor(
         appState.inventory,
         appState.items,
     ) { profile, card, inventory, items ->
+        // combine 변환 람다는 suspend라 getMonthStats(suspend)를 직접 호출할 수 있다.
+        // Home과 동일한 이번 달 통계 + 동일 포맷("Nm · N회")으로 카드 일관성 유지.
+        val stats = swimLogUseCase.getMonthStats(monthStart(), monthEnd())
         FullscreenCardState(
             nickname = profile?.nickname ?: "",
             tagline = card?.customText?.takeIf { it.isNotBlank() } ?: "수영을 사랑하는 수달",
-            statsText = "",
+            statsText = "${stats.totalDistanceMeters}m · ${stats.swimCount}회",
             bgAsset = resolveCardAsset(card?.backgroundItemId, inventory, items),
             charAsset = resolveCardAsset(card?.characterItemId, inventory, items),
             frameAsset = resolveCardAsset(card?.borderItemId, inventory, items),
@@ -162,4 +167,10 @@ class ProfileFullscreenViewModel @Inject constructor(
             }
         }
     }
+
+    /** 이번 달 1일 (YYYY-MM-DD). Home과 동일한 통계 구간 기준. */
+    private fun monthStart(): String = YearMonth.now().atDay(1).toString()
+
+    /** 이번 달 말일 (YYYY-MM-DD). Home과 동일한 통계 구간 기준. */
+    private fun monthEnd(): String = YearMonth.now().atEndOfMonth().toString()
 }
