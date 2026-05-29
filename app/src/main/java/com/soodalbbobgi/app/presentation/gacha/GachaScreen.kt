@@ -1,7 +1,5 @@
 package com.soodalbbobgi.app.presentation.gacha
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,20 +40,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
-import com.soodalbbobgi.app.core.ui.AssetImage
-import com.soodalbbobgi.app.core.ui.ButtonStyle
 import com.soodalbbobgi.app.core.ui.ChipColor
 import com.soodalbbobgi.app.core.ui.GlassPanel
-import com.soodalbbobgi.app.core.ui.GradeBadge
-import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalChip
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.SoodalTabBar
-import com.soodalbbobgi.app.domain.model.Grade
 import kotlin.math.roundToInt
 
 @Composable
@@ -167,9 +159,9 @@ fun GachaScreen(
                         modifier = Modifier.weight(1f),
                     )
                     SpinButton(
-                        topText = "10연 뽑기", bottomText = "9개", shellIcon = true,
+                        topText = "10연 뽑기", bottomText = "10개", shellIcon = true,
                         bgColors = listOf(Color(0xFFB57BFF), Color(0xFF6E3BD8)), textColor = colors.btnPurpleText, glowColor = colors.glowPurple,
-                        enabled = state.phase == GachaPhase.Idle && state.shells >= 9,
+                        enabled = state.phase == GachaPhase.Idle && state.shells >= 10,
                         onClick = { viewModel.spin(10) },
                         modifier = Modifier.weight(1f),
                     )
@@ -190,12 +182,10 @@ fun GachaScreen(
             SoodalTabBar(activeTab = "gacha", onTabSelected = onNavigateToTab)
         }
 
-        // -- Result Modal --
+        // -- Result Modal (공용 오버레이: 인덱스/전체보기 내부 관리) --
         if (state.phase == GachaPhase.Result && state.results.isNotEmpty()) {
             GachaResultOverlay(
-                state = state,
-                onNext = { viewModel.nextResult() },
-                onSkipToLast = { viewModel.skipToLastResult() },
+                results = state.results,
                 onClose = { viewModel.closeResults() },
             )
         }
@@ -255,187 +245,3 @@ private fun SpinButton(
     }
 }
 
-@Composable
-private fun GachaResultOverlay(
-    state: GachaUiState,
-    onNext: () -> Unit,
-    onSkipToLast: () -> Unit,
-    onClose: () -> Unit,
-) {
-    val colors = SoodalDesign.colors
-    val item = state.results[state.resultIndex]
-    val isLast = state.resultIndex == state.results.size - 1
-
-    val gradeColor = when (item.grade) {
-        Grade.SSR -> colors.accentGold
-        Grade.SR -> colors.accentPurple
-        Grade.R -> colors.accentCyan
-        Grade.N -> colors.textSecondary
-    }
-    val gradeGlow = when (item.grade) {
-        Grade.SSR -> colors.accentGold.copy(alpha = 0.6f)
-        Grade.SR -> colors.accentPurple.copy(alpha = 0.6f)
-        Grade.R -> colors.accentCyan.copy(alpha = 0.5f)
-        Grade.N -> Color.White.copy(alpha = 0.1f)
-    }
-
-    val kindLabel = when (item.kind) {
-        "char" -> "캐릭터"
-        "bg" -> "배경"
-        "frame" -> "테두리"
-        else -> "아이템"
-    }
-    val boxLabel = GACHA_BOXES.find { it.id == item.kind }?.label ?: "상자"
-    val itemIcon = when (item.kind) {
-        "char" -> SoodalIcons.Otter
-        "bg" -> SoodalIcons.Aurora
-        "frame" -> SoodalIcons.Frame
-        else -> SoodalIcons.Gift
-    }
-
-    // Bounce animation
-    val bounceScale by animateFloatAsState(
-        targetValue = 1f, animationSpec = spring(dampingRatio = 0.4f, stiffness = 300f),
-        label = "bounce",
-    )
-
-    Box(
-        Modifier.fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.72f))
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            // Card
-            Box(
-                Modifier.padding(horizontal = 28.dp).fillMaxWidth()
-                    .shadow(16.dp, RoundedCornerShape(24.dp), ambientColor = gradeGlow, spotColor = gradeGlow)
-                    .clip(RoundedCornerShape(24.dp))
-                    .drawBehind {
-                        drawRect(Brush.linearGradient(
-                            listOf(Color(0xFF1A2235), Color(0xFF131A2C)),
-                            start = androidx.compose.ui.geometry.Offset.Zero,
-                            end = androidx.compose.ui.geometry.Offset(size.width, size.height),
-                        ))
-                    }
-                    .border(1.5.dp, gradeColor, RoundedCornerShape(24.dp))
-                    .padding(28.dp, 24.dp),
-            ) {
-                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    // Counter badge (multi-pull only)
-                    if (state.results.size > 1) {
-                        Text(
-                            "${state.resultIndex + 1} / ${state.results.size}",
-                            fontSize = 11.sp, color = colors.textSecondary,
-                            fontFamily = JetBrainsMonoFamily,
-                            modifier = Modifier.align(Alignment.End)
-                                .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(999.dp))
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                        )
-                    }
-
-                    // Box chip
-                    SoodalChip("$boxLabel 선택됨", color = ChipColor.Cyan, iconType = SoodalIcons.Box)
-
-                    Spacer(Modifier.height(16.dp))
-
-                    // Grade badge
-                    GradeBadge(item.grade)
-
-                    Spacer(Modifier.height(20.dp))
-
-                    // Item visual
-                    Box(
-                        Modifier.size(80.dp).scale(bounceScale)
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(gradeGlow.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (!item.imageAsset.isNullOrBlank()) {
-                            AssetImage(
-                                imageAsset = item.imageAsset,
-                                contentDescription = item.name,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        } else {
-                            SoodalIcon(icon = itemIcon, tint = gradeColor, size = 40.dp)
-                        }
-                    }
-
-                    Spacer(Modifier.height(16.dp))
-
-                    // Item name
-                    Text(item.name, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
-
-                    Spacer(Modifier.height(6.dp))
-
-                    // Status
-                    if (item.isNew) {
-                        Text(
-                            "$kindLabel — 새로 획득!",
-                            fontSize = 13.sp, fontWeight = FontWeight.Bold, color = gradeColor,
-                        )
-                    } else {
-                        // 중복 아이템 → 진주 교환 강조 표현
-                        Text(
-                            "이미 보유 중인 $kindLabel",
-                            fontSize = 12.sp, color = colors.textTertiary,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier
-                                .background(
-                                    Brush.horizontalGradient(
-                                        listOf(
-                                            colors.accentPurple.copy(alpha = 0.15f),
-                                            colors.accentPurple.copy(alpha = 0.05f),
-                                        )
-                                    ),
-                                    RoundedCornerShape(12.dp),
-                                )
-                                .border(1.dp, colors.accentPurple.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-                                .padding(horizontal = 16.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 18.dp)
-                            Text(
-                                "진주 +${item.pearlsEarned}",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontFamily = JetBrainsMonoFamily,
-                                color = colors.accentPurple,
-                            )
-                            Text(
-                                "교환 완료",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = colors.accentPurple.copy(alpha = 0.7f),
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(24.dp))
-
-                    // Buttons
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        if (!isLast && state.results.size > 1) {
-                            SoodalButton("다음 →", onClick = onNext, style = ButtonStyle.Primary, modifier = Modifier.weight(1f))
-                        } else {
-                            SoodalButton("계속 뽑기", onClick = onClose, style = ButtonStyle.Secondary, modifier = Modifier.weight(1f))
-                            if (item.kind == "char") {
-                                SoodalButton("프로필 적용", onClick = onClose, style = ButtonStyle.Primary, modifier = Modifier.weight(1f))
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Skip button (not last)
-            if (!isLast && state.results.size > 1) {
-                Spacer(Modifier.height(14.dp))
-                SoodalButton("전체 결과 보기", onClick = onSkipToLast, style = ButtonStyle.Ghost)
-            }
-        }
-    }
-}

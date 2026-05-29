@@ -117,10 +117,11 @@ data class ServerGachaBoxItem(
     val isLimited: Boolean? = null,
 )
 
-/** POST /gacha/pull 요청 */
+/** POST /gacha/pull 요청. mixed=true면 매 뽑기마다 서버가 랜덤 박스를 고른다(박스 혼합). */
 data class GachaPullRequest(
-    val boxId: Long,
+    val boxId: Long? = null,
     val count: Int,
+    val mixed: Boolean = false,
 )
 
 /** POST /gacha/pull 응답 */

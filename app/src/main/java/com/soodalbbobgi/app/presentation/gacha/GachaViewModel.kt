@@ -49,7 +49,6 @@ data class GachaUiState(
     val phase: GachaPhase = GachaPhase.Idle,
     val offset: Float = 0f,
     val results: List<GachaResultItem> = emptyList(),
-    val resultIndex: Int = 0,
     val pityRemaining: Int = 90,
 )
 
@@ -89,7 +88,6 @@ class GachaViewModel @Inject constructor(
         val phase: GachaPhase = GachaPhase.Idle,
         val offset: Float = 0f,
         val results: List<GachaResultItem> = emptyList(),
-        val resultIndex: Int = 0,
     )
 
     val uiState: StateFlow<GachaUiState> = combine(
@@ -100,7 +98,6 @@ class GachaViewModel @Inject constructor(
             phase = local.phase,
             offset = local.offset,
             results = local.results,
-            resultIndex = local.resultIndex,
             pityRemaining = 90 - currency.pityCounter,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GachaUiState())
@@ -134,9 +131,10 @@ class GachaViewModel @Inject constructor(
         }
     }
 
-    /** 결과 상자를 미리 결정 → 룰렛을 자연스럽게 감속해 정지. */
+    /** 룰렛을 자연스럽게 감속해 정지시킨 뒤, 매 뽑기마다 랜덤 박스로 서버 뽑기 실행. */
     fun spin(count: Int) {
-        val cost = if (count >= 10) 9 else count
+        // 할인 없음: 단발 1, 10연 10 (1회당 조개 1개)
+        val cost = count
         val s = uiState.value
         if (s.shells < cost || s.phase != GachaPhase.Idle) return
 
@@ -152,9 +150,9 @@ class GachaViewModel @Inject constructor(
             val selectedBox = activeBoxes.random()
             val resultBoxIndex = activeBoxes.indexOf(selectedBox)
 
-            // 애니메이션과 병행: 서버에서 가챠 실행
+            // 애니메이션과 병행: 서버에서 가챠 실행 (mixed=true → 매 뽑기마다 랜덤 박스)
             val pullDeferred = async(Dispatchers.IO) {
-                soodalApi.gachaPull(GachaPullRequest(boxId = selectedBox.id, count = count))
+                soodalApi.gachaPull(GachaPullRequest(count = count, mixed = true))
             }
 
             val boxCount = activeBoxes.size.coerceAtLeast(1)
@@ -194,7 +192,8 @@ class GachaViewModel @Inject constructor(
                     GachaResultItem(
                         name = r.item.name,
                         grade = Grade.fromString(r.item.grade),
-                        kind = selectedBox.category,
+                        // 혼합 뽑기: 아이템별 실제 출처 박스 카테고리 사용
+                        kind = r.item.category ?: selectedBox.category,
                         isNew = r.wasNew,
                         pearlsEarned = r.pearlsEarned,
                         imageAsset = r.item.imageAsset,
@@ -204,7 +203,7 @@ class GachaViewModel @Inject constructor(
                 appStateLoader.applyGachaResults(response.data.results, response.data.currency)
 
                 _localState.update {
-                    it.copy(phase = GachaPhase.Result, results = batch, resultIndex = 0)
+                    it.copy(phase = GachaPhase.Result, results = batch)
                 }
             } else {
                 _localState.update { it.copy(phase = GachaPhase.Idle) }
@@ -212,19 +211,8 @@ class GachaViewModel @Inject constructor(
         }
     }
 
-    fun nextResult() {
-        val s = _localState.value
-        if (s.resultIndex < s.results.size - 1) {
-            _localState.update { it.copy(resultIndex = s.resultIndex + 1) }
-        }
-    }
-
-    fun skipToLastResult() {
-        _localState.update { it.copy(resultIndex = it.results.size - 1) }
-    }
-
     fun closeResults() {
-        _localState.update { it.copy(phase = GachaPhase.Idle, results = emptyList(), resultIndex = 0) }
+        _localState.update { it.copy(phase = GachaPhase.Idle, results = emptyList()) }
     }
 
     private fun iconFor(category: String): SoodalIcons = when (category) {
