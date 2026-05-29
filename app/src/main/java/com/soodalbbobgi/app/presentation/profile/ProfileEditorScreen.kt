@@ -3,6 +3,7 @@ package com.soodalbbobgi.app.presentation.profile
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +23,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -154,6 +157,12 @@ fun ProfileEditorScreen(
                         charX = state.charX,
                         charY = state.charY,
                         charScale = state.charScale,
+                        textAlign = state.textAlign,
+                        textScaleStep = state.textScaleStep,
+                        showStats = state.showStats,
+                        nicknameColor = state.nicknameColor,
+                        taglineColor = state.taglineColor,
+                        statsColor = state.statsColor,
                     ),
                     bgAsset = selectedBg?.imageAsset,
                     charAsset = selectedChar?.imageAsset,
@@ -273,6 +282,64 @@ fun ProfileEditorScreen(
                         placeholder = "카드 텍스트 입력 (최대 20자)",
                         maxLength = 20,
                     )
+
+                    // -- 정렬 (좌/우) --
+                    Spacer(Modifier.height(spacing.s3))
+                    Text("정렬", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+                    Spacer(Modifier.height(spacing.s2))
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                        listOf("LEFT" to "좌", "RIGHT" to "우").forEach { (value, label) ->
+                            SegmentChip(
+                                label = label,
+                                isActive = state.textAlign == value,
+                                onClick = { viewModel.setTextAlign(value) },
+                            )
+                        }
+                    }
+
+                    // -- 크기 (5단계) --
+                    Spacer(Modifier.height(spacing.s3))
+                    Text("크기 단계", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+                    Spacer(Modifier.height(spacing.s2))
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                        (1..5).forEach { step ->
+                            SegmentChip(
+                                label = step.toString(),
+                                isActive = state.textScaleStep == step,
+                                onClick = { viewModel.setTextScaleStep(step) },
+                            )
+                        }
+                    }
+
+                    // -- 기록 표시 토글 --
+                    Spacer(Modifier.height(spacing.s3))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("기록 표시", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+                        Switch(
+                            checked = state.showStats,
+                            onCheckedChange = { viewModel.setShowStats(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = colors.btnPrimaryText,
+                                checkedTrackColor = colors.accentCyan,
+                                uncheckedTrackColor = colors.surface3,
+                            ),
+                        )
+                    }
+
+                    // -- 색상 (닉네임 / 소개 / 기록) --
+                    Spacer(Modifier.height(spacing.s3))
+                    Text("색상", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+                    Spacer(Modifier.height(spacing.s2))
+                    ColorPaletteRow("닉네임", state.nicknameColor) { viewModel.setNicknameColor(it) }
+                    Spacer(Modifier.height(spacing.s2))
+                    ColorPaletteRow("소개", state.taglineColor) { viewModel.setTaglineColor(it) }
+                    Spacer(Modifier.height(spacing.s2))
+                    ColorPaletteRow("기록", state.statsColor) { viewModel.setStatsColor(it) }
+
                     Spacer(Modifier.height(spacing.s3))
                     Text(
                         text = "폰트 스타일",
@@ -556,3 +623,109 @@ private fun SliderRow(
         Text("$pct%", fontSize = 11.sp, color = colors.textTertiary, modifier = Modifier.width(36.dp))
     }
 }
+
+/**
+ * 텍스트 커스터마이즈용 프리셋 색상 팔레트.
+ * SoodalDesign 라이트/네온 포인트 컬러 + 무채색 + 보조 액센트로 구성한다.
+ */
+private val TextColorPalette = listOf(
+    "#FFFFFF", "#000000", "#9CA3AF",
+    "#00F5FF", "#00A8B8",
+    "#BF5AF2", "#8B3DDB",
+    "#FFD60A", "#D99500",
+    "#FF6B6B", "#30D158", "#4FB8FF",
+)
+
+/**
+ * 좌/우 정렬·크기 단계 등 단일 선택용 작은 칩.
+ *
+ * @param label 칩에 표시할 짧은 라벨
+ * @param isActive 선택 상태 여부 (선택 시 강조 배경/테두리)
+ */
+@Composable
+private fun SegmentChip(
+    label: String,
+    isActive: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = SoodalDesign.colors
+    Box(
+        modifier = Modifier
+            .clip(SoodalShape.md)
+            .background(if (isActive) colors.accentCyanSoft else colors.surface2)
+            .then(
+                if (isActive) Modifier.border(1.dp, colors.accentCyan.copy(alpha = 0.3f), SoodalShape.md)
+                else Modifier
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = 18.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+            color = if (isActive) colors.accentCyan else colors.textTertiary,
+        )
+    }
+}
+
+/**
+ * 한 요소(닉네임/소개/기록)의 색상을 프리셋 스와치 가로 줄에서 고른다.
+ * 선택된 스와치에는 강조 링을 둘러 표시한다.
+ *
+ * @param label 좌측 요소 라벨
+ * @param selectedColor 현재 선택된 "#RRGGBB" 색상
+ * @param onSelect 스와치 클릭 시 선택 색상 전달 콜백
+ */
+@Composable
+private fun ColorPaletteRow(
+    label: String,
+    selectedColor: String,
+    onSelect: (String) -> Unit,
+) {
+    val colors = SoodalDesign.colors
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, fontSize = 11.sp, color = colors.textSecondary, modifier = Modifier.width(48.dp))
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            TextColorPalette.forEach { hex ->
+                val isSelected = hex.equals(selectedColor, ignoreCase = true)
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(parseSwatchColor(hex))
+                        .border(
+                            width = if (isSelected) 2.dp else 1.dp,
+                            color = if (isSelected) colors.accentCyan else colors.cardBorder,
+                            shape = CircleShape,
+                        )
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { onSelect(hex) },
+                        ),
+                )
+            }
+        }
+    }
+}
+
+/** "#RRGGBB" 문자열을 Compose Color로 변환 (실패 시 회색 폴백). */
+private fun parseSwatchColor(hex: String): Color =
+    try {
+        Color(android.graphics.Color.parseColor(hex))
+    } catch (e: IllegalArgumentException) {
+        Color.Gray
+    }

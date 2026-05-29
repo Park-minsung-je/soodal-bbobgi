@@ -52,6 +52,18 @@ data class ProfileEditorUiState(
     val charScale: Float = 1.0f,
     val customText: String = "",
     val textStyle: String = "REGULAR",
+    /** 텍스트 블록 가로 정렬 ("LEFT" | "RIGHT"). */
+    val textAlign: String = "RIGHT",
+    /** 텍스트 블록 크기 단계 (1~5). */
+    val textScaleStep: Int = 3,
+    /** 기록(통계) 줄 표시 여부. */
+    val showStats: Boolean = true,
+    /** 닉네임 색상 ("#RRGGBB"). */
+    val nicknameColor: String = "#FFFFFF",
+    /** 소개 줄 색상 ("#RRGGBB"). */
+    val taglineColor: String = "#FFFFFF",
+    /** 기록 줄 색상 ("#RRGGBB"). */
+    val statsColor: String = "#00F5FF",
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,
     val saveError: String? = null,
@@ -91,6 +103,12 @@ class ProfileEditorViewModel @Inject constructor(
         val charScale: Float = 1.0f,
         val customText: String = "",
         val textStyle: String = "REGULAR",
+        val textAlign: String = "RIGHT",
+        val textScaleStep: Int = 3,
+        val showStats: Boolean = true,
+        val nicknameColor: String = "#FFFFFF",
+        val taglineColor: String = "#FFFFFF",
+        val statsColor: String = "#00F5FF",
         val isSaving: Boolean = false,
         val saveSuccess: Boolean = false,
         val saveError: String? = null,
@@ -114,6 +132,12 @@ class ProfileEditorViewModel @Inject constructor(
                 charScale = savedCard.characterScale,
                 customText = savedCard.customText,
                 textStyle = savedCard.textStyle,
+                textAlign = savedCard.textAlign,
+                textScaleStep = savedCard.textScaleStep,
+                showStats = savedCard.showStats,
+                nicknameColor = savedCard.nicknameColor,
+                taglineColor = savedCard.taglineColor,
+                statsColor = savedCard.statsColor,
                 initialized = true,
             )
             _editState.value = initialized
@@ -140,6 +164,12 @@ class ProfileEditorViewModel @Inject constructor(
             charScale = state.charScale,
             customText = state.customText,
             textStyle = state.textStyle,
+            textAlign = state.textAlign,
+            textScaleStep = state.textScaleStep,
+            showStats = state.showStats,
+            nicknameColor = state.nicknameColor,
+            taglineColor = state.taglineColor,
+            statsColor = state.statsColor,
             isSaving = state.isSaving,
             saveSuccess = state.saveSuccess,
             saveError = state.saveError,
@@ -184,6 +214,24 @@ class ProfileEditorViewModel @Inject constructor(
     fun setCharScale(v: Float) { _editState.value = _editState.value.copy(charScale = v) }
     fun setCustomText(v: String) { _editState.value = _editState.value.copy(customText = v) }
     fun setTextStyle(v: String) { _editState.value = _editState.value.copy(textStyle = v) }
+
+    /** 텍스트 블록 가로 정렬 설정 ("LEFT" | "RIGHT"). */
+    fun setTextAlign(v: String) { _editState.value = _editState.value.copy(textAlign = v) }
+
+    /** 텍스트 블록 크기 단계 설정 (1~5로 강제). */
+    fun setTextScaleStep(v: Int) { _editState.value = _editState.value.copy(textScaleStep = v.coerceIn(1, 5)) }
+
+    /** 기록 줄 표시 여부 설정. */
+    fun setShowStats(v: Boolean) { _editState.value = _editState.value.copy(showStats = v) }
+
+    /** 닉네임 색상 설정 ("#RRGGBB"). */
+    fun setNicknameColor(v: String) { _editState.value = _editState.value.copy(nicknameColor = v) }
+
+    /** 소개 줄 색상 설정 ("#RRGGBB"). */
+    fun setTaglineColor(v: String) { _editState.value = _editState.value.copy(taglineColor = v) }
+
+    /** 기록 줄 색상 설정 ("#RRGGBB"). */
+    fun setStatsColor(v: String) { _editState.value = _editState.value.copy(statsColor = v) }
     fun clearSaveResult() { _editState.value = _editState.value.copy(saveSuccess = false, saveError = null) }
 
     fun save() {
@@ -201,6 +249,12 @@ class ProfileEditorViewModel @Inject constructor(
                     characterScale = s.charScale.coerceIn(0.3f, 1f),
                     customText = s.customText,
                     textStyle = s.textStyle,
+                    textAlign = s.textAlign,
+                    textScaleStep = s.textScaleStep,
+                    showStats = s.showStats,
+                    nicknameColor = s.nicknameColor,
+                    taglineColor = s.taglineColor,
+                    statsColor = s.statsColor,
                 )
                 // 메모리 즉시 반영
                 appStateLoader.applyProfileCardSaved(card)
@@ -214,6 +268,12 @@ class ProfileEditorViewModel @Inject constructor(
                     characterScale = card.characterScale,
                     customText = card.customText.ifEmpty { null },
                     textStyle = card.textStyle,
+                    textAlign = card.textAlign,
+                    textScaleStep = card.textScaleStep,
+                    showStats = card.showStats,
+                    nicknameColor = card.nicknameColor,
+                    taglineColor = card.taglineColor,
+                    statsColor = card.statsColor,
                 ))
                 _editState.value = _editState.value.copy(isSaving = false, saveSuccess = true)
             } catch (e: Exception) {

@@ -46,6 +46,18 @@ data class CardLayers(
     val charX: Float = 0.5f,
     val charY: Float = 0.5f,
     val charScale: Float = 1.0f,
+    /** 텍스트 블록 가로 정렬 ("LEFT" | "RIGHT"). */
+    val textAlign: String = "RIGHT",
+    /** 텍스트 블록 크기 단계 (1~5). 3 = 기본 배율. */
+    val textScaleStep: Int = 3,
+    /** 기록(통계) 줄 표시 여부. false면 줄과 여백 모두 생략. */
+    val showStats: Boolean = true,
+    /** 닉네임 색상 ("#RRGGBB"). */
+    val nicknameColor: String = "#FFFFFF",
+    /** 소개 줄 색상 ("#RRGGBB"). */
+    val taglineColor: String = "#FFFFFF",
+    /** 기록 줄 색상 ("#RRGGBB"). */
+    val statsColor: String = "#00F5FF",
 )
 
 /**
@@ -96,26 +108,61 @@ object ProfileCardRenderer {
             canvas.drawBitmap(layers.frameBitmap, null, RectF(0f, 0f, CARD_WIDTH.toFloat(), CARD_HEIGHT.toFloat()), paint)
         }
 
-        // Layer 4: Text (오른쪽)
+        // Layer 4: Text — 닉네임·소개·기록 3줄을 하나의 블록으로 그린다.
+        // 정렬(좌/우) + 블록 크기(단계) + 색상 + 표시여부를 한 묶음으로 처리하고,
+        // 세 줄을 폰트 크기에 비례한 좁은 간격으로 수직 중앙 정렬해 응집감 있게 배치한다.
         val textPaint = Paint().apply {
             isAntiAlias = true
-            color = android.graphics.Color.WHITE
-            textAlign = Paint.Align.LEFT
             typeface = Typeface.DEFAULT_BOLD
         }
-        val textX = CARD_WIDTH * 0.55f
 
-        textPaint.textSize = 72f
-        textPaint.setShadowLayer(4f, 2f, 2f, android.graphics.Color.argb(128, 0, 0, 0))
-        canvas.drawText(layers.nickname, textX, CARD_HEIGHT * 0.45f, textPaint)
+        // 블록 크기 단계(1~5) → 배율. 3이 기준(1.0).
+        val scaleMul = floatArrayOf(0.8f, 0.9f, 1.0f, 1.1f, 1.2f)[
+            (layers.textScaleStep - 1).coerceIn(0, 4)
+        ]
+        val nicknameSize = 72f * scaleMul
+        val taglineSize = 32f * scaleMul
+        val statsSize = 28f * scaleMul
+        // 줄 간 여백 — 각 줄 폰트 크기에 비례한 작은 간격으로 블록을 조밀하게 묶는다.
+        val gapAfterNickname = nicknameSize * 0.35f
+        val gapAfterTagline = taglineSize * 0.55f
 
-        textPaint.textSize = 32f
+        // 블록 전체 높이 = 세 줄 높이 + 줄 간 여백 (showStats=false면 기록 줄/여백 제외).
+        val blockHeight = nicknameSize + gapAfterNickname + taglineSize +
+            (if (layers.showStats) gapAfterTagline + statsSize else 0f)
+        // 카드 세로 중앙(0.5H)을 기준으로 블록을 수직 중앙 정렬한다.
+        val blockTop = CARD_HEIGHT * 0.5f - blockHeight / 2f
+
+        // 정렬에 따라 앵커 X와 Paint.Align 결정. RIGHT는 우측 여백, LEFT는 좌측 여백 기준.
+        val margin = 64f
+        val isRight = layers.textAlign != "LEFT"
+        val textX = if (isRight) CARD_WIDTH - margin else margin
+        textPaint.textAlign = if (isRight) Paint.Align.RIGHT else Paint.Align.LEFT
+
+        val shadow = android.graphics.Color.argb(128, 0, 0, 0)
+
+        // 닉네임
+        var baseline = blockTop + nicknameSize
+        textPaint.textSize = nicknameSize
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.color = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.WHITE)
+        textPaint.setShadowLayer(4f, 2f, 2f, shadow)
+        canvas.drawText(layers.nickname, textX, baseline, textPaint)
+
+        // 소개
+        baseline += gapAfterNickname + taglineSize
+        textPaint.textSize = taglineSize
         textPaint.typeface = Typeface.DEFAULT
-        canvas.drawText(layers.tagline, textX, CARD_HEIGHT * 0.58f, textPaint)
+        textPaint.color = parseColorOrDefault(layers.taglineColor, android.graphics.Color.WHITE)
+        canvas.drawText(layers.tagline, textX, baseline, textPaint)
 
-        textPaint.textSize = 28f
-        textPaint.color = Color(0xFF00F5FF).toArgb()
-        canvas.drawText(layers.stats, textX, CARD_HEIGHT * 0.72f, textPaint)
+        // 기록 (표시 옵션 ON일 때만)
+        if (layers.showStats) {
+            baseline += gapAfterTagline + statsSize
+            textPaint.textSize = statsSize
+            textPaint.color = parseColorOrDefault(layers.statsColor, Color(0xFF00F5FF).toArgb())
+            canvas.drawText(layers.stats, textX, baseline, textPaint)
+        }
 
         textPaint.textSize = 20f
         textPaint.color = Color(0xFF00A8B8).toArgb()
@@ -125,6 +172,19 @@ object ProfileCardRenderer {
 
         return bitmap
     }
+
+    /**
+     * "#RRGGBB" 문자열을 Color int로 파싱한다. 형식이 잘못됐으면 [fallback]을 반환한다.
+     *
+     * @param hex "#RRGGBB" 색상 문자열
+     * @param fallback 파싱 실패 시 사용할 기본 색상 int
+     */
+    private fun parseColorOrDefault(hex: String, fallback: Int): Int =
+        try {
+            android.graphics.Color.parseColor(hex)
+        } catch (e: IllegalArgumentException) {
+            fallback
+        }
 }
 
 /**

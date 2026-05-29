@@ -154,6 +154,69 @@ class ProfileEditorViewModelTest {
     }
 
     @Test
+    fun `text block fields default to spec defaults on fresh state`() = runTest(testDispatcher) {
+        val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
+        startCollect(vm)
+        advanceUntilIdle()
+
+        val s = vm.uiState.value
+        assertThat(s.textAlign).isEqualTo("RIGHT")
+        assertThat(s.textScaleStep).isEqualTo(3)
+        assertThat(s.showStats).isTrue()
+        assertThat(s.nicknameColor).isEqualTo("#FFFFFF")
+        assertThat(s.taglineColor).isEqualTo("#FFFFFF")
+        assertThat(s.statsColor).isEqualTo("#00F5FF")
+    }
+
+    @Test
+    fun `text block fields seeded from saved profile card`() = runTest(testDispatcher) {
+        appState.applyProfileCard(ProfileCard(
+            userId = "u1",
+            textAlign = "LEFT",
+            textScaleStep = 5,
+            showStats = false,
+            nicknameColor = "#FF0000",
+            taglineColor = "#00FF00",
+            statsColor = "#0000FF",
+        ))
+
+        val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
+        startCollect(vm)
+        advanceUntilIdle()
+
+        val s = vm.uiState.value
+        assertThat(s.textAlign).isEqualTo("LEFT")
+        assertThat(s.textScaleStep).isEqualTo(5)
+        assertThat(s.showStats).isFalse()
+        assertThat(s.nicknameColor).isEqualTo("#FF0000")
+        assertThat(s.taglineColor).isEqualTo("#00FF00")
+        assertThat(s.statsColor).isEqualTo("#0000FF")
+    }
+
+    @Test
+    fun `text block setters update uiState`() = runTest(testDispatcher) {
+        val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
+        startCollect(vm)
+        advanceUntilIdle()
+
+        vm.setTextAlign("LEFT")
+        vm.setTextScaleStep(4)
+        vm.setShowStats(false)
+        vm.setNicknameColor("#123456")
+        vm.setTaglineColor("#ABCDEF")
+        vm.setStatsColor("#FF0000")
+        advanceUntilIdle()
+
+        val s = vm.uiState.value
+        assertThat(s.textAlign).isEqualTo("LEFT")
+        assertThat(s.textScaleStep).isEqualTo(4)
+        assertThat(s.showStats).isFalse()
+        assertThat(s.nicknameColor).isEqualTo("#123456")
+        assertThat(s.taglineColor).isEqualTo("#ABCDEF")
+        assertThat(s.statsColor).isEqualTo("#FF0000")
+    }
+
+    @Test
     fun `statsText reflects month stats in Home format`() = runTest(testDispatcher) {
         coEvery { swimLogUseCase.getMonthStats(any(), any()) } returns SwimStats(1200, 3, 200)
 
