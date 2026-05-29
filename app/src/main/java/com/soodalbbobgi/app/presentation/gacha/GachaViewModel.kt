@@ -49,7 +49,6 @@ data class GachaUiState(
     val phase: GachaPhase = GachaPhase.Idle,
     val offset: Float = 0f,
     val results: List<GachaResultItem> = emptyList(),
-    val pityRemaining: Int = 90,
 )
 
 val GACHA_BOXES = listOf(
@@ -70,7 +69,7 @@ private const val SPIN_PAUSE_MS = 800L
 /**
  * 뽑기 화면 ViewModel.
  *
- * - currency/pity는 [AppState.currency]에서 관찰
+ * - currency는 [AppState.currency]에서 관찰
  * - 박스 목록은 [AppState.gachaBoxes]에서 관찰 (진입 시 [AppStateLoader.refreshGachaBoxes]로 새로고침)
  * - 뽑기 pull 결과는 [AppStateLoader.applyGachaResults]로 메모리에 즉시 반영
  */
@@ -98,7 +97,6 @@ class GachaViewModel @Inject constructor(
             phase = local.phase,
             offset = local.offset,
             results = local.results,
-            pityRemaining = 90 - currency.pityCounter,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GachaUiState())
 

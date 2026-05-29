@@ -43,7 +43,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.ChipColor
-import com.soodalbbobgi.app.core.ui.GlassPanel
 import com.soodalbbobgi.app.core.ui.SoodalChip
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
@@ -77,23 +76,6 @@ fun GachaScreen(
                         Text("뽑기", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
                     }
                     SoodalChip(state.shells.toString(), color = ChipColor.Gold, iconType = SoodalIcons.Shell, label = "조개")
-                }
-
-                Spacer(Modifier.height(20.dp))
-
-                // -- Pity Bar --
-                GlassPanel(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                    Column(Modifier.fillMaxWidth()) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("SSR 천장까지", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary, letterSpacing = 0.4.sp)
-                            Text("${state.pityRemaining}회 남음", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentGold)
-                        }
-                        Spacer(Modifier.height(6.dp))
-                        Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(colors.surface2.copy(alpha = 0.3f))) {
-                            val progress = 1f - (state.pityRemaining / 90f)
-                            Box(Modifier.fillMaxHeight().fillMaxWidth(progress.coerceIn(0f, 1f)).clip(RoundedCornerShape(2.dp)).background(colors.gradGold))
-                        }
-                    }
                 }
 
                 Spacer(Modifier.weight(1f))
