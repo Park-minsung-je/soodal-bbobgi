@@ -10,6 +10,7 @@ import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.data.remote.dto.ShopPurchaseRequest
 import com.soodalbbobgi.app.domain.model.Grade
 import com.soodalbbobgi.app.domain.model.ShopListingDomain
+import com.soodalbbobgi.app.presentation.gacha.GachaResultItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -47,6 +49,8 @@ data class ShopUiState(
     val confirmItem: ShopItem? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
+    /** 박스 구매 결과 — 비어있지 않으면 결과 오버레이를 띄운다. */
+    val boxResults: List<GachaResultItem> = emptyList(),
 )
 
 @HiltViewModel
@@ -57,19 +61,26 @@ class ShopViewModel @Inject constructor(
     private val soodalApi: SoodalApi,
 ) : ViewModel() {
 
-    private val _confirmItem = MutableStateFlow<ShopItem?>(null)
-    private val _loading = MutableStateFlow(false)
-    private val _error = MutableStateFlow<String?>(null)
+    /** confirm/loading/error/박스결과를 한 묶음으로 관리 (combine 인자 수 제한 회피). */
+    private data class LocalShopState(
+        val confirmItem: ShopItem? = null,
+        val isLoading: Boolean = false,
+        val error: String? = null,
+        val boxResults: List<GachaResultItem> = emptyList(),
+    )
+
+    private val _local = MutableStateFlow(LocalShopState())
 
     val uiState: StateFlow<ShopUiState> = combine(
-        appState.currency, appState.shopListings, _confirmItem, _loading, _error,
-    ) { currency, listings, confirm, loading, error ->
+        appState.currency, appState.shopListings, _local,
+    ) { currency, listings, local ->
         ShopUiState(
             pearls = currency.pearlBalance,
             listings = listings.map { it.toUi() },
-            confirmItem = confirm,
-            isLoading = loading,
-            error = error,
+            confirmItem = local.confirmItem,
+            isLoading = local.isLoading,
+            error = local.error,
+            boxResults = local.boxResults,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ShopUiState())
 
@@ -78,31 +89,33 @@ class ShopViewModel @Inject constructor(
     /** 진열 + 잔액 새로고침. */
     fun refresh() {
         viewModelScope.launch {
-            _loading.value = true
+            _local.update { it.copy(isLoading = true) }
             try {
                 appStateLoader.refreshCurrency()
                 appStateLoader.refreshShop()
             } catch (e: Exception) {
                 Timber.w(e, "상점 새로고침 실패")
-                _error.value = "상점을 불러오지 못했어요"
+                _local.update { it.copy(error = "상점을 불러오지 못했어요") }
             } finally {
-                _loading.value = false
+                _local.update { it.copy(isLoading = false) }
             }
         }
     }
 
     fun selectForPurchase(item: ShopItem) {
-        if (item.canBuy) _confirmItem.value = item
+        if (item.canBuy) _local.update { it.copy(confirmItem = item) }
     }
 
-    fun cancelPurchase() { _confirmItem.value = null }
-    fun clearError() { _error.value = null }
+    fun cancelPurchase() { _local.update { it.copy(confirmItem = null) } }
+    fun clearError() { _local.update { it.copy(error = null) } }
+
+    /** 박스 구매 결과 오버레이 닫기. */
+    fun dismissBoxResults() { _local.update { it.copy(boxResults = emptyList()) } }
 
     fun confirmPurchase() {
-        val item = _confirmItem.value ?: return
+        val item = _local.value.confirmItem ?: return
         if (uiState.value.pearls < item.price) {
-            _error.value = "진주가 부족해요"
-            _confirmItem.value = null
+            _local.update { it.copy(error = "진주가 부족해요", confirmItem = null) }
             return
         }
         viewModelScope.launch {
@@ -111,19 +124,31 @@ class ShopViewModel @Inject constructor(
                 if (res.success && res.data != null) {
                     // currency 즉시 갱신
                     appStateLoader.applyServerCurrency(res.data.currency)
-                    // box 구매면 결과 아이템들도 인벤토리에 반영
-                    res.data.acquiredItems?.let { acquired ->
+                    // box 구매면 결과 아이템들도 인벤토리에 반영 + 결과 오버레이 표시
+                    val acquired = res.data.acquiredItems
+                    if (!acquired.isNullOrEmpty()) {
                         appStateLoader.applyGachaResults(acquired, res.data.currency)
+                        val results = acquired.map { r ->
+                            GachaResultItem(
+                                name = r.item.name,
+                                grade = Grade.fromString(r.item.grade),
+                                kind = r.item.category ?: "",
+                                isNew = r.wasNew,
+                                pearlsEarned = r.pearlsEarned,
+                                imageAsset = r.item.imageAsset,
+                            )
+                        }
+                        _local.update { it.copy(boxResults = results, confirmItem = null) }
+                    } else {
+                        _local.update { it.copy(confirmItem = null) }
                     }
                     refresh()
                 } else {
-                    _error.value = res.error?.message ?: "구매에 실패했어요"
+                    _local.update { it.copy(error = res.error?.message ?: "구매에 실패했어요", confirmItem = null) }
                 }
             } catch (e: Exception) {
                 Timber.w(e, "상점 구매 실패")
-                _error.value = "구매에 실패했어요"
-            } finally {
-                _confirmItem.value = null
+                _local.update { it.copy(error = "구매에 실패했어요", confirmItem = null) }
             }
         }
     }

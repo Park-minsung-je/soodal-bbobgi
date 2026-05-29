@@ -45,6 +45,7 @@ import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.SoodalTabBar
 import com.soodalbbobgi.app.domain.model.Grade
+import com.soodalbbobgi.app.presentation.gacha.GachaResultOverlay
 
 @Composable
 fun ShopScreen(
@@ -181,7 +182,36 @@ fun ShopScreen(
                 onConfirm = { viewModel.confirmPurchase() },
             )
         }
+
+        // -- Box Purchase Result Overlay (뽑기 결과 모달 재사용) --
+        if (state.boxResults.isNotEmpty()) {
+            GachaResultOverlay(
+                results = state.boxResults,
+                onClose = { viewModel.dismissBoxResults() },
+            )
+        }
     }
+}
+
+/**
+ * 구매 한도 라벨. 기간 한도가 있으면 "오늘 0/1"처럼, 1인 한도가 있으면 "구매 0/1"처럼 표시.
+ *
+ * @return 표시할 라벨, 한도가 없으면 null
+ */
+private fun limitLabel(item: ShopItem): String? {
+    item.maxPerPeriod?.let { max ->
+        val periodName = when (item.periodType) {
+            "daily" -> "오늘"
+            "weekly" -> "이번 주"
+            "monthly" -> "이번 달"
+            else -> "기간"
+        }
+        return "$periodName ${item.purchasedThisPeriod}/$max"
+    }
+    item.maxPerUser?.let { max ->
+        return "구매 ${item.purchasedTotal}/$max"
+    }
+    return null
 }
 
 @Composable
@@ -249,6 +279,15 @@ private fun BoxGridItem(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.accentPurple,
+                )
+            }
+            limitLabel(item)?.let { label ->
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = label,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (item.canBuy) colors.textTertiary else colors.warn,
                 )
             }
         }
@@ -329,6 +368,15 @@ private fun DirectItemCard(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = colors.accentPurple,
+                    )
+                }
+                limitLabel(item)?.let { label ->
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = label,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textTertiary,
                     )
                 }
             }
