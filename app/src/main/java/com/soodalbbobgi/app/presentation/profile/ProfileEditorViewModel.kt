@@ -214,6 +214,12 @@ class ProfileEditorViewModel @Inject constructor(
                     characterScale = card.characterScale,
                     customText = card.customText.ifEmpty { null },
                     textStyle = card.textStyle,
+                    textAlign = card.textAlign,
+                    textScaleStep = card.textScaleStep,
+                    showStats = card.showStats,
+                    nicknameColor = card.nicknameColor,
+                    taglineColor = card.taglineColor,
+                    statsColor = card.statsColor,
                 ))
                 _editState.value = _editState.value.copy(isSaving = false, saveSuccess = true)
             } catch (e: Exception) {

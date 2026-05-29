@@ -12,6 +12,12 @@ data class ServerProfileCard(
     val characterScale: Float = 0.70f,
     val customText: String? = null,
     val textStyle: String = "REGULAR",
+    val textAlign: String = "RIGHT",
+    val textScaleStep: Int = 3,
+    val showStats: Boolean = true,
+    val nicknameColor: String = "#FFFFFF",
+    val taglineColor: String = "#FFFFFF",
+    val statsColor: String = "#00F5FF",
     val lastEditedAt: Long? = null,
 )
 

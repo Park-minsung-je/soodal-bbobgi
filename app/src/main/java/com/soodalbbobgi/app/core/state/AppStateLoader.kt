@@ -271,4 +271,10 @@ private fun ServerProfileCard.toDomain(userId: String) = ProfileCard(
     characterScale = characterScale,
     customText = customText ?: "",
     textStyle = textStyle,
+    textAlign = textAlign,
+    textScaleStep = textScaleStep,
+    showStats = showStats,
+    nicknameColor = nicknameColor,
+    taglineColor = taglineColor,
+    statsColor = statsColor,
 )
