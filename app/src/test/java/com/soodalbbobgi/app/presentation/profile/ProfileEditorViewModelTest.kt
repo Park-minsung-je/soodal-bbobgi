@@ -10,6 +10,8 @@ import com.soodalbbobgi.app.domain.model.Grade
 import com.soodalbbobgi.app.domain.model.InventoryItem
 import com.soodalbbobgi.app.domain.model.Item
 import com.soodalbbobgi.app.domain.model.ProfileCard
+import com.soodalbbobgi.app.domain.model.SwimStats
+import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -37,6 +39,7 @@ class ProfileEditorViewModelTest {
     private lateinit var appState: AppState
     private lateinit var loader: AppStateLoader
     private lateinit var session: UserSession
+    private lateinit var swimLogUseCase: SwimLogUseCase
 
     @Before
     fun setup() {
@@ -48,6 +51,8 @@ class ProfileEditorViewModelTest {
         appState = AppState()
         session = UserSession().apply { setAuthenticatedUser("u1") }
         loader = AppStateLoader(api, appState, session)
+        swimLogUseCase = mockk(relaxed = true)
+        coEvery { swimLogUseCase.getMonthStats(any(), any()) } returns SwimStats(0, 0, 0)
     }
 
     @After fun tearDown() { Dispatchers.resetMain() }
@@ -69,7 +74,7 @@ class ProfileEditorViewModelTest {
             item(301L, "야자수 테두리", "frame"),
         ))
 
-        val vm = ProfileEditorViewModel(session, appState, loader, api)
+        val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
         startCollect(vm)
         advanceUntilIdle()
 
@@ -88,7 +93,7 @@ class ProfileEditorViewModelTest {
             characterX = 0.3f, characterY = 0.2f, characterScale = 0.8f,
         ))
 
-        val vm = ProfileEditorViewModel(session, appState, loader, api)
+        val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
         startCollect(vm)
         advanceUntilIdle()
 
@@ -105,13 +110,24 @@ class ProfileEditorViewModelTest {
         appState.applyInventory(listOf(inv(1L, 101L, "char"), inv(2L, 102L, "char")))
         appState.mergeItems(listOf(item(101L, "A", "char"), item(102L, "B", "char")))
 
-        val vm = ProfileEditorViewModel(session, appState, loader, api)
+        val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
         startCollect(vm)
         advanceUntilIdle()
 
         vm.selectItem(EditorCategory.Character, 2L)
         advanceUntilIdle()
         assertThat(vm.uiState.value.selectedCharInventoryId).isEqualTo(2L)
+    }
+
+    @Test
+    fun `statsText reflects month stats in Home format`() = runTest(testDispatcher) {
+        coEvery { swimLogUseCase.getMonthStats(any(), any()) } returns SwimStats(1200, 3, 200)
+
+        val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
+        startCollect(vm)
+        advanceUntilIdle()
+
+        assertThat(vm.uiState.value.statsText).isEqualTo("1200m · 3회")
     }
 
     private fun inv(id: Long, itemId: Long, category: String) = InventoryItem(

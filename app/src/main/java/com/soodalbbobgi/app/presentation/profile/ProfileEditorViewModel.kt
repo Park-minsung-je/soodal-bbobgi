@@ -10,6 +10,7 @@ import com.soodalbbobgi.app.data.remote.dto.ServerProfileCard
 import com.soodalbbobgi.app.domain.model.Grade
 import com.soodalbbobgi.app.domain.model.InventoryItem
 import com.soodalbbobgi.app.domain.model.ProfileCard
+import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.time.YearMonth
 import javax.inject.Inject
 
 /** 에디터에서 표시할 아이템 단위 (인벤토리 + items 마스터 메타 결합) */
@@ -57,6 +59,8 @@ data class ProfileEditorUiState(
     val nickname: String = "",
     /** [customText]가 비었을 때 카드에 표시할 기본 한 줄 소개 (Home과 동일 문구). */
     val taglineFallback: String = "수영을 사랑하는 수달",
+    /** Live Preview 카드 통계 문구 — 이번 달 누적 거리·횟수 (Home과 동일 포맷). */
+    val statsText: String = "",
 )
 
 /**
@@ -72,6 +76,7 @@ class ProfileEditorViewModel @Inject constructor(
     private val appState: AppState,
     private val appStateLoader: AppStateLoader,
     private val soodalApi: SoodalApi,
+    private val swimLogUseCase: SwimLogUseCase,
 ) : ViewModel() {
 
     private val _editState = MutableStateFlow(EditState())
@@ -119,6 +124,9 @@ class ProfileEditorViewModel @Inject constructor(
             initialized
         } else edit
 
+        // 이번 달 누적 통계 — Home과 동일 포맷으로 Live Preview 카드에 노출.
+        val stats = swimLogUseCase.getMonthStats(monthStart(), monthEnd())
+
         ProfileEditorUiState(
             activeTab = state.activeTab,
             bgItems = inventory.toUiList("bg", itemsMap, state.selectedBgInventoryId),
@@ -136,8 +144,15 @@ class ProfileEditorViewModel @Inject constructor(
             saveSuccess = state.saveSuccess,
             saveError = state.saveError,
             nickname = profile?.nickname ?: "",
+            statsText = "${stats.totalDistanceMeters}m · ${stats.swimCount}회",
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProfileEditorUiState())
+
+    /** 이번 달 1일 (yyyy-MM-dd). */
+    private fun monthStart(): String = YearMonth.now().atDay(1).toString()
+
+    /** 이번 달 말일 (yyyy-MM-dd). */
+    private fun monthEnd(): String = YearMonth.now().atEndOfMonth().toString()
 
     init {
         viewModelScope.launch {
