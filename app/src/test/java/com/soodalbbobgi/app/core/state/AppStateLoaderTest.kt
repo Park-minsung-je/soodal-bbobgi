@@ -18,6 +18,7 @@ import com.soodalbbobgi.app.data.remote.dto.ShopListingsData
 import com.soodalbbobgi.app.data.remote.dto.UserData
 import com.soodalbbobgi.app.domain.model.Grade
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
@@ -148,6 +149,30 @@ class AppStateLoaderTest {
         assertThat(state.profile.value?.nickname).isEqualTo("Updated")
         assertThat(state.profile.value?.gender).isEqualTo("female")
         assertThat(state.currency.value.shellBalance).isEqualTo(7)
+    }
+
+    @Test
+    fun `ensureHydrated loads when profile is null (process-death recovery)`() = runTest {
+        coEvery { api.getMe() } returns ApiResponse(true, sampleUser(), null)
+        coEvery { api.getInventory(null) } returns ApiResponse(true, InventoryData(listOf(sampleInventory())), null)
+        coEvery { api.getGachaBoxes() } returns ApiResponse(true, GachaBoxesData(listOf(sampleBox())), null)
+        coEvery { api.getProfileCard() } returns ApiResponse(true, sampleProfileCard(), null)
+
+        loader.ensureHydrated()
+
+        assertThat(state.profile.value?.nickname).isEqualTo("Soodal")
+        assertThat(state.profileCard.value?.customText).isEqualTo("Hi")
+    }
+
+    @Test
+    fun `ensureHydrated is a no-op when profile already present`() = runTest {
+        state.applyProfile(com.soodalbbobgi.app.domain.model.UserProfile("u1", "Existing", null, null, "kakao"))
+
+        loader.ensureHydrated()
+
+        // 이미 채워져 있으면 서버를 다시 부르지 않는다
+        coVerify(exactly = 0) { api.getMe() }
+        assertThat(state.profile.value?.nickname).isEqualTo("Existing")
     }
 
     @Test

@@ -22,6 +22,8 @@ import com.soodalbbobgi.app.domain.model.ShopProduct
 import com.soodalbbobgi.app.domain.model.UserProfile
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -43,6 +45,26 @@ class AppStateLoader @Inject constructor(
     private val appState: AppState,
     private val userSession: UserSession,
 ) {
+
+    // ensureHydrated의 동시 호출 직렬화 (탭 진입이 겹쳐도 중복 loadAll 방지)
+    private val hydrationMutex = Mutex()
+
+    /**
+     * 메모리 상태가 비어 있으면(=프로세스 사망 후 Splash를 거치지 않고 복원된 경우)
+     * 서버에서 전체 상태를 다시 채운다. 이미 채워져 있으면 아무것도 하지 않는다.
+     *
+     * 토큰은 EncryptedSharedPreferences에 영속되므로 프로세스가 죽었다 살아나도
+     * `getMe()`로 재인증·재수화가 가능하다. 정상 콜드스타트(Splash→loadAll→Home)에선
+     * 이미 profile이 채워져 있어 no-op이다.
+     */
+    suspend fun ensureHydrated() {
+        if (appState.profile.value != null) return
+        hydrationMutex.withLock {
+            // 락 획득 사이에 다른 호출이 먼저 채웠을 수 있으니 재확인
+            if (appState.profile.value != null) return
+            loadAll()
+        }
+    }
 
     /** Splash에서 호출. 로그인된 사용자에 대해 전체 메모리 상태를 채운다. */
     suspend fun loadAll(): Result<Unit> = runCatching {
