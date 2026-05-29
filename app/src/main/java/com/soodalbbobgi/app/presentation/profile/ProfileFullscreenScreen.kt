@@ -73,6 +73,12 @@ fun ProfileFullscreenScreen(
         charX = cardState.charX,
         charY = cardState.charY,
         charScale = cardState.charScale,
+        textAlign = cardState.textAlign,
+        textScaleStep = cardState.textScaleStep,
+        showStats = cardState.showStats,
+        nicknameColor = cardState.nicknameColor,
+        taglineColor = cardState.taglineColor,
+        statsColor = cardState.statsColor,
     )
     val bitmap = remember(layers) { ProfileCardRenderer.render(layers) }
 

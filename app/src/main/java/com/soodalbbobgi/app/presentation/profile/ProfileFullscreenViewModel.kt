@@ -49,6 +49,18 @@ data class FullscreenCardState(
     val charX: Float = 0.5f,
     val charY: Float = 0.5f,
     val charScale: Float = 1.0f,
+    /** 텍스트 블록 가로 정렬 ("LEFT" | "RIGHT"). */
+    val textAlign: String = "RIGHT",
+    /** 텍스트 블록 크기 단계 (1~5). */
+    val textScaleStep: Int = 3,
+    /** 기록 줄 표시 여부. */
+    val showStats: Boolean = true,
+    /** 닉네임 색상 ("#RRGGBB"). */
+    val nicknameColor: String = "#FFFFFF",
+    /** 소개 줄 색상 ("#RRGGBB"). */
+    val taglineColor: String = "#FFFFFF",
+    /** 기록 줄 색상 ("#RRGGBB"). */
+    val statsColor: String = "#00F5FF",
 )
 
 /**
@@ -87,6 +99,12 @@ class ProfileFullscreenViewModel @Inject constructor(
             charX = card?.characterX ?: 0.5f,
             charY = card?.characterY ?: 0.5f,
             charScale = card?.characterScale ?: 1.0f,
+            textAlign = card?.textAlign ?: "RIGHT",
+            textScaleStep = card?.textScaleStep ?: 3,
+            showStats = card?.showStats ?: true,
+            nicknameColor = card?.nicknameColor ?: "#FFFFFF",
+            taglineColor = card?.taglineColor ?: "#FFFFFF",
+            statsColor = card?.statsColor ?: "#00F5FF",
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FullscreenCardState())
 

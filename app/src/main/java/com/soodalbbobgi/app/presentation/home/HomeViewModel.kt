@@ -63,6 +63,18 @@ data class HomeUiState(
     val cardCharY: Float = 0.5f,
     /** 캐릭터 크기 배율 (0.3..1). */
     val cardCharScale: Float = 1.0f,
+    /** 텍스트 블록 가로 정렬 ("LEFT" | "RIGHT"). */
+    val cardTextAlign: String = "RIGHT",
+    /** 텍스트 블록 크기 단계 (1~5). */
+    val cardTextScaleStep: Int = 3,
+    /** 기록 줄 표시 여부. */
+    val cardShowStats: Boolean = true,
+    /** 닉네임 색상 ("#RRGGBB"). */
+    val cardNicknameColor: String = "#FFFFFF",
+    /** 소개 줄 색상 ("#RRGGBB"). */
+    val cardTaglineColor: String = "#FFFFFF",
+    /** 기록 줄 색상 ("#RRGGBB"). */
+    val cardStatsColor: String = "#00F5FF",
 )
 
 /**
@@ -155,6 +167,12 @@ class HomeViewModel @Inject constructor(
             cardCharX = profileCard?.characterX ?: 0.5f,
             cardCharY = profileCard?.characterY ?: 0.5f,
             cardCharScale = profileCard?.characterScale ?: 1.0f,
+            cardTextAlign = profileCard?.textAlign ?: "RIGHT",
+            cardTextScaleStep = profileCard?.textScaleStep ?: 3,
+            cardShowStats = profileCard?.showStats ?: true,
+            cardNicknameColor = profileCard?.nicknameColor ?: "#FFFFFF",
+            cardTaglineColor = profileCard?.taglineColor ?: "#FFFFFF",
+            cardStatsColor = profileCard?.statsColor ?: "#00F5FF",
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 
