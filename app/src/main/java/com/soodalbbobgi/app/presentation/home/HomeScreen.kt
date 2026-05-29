@@ -81,8 +81,10 @@ fun HomeScreen(
                 .padding(horizontal = spacing.s4, vertical = spacing.s4),
         ) {
             // ── Header ──────────────────────────────────────────
+            // 프로필편집 화면 헤더와 같은 고정 높이(52dp) — 두 화면의 카드 세로 위치를 일치시켜
+            // 홈↔편집 전환 시 카드가 제자리에 머무는 것처럼 보이게 한다.
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top,
             ) {

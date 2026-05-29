@@ -92,8 +92,9 @@ fun ProfileEditorScreen(
                 .padding(horizontal = spacing.s4, vertical = spacing.s4),
         ) {
             // -- Header --
+            // 홈 화면 헤더와 같은 고정 높이(52dp) — 두 화면의 카드 세로 위치를 일치시킨다.
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
