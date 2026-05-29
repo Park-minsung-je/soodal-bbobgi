@@ -30,7 +30,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -157,7 +160,10 @@ fun ProfileEditorScreen(
                         charX = state.charX,
                         charY = state.charY,
                         charScale = state.charScale,
+                        textStyle = state.textStyle,
                         textAlign = state.textAlign,
+                        textX = state.textX,
+                        textY = state.textY,
                         textScaleStep = state.textScaleStep,
                         showStats = state.showStats,
                         nicknameColor = state.nicknameColor,
@@ -276,14 +282,26 @@ fun ProfileEditorScreen(
                     onClickNone = { viewModel.selectItem(EditorCategory.Frame, null) },
                 )
                 EditorCategory.Text -> {
+                    // 한글 IME 조합 중 글자 누락 방지: TextField의 value를 ViewModel StateFlow에
+                    // 직접 묶으면 onValueChange→VM→flow 왕복 사이 IME 조합이 끊겨 글자가 사라진다.
+                    // 로컬 상태를 즉시 갱신해 조합을 끊지 않고, 같은 콜백에서 VM에도 밀어넣어
+                    // Live Preview는 동기화하되 입력 표시는 로컬 값으로 유지한다.
+                    var localText by rememberSaveable { mutableStateOf<String?>(null) }
+                    // 저장된 카드가 로드되면 로컬 값을 한 번만 시드한다 (사용자 입력 전).
+                    LaunchedEffect(state.customText) {
+                        if (localText == null) localText = state.customText
+                    }
                     SoodalTextField(
-                        value = state.customText,
-                        onValueChange = { viewModel.setCustomText(it) },
+                        value = localText ?: state.customText,
+                        onValueChange = {
+                            localText = it
+                            viewModel.setCustomText(it)
+                        },
                         placeholder = "카드 텍스트 입력 (최대 20자)",
                         maxLength = 20,
                     )
 
-                    // -- 정렬 (좌/우) --
+                    // -- 정렬 (줄 정렬: 좌/우) --
                     Spacer(Modifier.height(spacing.s3))
                     Text("정렬", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
                     Spacer(Modifier.height(spacing.s2))
@@ -296,6 +314,31 @@ fun ProfileEditorScreen(
                             )
                         }
                     }
+
+                    // -- 텍스트 위치 (블록 전체를 카드 위에서 이동) --
+                    Spacer(Modifier.height(spacing.s3))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("텍스트 위치", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+                        Text(
+                            "초기화 ↺",
+                            fontSize = 11.sp,
+                            color = colors.textTertiary,
+                            modifier = Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) {
+                                viewModel.setTextX(0.95f)
+                                viewModel.setTextY(0.5f)
+                            },
+                        )
+                    }
+                    Spacer(Modifier.height(spacing.s2))
+                    SliderRow("↔ 좌우", state.textX, 0f..1f) { viewModel.setTextX(it) }
+                    SliderRow("↕ 상하", state.textY, 0f..1f) { viewModel.setTextY(it) }
 
                     // -- 크기 (5단계) --
                     Spacer(Modifier.height(spacing.s3))

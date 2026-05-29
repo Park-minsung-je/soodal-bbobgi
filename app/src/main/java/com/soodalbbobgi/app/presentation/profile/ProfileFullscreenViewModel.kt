@@ -49,8 +49,14 @@ data class FullscreenCardState(
     val charX: Float = 0.5f,
     val charY: Float = 0.5f,
     val charScale: Float = 1.0f,
-    /** 텍스트 블록 가로 정렬 ("LEFT" | "RIGHT"). */
+    /** 텍스트 글꼴 스타일 ("REGULAR" | "BOLD" | "ITALIC"). */
+    val textStyle: String = "REGULAR",
+    /** 텍스트 블록 내부 줄 정렬 ("LEFT" | "RIGHT"). */
     val textAlign: String = "RIGHT",
+    /** 텍스트 블록 가로 위치 (0~1). */
+    val textX: Float = 0.95f,
+    /** 텍스트 블록 세로 중심 위치 (0~1). */
+    val textY: Float = 0.5f,
     /** 텍스트 블록 크기 단계 (1~5). */
     val textScaleStep: Int = 3,
     /** 기록 줄 표시 여부. */
@@ -99,7 +105,10 @@ class ProfileFullscreenViewModel @Inject constructor(
             charX = card?.characterX ?: 0.5f,
             charY = card?.characterY ?: 0.5f,
             charScale = card?.characterScale ?: 1.0f,
+            textStyle = card?.textStyle ?: "REGULAR",
             textAlign = card?.textAlign ?: "RIGHT",
+            textX = card?.textX ?: 0.95f,
+            textY = card?.textY ?: 0.5f,
             textScaleStep = card?.textScaleStep ?: 3,
             showStats = card?.showStats ?: true,
             nicknameColor = card?.nicknameColor ?: "#FFFFFF",
