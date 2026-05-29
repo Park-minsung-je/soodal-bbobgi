@@ -55,10 +55,18 @@ fun ProfileFullscreenScreen(
     val context = LocalContext.current
     val config = LocalConfiguration.current
 
-    // AppState에서 가져온 실제 카드 데이터로 layers를 구성. bg/char/frame Bitmap은
-    // ProfileCardComposite 내부에서 비동기 로딩되므로 여기서는 null로 두고 텍스트/
-    // 위치 등 메타만 채운다. 저장/공유용 Bitmap은 동일 layers로 별도 렌더.
+    // bg/char/frame Bitmap을 여기서 직접 비동기 로딩해 layers에 주입한다. 저장/공유용
+    // Bitmap(render)과 화면 표시(ProfileCardComposite)가 동일한 layers를 공유하므로,
+    // 저장/공유 PNG에도 배경/캐릭터/테두리 이미지가 그대로 합성된다. CardLayers는 data
+    // class라 Bitmap 로딩 완료 시 layers equality가 바뀌어 remove/Composite 모두 재렌더된다.
+    val bgBitmap = rememberAssetBitmap(cardState.bgAsset)
+    val charBitmap = rememberAssetBitmap(cardState.charAsset)
+    val frameBitmap = rememberAssetBitmap(cardState.frameAsset)
+
     val layers = CardLayers(
+        bgBitmap = bgBitmap,
+        charBitmap = charBitmap,
+        frameBitmap = frameBitmap,
         nickname = cardState.nickname,
         tagline = cardState.tagline,
         stats = cardState.statsText,
@@ -100,11 +108,10 @@ fun ProfileFullscreenScreen(
                 .padding(16.dp),
             contentAlignment = Alignment.Center,
         ) {
+            // layers에 이미 Bitmap을 주입했으므로 asset 경로는 넘기지 않는다(중복 로딩 방지).
+            // Composite는 null 경로일 때 layers의 Bitmap을 그대로 사용한다.
             ProfileCardComposite(
                 layers = layers,
-                bgAsset = cardState.bgAsset,
-                charAsset = cardState.charAsset,
-                frameAsset = cardState.frameAsset,
                 modifier = Modifier
                     .fillMaxWidth()
                     .graphicsLayer {
