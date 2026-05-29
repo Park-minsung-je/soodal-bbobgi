@@ -383,7 +383,15 @@ private fun RecentItemCard(item: RecentItem) {
                 .background(bgColor),
             contentAlignment = Alignment.Center,
         ) {
-            SoodalIcon(icon = icon, tint = iconTint, size = 28.dp)
+            if (!item.imageAsset.isNullOrBlank()) {
+                com.soodalbbobgi.app.core.ui.AssetImage(
+                    imageAsset = item.imageAsset,
+                    contentDescription = item.name,
+                    modifier = Modifier.size(56.dp),
+                )
+            } else {
+                SoodalIcon(icon = icon, tint = iconTint, size = 28.dp)
+            }
         }
         Spacer(Modifier.height(4.dp))
         GradeBadge(grade = item.grade)
