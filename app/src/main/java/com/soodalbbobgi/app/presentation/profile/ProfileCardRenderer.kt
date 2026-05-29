@@ -120,8 +120,8 @@ object ProfileCardRenderer {
             typeface = Typeface.DEFAULT_BOLD
         }
 
-        // 블록 크기 단계(1~5) → 배율. 3이 기준(1.0).
-        val scaleMul = floatArrayOf(0.8f, 0.9f, 1.0f, 1.1f, 1.2f)[
+        // 블록 크기 단계(1~5) → 배율. 3이 기준(1.2).
+        val scaleMul = floatArrayOf(0.8f, 1.0f, 1.2f, 1.5f, 1.8f)[
             (layers.textScaleStep - 1).coerceIn(0, 4)
         ]
         val nicknameSize = 72f * scaleMul
