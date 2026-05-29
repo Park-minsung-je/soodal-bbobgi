@@ -217,6 +217,9 @@ fun ProfileEditorScreen(
                     items = state.bgItems,
                     tabName = "배경",
                     onClick = { viewModel.selectItem(EditorCategory.Background, it) },
+                    showNoneOption = true,
+                    isNoneSelected = state.selectedBgInventoryId == null,
+                    onClickNone = { viewModel.selectItem(EditorCategory.Background, null) },
                 )
                 EditorCategory.Character -> {
                     ItemGrid(
@@ -244,9 +247,9 @@ fun ProfileEditorScreen(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                             ) {
-                                viewModel.setCharX(0.16f)
-                                viewModel.setCharY(0.06f)
-                                viewModel.setCharScale(0.70f)
+                                viewModel.setCharX(0.5f)
+                                viewModel.setCharY(0.5f)
+                                viewModel.setCharScale(1.0f)
                             },
                         )
                     }
@@ -259,6 +262,9 @@ fun ProfileEditorScreen(
                     items = state.frameItems,
                     tabName = "테두리",
                     onClick = { viewModel.selectItem(EditorCategory.Frame, it) },
+                    showNoneOption = true,
+                    isNoneSelected = state.selectedFrameInventoryId == null,
+                    onClickNone = { viewModel.selectItem(EditorCategory.Frame, null) },
                 )
                 EditorCategory.Text -> {
                     SoodalTextField(
@@ -349,16 +355,26 @@ fun ProfileEditorScreen(
     }
 }
 
+/**
+ * 카테고리별 보유 아이템 4열 그리드.
+ *
+ * @param showNoneOption true면 그리드 맨 앞에 "선택안함" 칩을 추가한다 (배경/테두리 전용).
+ * @param isNoneSelected "선택안함" 칩의 선택 표시 여부 (해당 슬롯이 비어 있을 때 true).
+ * @param onClickNone "선택안함" 칩 클릭 콜백.
+ */
 @Composable
 private fun ItemGrid(
     items: List<EditorItemUi>,
     tabName: String,
     onClick: (Long) -> Unit,
+    showNoneOption: Boolean = false,
+    isNoneSelected: Boolean = false,
+    onClickNone: () -> Unit = {},
 ) {
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
 
-    if (items.isEmpty()) {
+    if (items.isEmpty() && !showNoneOption) {
         Box(
             modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
             contentAlignment = Alignment.Center,
@@ -373,24 +389,81 @@ private fun ItemGrid(
         return
     }
 
-    val rows = items.chunked(4)
-    rows.forEachIndexed { rowIndex, rowItems ->
+    // "선택안함"은 항상 첫 셀로 고정되도록 일반 아이템과 함께 슬롯 단위로 청크한다.
+    val cells: List<@Composable (Modifier) -> Unit> = buildList {
+        if (showNoneOption) add { m ->
+            NoneGridCell(isSelected = isNoneSelected, onClick = onClickNone, modifier = m)
+        }
+        items.forEach { item ->
+            add { m -> ItemGridCell(item = item, onClick = { onClick(item.inventoryId) }, modifier = m) }
+        }
+    }
+
+    val rows = cells.chunked(4)
+    rows.forEachIndexed { rowIndex, rowCells ->
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(spacing.s2),
         ) {
-            rowItems.forEach { item ->
-                ItemGridCell(
-                    item = item,
-                    onClick = { onClick(item.inventoryId) },
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            repeat(4 - rowItems.size) {
+            rowCells.forEach { cell -> cell(Modifier.weight(1f)) }
+            repeat(4 - rowCells.size) {
                 Spacer(Modifier.weight(1f))
             }
         }
         if (rowIndex < rows.size - 1) Spacer(Modifier.height(spacing.s2))
+    }
+}
+
+/**
+ * 슬롯을 비우는 "선택안함" 그리드 칩. 일반 셀과 동일한 틀이지만 X 아이콘으로 구분된다.
+ */
+@Composable
+private fun NoneGridCell(
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = SoodalDesign.colors
+    val borderColor = if (isSelected) colors.accentCyan else colors.cardBorder
+    val borderWidth = if (isSelected) 2.dp else 1.dp
+
+    Box(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(SoodalShape.md)
+                .background(colors.cardBg)
+                .border(borderWidth, borderColor, SoodalShape.md)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                )
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(SoodalShape.sm)
+                    .background(colors.surface2),
+                contentAlignment = Alignment.Center,
+            ) {
+                SoodalIcon(icon = SoodalIcons.Close, tint = colors.textTertiary, size = 20.dp)
+            }
+            Spacer(Modifier.height(2.dp))
+            // GradeBadge와 높이를 맞추기 위한 빈 자리
+            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "선택안함",
+                fontSize = 10.sp,
+                color = colors.textSecondary,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

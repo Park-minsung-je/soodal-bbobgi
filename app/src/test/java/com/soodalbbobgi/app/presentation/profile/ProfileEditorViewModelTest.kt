@@ -106,6 +106,18 @@ class ProfileEditorViewModelTest {
     }
 
     @Test
+    fun `fresh state defaults to centered character at full scale`() = runTest(testDispatcher) {
+        val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
+        startCollect(vm)
+        advanceUntilIdle()
+
+        val s = vm.uiState.value
+        assertThat(s.charX).isEqualTo(0.5f)
+        assertThat(s.charY).isEqualTo(0.5f)
+        assertThat(s.charScale).isEqualTo(1.0f)
+    }
+
+    @Test
     fun `selectItem updates selected id for given category`() = runTest(testDispatcher) {
         appState.applyInventory(listOf(inv(1L, 101L, "char"), inv(2L, 102L, "char")))
         appState.mergeItems(listOf(item(101L, "A", "char"), item(102L, "B", "char")))
@@ -117,6 +129,28 @@ class ProfileEditorViewModelTest {
         vm.selectItem(EditorCategory.Character, 2L)
         advanceUntilIdle()
         assertThat(vm.uiState.value.selectedCharInventoryId).isEqualTo(2L)
+    }
+
+    @Test
+    fun `selectItem with null clears background and frame slots`() = runTest(testDispatcher) {
+        appState.applyProfileCard(ProfileCard(
+            userId = "u1",
+            backgroundItemId = 2L,
+            borderItemId = 3L,
+        ))
+
+        val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
+        startCollect(vm)
+        advanceUntilIdle()
+        assertThat(vm.uiState.value.selectedBgInventoryId).isEqualTo(2L)
+        assertThat(vm.uiState.value.selectedFrameInventoryId).isEqualTo(3L)
+
+        vm.selectItem(EditorCategory.Background, null)
+        vm.selectItem(EditorCategory.Frame, null)
+        advanceUntilIdle()
+
+        assertThat(vm.uiState.value.selectedBgInventoryId).isNull()
+        assertThat(vm.uiState.value.selectedFrameInventoryId).isNull()
     }
 
     @Test

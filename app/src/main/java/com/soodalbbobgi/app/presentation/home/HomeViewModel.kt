@@ -57,12 +57,12 @@ data class HomeUiState(
     val cardCharAsset: String? = null,
     /** 테두리 아이템 이미지 에셋 경로 (없으면 null). */
     val cardFrameAsset: String? = null,
-    /** 캐릭터 가로 위치 (0..1). */
-    val cardCharX: Float = 0.16f,
-    /** 캐릭터 세로 위치 (0..1). */
-    val cardCharY: Float = 0.06f,
+    /** 캐릭터 중심 가로 위치 (0..1). */
+    val cardCharX: Float = 0.5f,
+    /** 캐릭터 중심 세로 위치 (0..1). */
+    val cardCharY: Float = 0.5f,
     /** 캐릭터 크기 배율 (0.3..1). */
-    val cardCharScale: Float = 0.70f,
+    val cardCharScale: Float = 1.0f,
 )
 
 /**
@@ -152,9 +152,9 @@ class HomeViewModel @Inject constructor(
             cardBgAsset = resolveCardAsset(profileCard?.backgroundItemId, inventory, itemsMap),
             cardCharAsset = resolveCardAsset(profileCard?.characterItemId, inventory, itemsMap),
             cardFrameAsset = resolveCardAsset(profileCard?.borderItemId, inventory, itemsMap),
-            cardCharX = profileCard?.characterX ?: 0.16f,
-            cardCharY = profileCard?.characterY ?: 0.06f,
-            cardCharScale = profileCard?.characterScale ?: 0.70f,
+            cardCharX = profileCard?.characterX ?: 0.5f,
+            cardCharY = profileCard?.characterY ?: 0.5f,
+            cardCharScale = profileCard?.characterScale ?: 1.0f,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 

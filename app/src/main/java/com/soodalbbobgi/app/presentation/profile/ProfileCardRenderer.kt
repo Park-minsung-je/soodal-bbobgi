@@ -43,9 +43,9 @@ data class CardLayers(
     val nickname: String = "Soodal",
     val tagline: String = "수영을 사랑하는 수달",
     val stats: String = "12,540m · 89회",
-    val charX: Float = 0.2f,
-    val charY: Float = 0.3f,
-    val charScale: Float = 0.7f,
+    val charX: Float = 0.5f,
+    val charY: Float = 0.5f,
+    val charScale: Float = 1.0f,
 )
 
 /**
@@ -61,12 +61,14 @@ object ProfileCardRenderer {
         val canvas = Canvas(bitmap)
         val paint = Paint().apply { isAntiAlias = false; isFilterBitmap = false }
 
-        // Layer 1: Background — bitmap or solid color
+        // Layer 0: 흰색 불투명 베이스 — 카드가 절대 투명해지지 않도록 전체를 흰색으로 채운다.
+        // "배경 선택안함"이면 이 흰 바탕이 그대로 드러난다.
+        paint.color = android.graphics.Color.WHITE
+        canvas.drawRect(0f, 0f, CARD_WIDTH.toFloat(), CARD_HEIGHT.toFloat(), paint)
+
+        // Layer 1: Background — bitmap이 있으면 그리고, 없으면 흰 바탕이 비친다 (폴백 도형 없음).
         if (layers.bgBitmap != null) {
             canvas.drawBitmap(layers.bgBitmap, null, RectF(0f, 0f, CARD_WIDTH.toFloat(), CARD_HEIGHT.toFloat()), paint)
-        } else {
-            paint.color = layers.bgColor.toArgb()
-            canvas.drawRect(0f, 0f, CARD_WIDTH.toFloat(), CARD_HEIGHT.toFloat(), paint)
         }
 
         // Layer 3: Character (먼저 → 테두리 위에 안 가리도록)
@@ -74,33 +76,24 @@ object ProfileCardRenderer {
         // 데이터가 아직 준비되지 않은 경우. 서버 주도 모델에서 캐릭터는 기본값이 항상
         // 장착되므로 "캐릭터 없음" 최종 상태는 존재하지 않는다. 따라서 폴백 도형을 그리면
         // 홈 진입/캐릭터 변경 시 깜빡임만 유발하므로, bitmap이 있을 때만 그린다.
+        // charX/charY는 카드 전체 기준 캐릭터 '중심'의 정규화 비율(0..1)이다.
+        // → charX=0.5, charY=0.5면 카드 정중앙, scale 확대는 중심에서 균등하게 커진다.
         if (layers.charBitmap != null) {
             val charSize = CARD_HEIGHT * 0.85f * layers.charScale
-            val charCx = layers.charX * CARD_WIDTH * 0.6f + CARD_WIDTH * 0.05f
-            val charCy = layers.charY * CARD_HEIGHT * 0.6f + CARD_HEIGHT * 0.05f
+            val centerX = layers.charX * CARD_WIDTH
+            val centerY = layers.charY * CARD_HEIGHT
             val dst = RectF(
-                charCx,
-                charCy,
-                charCx + charSize,
-                charCy + charSize,
+                centerX - charSize / 2f,
+                centerY - charSize / 2f,
+                centerX + charSize / 2f,
+                centerY + charSize / 2f,
             )
             canvas.drawBitmap(layers.charBitmap, null, dst, paint)
         }
 
-        // Layer 2 (캐릭터 위에 덮어쓰기): 테두리
+        // Layer 2 (캐릭터 위에 덮어쓰기): 테두리 — bitmap이 있으면 그리고, 없으면 아무것도 안 그린다 (폴백 없음).
         if (layers.frameBitmap != null) {
             canvas.drawBitmap(layers.frameBitmap, null, RectF(0f, 0f, CARD_WIDTH.toFloat(), CARD_HEIGHT.toFloat()), paint)
-        } else {
-            paint.color = layers.borderColor.toArgb()
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 16f
-            canvas.drawRect(8f, 8f, CARD_WIDTH - 8f, CARD_HEIGHT - 8f, paint)
-            paint.style = Paint.Style.FILL
-            val cs = 24f
-            canvas.drawRect(4f, 4f, 4f + cs, 4f + cs, paint)
-            canvas.drawRect(CARD_WIDTH - 4f - cs, 4f, CARD_WIDTH - 4f, 4f + cs, paint)
-            canvas.drawRect(4f, CARD_HEIGHT - 4f - cs, 4f + cs, CARD_HEIGHT - 4f, paint)
-            canvas.drawRect(CARD_WIDTH - 4f - cs, CARD_HEIGHT - 4f - cs, CARD_WIDTH - 4f, CARD_HEIGHT - 4f, paint)
         }
 
         // Layer 4: Text (오른쪽)
