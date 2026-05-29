@@ -73,6 +73,7 @@ fun ProfileFullscreenScreen(
         charX = cardState.charX,
         charY = cardState.charY,
         charScale = cardState.charScale,
+        textStyle = cardState.textStyle,
         textAlign = cardState.textAlign,
         textX = cardState.textX,
         textY = cardState.textY,

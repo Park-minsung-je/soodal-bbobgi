@@ -46,6 +46,8 @@ data class CardLayers(
     val charX: Float = 0.5f,
     val charY: Float = 0.5f,
     val charScale: Float = 1.0f,
+    /** 텍스트 글꼴 스타일 ("REGULAR" | "BOLD" | "ITALIC"). 세 줄 전체에 적용. */
+    val textStyle: String = "REGULAR",
     /** 텍스트 블록 내부 줄 정렬 ("LEFT" | "RIGHT"). */
     val textAlign: String = "RIGHT",
     /** 텍스트 블록 가로 위치 (0~1). 정렬에 따라 좌/우 앵커 기준. */
@@ -115,9 +117,16 @@ object ProfileCardRenderer {
         // Layer 4: Text — 닉네임·소개·기록 3줄을 하나의 블록으로 그린다.
         // 정렬(좌/우) + 블록 크기(단계) + 색상 + 표시여부를 한 묶음으로 처리하고,
         // 세 줄을 폰트 크기에 비례한 좁은 간격으로 수직 중앙 정렬해 응집감 있게 배치한다.
+        // 글꼴 스타일을 닉네임·소개·기록 세 줄 전체에 일괄 적용한다.
+        // REGULAR면 닉네임도 굵게 처리하지 않는다 (이전엔 닉네임이 하드코딩 BOLD였음).
+        val blockTypeface = when (layers.textStyle) {
+            "BOLD" -> Typeface.DEFAULT_BOLD
+            "ITALIC" -> Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
+            else -> Typeface.DEFAULT
+        }
         val textPaint = Paint().apply {
             isAntiAlias = true
-            typeface = Typeface.DEFAULT_BOLD
+            typeface = blockTypeface
         }
 
         // 블록 크기 단계(1~5) → 배율. 3이 기준(1.2).
@@ -148,7 +157,6 @@ object ProfileCardRenderer {
         // 닉네임
         var baseline = blockTop + nicknameSize
         textPaint.textSize = nicknameSize
-        textPaint.typeface = Typeface.DEFAULT_BOLD
         textPaint.color = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.WHITE)
         textPaint.setShadowLayer(4f, 2f, 2f, shadow)
         canvas.drawText(layers.nickname, textX, baseline, textPaint)
@@ -156,7 +164,6 @@ object ProfileCardRenderer {
         // 소개
         baseline += gapAfterNickname + taglineSize
         textPaint.textSize = taglineSize
-        textPaint.typeface = Typeface.DEFAULT
         textPaint.color = parseColorOrDefault(layers.taglineColor, android.graphics.Color.WHITE)
         canvas.drawText(layers.tagline, textX, baseline, textPaint)
 
@@ -168,7 +175,9 @@ object ProfileCardRenderer {
             canvas.drawText(layers.stats, textX, baseline, textPaint)
         }
 
+        // 브랜드 워터마크 — 사용자 글꼴 스타일과 무관하게 항상 기본 글꼴로 고정.
         textPaint.textSize = 20f
+        textPaint.typeface = Typeface.DEFAULT
         textPaint.color = Color(0xFF00A8B8).toArgb()
         textPaint.textAlign = Paint.Align.RIGHT
         textPaint.clearShadowLayer()

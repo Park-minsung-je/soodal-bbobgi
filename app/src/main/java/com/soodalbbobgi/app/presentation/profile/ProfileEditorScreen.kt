@@ -160,6 +160,7 @@ fun ProfileEditorScreen(
                         charX = state.charX,
                         charY = state.charY,
                         charScale = state.charScale,
+                        textStyle = state.textStyle,
                         textAlign = state.textAlign,
                         textX = state.textX,
                         textY = state.textY,
