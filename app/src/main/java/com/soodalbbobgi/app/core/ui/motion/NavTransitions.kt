@@ -1,5 +1,19 @@
 package com.soodalbbobgi.app.core.ui.motion
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.navigation.NavBackStackEntry
+
 /** 화면 전환 종류. route 쌍으로 결정된다. */
 enum class TransitionKind {
     TAB_FORWARD,   // 탭 오른쪽으로 이동(인덱스 증가)
@@ -36,4 +50,96 @@ fun transitionFor(from: String?, to: String?): TransitionKind {
         return if (toTab >= fromTab) TransitionKind.TAB_FORWARD else TransitionKind.TAB_BACKWARD
     }
     return TransitionKind.PUSH
+}
+
+private fun routeOf(entry: NavBackStackEntry): String? = entry.destination.route
+
+/** 진입(enter) 전환: 새 화면이 들어올 때. */
+fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalEnter(): EnterTransition {
+    val kind = transitionFor(routeOf(initialState), routeOf(targetState))
+    return when (kind) {
+        TransitionKind.TAB_FORWARD ->
+            slideInHorizontally(tween(Motion.DUR_TAB, easing = Motion.easeStandard)) { it } +
+                fadeIn(tween(Motion.DUR_TAB))
+        TransitionKind.TAB_BACKWARD ->
+            slideInHorizontally(tween(Motion.DUR_TAB, easing = Motion.easeStandard)) { -it } +
+                fadeIn(tween(Motion.DUR_TAB))
+        TransitionKind.PUSH ->
+            slideInHorizontally(tween(Motion.DUR_PUSH, easing = Motion.easeEmphasized)) { it } +
+                fadeIn(tween(Motion.DUR_PUSH))
+        TransitionKind.EDITOR ->
+            slideInVertically(tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized)) {
+                (it * Motion.EDITOR_SLIDE_FRACTION).toInt()
+            } + fadeIn(tween(Motion.DUR_EDITOR))
+        TransitionKind.ZOOM ->
+            scaleIn(tween(Motion.DUR_ZOOM, easing = Motion.easeEmphasized), initialScale = Motion.ZOOM_MIN_SCALE) +
+                fadeIn(tween(Motion.DUR_ZOOM))
+    }
+}
+
+/** 퇴장(exit) 전환: 기존 화면이 나갈 때(앞으로 진행). */
+fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalExit(): ExitTransition {
+    val kind = transitionFor(routeOf(initialState), routeOf(targetState))
+    return when (kind) {
+        TransitionKind.TAB_FORWARD ->
+            slideOutHorizontally(tween(Motion.DUR_TAB, easing = Motion.easeStandard)) { -it } +
+                fadeOut(tween(Motion.DUR_TAB))
+        TransitionKind.TAB_BACKWARD ->
+            slideOutHorizontally(tween(Motion.DUR_TAB, easing = Motion.easeStandard)) { it } +
+                fadeOut(tween(Motion.DUR_TAB))
+        TransitionKind.PUSH ->
+            slideOutHorizontally(tween(Motion.DUR_PUSH, easing = Motion.easeEmphasized)) {
+                -(it * Motion.PARALLAX_FRACTION).toInt()
+            } + fadeOut(tween(Motion.DUR_PUSH))
+        TransitionKind.EDITOR ->
+            fadeOut(tween(Motion.DUR_EDITOR))
+        TransitionKind.ZOOM ->
+            fadeOut(tween(Motion.DUR_ZOOM))
+    }
+}
+
+/** 뒤로가기 진입(popEnter): 이전 화면이 다시 들어올 때. 정방향의 역동작. */
+fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalPopEnter(): EnterTransition {
+    // pop에서는 initialState=현재(사라지는) 화면, targetState=복귀 화면.
+    // 전환 종류는 "원래 진입할 때" 기준으로 잡아야 역동작이 맞으므로 from=target, to=initial 로 평가.
+    val kind = transitionFor(routeOf(targetState), routeOf(initialState))
+    return when (kind) {
+        TransitionKind.TAB_FORWARD ->
+            slideInHorizontally(tween(Motion.DUR_TAB, easing = Motion.easeStandard)) { -it } +
+                fadeIn(tween(Motion.DUR_TAB))
+        TransitionKind.TAB_BACKWARD ->
+            slideInHorizontally(tween(Motion.DUR_TAB, easing = Motion.easeStandard)) { it } +
+                fadeIn(tween(Motion.DUR_TAB))
+        TransitionKind.PUSH ->
+            slideInHorizontally(tween(Motion.DUR_PUSH, easing = Motion.easeEmphasized)) {
+                -(it * Motion.PARALLAX_FRACTION).toInt()
+            } + fadeIn(tween(Motion.DUR_PUSH))
+        TransitionKind.EDITOR ->
+            fadeIn(tween(Motion.DUR_EDITOR))
+        TransitionKind.ZOOM ->
+            fadeIn(tween(Motion.DUR_ZOOM))
+    }
+}
+
+/** 뒤로가기 퇴장(popExit): 현재 화면이 뒤로 사라질 때. 정방향 enter의 역동작. */
+fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalPopExit(): ExitTransition {
+    val kind = transitionFor(routeOf(targetState), routeOf(initialState))
+    return when (kind) {
+        TransitionKind.TAB_FORWARD ->
+            slideOutHorizontally(tween(Motion.DUR_TAB, easing = Motion.easeStandard)) { it } +
+                fadeOut(tween(Motion.DUR_TAB))
+        TransitionKind.TAB_BACKWARD ->
+            slideOutHorizontally(tween(Motion.DUR_TAB, easing = Motion.easeStandard)) { -it } +
+                fadeOut(tween(Motion.DUR_TAB))
+        TransitionKind.PUSH ->
+            slideOutHorizontally(tween(Motion.DUR_PUSH, easing = Motion.easeEmphasized)) { it } +
+                fadeOut(tween(Motion.DUR_PUSH))
+        TransitionKind.EDITOR ->
+            slideOutVertically(tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized)) {
+                (it * Motion.EDITOR_SLIDE_FRACTION).toInt()
+            } + fadeOut(tween(Motion.DUR_EDITOR))
+        TransitionKind.ZOOM ->
+            scaleOut(tween(Motion.DUR_ZOOM, easing = Motion.easeEmphasized), targetScale = Motion.ZOOM_MIN_SCALE) +
+                fadeOut(tween(Motion.DUR_ZOOM))
+    }
 }
