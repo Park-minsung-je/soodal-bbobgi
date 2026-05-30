@@ -54,4 +54,23 @@ class NavTransitionsTest {
     fun `null routes fall back to push`() {
         assertThat(transitionFor(null, "home")).isEqualTo(TransitionKind.PUSH)
     }
+
+    @Test
+    fun `leaving splash uses fade`() {
+        assertThat(transitionFor("splash", "home")).isEqualTo(TransitionKind.FADE)
+        assertThat(transitionFor("splash", "auth")).isEqualTo(TransitionKind.FADE)
+        assertThat(transitionFor("splash", "onboarding_nickname")).isEqualTo(TransitionKind.FADE)
+    }
+
+    @Test
+    fun `entering home from auth or onboarding uses fade`() {
+        assertThat(transitionFor("auth", "home")).isEqualTo(TransitionKind.FADE)
+        assertThat(transitionFor("onboarding_permission", "home")).isEqualTo(TransitionKind.FADE)
+    }
+
+    @Test
+    fun `onboarding step progression still uses push`() {
+        assertThat(transitionFor("onboarding_nickname", "onboarding_permission"))
+            .isEqualTo(TransitionKind.PUSH)
+    }
 }

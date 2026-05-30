@@ -17,11 +17,14 @@ object Motion {
     /** 설정 등 push 전환 시간(ms). */
     const val DUR_PUSH = 320
 
-    /** 프로필 편집 진입(아래→위 페이드) 시간(ms). */
-    const val DUR_EDITOR = 300
+    /** 프로필 편집 진입/복귀(아래↔위 페이드) 시간(ms). 끊김을 줄이려 넉넉히 둔다. */
+    const val DUR_EDITOR = 440
 
-    /** 전체보기 확대/축소 시간(ms). */
-    const val DUR_ZOOM = 320
+    /** 전체보기 카드 확대/축소 시간(ms). */
+    const val DUR_ZOOM = 420
+
+    /** 앱 시작 플로우(스플래시→홈 등) 단순 페이드 시간(ms). */
+    const val DUR_FADE = 240
 
     /** 대부분의 전환에 쓰는 표준 이징. */
     val easeStandard: Easing = FastOutSlowInEasing

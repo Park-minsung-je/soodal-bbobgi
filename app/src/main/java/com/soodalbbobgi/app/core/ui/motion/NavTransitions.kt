@@ -19,6 +19,7 @@ enum class TransitionKind {
     PUSH,          // 오른쪽에서 슬라이드 인 (설정/온보딩)
     EDITOR,        // 아래에서 살짝 올라오며 페이드 (프로필 편집)
     ZOOM,          // 카드 확대/축소 (전체보기)
+    FADE,          // 단순 페이드 (앱 시작 플로우: 스플래시→홈 등)
 }
 
 /** 탭 화면 route → 탭 인덱스. 탭이 아니면 null. */
@@ -39,6 +40,10 @@ fun tabIndexOf(route: String?): Int? = when (route) {
  * @param to 도착 route
  */
 fun transitionFor(from: String?, to: String?): TransitionKind {
+    // 앱 시작 플로우: 첫 화면 진입은 슬라이드 없이 페이드 (스플래시에서 나가거나 홈 첫 진입).
+    if (from == "splash") return TransitionKind.FADE
+    if (to == "home" && (from == "auth" || from == "onboarding_permission")) return TransitionKind.FADE
+
     if (to == "profile_fullscreen") return TransitionKind.ZOOM
     if (to == "profile_editor") return TransitionKind.EDITOR
 
@@ -69,9 +74,11 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalEnter(): EnterTransi
             slideInVertically(tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized)) {
                 (it * Motion.EDITOR_SLIDE_FRACTION).toInt()
             } + fadeIn(tween(Motion.DUR_EDITOR))
-        // 전체보기: 화면 자체는 페이드만. 카드 회전+확대는 ProfileFullscreenScreen이 직접 수행.
+        // 전체보기: 화면 자체는 페이드만. 카드 확대(공유요소)는 ProfileFullscreenScreen이 직접 수행.
         TransitionKind.ZOOM ->
             fadeIn(tween(Motion.DUR_ZOOM))
+        TransitionKind.FADE ->
+            fadeIn(tween(Motion.DUR_FADE))
     }
 }
 
@@ -93,6 +100,8 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalExit(): ExitTransiti
             fadeOut(tween(Motion.DUR_EDITOR))
         TransitionKind.ZOOM ->
             fadeOut(tween(Motion.DUR_ZOOM))
+        TransitionKind.FADE ->
+            fadeOut(tween(Motion.DUR_FADE))
     }
 }
 
@@ -116,6 +125,8 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalPopEnter(): EnterTra
             fadeIn(tween(Motion.DUR_EDITOR))
         TransitionKind.ZOOM ->
             fadeIn(tween(Motion.DUR_ZOOM))
+        TransitionKind.FADE ->
+            fadeIn(tween(Motion.DUR_FADE))
     }
 }
 
@@ -136,8 +147,10 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalPopExit(): ExitTrans
             slideOutVertically(tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized)) {
                 (it * Motion.EDITOR_SLIDE_FRACTION).toInt()
             } + fadeOut(tween(Motion.DUR_EDITOR))
-        // 전체보기: 화면 자체는 페이드만. 카드 회전+축소는 ProfileFullscreenScreen이 직접 수행.
+        // 전체보기: 화면 자체는 페이드만. 카드 축소(공유요소)는 ProfileFullscreenScreen이 직접 수행.
         TransitionKind.ZOOM ->
             fadeOut(tween(Motion.DUR_ZOOM))
+        TransitionKind.FADE ->
+            fadeOut(tween(Motion.DUR_FADE))
     }
 }
