@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,6 +44,7 @@ import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalChip
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
+import com.soodalbbobgi.app.core.ui.motion.rememberPopupEnter
 import com.soodalbbobgi.app.domain.model.Grade
 import com.soodalbbobgi.app.presentation.gacha.GachaResultOverlay
 
@@ -389,11 +391,12 @@ private fun PurchaseConfirmOverlay(
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
     val canAfford = pearls >= item.price
+    val p = rememberPopupEnter()
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.7f))
+            .background(Color.Black.copy(alpha = 0.7f * p))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -404,7 +407,12 @@ private fun PurchaseConfirmOverlay(
         SoodalCard(
             modifier = Modifier
                 .padding(horizontal = 32.dp)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .graphicsLayer {
+                    scaleX = 0.9f + 0.1f * p
+                    scaleY = 0.9f + 0.1f * p
+                    alpha = p
+                },
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth(),

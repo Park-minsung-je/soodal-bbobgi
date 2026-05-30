@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,6 +50,7 @@ import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalChip
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
+import com.soodalbbobgi.app.core.ui.motion.rememberPopupEnter
 import com.soodalbbobgi.app.domain.model.Grade
 
 /** 카테고리 → 한국어 라벨. */
@@ -93,27 +95,37 @@ fun GachaResultOverlay(
 ) {
     if (results.isEmpty()) return
     val colors = SoodalDesign.colors
+    val p = rememberPopupEnter()
 
     var index by remember(results) { mutableIntStateOf(0) }
     var showAll by remember(results) { mutableStateOf(false) }
 
     Box(
         Modifier.fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.72f))
+            .background(Color.Black.copy(alpha = 0.72f * p))
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}),
         contentAlignment = Alignment.Center,
     ) {
-        if (showAll) {
-            ResultGrid(results = results, onClose = onClose)
-        } else {
-            ResultSingle(
-                results = results,
-                index = index,
-                onNext = { if (index < results.size - 1) index++ },
-                onShowAll = { showAll = true },
-                onClose = onClose,
-                onApplyProfile = onApplyProfile,
-            )
+        Box(
+            Modifier.graphicsLayer {
+                scaleX = 0.9f + 0.1f * p
+                scaleY = 0.9f + 0.1f * p
+                alpha = p
+            },
+            contentAlignment = Alignment.Center,
+        ) {
+            if (showAll) {
+                ResultGrid(results = results, onClose = onClose)
+            } else {
+                ResultSingle(
+                    results = results,
+                    index = index,
+                    onNext = { if (index < results.size - 1) index++ },
+                    onShowAll = { showAll = true },
+                    onClose = onClose,
+                    onApplyProfile = onApplyProfile,
+                )
+            }
         }
     }
 }
