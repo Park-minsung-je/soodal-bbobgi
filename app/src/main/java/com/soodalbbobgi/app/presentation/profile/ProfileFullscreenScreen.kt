@@ -1,6 +1,10 @@
 package com.soodalbbobgi.app.presentation.profile
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -38,11 +42,15 @@ import com.soodalbbobgi.app.core.ui.SoodalIcons
  * 프로필 카드를 90도 회전하여 전체화면으로 표시한다.
  * 갤러리 저장, 공유, 편집 화면 이동 기능을 제공한다.
  *
+ * 진입/복귀 시 카드가 세로(0°)에서 가로(90°)로 회전하며 확대/축소된다.
+ *
+ * @param animatedVisibilityScope NavHost composable이 제공하는 전환 스코프(진입↔표시 진행도)
  * @param onBack 돌아가기 콜백
  * @param onEdit 편집 화면 이동 콜백
  */
 @Composable
 fun ProfileFullscreenScreen(
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onEdit: () -> Unit,
     viewModel: ProfileFullscreenViewModel = hiltViewModel(),
@@ -91,6 +99,14 @@ fun ProfileFullscreenScreen(
     val screenH = config.screenHeightDp.toFloat()
     val fitScale = screenH / screenW
 
+    // 진입↔표시 진행도(0→1). 카드를 세로(0°·1.0배)에서 가로(90°·fitScale배)로 회전·확대한다.
+    val zoom by animatedVisibilityScope.transition.animateFloat(
+        transitionSpec = { tween(durationMillis = 320) },
+        label = "cardZoom",
+    ) { state -> if (state == EnterExitState.Visible) 1f else 0f }
+    val cardRotation = 90f * zoom
+    val cardScale = 1f + (fitScale - 1f) * zoom
+
     LaunchedEffect(saveState) {
         when (saveState) {
             is SaveState.Success -> {
@@ -124,9 +140,9 @@ fun ProfileFullscreenScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .graphicsLayer {
-                        rotationZ = 90f
-                        scaleX = fitScale
-                        scaleY = fitScale
+                        rotationZ = cardRotation
+                        scaleX = cardScale
+                        scaleY = cardScale
                     },
             )
         }

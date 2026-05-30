@@ -6,8 +6,6 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -71,9 +69,9 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalEnter(): EnterTransi
             slideInVertically(tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized)) {
                 (it * Motion.EDITOR_SLIDE_FRACTION).toInt()
             } + fadeIn(tween(Motion.DUR_EDITOR))
+        // 전체보기: 화면 자체는 페이드만. 카드 회전+확대는 ProfileFullscreenScreen이 직접 수행.
         TransitionKind.ZOOM ->
-            scaleIn(tween(Motion.DUR_ZOOM, easing = Motion.easeEmphasized), initialScale = Motion.ZOOM_MIN_SCALE) +
-                fadeIn(tween(Motion.DUR_ZOOM))
+            fadeIn(tween(Motion.DUR_ZOOM))
     }
 }
 
@@ -138,8 +136,8 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalPopExit(): ExitTrans
             slideOutVertically(tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized)) {
                 (it * Motion.EDITOR_SLIDE_FRACTION).toInt()
             } + fadeOut(tween(Motion.DUR_EDITOR))
+        // 전체보기: 화면 자체는 페이드만. 카드 회전+축소는 ProfileFullscreenScreen이 직접 수행.
         TransitionKind.ZOOM ->
-            scaleOut(tween(Motion.DUR_ZOOM, easing = Motion.easeEmphasized), targetScale = Motion.ZOOM_MIN_SCALE) +
-                fadeOut(tween(Motion.DUR_ZOOM))
+            fadeOut(tween(Motion.DUR_ZOOM))
     }
 }
