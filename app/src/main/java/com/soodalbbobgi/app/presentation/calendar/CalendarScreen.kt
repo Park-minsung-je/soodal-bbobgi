@@ -41,7 +41,6 @@ import com.soodalbbobgi.app.core.ui.GlassPanel
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
-import com.soodalbbobgi.app.core.ui.SoodalTabBar
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -50,7 +49,6 @@ private val WeekendPinkColor = Color(0xFFFF9B9B)
 
 @Composable
 fun CalendarScreen(
-    onNavigateToTab: (String) -> Unit,
     viewModel: CalendarViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -198,9 +196,6 @@ fun CalendarScreen(
 
             Spacer(Modifier.height(12.dp))
         }
-
-        // ── Tab Bar ─────────────────────────────────────────
-        SoodalTabBar(activeTab = "calendar", onTabSelected = onNavigateToTab)
     }
 }
 

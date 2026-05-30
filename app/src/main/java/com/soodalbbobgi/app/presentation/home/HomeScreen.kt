@@ -48,7 +48,6 @@ import com.soodalbbobgi.app.core.ui.SoodalChip
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
-import com.soodalbbobgi.app.core.ui.SoodalTabBar
 import com.soodalbbobgi.app.presentation.profile.CardLayers
 import com.soodalbbobgi.app.presentation.profile.ProfileCardComposite
 
@@ -312,9 +311,6 @@ fun HomeScreen(
 
             Spacer(Modifier.height(spacing.s4))
         }
-
-        // ── Tab Bar ─────────────────────────────────────────
-        SoodalTabBar(activeTab = "home", onTabSelected = onNavigateToTab)
     }
 
     // ── 동기화 로딩 오버레이 ────────────────────────────────

@@ -46,12 +46,10 @@ import com.soodalbbobgi.app.core.ui.ChipColor
 import com.soodalbbobgi.app.core.ui.SoodalChip
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
-import com.soodalbbobgi.app.core.ui.SoodalTabBar
 import kotlin.math.roundToInt
 
 @Composable
 fun GachaScreen(
-    onNavigateToTab: (String) -> Unit,
     viewModel: GachaViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -160,8 +158,6 @@ fun GachaScreen(
 
                 Spacer(Modifier.height(24.dp))
             }
-
-            SoodalTabBar(activeTab = "gacha", onTabSelected = onNavigateToTab)
         }
 
         // -- Result Modal (공용 오버레이: 인덱스/전체보기 내부 관리) --

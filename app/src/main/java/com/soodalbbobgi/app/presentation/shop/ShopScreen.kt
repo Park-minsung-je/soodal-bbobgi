@@ -43,13 +43,11 @@ import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalChip
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
-import com.soodalbbobgi.app.core.ui.SoodalTabBar
 import com.soodalbbobgi.app.domain.model.Grade
 import com.soodalbbobgi.app.presentation.gacha.GachaResultOverlay
 
 @Composable
 fun ShopScreen(
-    onNavigateToTab: (String) -> Unit,
     viewModel: ShopViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -168,9 +166,6 @@ fun ShopScreen(
                     Spacer(Modifier.height(spacing.s5))
                 }
             }
-
-            // -- Tab Bar --
-            SoodalTabBar(activeTab = "shop", onTabSelected = onNavigateToTab)
         }
 
         // -- Purchase Confirm Modal --

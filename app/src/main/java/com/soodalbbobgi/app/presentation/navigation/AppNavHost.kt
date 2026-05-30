@@ -1,22 +1,32 @@
 package com.soodalbbobgi.app.presentation.navigation
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.soodalbbobgi.app.core.theme.SoodalDesign
+import com.soodalbbobgi.app.core.ui.SoodalTabBar
 import com.soodalbbobgi.app.core.ui.motion.soodalEnter
 import com.soodalbbobgi.app.core.ui.motion.soodalExit
 import com.soodalbbobgi.app.core.ui.motion.soodalPopEnter
 import com.soodalbbobgi.app.core.ui.motion.soodalPopExit
+import com.soodalbbobgi.app.core.ui.motion.tabIndexOf
 import com.soodalbbobgi.app.presentation.auth.AuthRoute
 import com.soodalbbobgi.app.presentation.auth.AuthScreen
 import com.soodalbbobgi.app.presentation.calendar.CalendarScreen
@@ -33,123 +43,122 @@ import com.soodalbbobgi.app.presentation.splash.SplashScreen
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
+    // 탭 화면(홈/캘린더/뽑기/상점)에서만 하단 탭바를 노출한다.
+    val showTabBar = tabIndexOf(currentRoute) != null
+
+    // 탭 선택 시 공통 네비게이션: Home을 루트로 두고 상태를 보존/복원한다.
+    val onSelectTab: (String) -> Unit = { route ->
+        navController.navigate(route) {
+            popUpTo(Screen.Home.route) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
     Box(modifier = Modifier
         .fillMaxSize()
         .background(SoodalDesign.colors.bgDeep)
         .windowInsetsPadding(WindowInsets.statusBars)
         .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Splash.route,
-            enterTransition = { soodalEnter() },
-            exitTransition = { soodalExit() },
-            popEnterTransition = { soodalPopEnter() },
-            popExitTransition = { soodalPopExit() },
-        ) {
-        composable(Screen.Splash.route) {
-            SplashScreen(onNavigate = { dest ->
-                val target = when (dest) {
-                    SplashDestination.Auth -> Screen.Auth.route
-                    SplashDestination.Onboarding -> Screen.OnboardingNickname.route
-                    SplashDestination.Permission -> Screen.OnboardingPermission.route
-                    SplashDestination.Home -> Screen.Home.route
-                    SplashDestination.Loading -> return@SplashScreen
-                }
-                navController.navigate(target) {
-                    popUpTo(Screen.Splash.route) { inclusive = true }
-                }
-            })
-        }
-        composable(Screen.Auth.route) {
-            AuthScreen(
-                onNavigate = { route ->
-                    val target = when (route) {
-                        AuthRoute.Onboarding -> Screen.OnboardingNickname.route
-                        AuthRoute.Permission -> Screen.OnboardingPermission.route
-                        AuthRoute.Home -> Screen.Home.route
+        Column(modifier = Modifier.fillMaxSize()) {
+            // 콘텐츠 영역: 화면 전환 슬라이드가 이 Box 안에서만 일어난다(탭바는 제외).
+            Box(modifier = Modifier.weight(1f)) {
+                NavHost(
+                    navController = navController,
+                    startDestination = Screen.Splash.route,
+                    enterTransition = { soodalEnter() },
+                    exitTransition = { soodalExit() },
+                    popEnterTransition = { soodalPopEnter() },
+                    popExitTransition = { soodalPopExit() },
+                ) {
+                    composable(Screen.Splash.route) {
+                        SplashScreen(onNavigate = { dest ->
+                            val target = when (dest) {
+                                SplashDestination.Auth -> Screen.Auth.route
+                                SplashDestination.Onboarding -> Screen.OnboardingNickname.route
+                                SplashDestination.Permission -> Screen.OnboardingPermission.route
+                                SplashDestination.Home -> Screen.Home.route
+                                SplashDestination.Loading -> return@SplashScreen
+                            }
+                            navController.navigate(target) {
+                                popUpTo(Screen.Splash.route) { inclusive = true }
+                            }
+                        })
                     }
-                    navController.navigate(target) {
-                        popUpTo(Screen.Auth.route) { inclusive = true }
+                    composable(Screen.Auth.route) {
+                        AuthScreen(
+                            onNavigate = { route ->
+                                val target = when (route) {
+                                    AuthRoute.Onboarding -> Screen.OnboardingNickname.route
+                                    AuthRoute.Permission -> Screen.OnboardingPermission.route
+                                    AuthRoute.Home -> Screen.Home.route
+                                }
+                                navController.navigate(target) {
+                                    popUpTo(Screen.Auth.route) { inclusive = true }
+                                }
+                            },
+                        )
                     }
-                },
-            )
-        }
-        composable(Screen.OnboardingNickname.route) {
-            OnboardingNicknameScreen(onNext = { navController.navigate(Screen.OnboardingPermission.route) })
-        }
-        composable(Screen.OnboardingPermission.route) {
-            OnboardingPermissionScreen(
-                onConnect = { navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } } },
-                onSkip = { navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } } },
-            )
-        }
-        composable(Screen.Home.route) {
-            HomeScreen(
-                onNavigateToTab = { tab ->
-                    val route = when (tab) {
-                        "calendar" -> Screen.Calendar.route
-                        "gacha" -> Screen.Gacha.route
-                        "shop" -> Screen.Shop.route
-                        else -> return@HomeScreen
+                    composable(Screen.OnboardingNickname.route) {
+                        OnboardingNicknameScreen(onNext = { navController.navigate(Screen.OnboardingPermission.route) })
                     }
-                    navController.navigate(route)
-                },
-                onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                onNavigateToProfileFullscreen = { navController.navigate(Screen.ProfileFullscreen.route) },
-                onNavigateToProfileEditor = { navController.navigate(Screen.ProfileEditor.route) },
-            )
-        }
-        composable(Screen.Calendar.route) {
-            CalendarScreen(
-                onNavigateToTab = { tab ->
-                    val route = when (tab) {
-                        "home" -> Screen.Home.route
-                        "gacha" -> Screen.Gacha.route
-                        "shop" -> Screen.Shop.route
-                        else -> return@CalendarScreen
+                    composable(Screen.OnboardingPermission.route) {
+                        OnboardingPermissionScreen(
+                            onConnect = { navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } } },
+                            onSkip = { navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } } },
+                        )
                     }
-                    navController.navigate(route) { popUpTo(Screen.Home.route) }
-                },
-            )
-        }
-        composable(Screen.Gacha.route) {
-            GachaScreen(onNavigateToTab = { tab ->
-                val route = when (tab) {
-                    "home" -> Screen.Home.route
-                    "calendar" -> Screen.Calendar.route
-                    "shop" -> Screen.Shop.route
-                    else -> return@GachaScreen
+                    composable(Screen.Home.route) {
+                        HomeScreen(
+                            onNavigateToTab = onSelectTab,
+                            onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                            onNavigateToProfileFullscreen = { navController.navigate(Screen.ProfileFullscreen.route) },
+                            onNavigateToProfileEditor = { navController.navigate(Screen.ProfileEditor.route) },
+                        )
+                    }
+                    composable(Screen.Calendar.route) {
+                        CalendarScreen()
+                    }
+                    composable(Screen.Gacha.route) {
+                        GachaScreen()
+                    }
+                    composable(Screen.Shop.route) {
+                        ShopScreen()
+                    }
+                    composable(Screen.Settings.route) {
+                        SettingsScreen(onBack = { navController.popBackStack() })
+                    }
+                    composable(Screen.ProfileEditor.route) {
+                        ProfileEditorScreen(
+                            onBack = { navController.popBackStack() },
+                            onPreview = { navController.navigate(Screen.ProfileFullscreen.route) },
+                        )
+                    }
+                    composable(Screen.ProfileFullscreen.route) {
+                        // 진입/복귀 시 카드가 회전(0→90°)하며 확대되도록 전환 스코프를 넘긴다.
+                        ProfileFullscreenScreen(
+                            animatedVisibilityScope = this,
+                            onBack = { navController.popBackStack() },
+                            onEdit = { navController.navigate(Screen.ProfileEditor.route) },
+                        )
+                    }
                 }
-                navController.navigate(route) { popUpTo(Screen.Home.route) }
-            })
+            }
+
+            // 하단 탭바: 화면 바깥에 고정. 탭 화면에서만 보이며, 진입/이탈 시 아래로 슬라이드.
+            AnimatedVisibility(
+                visible = showTabBar,
+                enter = slideInVertically { it } + expandVertically(),
+                exit = slideOutVertically { it } + shrinkVertically(),
+            ) {
+                SoodalTabBar(
+                    activeTab = currentRoute ?: Screen.Home.route,
+                    onTabSelected = onSelectTab,
+                )
+            }
         }
-        composable(Screen.Shop.route) {
-            ShopScreen(onNavigateToTab = { tab ->
-                val route = when (tab) {
-                    "home" -> Screen.Home.route
-                    "calendar" -> Screen.Calendar.route
-                    "gacha" -> Screen.Gacha.route
-                    else -> return@ShopScreen
-                }
-                navController.navigate(route) { popUpTo(Screen.Home.route) }
-            })
-        }
-        composable(Screen.Settings.route) {
-            SettingsScreen(onBack = { navController.popBackStack() })
-        }
-        composable(Screen.ProfileEditor.route) {
-            ProfileEditorScreen(
-                onBack = { navController.popBackStack() },
-                onPreview = { navController.navigate(Screen.ProfileFullscreen.route) },
-            )
-        }
-        composable(Screen.ProfileFullscreen.route) {
-            ProfileFullscreenScreen(
-                onBack = { navController.popBackStack() },
-                onEdit = { navController.navigate(Screen.ProfileEditor.route) },
-            )
-        }
-    }
     }
 }
