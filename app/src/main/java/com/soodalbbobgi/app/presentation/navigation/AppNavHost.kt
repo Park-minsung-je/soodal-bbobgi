@@ -13,6 +13,10 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.soodalbbobgi.app.core.theme.SoodalDesign
+import com.soodalbbobgi.app.core.ui.motion.soodalEnter
+import com.soodalbbobgi.app.core.ui.motion.soodalExit
+import com.soodalbbobgi.app.core.ui.motion.soodalPopEnter
+import com.soodalbbobgi.app.core.ui.motion.soodalPopExit
 import com.soodalbbobgi.app.presentation.auth.AuthRoute
 import com.soodalbbobgi.app.presentation.auth.AuthScreen
 import com.soodalbbobgi.app.presentation.calendar.CalendarScreen
@@ -35,7 +39,14 @@ fun AppNavHost(navController: NavHostController) {
         .windowInsetsPadding(WindowInsets.statusBars)
         .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
-        NavHost(navController = navController, startDestination = Screen.Splash.route) {
+        NavHost(
+            navController = navController,
+            startDestination = Screen.Splash.route,
+            enterTransition = { soodalEnter() },
+            exitTransition = { soodalExit() },
+            popEnterTransition = { soodalPopEnter() },
+            popExitTransition = { soodalPopExit() },
+        ) {
         composable(Screen.Splash.route) {
             SplashScreen(onNavigate = { dest ->
                 val target = when (dest) {
