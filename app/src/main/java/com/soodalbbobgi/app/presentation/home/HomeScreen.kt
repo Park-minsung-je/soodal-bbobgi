@@ -1,5 +1,9 @@
 package com.soodalbbobgi.app.presentation.home
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,13 +52,18 @@ import com.soodalbbobgi.app.core.ui.SoodalChip
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
+import com.soodalbbobgi.app.core.ui.motion.Motion
 import com.soodalbbobgi.app.presentation.profile.CardLayers
+import com.soodalbbobgi.app.presentation.profile.PROFILE_CARD_SHARED_KEY
 import com.soodalbbobgi.app.presentation.profile.ProfileCardComposite
 
 private fun Int.formatNumber(): String = String.format("%,d", this)
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun HomeScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onNavigateToTab: (String) -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToProfileFullscreen: () -> Unit,
@@ -158,7 +167,18 @@ fun HomeScreen(
                     bgAsset = state.cardBgAsset,
                     charAsset = state.cardCharAsset,
                     frameAsset = state.cardFrameAsset,
-                    modifier = Modifier.fillMaxWidth(),
+                    // 전체보기로 갈 때 이 카드가 그대로 떠올라 전체화면으로 자라난다(공유요소).
+                    modifier = with(sharedTransitionScope) {
+                        Modifier
+                            .fillMaxWidth()
+                            .sharedElement(
+                                rememberSharedContentState(key = PROFILE_CARD_SHARED_KEY),
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                boundsTransform = { _, _ ->
+                                    tween(Motion.DUR_ZOOM, easing = Motion.easeEmphasized)
+                                },
+                            )
+                    },
                 )
             }
 
