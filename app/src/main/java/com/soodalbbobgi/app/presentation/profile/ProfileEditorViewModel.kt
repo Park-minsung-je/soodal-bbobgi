@@ -250,6 +250,14 @@ class ProfileEditorViewModel @Inject constructor(
     fun setStatsColor(v: String) { _editState.value = _editState.value.copy(statsColor = v) }
     fun clearSaveResult() { _editState.value = _editState.value.copy(saveSuccess = false, saveError = null) }
 
+    /**
+     * 편집 상태를 저장값으로 되돌린다(취소 시 미저장 변경 폐기).
+     * initialized=false로 두면 다음 uiState 방출 때 savedCard 기준으로 재초기화된다.
+     */
+    fun resetToSaved() {
+        _editState.value = _editState.value.copy(initialized = false)
+    }
+
     fun save() {
         val s = _editState.value
         viewModelScope.launch {
