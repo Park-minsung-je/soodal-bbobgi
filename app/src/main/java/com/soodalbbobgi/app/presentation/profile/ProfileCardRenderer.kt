@@ -234,9 +234,6 @@ fun rememberAssetBitmap(imageAsset: String?): Bitmap? {
     return bmp
 }
 
-/** 홈↔전체보기 프로필 카드 공유요소(SharedTransition) 매칭 키. */
-const val PROFILE_CARD_SHARED_KEY = "profileCard"
-
 /**
  * ProfileCardRenderer 결과를 Compose Image로 표시한다.
  *

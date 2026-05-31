@@ -3,8 +3,6 @@ package com.soodalbbobgi.app.presentation.profile
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterExitState
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -45,18 +43,16 @@ import com.soodalbbobgi.app.core.ui.motion.Motion
  * 프로필 카드를 90도 회전하여 전체화면으로 표시한다.
  * 갤러리 저장, 공유, 편집 화면 이동 기능을 제공한다.
  *
- * 진입/복귀 시 홈의 작은 카드가 그대로 떠올라(공유요소) 세로(0°)에서 가로(90°)로
- * 회전하며 전체화면으로 자라난다. 복귀 시 역동작.
+ * 진입/복귀 시 카드를 단일 그래픽 레이어로 회전·확대·이동을 한 진행도(zoom)로 동시에 보간한다.
+ * 세 변환을 한 값으로 구동하므로 "회전하면서 이동"이 프레임 단위로 완전히 동기화된다.
+ * 시작 위치는 홈 카드 위치를 근사해, 같은 자리에서 떠올라 화면 중앙으로 자라나는 느낌을 준다.
  *
- * @param sharedTransitionScope 홈 카드와 공유요소로 연결하기 위한 스코프
  * @param animatedVisibilityScope NavHost composable이 제공하는 전환 스코프(진입↔표시 진행도)
  * @param onBack 돌아가기 콜백
  * @param onEdit 편집 화면 이동 콜백
  */
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun ProfileFullscreenScreen(
-    sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onEdit: () -> Unit,
@@ -106,14 +102,16 @@ fun ProfileFullscreenScreen(
     val screenH = config.screenHeightDp.toFloat()
     val fitScale = screenH / screenW
 
-    // 진입↔표시 진행도(0→1). 공유요소 bounds 보간과 같은 스펙으로 맞춰 어긋남을 막는다.
-    // 카드를 세로(0°·1.0배)에서 가로(90°·fitScale배)로 회전·확대한다.
+    // 시작 위치 보정: 홈의 작은 카드 중심을 근사해 그 자리에서 떠올라 화면 중앙으로 내려오게 한다.
+    // 홈 카드 상단 = 상단패딩16 + 헤더52 + 간격16 = 84dp, 그 아래로 카드 높이의 절반이 중심.
+    val cardHeightDp = (screenW - 32f) * ProfileCardRenderer.CARD_HEIGHT / ProfileCardRenderer.CARD_WIDTH
+    val startOffsetYDp = (84f + cardHeightDp / 2f) - (screenH / 2f)
+
+    // 진입↔표시 진행도(0→1). 단일 그래픽 레이어를 한 진행도로 구동해 회전·확대·이동을 동시에 보간한다.
     val zoom by animatedVisibilityScope.transition.animateFloat(
         transitionSpec = { tween(Motion.DUR_ZOOM, easing = Motion.easeEmphasized) },
         label = "cardZoom",
     ) { state -> if (state == EnterExitState.Visible) 1f else 0f }
-    val cardRotation = 90f * zoom
-    val cardScale = 1f + (fitScale - 1f) * zoom
 
     LaunchedEffect(saveState) {
         when (saveState) {
@@ -145,23 +143,16 @@ fun ProfileFullscreenScreen(
             // Composite는 null 경로일 때 layers의 Bitmap을 그대로 사용한다.
             ProfileCardComposite(
                 layers = layers,
-                // 홈의 작은 카드와 같은 공유요소 키로 연결 → 그 카드가 그대로 자라나 보인다.
-                modifier = with(sharedTransitionScope) {
-                    Modifier
-                        .fillMaxWidth()
-                        .sharedElement(
-                            rememberSharedContentState(key = PROFILE_CARD_SHARED_KEY),
-                            animatedVisibilityScope = animatedVisibilityScope,
-                            boundsTransform = { _, _ ->
-                                tween(Motion.DUR_ZOOM, easing = Motion.easeEmphasized)
-                            },
-                        )
-                        .graphicsLayer {
-                            rotationZ = cardRotation
-                            scaleX = cardScale
-                            scaleY = cardScale
-                        }
-                },
+                // 한 진행도(zoom)로 회전+확대+이동을 동시에 — 어긋남 없이 한 덩어리로 움직인다.
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        rotationZ = 90f * zoom
+                        val s = 1f + (fitScale - 1f) * zoom
+                        scaleX = s
+                        scaleY = s
+                        translationY = (startOffsetYDp * (1f - zoom)).dp.toPx()
+                    },
             )
         }
 

@@ -1,8 +1,6 @@
 package com.soodalbbobgi.app.presentation.navigation
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
@@ -43,7 +41,6 @@ import com.soodalbbobgi.app.presentation.shop.ShopScreen
 import com.soodalbbobgi.app.presentation.splash.SplashDestination
 import com.soodalbbobgi.app.presentation.splash.SplashScreen
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun AppNavHost(navController: NavHostController) {
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -68,9 +65,7 @@ fun AppNavHost(navController: NavHostController) {
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // 콘텐츠 영역: 화면 전환 슬라이드가 이 Box 안에서만 일어난다(탭바는 제외).
-            // SharedTransitionLayout으로 감싸 홈↔전체보기 카드가 같은 오브젝트로 이어지게 한다.
             Box(modifier = Modifier.weight(1f)) {
-                SharedTransitionLayout {
                 NavHost(
                     navController = navController,
                     startDestination = Screen.Splash.route,
@@ -118,8 +113,6 @@ fun AppNavHost(navController: NavHostController) {
                     }
                     composable(Screen.Home.route) {
                         HomeScreen(
-                            sharedTransitionScope = this@SharedTransitionLayout,
-                            animatedVisibilityScope = this,
                             onNavigateToTab = onSelectTab,
                             onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                             onNavigateToProfileFullscreen = { navController.navigate(Screen.ProfileFullscreen.route) },
@@ -145,15 +138,13 @@ fun AppNavHost(navController: NavHostController) {
                         )
                     }
                     composable(Screen.ProfileFullscreen.route) {
-                        // 홈의 작은 카드가 그대로 전체화면으로 자라나도록 공유요소 스코프를 넘긴다.
+                        // animatedVisibilityScope로 진입/복귀 진행도를 받아 카드를 회전·확대·이동시킨다.
                         ProfileFullscreenScreen(
-                            sharedTransitionScope = this@SharedTransitionLayout,
                             animatedVisibilityScope = this,
                             onBack = { navController.popBackStack() },
                             onEdit = { navController.navigate(Screen.ProfileEditor.route) },
                         )
                     }
-                }
                 }
             }
 
