@@ -36,7 +36,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -247,7 +246,7 @@ fun EditorSheet(
                     // 직접 묶으면 onValueChange→VM→flow 왕복 사이 IME 조합이 끊겨 글자가 사라진다.
                     // 로컬 상태를 즉시 갱신해 조합을 끊지 않고, 같은 콜백에서 VM에도 밀어넣어
                     // Live Preview는 동기화하되 입력 표시는 로컬 값으로 유지한다.
-                    var localText by rememberSaveable { mutableStateOf<String?>(null) }
+                    var localText by remember { mutableStateOf<String?>(null) }
                     // 저장된 카드가 로드되면 로컬 값을 한 번만 시드한다 (사용자 입력 전).
                     LaunchedEffect(state.customText) {
                         if (localText == null) localText = state.customText
