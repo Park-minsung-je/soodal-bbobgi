@@ -105,6 +105,14 @@ fun HomeScreen(
         }
     }
 
+    // 저장 실패 시 에러 토스트 (시트는 유지해 재시도 가능).
+    LaunchedEffect(editorState.saveError) {
+        editorState.saveError?.let {
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+            editorVm.clearSaveResult()
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
@@ -430,6 +438,7 @@ fun HomeScreen(
                 editorVm.resetToSaved()
                 editorOpen = false
             },
+            // 시트 높이 62% — 카드 아래 영역을 덮는 임시값(실기기 튜닝 대상).
             modifier = Modifier.fillMaxHeight(0.62f),
         )
     }
