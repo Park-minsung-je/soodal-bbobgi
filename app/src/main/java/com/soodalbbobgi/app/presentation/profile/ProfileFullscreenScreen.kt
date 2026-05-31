@@ -21,12 +21,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -102,16 +107,14 @@ fun ProfileFullscreenScreen(
     val screenH = config.screenHeightDp.toFloat()
     val fitScale = screenH / screenW
 
-    // 시작 위치 보정: 홈의 작은 카드 중심을 근사해 그 자리에서 떠올라 화면 중앙으로 내려오게 한다.
-    // 홈 카드 상단 = 상단패딩16 + 헤더52 + 간격16 = 84dp, 그 아래로 카드 높이의 절반이 중심.
-    val cardHeightDp = (screenW - 32f) * ProfileCardRenderer.CARD_HEIGHT / ProfileCardRenderer.CARD_WIDTH
-    val startOffsetYDp = (84f + cardHeightDp / 2f) - (screenH / 2f)
-
     // 진입↔표시 진행도(0→1). 단일 그래픽 레이어를 한 진행도로 구동해 회전·확대·이동을 동시에 보간한다.
     val zoom by animatedVisibilityScope.transition.animateFloat(
         transitionSpec = { tween(Motion.DUR_ZOOM, easing = Motion.easeEmphasized) },
         label = "cardZoom",
     ) { state -> if (state == EnterExitState.Visible) 1f else 0f }
+
+    // 전체보기 카드의 변환 전 화면상 중심(px). 측정 후 홈 카드 위치와의 차이로 시작 오프셋을 잡는다.
+    var cardCenter by remember { mutableStateOf<Offset?>(null) }
 
     LaunchedEffect(saveState) {
         when (saveState) {
@@ -144,14 +147,22 @@ fun ProfileFullscreenScreen(
             ProfileCardComposite(
                 layers = layers,
                 // 한 진행도(zoom)로 회전+확대+이동을 동시에 — 어긋남 없이 한 덩어리로 움직인다.
+                // 시작점은 홈 카드의 실제 측정 위치라, 그 자리에서 떠올라 화면 중앙으로 내려온다.
                 modifier = Modifier
                     .fillMaxWidth()
+                    .onGloballyPositioned { cardCenter = it.boundsInWindow().center }
                     .graphicsLayer {
                         rotationZ = 90f * zoom
                         val s = 1f + (fitScale - 1f) * zoom
                         scaleX = s
                         scaleY = s
-                        translationY = (startOffsetYDp * (1f - zoom)).dp.toPx()
+                        // 홈 카드와 전체보기 카드의 화면상 중심 차이만큼 시작 위치를 당겨, zoom=1에서 중앙으로.
+                        val home = ProfileCardBounds.homeCardCenter
+                        val fs = cardCenter
+                        if (home != null && fs != null) {
+                            translationX = (home.x - fs.x) * (1f - zoom)
+                            translationY = (home.y - fs.y) * (1f - zoom)
+                        }
                     },
             )
         }

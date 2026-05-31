@@ -30,6 +30,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -49,6 +51,7 @@ import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.presentation.profile.CardLayers
+import com.soodalbbobgi.app.presentation.profile.ProfileCardBounds
 import com.soodalbbobgi.app.presentation.profile.ProfileCardComposite
 
 private fun Int.formatNumber(): String = String.format("%,d", this)
@@ -129,6 +132,8 @@ fun HomeScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    // 전체보기 진입 시 카드가 이 자리에서 떠오르도록 화면상 중심을 기록한다.
+                    .onGloballyPositioned { ProfileCardBounds.homeCardCenter = it.boundsInWindow().center }
                     .shadow(8.dp, RectangleShape)
                     .clip(RectangleShape)
                     .clickable(
