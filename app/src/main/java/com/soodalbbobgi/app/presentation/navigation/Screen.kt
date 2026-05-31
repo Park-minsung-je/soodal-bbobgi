@@ -10,6 +10,5 @@ sealed class Screen(val route: String) {
     data object Gacha : Screen("gacha")
     data object Shop : Screen("shop")
     data object Settings : Screen("settings")
-    data object ProfileEditor : Screen("profile_editor")
     data object ProfileFullscreen : Screen("profile_fullscreen")
 }

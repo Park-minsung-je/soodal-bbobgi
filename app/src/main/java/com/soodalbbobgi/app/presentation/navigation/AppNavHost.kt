@@ -34,7 +34,6 @@ import com.soodalbbobgi.app.presentation.gacha.GachaScreen
 import com.soodalbbobgi.app.presentation.home.HomeScreen
 import com.soodalbbobgi.app.presentation.onboarding.OnboardingNicknameScreen
 import com.soodalbbobgi.app.presentation.onboarding.OnboardingPermissionScreen
-import com.soodalbbobgi.app.presentation.profile.ProfileEditorScreen
 import com.soodalbbobgi.app.presentation.profile.ProfileFullscreenScreen
 import com.soodalbbobgi.app.presentation.settings.SettingsScreen
 import com.soodalbbobgi.app.presentation.shop.ShopScreen
@@ -116,7 +115,6 @@ fun AppNavHost(navController: NavHostController) {
                             onNavigateToTab = onSelectTab,
                             onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                             onNavigateToProfileFullscreen = { navController.navigate(Screen.ProfileFullscreen.route) },
-                            onNavigateToProfileEditor = { navController.navigate(Screen.ProfileEditor.route) },
                         )
                     }
                     composable(Screen.Calendar.route) {
@@ -131,18 +129,11 @@ fun AppNavHost(navController: NavHostController) {
                     composable(Screen.Settings.route) {
                         SettingsScreen(onBack = { navController.popBackStack() })
                     }
-                    composable(Screen.ProfileEditor.route) {
-                        ProfileEditorScreen(
-                            onBack = { navController.popBackStack() },
-                            onPreview = { navController.navigate(Screen.ProfileFullscreen.route) },
-                        )
-                    }
                     composable(Screen.ProfileFullscreen.route) {
                         // animatedVisibilityScope로 진입/복귀 진행도를 받아 카드를 회전·확대·이동시킨다.
                         ProfileFullscreenScreen(
                             animatedVisibilityScope = this,
                             onBack = { navController.popBackStack() },
-                            onEdit = { navController.navigate(Screen.ProfileEditor.route) },
                         )
                     }
                 }

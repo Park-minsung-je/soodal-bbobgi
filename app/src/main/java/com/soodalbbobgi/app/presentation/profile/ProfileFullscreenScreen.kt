@@ -54,13 +54,11 @@ import com.soodalbbobgi.app.core.ui.motion.Motion
  *
  * @param animatedVisibilityScope NavHost composable이 제공하는 전환 스코프(진입↔표시 진행도)
  * @param onBack 돌아가기 콜백
- * @param onEdit 편집 화면 이동 콜백
  */
 @Composable
 fun ProfileFullscreenScreen(
     animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
-    onEdit: () -> Unit,
     viewModel: ProfileFullscreenViewModel = hiltViewModel(),
 ) {
     val colors = SoodalDesign.colors
