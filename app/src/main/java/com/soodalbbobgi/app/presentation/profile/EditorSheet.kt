@@ -1,6 +1,6 @@
 package com.soodalbbobgi.app.presentation.profile
 
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,9 +33,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -58,7 +58,6 @@ import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.SoodalTextField
-import kotlinx.coroutines.launch
 
 /**
  * 프로필 편집 컨트롤 바텀 시트.
@@ -84,14 +83,13 @@ fun EditorSheet(
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
     val density = LocalDensity.current
-    val scope = rememberCoroutineScope()
-    val dragOffset = remember { Animatable(0f) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
     val dismissThresholdPx = with(density) { 120.dp.toPx() }
 
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .graphicsLayer { translationY = dragOffset.value }
+            .graphicsLayer { translationY = dragOffset }
             .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
             .background(colors.surface2)
             .border(1.dp, colors.glassBorder, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)),
@@ -103,11 +101,11 @@ fun EditorSheet(
                 .draggable(
                     orientation = Orientation.Vertical,
                     state = rememberDraggableState { delta ->
-                        scope.launch { dragOffset.snapTo((dragOffset.value + delta).coerceAtLeast(0f)) }
+                        dragOffset = (dragOffset + delta).coerceAtLeast(0f)
                     },
                     onDragStopped = {
-                        if (dragOffset.value > dismissThresholdPx) onDismiss()
-                        else scope.launch { dragOffset.animateTo(0f) }
+                        if (dragOffset > dismissThresholdPx) onDismiss()
+                        else animate(dragOffset, 0f) { value, _ -> dragOffset = value }
                     },
                 ),
         ) {
@@ -147,6 +145,7 @@ fun EditorSheet(
         // -- 컨트롤 (스크롤) --
         Column(
             modifier = Modifier
+                .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = spacing.s4),
         ) {
