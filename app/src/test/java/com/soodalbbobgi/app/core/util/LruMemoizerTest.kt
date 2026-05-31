@@ -1,6 +1,7 @@
 package com.soodalbbobgi.app.core.util
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
@@ -44,6 +45,24 @@ class LruMemoizerTest {
         memo.getOrPut("a") { calls++; 1 } // a 재계산
 
         assertEquals(4, calls)
+    }
+
+    @Test
+    fun `get은 캐시 미스면 null을 돌려준다`() {
+        val memo = LruMemoizer<String, Int>(maxSize = 2)
+        assertNull(memo.get("x"))
+    }
+
+    @Test
+    fun `get은 저장된 값을 돌려주며 새로 계산하지 않는다`() {
+        val memo = LruMemoizer<String, Int>(maxSize = 2)
+        var calls = 0
+        memo.getOrPut("a") { calls++; 5 }
+
+        val v = memo.get("a")
+
+        assertEquals(5, v)
+        assertEquals(1, calls)
     }
 
     @Test

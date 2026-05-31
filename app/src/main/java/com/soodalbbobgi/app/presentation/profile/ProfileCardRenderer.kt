@@ -9,12 +9,14 @@ import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -28,6 +30,8 @@ import com.soodalbbobgi.app.core.ui.AssetStoreEntryPoint
 import com.soodalbbobgi.app.core.ui.resolveAssetModel
 import com.soodalbbobgi.app.core.util.LruMemoizer
 import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
@@ -86,6 +90,14 @@ object ProfileCardRenderer {
      * @param layers 합성에 쓸 4레이어 데이터(캐시 키)
      */
     fun renderCached(layers: CardLayers): Bitmap = cache.getOrPut(layers) { render(it) }
+
+    /**
+     * 캐시에 합성 결과가 있으면 즉시 반환하고, 없으면 null을 반환한다(새로 합성하지 않음).
+     * 백그라운드 합성 전 직전 결과를 즉시 보여주는 용도.
+     *
+     * @param layers 합성에 쓸 4레이어 데이터(캐시 키)
+     */
+    fun peek(layers: CardLayers): Bitmap? = cache.get(layers)
 
     fun render(layers: CardLayers): Bitmap {
         val bitmap = Bitmap.createBitmap(CARD_WIDTH, CARD_HEIGHT, Bitmap.Config.ARGB_8888)
@@ -275,12 +287,28 @@ fun ProfileCardComposite(
         charBitmap = charBitmap,
         frameBitmap = frameBitmap,
     )
-    val bitmap = remember(finalLayers) { ProfileCardRenderer.renderCached(finalLayers) }
-    Image(
-        bitmap = bitmap.asImageBitmap(),
-        contentDescription = "프로필 카드",
-        modifier = modifier
-            .fillMaxWidth()
-            .aspectRatio(1472f / 704f),
-    )
+    // 합성은 백그라운드 스레드에서 — 슬라이더 조작·화면 진입 시 메인 스레드를 막지 않는다.
+    // 캐시에 있으면 즉시 표시(initialValue)하고, 없으면 새 비트맵이 나올 때까지 직전 비트맵을
+    // 유지해 카드가 흰색으로 깜빡이지 않게 한다. finalLayers가 바뀌면 그 사이 이전 카드를 보여준다.
+    val bitmap by produceState<Bitmap?>(
+        initialValue = ProfileCardRenderer.peek(finalLayers),
+        finalLayers,
+    ) {
+        value = withContext(Dispatchers.Default) { ProfileCardRenderer.renderCached(finalLayers) }
+    }
+
+    val cardModifier = modifier
+        .fillMaxWidth()
+        .aspectRatio(1472f / 704f)
+    val current = bitmap
+    if (current != null) {
+        Image(
+            bitmap = current.asImageBitmap(),
+            contentDescription = "프로필 카드",
+            modifier = cardModifier,
+        )
+    } else {
+        // 합성 전 잠깐의 빈 자리 — 레이아웃 점프를 막기 위해 같은 크기를 차지한다.
+        Box(modifier = cardModifier)
+    }
 }

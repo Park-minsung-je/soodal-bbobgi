@@ -24,4 +24,12 @@ class LruMemoizer<K, V>(private val maxSize: Int) {
     @Synchronized
     fun getOrPut(key: K, producer: (K) -> V): V =
         map[key] ?: producer(key).also { map[key] = it }
+
+    /**
+     * 키에 해당하는 값이 캐시에 있으면 반환하고, 없으면 null을 반환한다(새로 계산하지 않음).
+     *
+     * @param key 캐시 키
+     */
+    @Synchronized
+    fun get(key: K): V? = map[key]
 }
