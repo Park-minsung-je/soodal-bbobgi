@@ -94,7 +94,7 @@ fun ProfileFullscreenScreen(
         taglineColor = cardState.taglineColor,
         statsColor = cardState.statsColor,
     )
-    val bitmap = remember(layers) { ProfileCardRenderer.render(layers) }
+    val bitmap = remember(layers) { ProfileCardRenderer.renderCached(layers) }
 
     // 회전 후: 카드 가로(1472) → 세로 방향, 카드 세로(704) → 가로 방향
     // 세로 방향 기준으로 스케일을 계산하여 화면을 최대한 채운다

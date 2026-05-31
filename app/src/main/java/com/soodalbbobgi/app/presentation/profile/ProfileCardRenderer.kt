@@ -26,6 +26,7 @@ import coil.Coil
 import coil.request.ImageRequest
 import com.soodalbbobgi.app.core.ui.AssetStoreEntryPoint
 import com.soodalbbobgi.app.core.ui.resolveAssetModel
+import com.soodalbbobgi.app.core.util.LruMemoizer
 import dagger.hilt.android.EntryPointAccessors
 import timber.log.Timber
 
@@ -73,6 +74,18 @@ data class CardLayers(
 object ProfileCardRenderer {
     const val CARD_WIDTH = 1472
     const val CARD_HEIGHT = 704
+
+    // 합성 비트맵 캐시 — 같은 입력(CardLayers)이면 재합성 없이 재사용한다.
+    // 홈↔편집↔전체보기 재진입·탭 전환마다 1472×704 비트맵을 다시 그리는 끊김을 막는다.
+    // 편집 라이브 프리뷰와 홈 카드가 같은 입력이면 캐시를 공유하므로, 저장 후 복귀 시에도 재합성이 없다.
+    private val cache = LruMemoizer<CardLayers, Bitmap>(maxSize = 4)
+
+    /**
+     * [render] 결과를 [CardLayers] 단위로 캐시해 돌려준다. 같은 입력이면 재합성하지 않는다.
+     *
+     * @param layers 합성에 쓸 4레이어 데이터(캐시 키)
+     */
+    fun renderCached(layers: CardLayers): Bitmap = cache.getOrPut(layers) { render(it) }
 
     fun render(layers: CardLayers): Bitmap {
         val bitmap = Bitmap.createBitmap(CARD_WIDTH, CARD_HEIGHT, Bitmap.Config.ARGB_8888)
@@ -262,7 +275,7 @@ fun ProfileCardComposite(
         charBitmap = charBitmap,
         frameBitmap = frameBitmap,
     )
-    val bitmap = remember(finalLayers) { ProfileCardRenderer.render(finalLayers) }
+    val bitmap = remember(finalLayers) { ProfileCardRenderer.renderCached(finalLayers) }
     Image(
         bitmap = bitmap.asImageBitmap(),
         contentDescription = "프로필 카드",
