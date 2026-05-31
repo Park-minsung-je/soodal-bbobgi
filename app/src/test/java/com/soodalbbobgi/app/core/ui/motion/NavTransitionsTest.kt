@@ -40,14 +40,8 @@ class NavTransitionsTest {
     }
 
     @Test
-    fun `profile editor uses editor transition`() {
-        assertThat(transitionFor("home", "profile_editor")).isEqualTo(TransitionKind.EDITOR)
-    }
-
-    @Test
     fun `profile fullscreen uses zoom`() {
         assertThat(transitionFor("home", "profile_fullscreen")).isEqualTo(TransitionKind.ZOOM)
-        assertThat(transitionFor("profile_editor", "profile_fullscreen")).isEqualTo(TransitionKind.ZOOM)
     }
 
     @Test

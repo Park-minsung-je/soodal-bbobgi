@@ -45,7 +45,7 @@ fun transitionFor(from: String?, to: String?): TransitionKind {
     if (to == "home" && (from == "auth" || from == "onboarding_permission")) return TransitionKind.FADE
 
     if (to == "profile_fullscreen") return TransitionKind.ZOOM
-    if (to == "profile_editor") return TransitionKind.EDITOR
+    // profile_editor 화면 제거(2026-06-01): 편집은 홈 바텀시트로 이동, EDITOR 라우트 매칭 불필요.
 
     val fromTab = tabIndexOf(from)
     val toTab = tabIndexOf(to)
