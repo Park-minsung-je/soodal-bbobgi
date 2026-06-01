@@ -84,7 +84,10 @@ fun EditorSheet(
     val spacing = SoodalDesign.spacing
     val density = LocalDensity.current
     var dragOffset by remember { mutableFloatStateOf(0f) }
-    val dismissThresholdPx = with(density) { 120.dp.toPx() }
+    // 거리(완화) 또는 아래로 빠르게 튕기는 속도 중 하나만 넘어도 닫는다.
+    // 속도 임계값은 dp/s로 잡아 기기 밀도와 무관하게 같은 손맛을 낸다.
+    val dismissDistancePx = with(density) { 100.dp.toPx() }
+    val dismissVelocityPx = with(density) { 1000.dp.toPx() }
 
     Column(
         modifier = modifier
@@ -103,8 +106,8 @@ fun EditorSheet(
                     state = rememberDraggableState { delta ->
                         dragOffset = (dragOffset + delta).coerceAtLeast(0f)
                     },
-                    onDragStopped = {
-                        if (dragOffset > dismissThresholdPx) onDismiss()
+                    onDragStopped = { velocity ->
+                        if (shouldDismissSheet(dragOffset, velocity, dismissDistancePx, dismissVelocityPx)) onDismiss()
                         else animate(dragOffset, 0f) { value, _ -> dragOffset = value }
                     },
                 ),
@@ -723,3 +726,21 @@ private fun parseSwatchColor(hex: String): Color =
     } catch (e: IllegalArgumentException) {
         Color.Gray
     }
+
+/**
+ * 드래그를 놓았을 때 편집 시트를 닫을지 결정한다.
+ * 충분히 내렸거나(거리) 아래로 빠르게 튕겼으면(속도) 닫는다 — 둘 중 하나만 넘으면 충분.
+ *
+ * @param dragOffsetPx 현재까지 내려간 거리(px, 0 이상)
+ * @param velocityPx 드래그를 놓은 순간 속도(px/s, 양수 = 아래 방향)
+ * @param distanceThresholdPx 닫힘 거리 임계값(px)
+ * @param velocityThresholdPx 닫힘 속도 임계값(px/s)
+ * @return 닫아야 하면 true
+ */
+internal fun shouldDismissSheet(
+    dragOffsetPx: Float,
+    velocityPx: Float,
+    distanceThresholdPx: Float,
+    velocityThresholdPx: Float,
+): Boolean =
+    dragOffsetPx > distanceThresholdPx || velocityPx > velocityThresholdPx
