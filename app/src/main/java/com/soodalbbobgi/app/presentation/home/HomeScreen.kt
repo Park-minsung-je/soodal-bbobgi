@@ -233,9 +233,11 @@ fun HomeScreen(
                     .onGloballyPositioned { ProfileCardBounds.homeCardCenter = it.boundsInWindow().center }
                     .shadow(8.dp, RectangleShape)
                     .clip(RectangleShape)
+                    // 편집 중에는 카드 탭으로 전체화면(저장값) 진입을 막는다 — 미저장 편집값과 어긋나기 때문.
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
+                        enabled = !editorOpen,
                         onClick = onNavigateToProfileFullscreen,
                     ),
             ) {
@@ -261,6 +263,7 @@ fun HomeScreen(
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
+                                enabled = !editorOpen,
                                 onClick = onNavigateToProfileFullscreen,
                             )
                             .padding(vertical = 4.dp),
@@ -438,7 +441,6 @@ fun HomeScreen(
             state = editorState,
             vm = editorVm,
             onApply = { editorVm.save() },
-            onPreview = onNavigateToProfileFullscreen,
             onDismiss = {
                 editorVm.resetToSaved()
                 editorOpen = false

@@ -63,12 +63,12 @@ import com.soodalbbobgi.app.core.ui.SoodalTextField
  * 프로필 편집 컨트롤 바텀 시트.
  *
  * 카드 미리보기는 호출부(홈)가 그리므로 여기에는 탭/아이템 그리드/슬라이더/색상/텍스트/적용만 둔다.
+ * 편집값은 아직 미저장이라 전체화면(저장값)과 어긋나므로 "크게보기"는 두지 않는다.
  * 핸들(또는 시트)을 아래로 충분히 끌면 [onDismiss], [적용] 버튼은 [onApply].
  *
  * @param state 편집 상태(미저장 현재값)
  * @param vm 편집 ViewModel(슬라이더/선택 콜백 호출용)
  * @param onApply 적용(저장) 콜백
- * @param onPreview "크게보기"(전체보기) 콜백
  * @param onDismiss 아래로 끌어 닫기(취소) 콜백
  */
 @Composable
@@ -76,7 +76,6 @@ fun EditorSheet(
     state: ProfileEditorUiState,
     vm: ProfileEditorViewModel,
     onApply: () -> Unit,
-    onPreview: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -97,7 +96,7 @@ fun EditorSheet(
             .background(colors.surface2)
             .border(1.dp, colors.glassBorder, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)),
     ) {
-        // -- 드래그 핸들 + 제목 + 크게보기 --
+        // -- 드래그 핸들 + 제목 --
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -122,25 +121,9 @@ fun EditorSheet(
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
-                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text("프로필 편집", style = SoodalDesign.typography.lg, color = colors.textPrimary)
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = onPreview,
-                            )
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Text("크게보기", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
-                        SoodalIcon(icon = SoodalIcons.Share, tint = colors.textSecondary, size = 14.dp)
-                    }
                 }
             }
         }
