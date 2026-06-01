@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -44,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -89,6 +89,11 @@ fun HomeScreen(
     val editorVm: ProfileEditorViewModel = hiltViewModel()
     val editorState by editorVm.uiState.collectAsState()
     var editorOpen by rememberSaveable { mutableStateOf(false) }
+
+    // 카드 아래 지점(dp) 계산: 위패딩16 + 헤더52 + 간격16 = 84, + 카드 높이, + 카드-시트 간격 8.
+    val config = LocalConfiguration.current
+    val cardHeightDp = (config.screenWidthDp - 32f) * 704f / 1472f
+    val sheetTopDp = 84f + cardHeightDp + 8f
 
     // 시스템 뒤로가기 → 시트 닫기(취소): 미저장 변경 폐기.
     BackHandler(enabled = editorOpen) {
@@ -243,8 +248,7 @@ fun HomeScreen(
                 )
             }
 
-            if (!editorOpen) {
-                Row(
+            Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
@@ -392,7 +396,6 @@ fun HomeScreen(
                 }
 
                 Spacer(Modifier.height(spacing.s4))
-            }
         }
     }
 
@@ -427,7 +430,9 @@ fun HomeScreen(
         exit = slideOutVertically(
             animationSpec = tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized),
         ) { it } + fadeOut(),
-        modifier = Modifier.align(Alignment.BottomCenter),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = sheetTopDp.dp),
     ) {
         EditorSheet(
             state = editorState,
@@ -438,8 +443,7 @@ fun HomeScreen(
                 editorVm.resetToSaved()
                 editorOpen = false
             },
-            // 시트 높이 62% — 카드 아래 영역을 덮는 임시값(실기기 튜닝 대상).
-            modifier = Modifier.fillMaxHeight(0.62f),
+            modifier = Modifier.fillMaxSize(),
         )
     }
     } // Box

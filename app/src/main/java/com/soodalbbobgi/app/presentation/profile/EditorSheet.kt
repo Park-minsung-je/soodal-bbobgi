@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -87,7 +88,7 @@ fun EditorSheet(
 
     Column(
         modifier = modifier
-            .fillMaxWidth()
+            .fillMaxSize()
             .graphicsLayer { translationY = dragOffset }
             .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
             .background(colors.surface2)
@@ -141,10 +142,11 @@ fun EditorSheet(
             }
         }
 
-        // -- 컨트롤 (스크롤) --
+        // -- 컨트롤 (스크롤): weight(1f)로 핸들과 적용 버튼 사이 남은 공간을 차지하고 내부에서 스크롤.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = spacing.s4),
         ) {
@@ -382,31 +384,34 @@ fun EditorSheet(
                 }
             }
 
-            Spacer(Modifier.height(spacing.s4))
+            Spacer(Modifier.height(spacing.s3))
+        }
 
-            // -- 적용 버튼 --
-            if (state.isSaving) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = colors.accentCyan,
-                        strokeWidth = 2.dp,
-                    )
-                }
-            } else {
-                SoodalButton(
-                    text = "적용",
-                    onClick = onApply,
-                    style = ButtonStyle.Primary,
-                    modifier = Modifier.fillMaxWidth(),
-                    heightOverride = 52.dp,
+        // -- 적용 버튼 (하단 고정): 스크롤 영역 밖에 두어 항상 보이게 한다.
+        if (state.isSaving) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.s4, vertical = spacing.s3)
+                    .height(52.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = colors.accentCyan,
+                    strokeWidth = 2.dp,
                 )
             }
-
-            Spacer(Modifier.height(spacing.s4))
+        } else {
+            SoodalButton(
+                text = "적용",
+                onClick = onApply,
+                style = ButtonStyle.Primary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.s4, vertical = spacing.s3),
+                heightOverride = 52.dp,
+            )
         }
     }
 }
