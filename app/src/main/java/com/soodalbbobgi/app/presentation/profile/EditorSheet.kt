@@ -69,6 +69,7 @@ import com.soodalbbobgi.app.core.ui.SoodalTextField
  *
  * @param state 편집 상태(미저장 현재값)
  * @param vm 편집 ViewModel(슬라이더/선택 콜백 호출용)
+ * @param isOpen 시트가 열려 있는지 — 열릴 때마다 끌어내린 잔여 오프셋을 0으로 되돌린다
  * @param onApply 적용(저장) 콜백
  * @param onDismiss 아래로 끌어 닫기(취소) 콜백
  */
@@ -76,6 +77,7 @@ import com.soodalbbobgi.app.core.ui.SoodalTextField
 fun EditorSheet(
     state: ProfileEditorUiState,
     vm: ProfileEditorViewModel,
+    isOpen: Boolean,
     onApply: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -84,6 +86,8 @@ fun EditorSheet(
     val spacing = SoodalDesign.spacing
     val density = LocalDensity.current
     var dragOffset by remember { mutableFloatStateOf(0f) }
+    // 닫힘 애니메이션 도중 다시 열면 끌어내린 오프셋이 남아 끝까지 안 올라온다 → 열릴 때마다 리셋.
+    LaunchedEffect(isOpen) { if (isOpen) dragOffset = 0f }
     // 거리(완화) 또는 아래로 빠르게 튕기는 속도 중 하나만 넘어도 닫는다.
     // 속도 임계값은 dp/s로 잡아 기기 밀도와 무관하게 같은 손맛을 낸다.
     val dismissDistancePx = with(density) { 100.dp.toPx() }

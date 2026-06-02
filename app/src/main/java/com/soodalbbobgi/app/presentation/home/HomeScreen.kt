@@ -440,6 +440,7 @@ fun HomeScreen(
         EditorSheet(
             state = editorState,
             vm = editorVm,
+            isOpen = editorOpen,
             onApply = { editorVm.save() },
             onDismiss = {
                 editorVm.resetToSaved()
