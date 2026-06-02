@@ -15,6 +15,9 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -44,8 +47,10 @@ import com.soodalbbobgi.app.presentation.splash.SplashScreen
 fun AppNavHost(navController: NavHostController) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    // 탭 화면(홈/캘린더/뽑기/상점)에서만 하단 탭바를 노출한다.
-    val showTabBar = tabIndexOf(currentRoute) != null
+    // 홈 프로필 편집 시트 열림 상태. 시트가 탭바 위(화면 바닥까지)를 덮도록 끌어올려 둔다.
+    var homeEditorOpen by rememberSaveable { mutableStateOf(false) }
+    // 탭 화면(홈/캘린더/뽑기/상점)에서만 하단 탭바를 노출하되, 편집 시트가 열리면 감춘다.
+    val showTabBar = tabIndexOf(currentRoute) != null && !homeEditorOpen
 
     // 탭 선택 시 공통 네비게이션: Home을 루트로 두고 상태를 보존/복원한다.
     val onSelectTab: (String) -> Unit = { route ->
@@ -115,6 +120,8 @@ fun AppNavHost(navController: NavHostController) {
                             onNavigateToTab = onSelectTab,
                             onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                             onNavigateToProfileFullscreen = { navController.navigate(Screen.ProfileFullscreen.route) },
+                            editorOpen = homeEditorOpen,
+                            onEditorOpenChange = { homeEditorOpen = it },
                         )
                     }
                     composable(Screen.Calendar.route) {

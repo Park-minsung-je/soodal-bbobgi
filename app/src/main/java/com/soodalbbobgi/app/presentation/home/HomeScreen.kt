@@ -31,10 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -77,6 +74,8 @@ fun HomeScreen(
     onNavigateToTab: (String) -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToProfileFullscreen: () -> Unit,
+    editorOpen: Boolean,
+    onEditorOpenChange: (Boolean) -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -88,7 +87,6 @@ fun HomeScreen(
 
     val editorVm: ProfileEditorViewModel = hiltViewModel()
     val editorState by editorVm.uiState.collectAsState()
-    var editorOpen by rememberSaveable { mutableStateOf(false) }
 
     // 카드 아래 지점(dp) 계산: 위패딩16 + 헤더52 + 간격16 = 84, + 카드 높이, + 카드-시트 간격 8.
     val config = LocalConfiguration.current
@@ -98,7 +96,7 @@ fun HomeScreen(
     // 시스템 뒤로가기 → 시트 닫기(취소): 미저장 변경 폐기.
     BackHandler(enabled = editorOpen) {
         editorVm.resetToSaved()
-        editorOpen = false
+        onEditorOpenChange(false)
     }
 
     // [적용] 저장 성공 시 시트 닫기.
@@ -106,7 +104,7 @@ fun HomeScreen(
         if (editorState.saveSuccess) {
             android.widget.Toast.makeText(context, "프로필 카드가 저장됐어요", android.widget.Toast.LENGTH_SHORT).show()
             editorVm.clearSaveResult()
-            editorOpen = false
+            onEditorOpenChange(false)
         }
     }
 
@@ -277,7 +275,7 @@ fun HomeScreen(
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
-                                onClick = { editorOpen = true },
+                                onClick = { onEditorOpenChange(true) },
                             )
                             .padding(vertical = 4.dp),
                     )
@@ -444,7 +442,7 @@ fun HomeScreen(
             onApply = { editorVm.save() },
             onDismiss = {
                 editorVm.resetToSaved()
-                editorOpen = false
+                onEditorOpenChange(false)
             },
             modifier = Modifier.fillMaxSize(),
         )
