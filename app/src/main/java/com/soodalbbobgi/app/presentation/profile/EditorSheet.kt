@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -88,13 +89,15 @@ fun EditorSheet(
     val dismissDistancePx = with(density) { 100.dp.toPx() }
     val dismissVelocityPx = with(density) { 1000.dp.toPx() }
 
+    val sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     Column(
         modifier = modifier
             .fillMaxSize()
             .graphicsLayer { translationY = dragOffset }
-            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-            .background(colors.surface2)
-            .border(1.dp, colors.glassBorder, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)),
+            // 경계선 대신 그림자로 시트를 카드/홈 위에 띄운다.
+            .shadow(16.dp, sheetShape, clip = false)
+            .clip(sheetShape)
+            .background(colors.surface2),
     ) {
         // -- 드래그 핸들 + 제목 --
         Box(
