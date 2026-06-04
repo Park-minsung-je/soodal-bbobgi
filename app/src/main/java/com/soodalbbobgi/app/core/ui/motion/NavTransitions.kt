@@ -18,7 +18,6 @@ enum class TransitionKind {
     TAB_BACKWARD,  // 탭 왼쪽으로 이동(인덱스 감소)
     PUSH,          // 오른쪽에서 슬라이드 인 (설정/온보딩)
     EDITOR,        // 아래에서 살짝 올라오며 페이드 (프로필 편집)
-    ZOOM,          // 카드 확대/축소 (전체보기)
     FADE,          // 단순 페이드 (앱 시작 플로우: 스플래시→홈 등)
 }
 
@@ -34,7 +33,7 @@ fun tabIndexOf(route: String?): Int? = when (route) {
 /**
  * 출발/도착 route로 전환 종류를 결정한다.
  *
- * 우선순위: ZOOM(전체보기) > EDITOR(편집) > 탭간(FORWARD/BACKWARD) > PUSH(기본).
+ * 우선순위: 탭간(FORWARD/BACKWARD) > PUSH(기본). 앱 시작 플로우는 FADE.
  *
  * @param from 출발 route (없으면 PUSH)
  * @param to 도착 route
@@ -44,8 +43,7 @@ fun transitionFor(from: String?, to: String?): TransitionKind {
     if (from == "splash") return TransitionKind.FADE
     if (to == "home" && (from == "auth" || from == "onboarding_permission")) return TransitionKind.FADE
 
-    if (to == "profile_fullscreen") return TransitionKind.ZOOM
-    // profile_editor 화면 제거(2026-06-01): 편집은 홈 바텀시트로 이동, EDITOR 라우트 매칭 불필요.
+    // profile_fullscreen/profile_editor 화면 제거: 전체보기는 홈 오버레이, 편집은 홈 바텀시트로 이동.
 
     val fromTab = tabIndexOf(from)
     val toTab = tabIndexOf(to)
@@ -74,9 +72,6 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalEnter(): EnterTransi
             slideInVertically(tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized)) {
                 (it * Motion.EDITOR_SLIDE_FRACTION).toInt()
             } + fadeIn(tween(Motion.DUR_EDITOR))
-        // 전체보기: 화면 자체는 페이드만. 카드 확대(공유요소)는 ProfileFullscreenScreen이 직접 수행.
-        TransitionKind.ZOOM ->
-            fadeIn(tween(Motion.DUR_ZOOM))
         TransitionKind.FADE ->
             fadeIn(tween(Motion.DUR_FADE))
     }
@@ -98,8 +93,6 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalExit(): ExitTransiti
             } + fadeOut(tween(Motion.DUR_PUSH))
         TransitionKind.EDITOR ->
             fadeOut(tween(Motion.DUR_EDITOR))
-        TransitionKind.ZOOM ->
-            fadeOut(tween(Motion.DUR_ZOOM))
         TransitionKind.FADE ->
             fadeOut(tween(Motion.DUR_FADE))
     }
@@ -123,8 +116,6 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalPopEnter(): EnterTra
             } + fadeIn(tween(Motion.DUR_PUSH))
         TransitionKind.EDITOR ->
             fadeIn(tween(Motion.DUR_EDITOR))
-        TransitionKind.ZOOM ->
-            fadeIn(tween(Motion.DUR_ZOOM))
         TransitionKind.FADE ->
             fadeIn(tween(Motion.DUR_FADE))
     }
@@ -147,9 +138,6 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalPopExit(): ExitTrans
             slideOutVertically(tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized)) {
                 (it * Motion.EDITOR_SLIDE_FRACTION).toInt()
             } + fadeOut(tween(Motion.DUR_EDITOR))
-        // 전체보기: 화면 자체는 페이드만. 카드 축소(공유요소)는 ProfileFullscreenScreen이 직접 수행.
-        TransitionKind.ZOOM ->
-            fadeOut(tween(Motion.DUR_ZOOM))
         TransitionKind.FADE ->
             fadeOut(tween(Motion.DUR_FADE))
     }

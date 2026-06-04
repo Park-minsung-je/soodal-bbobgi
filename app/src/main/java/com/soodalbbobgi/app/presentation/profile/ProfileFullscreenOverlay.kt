@@ -1,9 +1,8 @@
 package com.soodalbbobgi.app.presentation.profile
 
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.EnterExitState
-import androidx.compose.animation.core.animateFloat
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,6 +23,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +35,7 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,39 +45,47 @@ import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.motion.Motion
+import kotlinx.coroutines.launch
 
 /**
- * 프로필 카드를 90도 회전하여 전체화면으로 표시한다.
- * 갤러리 저장, 공유, 편집 화면 이동 기능을 제공한다.
+ * 프로필 카드 전체보기 오버레이.
  *
- * 진입/복귀 시 카드를 단일 그래픽 레이어로 회전·확대·이동을 한 진행도(zoom)로 동시에 보간한다.
- * 세 변환을 한 값으로 구동하므로 "회전하면서 이동"이 프레임 단위로 완전히 동기화된다.
- * 시작 위치는 홈 카드 위치를 근사해, 같은 자리에서 떠올라 화면 중앙으로 자라나는 느낌을 준다.
+ * 홈 카드가 숨겨진 동안, 같은 위치·크기에서 시작한 단일 카드 한 장이 90도 회전하며
+ * 화면을 채우도록 확대된다([fullscreenCardTransform]). 진입은 progress 0→1,
+ * 닫기는 1→0 후 [onClosed]. 변환 중 화면에 카드는 이 한 장뿐이라 착시가 아니다.
  *
- * @param animatedVisibilityScope NavHost composable이 제공하는 전환 스코프(진입↔표시 진행도)
- * @param onBack 돌아가기 콜백
+ * @param onReady 오버레이 카드가 측정되어 홈 카드 자리를 덮을 준비가 됐을 때 호출(홈 카드 숨김 타이밍)
+ * @param onClosed 닫힘 애니메이션이 끝난 뒤 호출(홈이 fullscreenOpen=false로 되돌릴 때 사용)
  */
 @Composable
-fun ProfileFullscreenScreen(
-    animatedVisibilityScope: AnimatedVisibilityScope,
-    onBack: () -> Unit,
+fun ProfileFullscreenOverlay(
+    onReady: () -> Unit,
+    onClosed: () -> Unit,
     viewModel: ProfileFullscreenViewModel = hiltViewModel(),
 ) {
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
-
-    val saveState by viewModel.saveState.collectAsState()
-    val cardState by viewModel.cardState.collectAsState()
     val context = LocalContext.current
     val config = LocalConfiguration.current
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
 
-    // bg/char/frame Bitmap을 여기서 직접 비동기 로딩해 layers에 주입한다. 저장/공유용
-    // Bitmap(render)과 화면 표시(ProfileCardComposite)가 동일한 layers를 공유하므로,
-    // 저장/공유 PNG에도 배경/캐릭터/테두리 이미지가 그대로 합성된다. CardLayers는 data
-    // class라 Bitmap 로딩 완료 시 layers equality가 바뀌어 remove/Composite 모두 재렌더된다.
+    val saveState by viewModel.saveState.collectAsState()
+    val cardStateOrNull by viewModel.cardState.collectAsState()
+    // 그리기용 — 아직 로드 전(null)이면 기본값으로 그리되, 아래 assetsReady가 false라 숨겨진다.
+    val cardState = cardStateOrNull ?: FullscreenCardState()
+
     val bgBitmap = rememberAssetBitmap(cardState.bgAsset)
     val charBitmap = rememberAssetBitmap(cardState.charAsset)
     val frameBitmap = rememberAssetBitmap(cardState.frameAsset)
+
+    // 카드 데이터가 결합되고(cardStateOrNull != null) 에셋 이미지가 모두 로드되기 전에는
+    // 카드가 흰 베이스로 그려진다(ProfileCardRenderer Layer0). 그 전에는 홈 카드를 숨기지 않고
+    // (onReady 보류) 진입도 시작하지 않아 흰 깜빡을 막는다.
+    val assetsReady = cardStateOrNull != null &&
+        (cardState.bgAsset.isNullOrBlank() || bgBitmap != null) &&
+        (cardState.charAsset.isNullOrBlank() || charBitmap != null) &&
+        (cardState.frameAsset.isNullOrBlank() || frameBitmap != null)
 
     val layers = CardLayers(
         bgBitmap = bgBitmap,
@@ -99,20 +109,18 @@ fun ProfileFullscreenScreen(
     )
     val bitmap = remember(layers) { ProfileCardRenderer.renderCached(layers) }
 
-    // 회전 후: 카드 가로(1472) → 세로 방향, 카드 세로(704) → 가로 방향
-    // 세로 방향 기준으로 스케일을 계산하여 화면을 최대한 채운다
-    val screenW = config.screenWidthDp.toFloat()
-    val screenH = config.screenHeightDp.toFloat()
-    val fitScale = screenH / screenW
+    // 진입 시 0→1, 닫기 시 1→0. 한 progress로 회전·확대·이동·페이드를 모두 구동.
+    // 진입 애니는 오버레이 카드 위치가 측정된 뒤 시작한다(아래 LaunchedEffect) — 미측정 첫 프레임에
+    // 잘못된 위치로 출발하지 않도록.
+    val progress = remember { Animatable(0f) }
 
-    // 진입↔표시 진행도(0→1). 단일 그래픽 레이어를 한 진행도로 구동해 회전·확대·이동을 동시에 보간한다.
-    val zoom by animatedVisibilityScope.transition.animateFloat(
-        transitionSpec = { tween(Motion.DUR_ZOOM, easing = Motion.easeEmphasized) },
-        label = "cardZoom",
-    ) { state -> if (state == EnterExitState.Visible) 1f else 0f }
-
-    // 전체보기 카드의 변환 전 화면상 중심(px). 측정 후 홈 카드 위치와의 차이로 시작 오프셋을 잡는다.
-    var cardCenter by remember { mutableStateOf<Offset?>(null) }
+    val close: () -> Unit = {
+        scope.launch {
+            progress.animateTo(0f, tween(Motion.DUR_ZOOM, easing = Motion.easeEmphasized))
+            onClosed()
+        }
+    }
+    BackHandler(enabled = true) { close() }
 
     LaunchedEffect(saveState) {
         when (saveState) {
@@ -128,48 +136,79 @@ fun ProfileFullscreenScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black),
-    ) {
-        // -- Center Card (landscape rotation) --
+    // 홈 카드 측정 크기(px) → dp. 없으면 폴백으로 화면폭-32dp 가로 비율 카드.
+    val homeSize = ProfileCardBounds.homeCardSize
+    val cardWidthDp = if (homeSize != null) with(density) { homeSize.width.toDp() }
+        else (config.screenWidthDp - 32).dp
+    val cardHeightDp = if (homeSize != null) with(density) { homeSize.height.toDp() }
+        else (config.screenWidthDp - 32).dp * 704f / 1472f
+
+    val screenWpx = with(density) { config.screenWidthDp.dp.toPx() }
+    val screenHpx = with(density) { config.screenHeightDp.dp.toPx() }
+    val cardWpx = with(density) { cardWidthDp.toPx() }
+    val cardHpx = with(density) { cardHeightDp.toPx() }
+    val fullscreenScale = fullscreenCardScale(cardWpx, cardHpx, screenWpx, screenHpx)
+
+    var overlayCenter by remember { mutableStateOf<Offset?>(null) }
+
+    // 오버레이 카드가 (1) 위치 측정되고 (2) 에셋까지 로드돼 정상 카드로 그려질 준비가 된 뒤에야
+    // 홈 카드 숨김을 알리고(onReady) 진입 애니를 시작한다. 그 전엔 홈 카드가 자리를 지켜
+    // 빈 프레임/흰 깜빡이 없다.
+    LaunchedEffect(overlayCenter != null, assetsReady) {
+        if (overlayCenter != null && assetsReady) {
+            onReady()
+            progress.animateTo(1f, tween(Motion.DUR_ZOOM, easing = Motion.easeEmphasized))
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // 검은 배경: 카드와 분리해 progress로만 페이드 → 카드는 또렷하게 유지.
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            // layers에 이미 Bitmap을 주입했으므로 asset 경로는 넘기지 않는다(중복 로딩 방지).
-            // Composite는 null 경로일 때 layers의 Bitmap을 그대로 사용한다.
+                .graphicsLayer { alpha = progress.value }
+                .background(Color.Black),
+        )
+
+        // 단일 카드: 홈 카드와 같은 크기로 그려 progress=0에서 홈 카드와 픽셀 일치.
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             ProfileCardComposite(
                 layers = layers,
-                // 한 진행도(zoom)로 회전+확대+이동을 동시에 — 어긋남 없이 한 덩어리로 움직인다.
-                // 시작점은 홈 카드의 실제 측정 위치라, 그 자리에서 떠올라 화면 중앙으로 내려온다.
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .onGloballyPositioned { cardCenter = it.boundsInWindow().center }
+                    .size(cardWidthDp, cardHeightDp)
+                    .onGloballyPositioned { overlayCenter = it.boundsInWindow().center }
                     .graphicsLayer {
-                        rotationZ = 90f * zoom
-                        val s = 1f + (fitScale - 1f) * zoom
-                        scaleX = s
-                        scaleY = s
-                        // 홈 카드와 전체보기 카드의 화면상 중심 차이만큼 시작 위치를 당겨, zoom=1에서 중앙으로.
                         val home = ProfileCardBounds.homeCardCenter
-                        val fs = cardCenter
-                        if (home != null && fs != null) {
-                            translationX = (home.x - fs.x) * (1f - zoom)
-                            translationY = (home.y - fs.y) * (1f - zoom)
+                        val oc = overlayCenter
+                        if (home == null || oc == null || !assetsReady) {
+                            // 위치 측정 전이거나 에셋 로딩 전 — 잘못된 자리/흰 베이스가 보이지 않게 숨긴다.
+                            alpha = 0f
+                        } else {
+                            alpha = 1f
+                            val t = fullscreenCardTransform(
+                                progress = progress.value,
+                                homeCenterX = home.x,
+                                homeCenterY = home.y,
+                                overlayCenterX = oc.x,
+                                overlayCenterY = oc.y,
+                                fullscreenScale = fullscreenScale,
+                            )
+                            rotationZ = t.rotationZ
+                            scaleX = t.scale
+                            scaleY = t.scale
+                            translationX = t.translationX
+                            translationY = t.translationY
                         }
                     },
             )
         }
 
-        // -- Bottom Controls --
+        // 하단 컨트롤: 카드와 달리 progress로 함께 페이드.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
+                .graphicsLayer { alpha = progress.value }
                 .padding(horizontal = spacing.s4, vertical = spacing.s5),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
@@ -219,7 +258,7 @@ fun ProfileFullscreenScreen(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                        onClick = onBack,
+                        onClick = close,
                     )
                     .padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -37,7 +38,7 @@ import com.soodalbbobgi.app.presentation.gacha.GachaScreen
 import com.soodalbbobgi.app.presentation.home.HomeScreen
 import com.soodalbbobgi.app.presentation.onboarding.OnboardingNicknameScreen
 import com.soodalbbobgi.app.presentation.onboarding.OnboardingPermissionScreen
-import com.soodalbbobgi.app.presentation.profile.ProfileFullscreenScreen
+import com.soodalbbobgi.app.presentation.profile.ProfileFullscreenOverlay
 import com.soodalbbobgi.app.presentation.settings.SettingsScreen
 import com.soodalbbobgi.app.presentation.shop.ShopScreen
 import com.soodalbbobgi.app.presentation.splash.SplashDestination
@@ -49,8 +50,13 @@ fun AppNavHost(navController: NavHostController) {
     val currentRoute = backStackEntry?.destination?.route
     // 홈 프로필 편집 시트 열림 상태. 시트가 탭바 위(화면 바닥까지)를 덮도록 끌어올려 둔다.
     var homeEditorOpen by rememberSaveable { mutableStateOf(false) }
-    // 탭 화면(홈/캘린더/뽑기/상점)에서만 하단 탭바를 노출하되, 편집 시트가 열리면 감춘다.
-    val showTabBar = tabIndexOf(currentRoute) != null && !homeEditorOpen
+    // 전체보기 오버레이 열림 상태. 편집 시트와 마찬가지로 열리면 탭바를 감춘다.
+    var fullscreenOpen by rememberSaveable { mutableStateOf(false) }
+    // 오버레이 카드가 측정되어 홈 카드 자리를 덮을 준비가 됐는지. 이때 비로소 홈 카드를 숨겨
+    // 교체 순간의 빈 프레임(깜빡임)을 없앤다.
+    var cardOverlayReady by remember { mutableStateOf(false) }
+    // 탭 화면(홈/캘린더/뽑기/상점)에서만 하단 탭바를 노출하되, 편집 시트/전체보기가 열리면 감춘다.
+    val showTabBar = tabIndexOf(currentRoute) != null && !homeEditorOpen && !fullscreenOpen
 
     // 탭 선택 시 공통 네비게이션: Home을 루트로 두고 상태를 보존/복원한다.
     val onSelectTab: (String) -> Unit = { route ->
@@ -119,7 +125,8 @@ fun AppNavHost(navController: NavHostController) {
                         HomeScreen(
                             onNavigateToTab = onSelectTab,
                             onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                            onNavigateToProfileFullscreen = { navController.navigate(Screen.ProfileFullscreen.route) },
+                            onOpenFullscreen = { cardOverlayReady = false; fullscreenOpen = true },
+                            hideCard = cardOverlayReady,
                             editorOpen = homeEditorOpen,
                             onEditorOpenChange = { homeEditorOpen = it },
                         )
@@ -136,13 +143,6 @@ fun AppNavHost(navController: NavHostController) {
                     composable(Screen.Settings.route) {
                         SettingsScreen(onBack = { navController.popBackStack() })
                     }
-                    composable(Screen.ProfileFullscreen.route) {
-                        // animatedVisibilityScope로 진입/복귀 진행도를 받아 카드를 회전·확대·이동시킨다.
-                        ProfileFullscreenScreen(
-                            animatedVisibilityScope = this,
-                            onBack = { navController.popBackStack() },
-                        )
-                    }
                 }
             }
 
@@ -157,6 +157,14 @@ fun AppNavHost(navController: NavHostController) {
                     onTabSelected = onSelectTab,
                 )
             }
+        }
+
+        // 전체보기 오버레이: 탭바/콘텐츠 위(최상위). 닫힘 애니메이션이 끝나면 상태를 되돌린다.
+        if (fullscreenOpen) {
+            ProfileFullscreenOverlay(
+                onReady = { cardOverlayReady = true },
+                onClosed = { fullscreenOpen = false; cardOverlayReady = false },
+            )
         }
     }
 }

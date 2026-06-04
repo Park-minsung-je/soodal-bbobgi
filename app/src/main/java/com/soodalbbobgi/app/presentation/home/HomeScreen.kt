@@ -38,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
@@ -73,7 +74,8 @@ private fun Int.formatNumber(): String = String.format("%,d", this)
 fun HomeScreen(
     onNavigateToTab: (String) -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToProfileFullscreen: () -> Unit,
+    onOpenFullscreen: () -> Unit,
+    hideCard: Boolean,
     editorOpen: Boolean,
     onEditorOpenChange: (Boolean) -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
@@ -227,8 +229,14 @@ fun HomeScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    // 전체보기 진입 시 카드가 이 자리에서 떠오르도록 화면상 중심을 기록한다.
-                    .onGloballyPositioned { ProfileCardBounds.homeCardCenter = it.boundsInWindow().center }
+                    // 전체보기 오버레이가 이 카드의 자리·크기에서 시작하도록 화면상 위치/크기를 기록.
+                    .onGloballyPositioned {
+                        val b = it.boundsInWindow()
+                        ProfileCardBounds.homeCardCenter = b.center
+                        ProfileCardBounds.homeCardSize = b.size
+                    }
+                    // 오버레이 카드가 같은 자리를 덮을 준비가 된 뒤에만 홈 카드를 숨긴다(교체 순간 빈 프레임 방지).
+                    .graphicsLayer { alpha = if (hideCard) 0f else 1f }
                     .shadow(8.dp, RectangleShape)
                     .clip(RectangleShape)
                     // 편집 중에는 카드 탭으로 전체화면(저장값) 진입을 막는다 — 미저장 편집값과 어긋나기 때문.
@@ -236,7 +244,7 @@ fun HomeScreen(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         enabled = !editorOpen,
-                        onClick = onNavigateToProfileFullscreen,
+                        onClick = onOpenFullscreen,
                     ),
             ) {
                 ProfileCardComposite(
@@ -262,7 +270,7 @@ fun HomeScreen(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                                 enabled = !editorOpen,
-                                onClick = onNavigateToProfileFullscreen,
+                                onClick = onOpenFullscreen,
                             )
                             .padding(vertical = 4.dp),
                     )

@@ -104,6 +104,14 @@ object ProfileCardRenderer {
         val canvas = Canvas(bitmap)
         val paint = Paint().apply { isAntiAlias = false; isFilterBitmap = false }
 
+        // 이미지 레이어가 하나도 없으면(카드 데이터/에셋 로딩 전) 흰 베이스+텍스트만 그려져
+        // 카드가 흰색으로 깜빡인다. 특히 produceState는 새 합성이 끝날 때까지 이 흰 결과를
+        // 그대로 보여주므로, 여기서 빈(투명) 비트맵을 반환해 흰 카드가 어떤 경로로도 안 보이게 한다.
+        // 캐릭터는 정상 카드에 항상 장착되므로 완성된 카드는 영향이 없다.
+        if (layers.bgBitmap == null && layers.charBitmap == null && layers.frameBitmap == null) {
+            return bitmap
+        }
+
         // Layer 0: 흰색 불투명 베이스 — 카드가 절대 투명해지지 않도록 전체를 흰색으로 채운다.
         // "배경 선택안함"이면 이 흰 바탕이 그대로 드러난다.
         paint.color = android.graphics.Color.WHITE
@@ -282,6 +290,18 @@ fun ProfileCardComposite(
     val charBitmap = rememberAssetBitmap(charAsset) ?: layers.charBitmap
     val frameBitmap = rememberAssetBitmap(frameAsset) ?: layers.frameBitmap
 
+    // 에셋 경로가 지정됐는데 그 비트맵이 아직 로딩 전이면, 합성하면 흰 베이스(render Layer0)만
+    // 그려진다 → 카드가 흰색으로 깜빡인다. 이때는 카드를 그리지 않고 빈 자리(투명)만 유지한다.
+    // 경로가 null인 경우(배경 '선택안함')는 의도된 흰 배경이므로 보류하지 않는다.
+    val assetPending = (!bgAsset.isNullOrBlank() && bgBitmap == null) ||
+        (!charAsset.isNullOrBlank() && charBitmap == null) ||
+        (!frameAsset.isNullOrBlank() && frameBitmap == null)
+
+    // 이미지 레이어가 하나도 없으면(전부 null) render는 흰 베이스+텍스트만 만든다.
+    // 카드 데이터 로딩 전이라 에셋 경로조차 아직 null인 경우(assetPending이 못 잡는 구간)도
+    // 여기서 흰 카드를 막는다. 캐릭터는 항상 기본 장착되므로 정상 카드는 영향이 없다.
+    val hasAnyImage = bgBitmap != null || charBitmap != null || frameBitmap != null
+
     val finalLayers = layers.copy(
         bgBitmap = bgBitmap,
         charBitmap = charBitmap,
@@ -301,14 +321,14 @@ fun ProfileCardComposite(
         .fillMaxWidth()
         .aspectRatio(1472f / 704f)
     val current = bitmap
-    if (current != null) {
+    if (current != null && hasAnyImage && !assetPending) {
         Image(
             bitmap = current.asImageBitmap(),
             contentDescription = "프로필 카드",
             modifier = cardModifier,
         )
     } else {
-        // 합성 전 잠깐의 빈 자리 — 레이아웃 점프를 막기 위해 같은 크기를 차지한다.
+        // 합성 전/에셋 로딩 전 잠깐의 빈 자리 — 흰 베이스 카드 대신 투명 자리를 같은 크기로 둔다.
         Box(modifier = cardModifier)
     }
 }

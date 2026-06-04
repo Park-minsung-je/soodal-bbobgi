@@ -40,11 +40,6 @@ class NavTransitionsTest {
     }
 
     @Test
-    fun `profile fullscreen uses zoom`() {
-        assertThat(transitionFor("home", "profile_fullscreen")).isEqualTo(TransitionKind.ZOOM)
-    }
-
-    @Test
     fun `null routes fall back to push`() {
         assertThat(transitionFor(null, "home")).isEqualTo(TransitionKind.PUSH)
     }

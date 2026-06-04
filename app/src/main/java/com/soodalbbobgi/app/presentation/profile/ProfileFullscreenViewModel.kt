@@ -86,7 +86,9 @@ class ProfileFullscreenViewModel @Inject constructor(
     private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
     val saveState: StateFlow<SaveState> = _saveState
 
-    val cardState: StateFlow<FullscreenCardState> = combine(
+    // 초기값을 null로 둔다 — 실제 데이터가 결합되기 전(null)에는 전체보기 오버레이가
+    // 카드를 공개하지 않아, 에셋이 비어 보이는 흰 베이스 카드가 한 프레임 노출되는 걸 막는다.
+    val cardState: StateFlow<FullscreenCardState?> = combine(
         appState.profile,
         appState.profileCard,
         appState.inventory,
@@ -115,7 +117,7 @@ class ProfileFullscreenViewModel @Inject constructor(
             taglineColor = card?.taglineColor ?: "#FFFFFF",
             statsColor = card?.statsColor ?: "#00F5FF",
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FullscreenCardState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     /**
      * 저장된 ProfileCard 슬롯 값으로 표시할 이미지 에셋 경로를 해결한다.

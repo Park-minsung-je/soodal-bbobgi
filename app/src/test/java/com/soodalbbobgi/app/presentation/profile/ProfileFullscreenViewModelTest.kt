@@ -102,7 +102,7 @@ class ProfileFullscreenViewModelTest {
             startCollect(vm)
             advanceUntilIdle()
 
-            val s = vm.cardState.value
+            val s = vm.cardState.value!!
             assertThat(s.nickname).isEqualTo("수달이")
             assertThat(s.charAsset).isEqualTo("/assets/char/c1.png")
             assertThat(s.bgAsset).isNull()
@@ -127,7 +127,7 @@ class ProfileFullscreenViewModelTest {
             startCollect(vm)
             advanceUntilIdle()
 
-            assertThat(vm.cardState.value.statsText).isEqualTo("1200m · 3회")
+            assertThat(vm.cardState.value!!.statsText).isEqualTo("1200m · 3회")
         }
 
     @Test
@@ -141,7 +141,7 @@ class ProfileFullscreenViewModelTest {
             startCollect(vm)
             advanceUntilIdle()
 
-            val s = vm.cardState.value
+            val s = vm.cardState.value!!
             assertThat(s.nickname).isEmpty()
             assertThat(s.tagline).isEqualTo("수영을 사랑하는 수달")
             assertThat(s.bgAsset).isNull()
