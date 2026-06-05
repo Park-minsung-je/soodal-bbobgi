@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,13 +52,10 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
-import com.soodalbbobgi.app.core.ui.ButtonStyle
 import com.soodalbbobgi.app.core.ui.ChipColor
 import com.soodalbbobgi.app.core.ui.GlassPanel
 import com.soodalbbobgi.app.core.ui.GradeBadge
-import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalCard
-import com.soodalbbobgi.app.core.ui.SoodalChip
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
@@ -257,65 +255,83 @@ fun HomeScreen(
             }
 
             Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp, start = 4.dp, end = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "전체화면 보기",
-                        fontSize = 12.sp,
+                        text = "전체화면 보기 ↗",
+                        fontSize = 11.sp,
                         color = colors.textTertiary,
                         modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                                 enabled = !editorOpen,
                                 onClick = onOpenFullscreen,
                             )
-                            .padding(vertical = 4.dp),
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
                     )
-                    Text(
-                        text = "프로필 편집",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.accentCyan,
+                    // 프로필 편집: 글래스 배경+테두리에 edit 아이콘을 둔 칩 버튼 (디자인 시안 기준).
+                    Row(
                         modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(colors.glassBg)
+                            .border(1.dp, colors.glassBorder, RoundedCornerShape(8.dp))
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                                 onClick = { onEditorOpenChange(true) },
                             )
-                            .padding(vertical = 4.dp),
-                    )
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        SoodalIcon(icon = SoodalIcons.Edit, tint = colors.accentCyan, size = 14.dp)
+                        Text("프로필 편집", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.accentCyan)
+                    }
                 }
 
                 Spacer(Modifier.height(spacing.s3))
 
                 // ── Currency Row ────────────────────────────────────
-                SoodalCard(modifier = Modifier.fillMaxWidth()) {
+                GlassPanel(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                            SoodalChip(
-                                text = state.shells.formatNumber(),
-                                color = ChipColor.Gold,
-                                iconType = SoodalIcons.Shell,
-                                label = "조개",
-                            )
-                            SoodalChip(
-                                text = state.pearls.formatNumber(),
-                                color = ChipColor.Purple,
-                                iconType = SoodalIcons.Pearl,
-                                label = "진주",
-                            )
-                        }
-                        SoodalButton(
-                            text = "뽑기 →",
-                            onClick = { onNavigateToTab("gacha") },
+                        CurrencyChip(
+                            iconType = SoodalIcons.Shell,
+                            label = "조개",
+                            value = state.shells.formatNumber(),
+                            color = ChipColor.Gold,
                         )
+                        CurrencyChip(
+                            iconType = SoodalIcons.Pearl,
+                            label = "진주",
+                            value = state.pearls.formatNumber(),
+                            color = ChipColor.Purple,
+                        )
+                        Spacer(Modifier.weight(1f))
+                        // 뽑기: 시안 반투명 보조 버튼 (디자인 시안 기준).
+                        Row(
+                            modifier = Modifier
+                                .height(40.dp)
+                                .clip(SoodalShape.md)
+                                .background(colors.accentCyan.copy(alpha = 0.12f))
+                                .border(1.dp, colors.accentCyan.copy(alpha = 0.35f), SoodalShape.md)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = { onNavigateToTab("gacha") },
+                                )
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text("뽑기 →", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.accentCyan)
+                        }
                     }
                 }
 
@@ -456,6 +472,39 @@ fun HomeScreen(
         )
     }
     } // Box
+}
+
+/**
+ * 홈 통화 칩 — 아이콘 + (라벨/값 세로). 등급색 soft 배경과 0.35 테두리 (디자인 시안 기준).
+ */
+@Composable
+private fun CurrencyChip(
+    iconType: SoodalIcons,
+    label: String,
+    value: String,
+    color: ChipColor,
+) {
+    val colors = SoodalDesign.colors
+    val (bg, border, fg) = when (color) {
+        ChipColor.Gold -> Triple(colors.accentGoldSoft, colors.accentGold.copy(alpha = 0.35f), colors.accentGold)
+        ChipColor.Purple -> Triple(colors.accentPurpleSoft, colors.accentPurple.copy(alpha = 0.35f), colors.accentPurple)
+        ChipColor.Cyan -> Triple(colors.accentCyanSoft, colors.accentCyan.copy(alpha = 0.35f), colors.accentCyan)
+    }
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(14.dp))
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SoodalIcon(icon = iconType, tint = fg, size = 20.dp)
+        Column(horizontalAlignment = Alignment.Start) {
+            Text(text = label, fontSize = 10.sp, color = fg.copy(alpha = 0.7f), fontWeight = FontWeight.SemiBold)
+            Text(text = value, fontSize = 18.sp, color = fg, fontWeight = FontWeight.ExtraBold)
+        }
+    }
 }
 
 @Composable
