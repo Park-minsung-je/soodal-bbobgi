@@ -23,6 +23,8 @@ class SwimLogRepositoryImpl @Inject constructor(
         dao.getByDateRange(startDate, endDate).map { list -> list.map { it.toDomain() } }
     override suspend fun updateShellsEarned(date: String, shellsEarned: Int) =
         dao.updateShellsEarned(date, shellsEarned)
+    override suspend fun updateStrokes(date: String, free: Int, breast: Int, back: Int, fly: Int, mixed: Int, kick: Int) =
+        dao.updateStrokes(date, free, breast, back, fly, mixed, kick)
     override suspend fun deleteByDate(date: String) = dao.deleteByDate(date)
     override suspend fun deleteByHcRecordId(hcRecordId: String) = dao.deleteByHcRecordId(hcRecordId)
     override suspend fun getStats(startDate: String, endDate: String) = SwimStats(

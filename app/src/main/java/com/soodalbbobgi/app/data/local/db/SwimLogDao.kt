@@ -28,6 +28,14 @@ interface SwimLogDao {
     @Query("UPDATE swim_logs SET shellsEarned = :shellsEarned WHERE date = :date")
     suspend fun updateShellsEarned(date: String, shellsEarned: Int)
 
+    /** 같은 날짜 기록의 영법별 거리(m)를 갱신한다. (캘린더 영법 비율 수동 보정) */
+    @Query(
+        "UPDATE swim_logs SET strokeFreestyleM = :free, strokeBreastM = :breast, " +
+            "strokeBackM = :back, strokeFlyM = :fly, strokeMixedM = :mixed, strokeKickM = :kick " +
+            "WHERE date = :date",
+    )
+    suspend fun updateStrokes(date: String, free: Int, breast: Int, back: Int, fly: Int, mixed: Int, kick: Int)
+
     @Query("DELETE FROM swim_logs WHERE date = :date")
     suspend fun deleteByDate(date: String)
 

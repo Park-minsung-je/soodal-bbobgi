@@ -41,6 +41,10 @@ class SwimLogUseCase @Inject constructor(
     suspend fun updateShellsEarned(date: String, shellsEarned: Int) =
         swimLogRepo.updateShellsEarned(date, shellsEarned)
 
+    /** 캘린더에서 보정한 영법별 거리(m)를 같은 날짜 로컬 row에 반영. */
+    suspend fun updateStrokes(date: String, free: Int, breast: Int, back: Int, fly: Int, mixed: Int, kick: Int) =
+        swimLogRepo.updateStrokes(date, free, breast, back, fly, mixed, kick)
+
     /** HC 레코드 UID로 로컬 기록을 찾아 날짜를 반환한다. */
     suspend fun getDateByHcRecordId(hcRecordId: String): String? =
         swimLogRepo.getByHcRecordId(hcRecordId)?.date
