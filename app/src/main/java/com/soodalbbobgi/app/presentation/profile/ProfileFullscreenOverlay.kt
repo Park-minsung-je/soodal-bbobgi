@@ -1,5 +1,6 @@
 package com.soodalbbobgi.app.presentation.profile
 
+import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -39,6 +41,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
@@ -69,6 +74,20 @@ fun ProfileFullscreenOverlay(
     val config = LocalConfiguration.current
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
+
+    // 전체보기 동안 시스템 바를 숨겨 전체화면으로 만든다. 닫히면(dispose) 원복. (화면 회전은 안 함)
+    DisposableEffect(Unit) {
+        val activity = context as? Activity
+        val window = activity?.window
+        val controller = window?.let { WindowInsetsControllerCompat(it, it.decorView) }
+        window?.let { WindowCompat.setDecorFitsSystemWindows(it, false) }
+        controller?.hide(WindowInsetsCompat.Type.systemBars())
+        controller?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        onDispose {
+            controller?.show(WindowInsetsCompat.Type.systemBars())
+            window?.let { WindowCompat.setDecorFitsSystemWindows(it, true) }
+        }
+    }
 
     val saveState by viewModel.saveState.collectAsState()
     val cardStateOrNull by viewModel.cardState.collectAsState()
