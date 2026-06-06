@@ -40,23 +40,7 @@ fun hrRestMask(
     val rest = BooleanArray(n)
     if (n < 2) return rest
 
-    // 시간 창 기준 이동 평균 (샘플 간격이 1초든 다운샘플이든 동일하게 동작)
-    val sm = DoubleArray(n)
-    val half = smoothSec / 2
-    var lo = 0
-    var hi = -1
-    var sum = 0.0
-    for (i in 0 until n) {
-        while (hi + 1 < n && points[hi + 1].first <= points[i].first + half) {
-            hi++
-            sum += points[hi].second
-        }
-        while (points[lo].first < points[i].first - half) {
-            sum -= points[lo].second
-            lo++
-        }
-        sm[i] = sum / (hi - lo + 1)
-    }
+    val sm = hrSmoothed(points, smoothSec)
 
     // 일시정지 공백으로 세그먼트 분리
     val segs = mutableListOf<IntRange>()
@@ -100,6 +84,61 @@ fun hrRestMask(
         }
     }
     return rest
+}
+
+/**
+ * 심박 포인트의 시간 창 이동 평균 — 휴식 마스크와 강도 적분이 공유한다.
+ * 샘플 간격이 1초든 다운샘플이든 동일하게 동작한다.
+ *
+ * @param points (오프셋초, bpm) 목록 — 시간 오름차순
+ * @return points와 같은 길이의 평활 bpm 배열
+ */
+fun hrSmoothed(points: List<Pair<Int, Int>>, smoothSec: Int = 15): DoubleArray {
+    val n = points.size
+    val sm = DoubleArray(n)
+    if (n == 0) return sm
+    val half = smoothSec / 2
+    var lo = 0
+    var hi = -1
+    var sum = 0.0
+    for (i in 0 until n) {
+        while (hi + 1 < n && points[hi + 1].first <= points[i].first + half) {
+            hi++
+            sum += points[hi].second
+        }
+        while (points[lo].first < points[i].first - half) {
+            sum -= points[lo].second
+            lo++
+        }
+        sm[i] = sum / (hi - lo + 1)
+    }
+    return sm
+}
+
+/**
+ * 휴식 구간을 각 구간의 중심 기준으로 [factor]배 늘리거나 줄인다.
+ * 보정된 실운동시간과 차트의 휴식 총량이 일치하도록 맞출 때 쓴다.
+ * 스케일 후 겹치는 구간은 병합하고, 음수 시작은 0으로 자른다.
+ */
+fun scaleRestRanges(ranges: List<IntRange>, factor: Double): List<IntRange> {
+    if (ranges.isEmpty() || factor == 1.0) return ranges
+    val scaled = ranges.map { range ->
+        val center = (range.first + range.last) / 2.0
+        val half = (range.last - range.first) * factor / 2.0
+        val start = Math.round(center - half).toInt().coerceAtLeast(0)
+        val end = Math.round(center + half).toInt()
+        start..end
+    }
+    val merged = mutableListOf<IntRange>()
+    for (range in scaled.sortedBy { it.first }) {
+        val prev = merged.lastOrNull()
+        if (prev != null && range.first <= prev.last) {
+            merged[merged.size - 1] = prev.first..maxOf(prev.last, range.last)
+        } else {
+            merged.add(range)
+        }
+    }
+    return merged
 }
 
 /**

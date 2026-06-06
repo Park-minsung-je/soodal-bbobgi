@@ -68,26 +68,36 @@ class ActiveSecondsTest {
     }
 
     @Test
-    fun `심박 추정은 휴식 마스크와 일치하게 비휴식 간격만 합산한다`() {
+    fun `골짜기 세션 추정은 골짜기 추정의 30퍼 보정 한도 안에 있다`() {
         val points = valleyPoints()
         val rest = com.soodalbbobgi.app.core.util.hrRestMask(points)
-        // 마스크 기준 기대값 — 동기화와 차트가 같은 분류를 공유해야 한다
-        val expected = (0 until points.size - 1).count { !rest[it] }
-        assertEquals(expected, hrActiveSeconds(points, distanceM = 500))
-        // 골짜기(~195초)를 뺀 값 부근인지 타당성 확인
-        org.junit.Assert.assertTrue("active=$expected", expected in 1190..1280)
+        val tv = (0 until points.size - 1).count { !rest[it] }
+        val est = estimateActive(points, distanceM = 500)!!
+        // 보정식 결과는 골짜기 추정(Tv)의 ±30% 안으로 제한된다
+        org.junit.Assert.assertTrue(
+            "act=${est.activeSeconds}, tv=$tv",
+            est.activeSeconds in (tv * 0.7).toInt() - 1..(tv * 1.3).toInt() + 1,
+        )
+        org.junit.Assert.assertTrue(est.activeSeconds <= 1439)
+    }
+
+    @Test
+    fun `연속 수영 세션은 기록 시간 전체가 운동이다`() {
+        // 휴식 골짜기가 없으면 보정식이 위로 밀어도 기록 시간에서 캡
+        val points = (0 until 1200).map { it to swimBpm(it) }
+        assertEquals(1199, estimateActive(points, distanceM = 0)!!.activeSeconds)
     }
 
     @Test
     fun `페이스 하한으로 비현실적으로 빠른 추정을 클램프한다`() {
-        // 거리 1,700m → 하한 1,360초(1'20"/100m). 추정(~1,240초)이 그보다 빠르면 하한으로 올린다
-        assertEquals(1360, hrActiveSeconds(valleyPoints(), distanceM = 1700))
+        // 거리 1,700m → 하한 1,360초(1'20"/100m). 추정이 그보다 빠르면 하한으로 올린다
+        assertEquals(1360, estimateActive(valleyPoints(), distanceM = 1700)!!.activeSeconds)
     }
 
     @Test
     fun `하한은 기록된 시간을 넘지 않는다`() {
         // 거리 3,000m → 하한 2,400초 > 기록 1,439초 — 기록된 시간으로 캡
-        assertEquals(1439, hrActiveSeconds(valleyPoints(), distanceM = 3000))
+        assertEquals(1439, estimateActive(valleyPoints(), distanceM = 3000)!!.activeSeconds)
     }
 
     @Test
@@ -95,13 +105,26 @@ class ActiveSecondsTest {
         // 수영 600초 + (공백 300초) + 수영 300초 — 공백은 기록이 없으므로 599+299
         val points = (0 until 600).map { it to swimBpm(it) } +
             (900 until 1200).map { it to swimBpm(it) }
-        assertEquals(898, hrActiveSeconds(points, distanceM = 0))
+        assertEquals(898, estimateActive(points, distanceM = 0)!!.activeSeconds)
+    }
+
+    @Test
+    fun `차트 휴식 구간은 보정된 휴식 총량에 맞게 스케일된다`() {
+        val points = valleyPoints()
+        val est = estimateActive(points, distanceM = 500)!!
+        // 구간 총합 ≈ 기록시간 - 실운동시간 (스케일 클램프·반올림 오차 허용)
+        val bandSum = est.restRanges.sumOf { it.last - it.first }
+        val restSec = 1439 - est.activeSeconds
+        org.junit.Assert.assertTrue(
+            "bands=$bandSum, rest=$restSec",
+            bandSum in (restSec * 0.8).toInt()..(restSec * 1.2).toInt(),
+        )
     }
 
     @Test
     fun `심박 샘플이 너무 적으면 추정하지 않는다`() {
         val points = (0 until 30).map { it to 150 }
-        assertNull(hrActiveSeconds(points, distanceM = 500))
+        assertNull(estimateActive(points, distanceM = 500))
     }
 
     @Test
