@@ -27,16 +27,16 @@ fun SoodalChip(
     label: String? = null,
 ) {
     val colors = SoodalDesign.colors
-    val (bg, border, fg) = when (color) {
-        ChipColor.Blue -> Triple(colors.accentBlueSoft, colors.accentBlue.copy(alpha = 0.35f), colors.accentBlue)
-        ChipColor.Purple -> Triple(colors.accentPurpleSoft, colors.accentPurple.copy(alpha = 0.35f), colors.accentPurple)
-        ChipColor.Gold -> Triple(colors.accentGoldSoft, colors.accentGold.copy(alpha = 0.35f), colors.accentGold)
+    // borderless 원칙 — 칩은 채움색만으로 구분한다.
+    val (bg, fg) = when (color) {
+        ChipColor.Blue -> colors.accentBlueSoft to colors.accentBlue
+        ChipColor.Purple -> colors.accentPurpleSoft to colors.accentPurple
+        ChipColor.Gold -> colors.accentGoldSoft to colors.accentGold
     }
     Row(
         modifier = modifier
             .clip(CircleShape)
             .background(bg)
-            .border(1.dp, border, CircleShape)
             .padding(horizontal = 10.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,

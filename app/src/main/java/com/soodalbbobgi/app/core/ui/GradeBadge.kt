@@ -23,18 +23,18 @@ fun GradeBadge(
     modifier: Modifier = Modifier,
 ) {
     val colors = SoodalDesign.colors
-    val (fg, borderColor, bg) = when (grade) {
-        Grade.SSR -> Triple(colors.accentGold, colors.accentGold.copy(alpha = 0.45f), colors.accentGoldSoft)
-        Grade.SR -> Triple(colors.accentPurple, colors.accentPurple.copy(alpha = 0.45f), colors.accentPurpleSoft)
-        Grade.R -> Triple(colors.accentBlue, colors.accentBlue.copy(alpha = 0.45f), colors.accentBlueSoft)
-        Grade.N -> Triple(colors.textSecondary, colors.textTertiary, colors.surface2)
+    // borderless 원칙 — 등급 뱃지는 채움색만으로 구분한다.
+    val (fg, bg) = when (grade) {
+        Grade.SSR -> colors.accentGold to colors.accentGoldSoft
+        Grade.SR -> colors.accentPurple to colors.accentPurpleSoft
+        Grade.R -> colors.accentBlue to colors.accentBlueSoft
+        Grade.N -> colors.textSecondary to colors.surface2
     }
 
     Row(
         modifier = modifier
             .clip(CircleShape)
             .background(bg)
-            .border(1.dp, borderColor, CircleShape)
             .padding(horizontal = 8.dp, vertical = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(3.dp),
         verticalAlignment = Alignment.CenterVertically,
