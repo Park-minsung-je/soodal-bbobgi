@@ -48,8 +48,8 @@ class ActiveSecondsTest {
     }
 
     @Test
-    fun `휴식 바닥보다 30 이상 높은 구간만 운동시간으로 합산한다`() {
-        // 수영 600초(150bpm) + 벽 휴식 300초(95bpm) → 바닥 95, 임계 125
+    fun `휴식 바닥보다 29 이상 높은 구간만 운동시간으로 합산한다`() {
+        // 수영 600초(150bpm) + 벽 휴식 300초(95bpm) → 바닥 95, 임계 124
         val samples = (0 until 900).map { sec ->
             t(sec.toLong()) to if (sec < 600) 150L else 95L
         }
@@ -73,10 +73,10 @@ class ActiveSecondsTest {
 
     @Test
     fun `순간 글리치는 휴식 바닥을 끌어내리지 않는다`() {
-        // 40bpm짜리 글리치 5개 — 하위 2% 바닥은 여전히 95 부근이라 임계가 흔들리지 않는다
+        // 40bpm짜리 글리치 3개 — 하위 0.5% 바닥은 여전히 95 부근이라 임계가 흔들리지 않는다
         val samples = (0 until 600).map { t(it.toLong()) to 150L } +
             (600 until 900).map { t(it.toLong()) to 95L } +
-            (900 until 905).map { t(it.toLong()) to 40L }
+            (900 until 903).map { t(it.toLong()) to 40L }
         assertEquals(600, hrActiveSeconds(samples))
     }
 

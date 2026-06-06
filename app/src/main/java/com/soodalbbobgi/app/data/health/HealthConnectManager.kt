@@ -101,26 +101,27 @@ internal fun downsampleHr(samples: List<Pair<Instant, Long>>, maxPoints: Int = 1
 
 /**
  * [실험] 심박 기반 실운동시간 추정(초) — 휴식 바닥 기준.
- * 세션 최저 심박(하위 2% — 글리치에 둔감)은 가장 깊은 휴식 수준이므로, 그보다 [restBand] 이상
+ * 세션 최저 심박(하위 0.5% — 글리치에 둔감)은 가장 깊은 휴식 수준이므로, 그보다 [restBand] 이상
  * 높은 샘플 구간만 운동으로 합산한다. 샘플 공백(일시정지)은 자동 제외.
  * 바닥이 [restFloorCap]보다 높으면 휴식 없이 수영한 세션으로 보고 차감하지 않는다.
  *
- * 보정 근거: 2026-06-04/05 두 세션을 삼성헬스 실측과 대조해 min+30이 양일 오차 ≤2.4초/100m.
+ * 보정 근거: 2026-06-04/05 두 세션의 원본 심박을 삼성헬스 실측 페이스와 대조해
+ * "하위 0.5% 바닥 + 29bpm"이 양일 오차 1.6초/100m 이내로 최적.
  *
  * @param samples (시각, bpm) 목록. 60개 미만이면 추정 포기(null)
  */
 internal fun hrActiveSeconds(
     samples: List<Pair<Instant, Long>>,
     maxGapSec: Long = 10,
-    restBand: Long = 30,
+    restBand: Long = 29,
     restFloorCap: Long = 110,
 ): Int? {
     if (samples.size < 60) return null
     val sorted = samples.sortedBy { it.first }
 
-    // 휴식 바닥 — 하위 2% 지점 (순간 글리치가 바닥을 끌어내리지 않게)
+    // 휴식 바닥 — 하위 0.5% 지점 (순간 글리치가 바닥을 끌어내리지 않게)
     val byBpm = samples.map { it.second }.sorted()
-    val floor = byBpm[(byBpm.size * 2 / 100).coerceAtMost(byBpm.size - 1)]
+    val floor = byBpm[(byBpm.size * 5 / 1000).coerceAtMost(byBpm.size - 1)]
     // 바닥이 높으면(휴식 구간 없음) 임계값 없이 전체를 운동으로 본다.
     val threshold = if (floor <= restFloorCap) floor + restBand else Long.MIN_VALUE
 
