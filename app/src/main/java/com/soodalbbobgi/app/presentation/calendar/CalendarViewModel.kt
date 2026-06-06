@@ -3,6 +3,7 @@ package com.soodalbbobgi.app.presentation.calendar
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.session.UserSession
+import com.soodalbbobgi.app.core.util.decodeHrRestRanges
 import com.soodalbbobgi.app.core.util.decodeHrSeries
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.data.remote.dto.UpdateStrokesRequest
@@ -51,6 +52,8 @@ data class SwimDayData(
     val minHr: Int? = null,
     /** 차트용 심박 시계열 (오프셋초, bpm). 없으면 빈 목록. */
     val hrSeries: List<Pair<Int, Int>> = emptyList(),
+    /** 휴식으로 계산된 구간 (오프셋초 범위) — 동기화 때 원본 해상도로 분류된 값. */
+    val hrRestRanges: List<IntRange> = emptyList(),
 )
 
 data class CalendarUiState(
@@ -161,5 +164,6 @@ private fun SwimLog.toDayData(): SwimDayData = SwimDayData(
     maxHr = maxHr,
     minHr = minHr,
     hrSeries = decodeHrSeries(hrSeries),
+    hrRestRanges = decodeHrRestRanges(hrSeries),
 )
 

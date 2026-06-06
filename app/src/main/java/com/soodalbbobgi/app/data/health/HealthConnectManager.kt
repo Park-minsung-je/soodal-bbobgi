@@ -14,7 +14,8 @@ import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import com.soodalbbobgi.app.core.util.encodeHrSeries
-import com.soodalbbobgi.app.core.util.hrRestThreshold
+import com.soodalbbobgi.app.core.util.hrRestMask
+import com.soodalbbobgi.app.core.util.hrRestRanges
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
 import java.time.Duration
@@ -33,8 +34,8 @@ import javax.inject.Singleton
  * @property hcRecordId Health Connect 레코드 UID (삭제 추적용)
  * @property maxHr 세션 중 최대 심박(bpm). 심박 기록이 없으면 null
  * @property minHr 세션 중 최소 심박(bpm). 심박 기록이 없으면 null
- * @property activeSeconds 실제 운동 시간(초) — 세그먼트(휴식 제외)나 랩에서 계산. 둘 다 없으면 null
- * @property hrSeries 차트용 다운샘플 심박 시계열 ("오프셋초:bpm,..." 직렬화). 없으면 null
+ * @property activeSeconds 실제 운동 시간(초) — 세그먼트/랩 → 속도 → 심박추정 순으로 계산. 모두 없으면 null
+ * @property hrSeries 차트용 다운샘플 심박 시계열 + 휴식 구간 ("오프셋초:bpm,...|시작-끝,..." 직렬화). 없으면 null
  */
 data class SwimSession(
     val date: String,
@@ -101,77 +102,47 @@ internal fun downsampleHr(samples: List<Pair<Instant, Long>>, maxPoints: Int = 1
 }
 
 /**
- * [실험] 심박 기반 실운동시간 추정(초) — 휴식 경계 보정판.
- * 휴식 임계(바닥+28, [hrRestThreshold]) 미만 코어를 휴식으로 잡되, 경계를 생리적으로 보정한다:
- *  - 휴식 시작 = 심박이 내려가기 시작한 꼭대기 (하락 시작점까지 거꾸로 확장)
- *  - 휴식 끝 = 진행 최저점 대비 +[riseTol] 반등이 시작되는 지점 (출발하면 심박이 오르기 시작)
- * 샘플 공백(일시정지)은 자동 제외하고, 임계가 없으면(휴식 없는 세션) 전체를 운동으로 본다.
+ * (시각, bpm) 심박 샘플을 첫 샘플 기준 (오프셋초, bpm) 포인트로 변환한다 — 시간순 정렬 포함.
+ */
+internal fun hrPoints(samples: List<Pair<Instant, Long>>): List<Pair<Int, Int>> {
+    if (samples.isEmpty()) return emptyList()
+    val sorted = samples.sortedBy { it.first }
+    val base = sorted.first().first
+    return sorted.map { Duration.between(base, it.first).seconds.toInt() to it.second.toInt() }
+}
+
+/**
+ * 심박 골짜기 기반 실운동시간 추정(초) — 페이스 계산용.
+ * 휴식 분류는 차트 표시와 공유하는 [hrRestMask] 단일 소스를 쓰고,
+ * 일시정지 공백을 제외한 비휴식 샘플 간격만 합산한다.
+ * 심박만으로는 느린 연속 수영과 휴식을 완전히 구분할 수 없으므로,
+ * 거리 기반 페이스 하한(100m당 80초)으로 비현실적으로 빠른 추정을 클램프한다.
  *
- * 보정 근거: 2026-06-04/05 원본 심박을 삼성헬스 실측 페이스와 대조해
- * "바닥+28, 반등 9bpm"이 양일 오차 2.1초/100m 이내로 최적.
- *
- * @param samples (시각, bpm) 목록. 60개 미만이면 추정 포기(null)
+ * @param points (오프셋초, bpm) 목록 — [hrPoints] 결과. 60개 미만이면 추정 포기(null)
+ * @param distanceM 세션 거리(미터) — 페이스 하한 클램프용
  */
 internal fun hrActiveSeconds(
-    samples: List<Pair<Instant, Long>>,
-    maxGapSec: Long = 10,
-    riseTol: Long = 9,
+    points: List<Pair<Int, Int>>,
+    distanceM: Int,
+    gapSec: Int = 5,
 ): Int? {
-    if (samples.size < 60) return null
-    val sorted = samples.sortedBy { it.first }
-    val n = sorted.size
-
-    // 휴식 임계 — 차트 표시와 동일 규칙 (core/util/HrSeries.kt 단일 소스).
-    // null이면(바닥이 높아 휴식 없는 세션) 전체를 운동으로 본다.
-    val threshold = hrRestThreshold(samples.map { it.second.toInt() })?.toLong()
-
-    fun gapAt(i: Int): Boolean {
-        val dt = Duration.between(sorted[i].first, sorted[i + 1].first).seconds
-        return dt !in 1..maxGapSec
-    }
-
-    val rest = BooleanArray(n)
-    if (threshold != null) {
-        var segStart = 0
-        var i = 0
-        while (i < n) {
-            if (i > 0 && gapAt(i - 1)) segStart = i
-            if (sorted[i].second < threshold) {
-                // 임계 미만 코어의 끝 찾기 (세그먼트 내)
-                var runEnd = i
-                while (runEnd + 1 < n && sorted[runEnd + 1].second < threshold && !gapAt(runEnd)) runEnd++
-                // 휴식 시작 = 심박이 내려가기 시작한 꼭대기까지 거꾸로 확장 (노이즈 1bpm 허용)
-                var start = i
-                while (start - 1 >= segStart && !gapAt(start - 1) &&
-                    sorted[start - 1].second >= sorted[start].second - 1
-                ) {
-                    start--
-                }
-                // 휴식 끝 = 진행 최저점 대비 +riseTol 반등이 시작되는 지점 (출발 = 상승 시작)
-                var minV = Long.MAX_VALUE
-                var riseStart = runEnd + 1
-                for (k in i..runEnd) {
-                    if (sorted[k].second < minV) minV = sorted[k].second
-                    if (sorted[k].second > minV + riseTol) {
-                        riseStart = k
-                        break
-                    }
-                }
-                for (k in start until riseStart) rest[k] = true
-                i = runEnd + 1
-            } else {
-                i++
-            }
-        }
-    }
+    if (points.size < 60) return null
+    val rest = hrRestMask(points, gapSec = gapSec)
 
     var active = 0L
-    for (i in 0 until n - 1) {
-        if (!gapAt(i) && !rest[i]) {
-            active += Duration.between(sorted[i].first, sorted[i + 1].first).seconds
+    var recorded = 0L
+    for (i in 0 until points.size - 1) {
+        val dt = (points[i + 1].first - points[i].first).toLong()
+        if (dt in 1..gapSec.toLong()) {
+            recorded += dt
+            if (!rest[i]) active += dt
         }
     }
-    return if (active > 0) active.toInt() else null
+    if (active <= 0) return null
+
+    // 페이스 하한(1'20"/100m) — 단, 기록된 시간(일시정지 제외)을 넘지는 않는다.
+    val floor = distanceM * 80L / 100
+    return maxOf(active, floor).coerceAtMost(recorded).toInt()
 }
 
 /**
@@ -304,10 +275,11 @@ class HealthConnectManager @Inject constructor(
                     .toList()
                 val avgSpeed = if (speedSamples.isEmpty()) 0.0 else speedSamples.average()
 
-                // 실운동시간: 세그먼트/랩 → 속도 → [실험] 심박추정 순 폴백
+                // 실운동시간: 세그먼트/랩 → 속도 → 심박추정 순 폴백
+                val hrPts = hrPoints(hrSamples)
                 val fromStructure = computeActiveSeconds(session.segments, session.laps)
                 val fromSpeed = speedBasedActiveSeconds(totalDistanceM, avgSpeed)
-                val fromHr = hrActiveSeconds(hrSamples)
+                val fromHr = hrActiveSeconds(hrPts, totalDistanceM)
                 val activeSeconds = fromStructure ?: fromSpeed ?: fromHr
                 // 진단: 워치가 세그먼트/랩/심박/속도를 실제로 써주는지 + 실운동시간 출처 확인용.
                 Timber.d(
@@ -333,7 +305,8 @@ class HealthConnectManager @Inject constructor(
                     maxHr = bpm.maxOrNull()?.toInt(),
                     minHr = bpm.minOrNull()?.toInt(),
                     activeSeconds = activeSeconds,
-                    hrSeries = downsampleHr(hrSamples).takeIf { it.isNotEmpty() }?.let { encodeHrSeries(it) },
+                    hrSeries = downsampleHr(hrSamples).takeIf { it.isNotEmpty() }
+                        ?.let { encodeHrSeries(it, hrRestRanges(hrPts)) },
                 )
             }
         } catch (e: Exception) {
@@ -424,6 +397,7 @@ class HealthConnectManager @Inject constructor(
                 .flatMap { it.samples }
                 .map { it.time to it.beatsPerMinute }
             val bpm = hrSamples.map { it.second }
+            val hrPts = hrPoints(hrSamples)
 
             val speedSamples = readSpeedRecords(session.startTime, session.endTime)
                 .flatMap { it.samples }
@@ -441,8 +415,9 @@ class HealthConnectManager @Inject constructor(
                 minHr = bpm.minOrNull()?.toInt(),
                 activeSeconds = computeActiveSeconds(session.segments, session.laps)
                     ?: speedBasedActiveSeconds(distanceM, avgSpeed)
-                    ?: hrActiveSeconds(hrSamples),
-                hrSeries = downsampleHr(hrSamples).takeIf { it.isNotEmpty() }?.let { encodeHrSeries(it) },
+                    ?: hrActiveSeconds(hrPts, distanceM),
+                hrSeries = downsampleHr(hrSamples).takeIf { it.isNotEmpty() }
+                    ?.let { encodeHrSeries(it, hrRestRanges(hrPts)) },
             )
         } catch (e: Exception) {
             Timber.w(e, "수영 세션 상세 정보 읽기 실패: ${session.metadata.id}")

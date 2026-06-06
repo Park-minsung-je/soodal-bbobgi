@@ -64,7 +64,6 @@ import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.theme.StrokePalette
-import com.soodalbbobgi.app.core.util.hrRestThreshold
 import com.soodalbbobgi.app.presentation.common.SectionLabel
 import com.soodalbbobgi.app.presentation.common.TrendBadge
 import com.soodalbbobgi.app.presentation.common.WeeklyActivityCard
@@ -513,7 +512,7 @@ private fun DayDetailCard(
             // 세션 심박 곡선
             if (data.hrSeries.size >= 2) {
                 Spacer(Modifier.height(8.dp))
-                HrChart(points = data.hrSeries)
+                HrChart(points = data.hrSeries, restRanges = data.hrRestRanges)
             }
 
             Spacer(Modifier.height(16.dp))
@@ -689,12 +688,10 @@ private fun formatChartTime(sec: Int): String =
  * 꾹 눌러 끌면 해당 지점의 경과 시간·심박을 보여준다.
  */
 @Composable
-private fun HrChart(points: List<Pair<Int, Int>>) {
+private fun HrChart(points: List<Pair<Int, Int>>, restRanges: List<IntRange>) {
     val rose = Color(0xFFF43F5E)
     val colors = SoodalDesign.colors
     val restColor = colors.textTertiary
-    // 동기화의 실운동시간 계산과 동일한 휴식 임계 (null = 휴식 없는 세션)
-    val threshold = hrRestThreshold(points.map { it.second })
     val layout = remember(points) { buildHrChartLayout(points) }
     var scrubFrac by remember(points) { mutableStateOf<Float?>(null) }
     val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
@@ -724,7 +721,8 @@ private fun HrChart(points: List<Pair<Int, Int>>) {
 
         layout.segs.forEachIndexed { si, seg ->
             fun px(p: Pair<Int, Int>) = pxUnit(layout.unitOf(si, p))
-            fun isRest(p: Pair<Int, Int>) = threshold != null && p.second < threshold
+            // 동기화 때 원본 해상도로 분류돼 저장된 휴식 구간 — 실운동시간 계산과 항상 일치한다
+            fun isRest(p: Pair<Int, Int>) = restRanges.any { p.first in it }
 
             // 같은 분류(운동/휴식)가 이어지는 서브런 단위로 색을 나눠 그린다.
             var runStart = 0
