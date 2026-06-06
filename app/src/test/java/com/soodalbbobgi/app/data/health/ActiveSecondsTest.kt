@@ -48,60 +48,44 @@ class ActiveSecondsTest {
     }
 
     @Test
-    fun `Otsu 임계값은 이중봉 심박 분포를 두 무리 사이에서 가른다`() {
-        val bpm = List(600) { 150L } + List(300) { 95L }
-        val threshold = otsuThreshold(bpm)!!
-        org.junit.Assert.assertTrue("threshold=$threshold", threshold in 96..150)
-    }
-
-    @Test
-    fun `변별력 없는 단봉 분포는 임계값을 만들지 않는다`() {
-        val bpm = List(500) { 100L + (it % 6) } // 100~105 좁은 범위
-        assertNull(otsuThreshold(bpm))
-    }
-
-    @Test
     fun `심박 샘플 공백을 일시정지로 보고 운동시간에서 뺀다`() {
         // 0~599초 연속 기록 + (600~899초 일시정지: 샘플 없음) + 900~1199초 연속 기록
         val samples = (0 until 600).map { t(it.toLong()) to 130L } +
             (900 until 1200).map { t(it.toLong()) to 130L }
-        // 연속 구간 내 간격 합: 599 + 299 = 898초 (공백 300초 제외, 단봉이라 휴식 차감 없음)
+        // 연속 구간 내 간격 합: 599 + 299 = 898초 (공백 300초 제외, 하락 없음 → 휴식 차감 없음)
         assertEquals(898, hrActiveSeconds(samples))
     }
 
     @Test
-    fun `지속된 저심박 구간은 벽 휴식으로 보고 추가 차감한다`() {
-        // 수영 600초 + 벽 휴식 120초(저심박, 기록은 계속) + 수영 600초
+    fun `직전 수준에서 뚝 떨어진 구간은 다시 올라갈 때까지 휴식이다`() {
+        // 수영 600초(150bpm) + 벽 휴식 120초(95bpm으로 하락) + 다시 올라가며 수영 600초
         val samples = (0 until 600).map { t(it.toLong()) to 150L } +
             (600 until 720).map { t(it.toLong()) to 95L } +
             (720 until 1320).map { t(it.toLong()) to 150L }
-        // 공백 기반 1319초 - 지속 저심박 120초 = 1199초
+        // 공백 기반 1,319초 - 휴식 120초 = 1,199초
         assertEquals(1199, hrActiveSeconds(samples))
     }
 
     @Test
-    fun `일시정지 복귀 직후의 저심박은 램프업으로 보고 차감하지 않는다`() {
-        // 수영 600초 + (일시정지 300초) + 복귀 직후 저심박 램프업 120초 + 수영 600초
+    fun `일시정지 복귀 직후의 낮은 심박은 휴식으로 오인하지 않는다`() {
+        // 수영 600초 + (일시정지 300초) + 복귀 직후 낮은 심박에서 시작(하락이 아님) + 수영 600초
         val samples = (0 until 600).map { t(it.toLong()) to 150L } +
             (900 until 1020).map { t(it.toLong()) to 95L } +
             (1020 until 1620).map { t(it.toLong()) to 150L }
-        // 공백 기반 1,318초 — 램프업 120초는 경계 직후라 휴식으로 빼지 않는다
+        // 복귀 후 기준선을 다시 학습하므로 하락이 없어 차감 없음 → 1,318초
         assertEquals(1318, hrActiveSeconds(samples))
     }
 
     @Test
-    fun `복귀 직후 시작된 긴 휴식은 램프업 90초만 빼고 나머지를 차감한다`() {
-        // 수영 600초 + (일시정지 300초) + 복귀 직후 저심박 300초(램프업 90초 + 진짜 휴식 210초) + 수영 600초
-        val samples = (0 until 600).map { t(it.toLong()) to 150L } +
-            (900 until 1200).map { t(it.toLong()) to 95L } +
-            (1200 until 1800).map { t(it.toLong()) to 150L }
-        // 공백 기반 1,498초 - 휴식 210초 = 1,288초
-        assertEquals(1288, hrActiveSeconds(samples))
+    fun `천천히 내려가는 심박은 휴식으로 보지 않는다`() {
+        // 쉬운 수영으로 30초마다 1bpm씩 완만히 하강 (150→130) — 기준선이 따라가서 오탐 없음
+        val samples = (0 until 600).map { t(it.toLong()) to (150L - it / 30) }
+        assertEquals(599, hrActiveSeconds(samples))
     }
 
     @Test
     fun `세션 시작 직후의 저심박도 차감하지 않는다`() {
-        // 시작하자마자 심박이 낮은 상태(워밍업)에서 올라가는 구간
+        // 시작하자마자 심박이 낮은 상태(워밍업)에서 올라가는 구간 — 하락이 아니라 휴식 아님
         val samples = (0 until 120).map { t(it.toLong()) to 95L } +
             (120 until 720).map { t(it.toLong()) to 150L }
         assertEquals(719, hrActiveSeconds(samples))
@@ -109,7 +93,7 @@ class ActiveSecondsTest {
 
     @Test
     fun `짧은 심박 출렁임은 휴식으로 치지 않는다`() {
-        // 저심박이 20초만 지속 — 45초 미만이라 차감하지 않는다
+        // 하락이 20초만 지속 — 최소 휴식 길이(30초) 미만이라 차감하지 않는다
         val samples = (0 until 600).map { t(it.toLong()) to 150L } +
             (600 until 620).map { t(it.toLong()) to 95L } +
             (620 until 1220).map { t(it.toLong()) to 150L }

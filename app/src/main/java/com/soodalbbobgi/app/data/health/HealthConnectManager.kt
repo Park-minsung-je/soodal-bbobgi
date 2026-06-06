@@ -100,92 +100,76 @@ internal fun downsampleHr(samples: List<Pair<Instant, Long>>, maxPoints: Int = 1
 }
 
 /**
- * [실험] Otsu 방식 임계값 — 이중봉 분포(운동 고심박/휴식 저심박)를 두 무리로 가르는 경계.
- * 분포 폭이 20bpm 미만(단봉·변별력 없음)이면 null.
- */
-internal fun otsuThreshold(values: List<Long>): Long? {
-    if (values.isEmpty()) return null
-    val min = values.min()
-    val max = values.max()
-    if (max - min < 20) return null
-
-    val hist = IntArray((max - min + 1).toInt())
-    values.forEach { hist[(it - min).toInt()]++ }
-    val total = values.size
-
-    var sumAll = 0.0
-    hist.forEachIndexed { i, c -> sumAll += i.toDouble() * c }
-
-    var sumB = 0.0
-    var wB = 0
-    var best = -1.0
-    var bestIdx = 0
-    for (i in hist.indices) {
-        wB += hist[i]
-        if (wB == 0) continue
-        val wF = total - wB
-        if (wF == 0) break
-        sumB += i.toDouble() * hist[i]
-        val mB = sumB / wB
-        val mF = (sumAll - sumB) / wF
-        val between = wB.toDouble() * wF * (mB - mF) * (mB - mF)
-        if (between > best) {
-            best = between
-            bestIdx = i
-        }
-    }
-    return min + bestIdx + 1
-}
-
-/**
- * [실험] 심박 기반 실운동시간(초) — 2단계 추정.
+ * [실험] 심박 기반 실운동시간(초) — 상대 변화 상태 머신.
  * 1) 워치는 일시정지 동안 심박을 기록하지 않으므로, 샘플이 이어진 구간(공백 ≤ [maxGapSec])만 합산
- * 2) 그 안에서 [minRestRunSec] 이상 지속된 저심박(Otsu 임계 미만) 구간만 벽 휴식으로 추가 차감.
- *    단, 경계(세션 시작·일시정지 복귀) 후 [rampSec]까지의 저심박은 심박이 올라가는 중인
- *    램프업이라 휴식에서 제외하고, 그 이후 지속분만 차감한다. 짧은 출렁임도 무시하며,
- *    분포가 단봉이면 차감 없이 1)만 적용.
+ * 2) 그 안에서 직전 수영 심박 수준(최근 [levelWindowSec] 추세) 대비 [dropDelta] 이상 뚝 떨어지면
+ *    휴식 시작, 최저점에서 [riseDelta] 이상 다시 올라가기 시작하면 수영 재개로 본다.
+ *    상대 변화 기반이라 일시정지 복귀 직후의 램프업(올라가는 심박)은 휴식으로 오인하지 않고,
+ *    쉬운 수영으로 천천히 내려가는 심박은 기준선이 따라가서 오탐하지 않는다.
  *
  * @param samples (시각, bpm) 목록. 60개 미만이면 추정 포기(null)
  */
 internal fun hrActiveSeconds(
     samples: List<Pair<Instant, Long>>,
     maxGapSec: Long = 10,
-    minRestRunSec: Long = 45,
-    rampSec: Long = 90,
+    dropDelta: Int = 15,
+    riseDelta: Int = 10,
+    levelWindowSec: Double = 60.0,
+    minRestRunSec: Long = 30,
 ): Int? {
     if (samples.size < 60) return null
     val sorted = samples.sortedBy { it.first }
-    val threshold = otsuThreshold(sorted.map { it.second })
 
     var active = 0L
-    var sustainedRest = 0L
+    var restTotal = 0L
     var restRun = 0L
-    var sinceBoundary = 0L // 마지막 경계(시작·복귀) 이후 흐른 샘플 시간
-    fun flushRest() {
-        if (restRun >= minRestRunSec) sustainedRest += restRun
+    var resting = false
+    var swimLevel = -1.0 // 직전 수영 심박 수준 (지수 이동 평균)
+    var restFloor = Long.MAX_VALUE // 휴식 중 최저 심박
+
+    fun endRest() {
+        if (restRun >= minRestRunSec) restTotal += restRun
         restRun = 0L
     }
+
     for (i in 0 until sorted.size - 1) {
         val dt = Duration.between(sorted[i].first, sorted[i + 1].first).seconds
         if (dt !in 1..maxGapSec) {
-            // 일시정지 경계 — 진행 중이던 저심박 구간을 마감하고 램프업 기준점을 리셋한다.
-            flushRest()
-            sinceBoundary = 0L
+            // 일시정지 경계 — 휴식 구간을 마감하고 복귀 후 수준을 다시 학습한다.
+            endRest()
+            resting = false
+            swimLevel = -1.0
             continue
         }
-        if (threshold != null && sorted[i].second < threshold) {
-            // 경계 후 rampSec까지는 심박이 올라가는 중(램프업)이라 휴식으로 세지 않고,
-            // 그 이후로 이어지는 저심박만 휴식으로 누적한다.
-            if (sinceBoundary >= rampSec) restRun += dt
+        val bpm = sorted[i].second
+        if (swimLevel < 0) swimLevel = bpm.toDouble()
+
+        if (resting) {
+            if (bpm < restFloor) restFloor = bpm
+            if (bpm >= restFloor + riseDelta) {
+                // 최저점에서 다시 올라가기 시작 — 수영 재개
+                endRest()
+                resting = false
+                swimLevel = bpm.toDouble()
+            } else {
+                restRun += dt
+            }
         } else {
-            flushRest()
+            if (swimLevel - bpm >= dropDelta) {
+                // 직전 수준 대비 큰 하락 — 휴식 시작
+                resting = true
+                restFloor = bpm
+                restRun = dt
+            } else {
+                // 수영 중 — 수준이 천천히 현재 심박을 따라간다
+                swimLevel += (bpm - swimLevel) * (dt / levelWindowSec).coerceAtMost(1.0)
+            }
         }
         active += dt
-        sinceBoundary += dt
     }
-    flushRest()
+    endRest()
 
-    val result = active - sustainedRest
+    val result = active - restTotal
     return if (result > 0) result.toInt() else null
 }
 
