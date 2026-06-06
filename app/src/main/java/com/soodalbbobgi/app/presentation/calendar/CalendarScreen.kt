@@ -12,6 +12,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +50,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -620,16 +622,82 @@ private fun MetricCol(label: String, value: String, unit: String, valueColor: Co
     }
 }
 
+/** 차트 표시용 사전 계산 — 공백 압축 좌표계 (세그먼트 + 표시 단위). */
+private class HrChartLayout(
+    val segs: List<List<Pair<Int, Int>>>,
+    val segStartUnit: FloatArray,
+    val totalUnits: Float,
+) {
+    fun unitOf(si: Int, p: Pair<Int, Int>): Float =
+        segStartUnit[si] + (p.first - segs[si].first().first)
+
+    /** 표시 비율(0~1) 위치에서 가장 가까운 포인트와 그 표시 단위. */
+    fun nearest(frac: Float): Pair<Pair<Int, Int>, Float>? {
+        var best: Pair<Pair<Int, Int>, Float>? = null
+        var bestDist = Float.MAX_VALUE
+        val unit = frac.coerceIn(0f, 1f) * totalUnits
+        segs.forEachIndexed { si, seg ->
+            seg.forEach { p ->
+                val u = unitOf(si, p)
+                val d = kotlin.math.abs(u - unit)
+                if (d < bestDist) {
+                    bestDist = d
+                    best = p to u
+                }
+            }
+        }
+        return best
+    }
+}
+
+private fun buildHrChartLayout(points: List<Pair<Int, Int>>): HrChartLayout {
+    val rawSpan = (points.last().first - points.first().first).toFloat().coerceAtLeast(1f)
+    // 일시정지(샘플 공백) 경계 — 평균 간격의 3배(최소 60초) 이상 벌어지면 세그먼트 분리.
+    val breakGap = (rawSpan / points.size * 3f).coerceAtLeast(60f)
+    val segments = mutableListOf<MutableList<Pair<Int, Int>>>()
+    points.forEach { p ->
+        val current = segments.lastOrNull()
+        if (current == null || p.first - current.last().first > breakGap) {
+            segments.add(mutableListOf(p))
+        } else {
+            current.add(p)
+        }
+    }
+    val segs = segments.filter { it.size >= 2 }
+    if (segs.isEmpty()) return HrChartLayout(emptyList(), FloatArray(0), 1f)
+
+    // 공백 압축 x축: 세그먼트 내부는 실제 시간 비례, 세그먼트 사이는 고정 틈.
+    val spans = FloatArray(segs.size) { (segs[it].last().first - segs[it].first().first).toFloat().coerceAtLeast(1f) }
+    val spacer = (spans.sum() * 0.03f).coerceAtLeast(30f)
+    val starts = FloatArray(segs.size)
+    var acc = 0f
+    for (i in segs.indices) {
+        starts[i] = acc
+        acc += spans[i] + spacer
+    }
+    return HrChartLayout(segs, starts, spans.sum() + spacer * (segs.size - 1))
+}
+
+/** 세션 시작 기준 경과를 분:초(1시간 넘으면 시:분:초)로 표기. */
+private fun formatChartTime(sec: Int): String =
+    if (sec >= 3600) "%d:%02d:%02d".format(sec / 3600, sec % 3600 / 60, sec % 60)
+    else "%d:%02d".format(sec / 60, sec % 60)
+
 /**
  * 세션 심박 곡선 — 운동 구간은 로즈, 휴식으로 계산된 구간은 회색(+옅은 밴드)으로 구분해 그린다.
  * 일시정지(샘플 공백)는 x축에서 제거하고 세그먼트 사이 작은 틈으로만 표시한다.
+ * 꾹 눌러 끌면 해당 지점의 경과 시간·심박을 보여준다.
  */
 @Composable
 private fun HrChart(points: List<Pair<Int, Int>>) {
     val rose = Color(0xFFF43F5E)
-    val restColor = SoodalDesign.colors.textTertiary
+    val colors = SoodalDesign.colors
+    val restColor = colors.textTertiary
     // 동기화의 실운동시간 계산과 동일한 휴식 임계 (null = 휴식 없는 세션)
     val threshold = hrRestThreshold(points.map { it.second })
+    val layout = remember(points) { buildHrChartLayout(points) }
+    var scrubFrac by remember(points) { mutableStateOf<Float?>(null) }
+    val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
 
     Canvas(
         modifier = Modifier
@@ -637,44 +705,25 @@ private fun HrChart(points: List<Pair<Int, Int>>) {
             .height(72.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(rose.copy(alpha = 0.04f))
-            .padding(horizontal = 6.dp, vertical = 8.dp),
+            .padding(horizontal = 6.dp, vertical = 8.dp)
+            .pointerInput(points) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { pos -> scrubFrac = pos.x / size.width },
+                    onDragEnd = { scrubFrac = null },
+                    onDragCancel = { scrubFrac = null },
+                ) { change, _ -> scrubFrac = change.position.x / size.width }
+            },
     ) {
+        if (layout.segs.isEmpty()) return@Canvas
         val minBpm = points.minOf { it.second }.toFloat()
         val maxBpm = points.maxOf { it.second }.toFloat()
         val bpmSpan = (maxBpm - minBpm).coerceAtLeast(1f)
-        val rawSpan = (points.last().first - points.first().first).toFloat().coerceAtLeast(1f)
-
-        // 일시정지(샘플 공백) 경계 — 평균 간격의 3배(최소 60초) 이상 벌어지면 세그먼트 분리.
-        val breakGap = (rawSpan / points.size * 3f).coerceAtLeast(60f)
-        val segments = mutableListOf<MutableList<Pair<Int, Int>>>()
-        points.forEach { p ->
-            val current = segments.lastOrNull()
-            if (current == null || p.first - current.last().first > breakGap) {
-                segments.add(mutableListOf(p))
-            } else {
-                current.add(p)
-            }
-        }
-        val drawSegs = segments.filter { it.size >= 2 }
-        if (drawSegs.isEmpty()) return@Canvas
-
-        // 공백 압축 x축: 세그먼트 내부는 실제 시간 비례, 세그먼트 사이는 고정 틈.
-        val segSpans = drawSegs.map { (it.last().first - it.first().first).toFloat().coerceAtLeast(1f) }
-        val spacer = (segSpans.sum() * 0.03f).coerceAtLeast(30f)
-        val totalUnits = segSpans.sum() + spacer * (drawSegs.size - 1)
-        val segStartUnit = FloatArray(drawSegs.size)
-        var acc = 0f
-        drawSegs.forEachIndexed { i, _ ->
-            segStartUnit[i] = acc
-            acc += segSpans[i] + spacer
-        }
 
         fun py(bpm: Int) = size.height - (bpm - minBpm) / bpmSpan * size.height
+        fun pxUnit(u: Float) = u / layout.totalUnits * size.width
 
-        drawSegs.forEachIndexed { si, seg ->
-            fun px(p: Pair<Int, Int>) =
-                (segStartUnit[si] + (p.first - seg.first().first)) / totalUnits * size.width
-
+        layout.segs.forEachIndexed { si, seg ->
+            fun px(p: Pair<Int, Int>) = pxUnit(layout.unitOf(si, p))
             fun isRest(p: Pair<Int, Int>) = threshold != null && p.second < threshold
 
             // 같은 분류(운동/휴식)가 이어지는 서브런 단위로 색을 나눠 그린다.
@@ -710,6 +759,53 @@ private fun HrChart(points: List<Pair<Int, Int>>) {
                 }
                 runStart = i
             }
+        }
+
+        // 스크럽 오버레이 — 꾹 누른 지점의 시간·심박
+        scrubFrac?.let { frac ->
+            val (p, unit) = layout.nearest(frac) ?: return@let
+            val x = pxUnit(unit)
+            val y = py(p.second)
+            drawLine(
+                color = colors.textSecondary.copy(alpha = 0.6f),
+                start = androidx.compose.ui.geometry.Offset(x, 0f),
+                end = androidx.compose.ui.geometry.Offset(x, size.height),
+                strokeWidth = 1.dp.toPx(),
+            )
+            drawCircle(color = rose, radius = 3.5.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, y))
+            drawCircle(color = Color.White, radius = 1.5.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, y))
+
+            val label = "${formatChartTime(p.first)} · ${p.second}bpm"
+            val text = textMeasurer.measure(
+                androidx.compose.ui.text.AnnotatedString(label),
+                androidx.compose.ui.text.TextStyle(
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = JetBrainsMonoFamily,
+                    color = Color.White,
+                ),
+            )
+            val pad = 4.dp.toPx()
+            val boxW = text.size.width + pad * 2
+            val boxH = text.size.height + pad
+            val boxX = (x - boxW / 2).coerceIn(0f, size.width - boxW)
+            drawRoundRect(
+                color = Color(0xCC1A2438),
+                topLeft = androidx.compose.ui.geometry.Offset(boxX, 0f),
+                size = androidx.compose.ui.geometry.Size(boxW, boxH),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx()),
+            )
+            drawText(
+                textMeasurer = textMeasurer,
+                text = androidx.compose.ui.text.AnnotatedString(label),
+                style = androidx.compose.ui.text.TextStyle(
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = JetBrainsMonoFamily,
+                    color = Color.White,
+                ),
+                topLeft = androidx.compose.ui.geometry.Offset(boxX + pad, pad / 2),
+            )
         }
     }
 }
