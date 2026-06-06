@@ -48,19 +48,44 @@ class ActiveSecondsTest {
     }
 
     @Test
+    fun `Otsu 임계값은 이중봉 심박 분포를 두 무리 사이에서 가른다`() {
+        val bpm = List(600) { 150L } + List(300) { 95L }
+        val threshold = otsuThreshold(bpm)!!
+        org.junit.Assert.assertTrue("threshold=$threshold", threshold in 96..150)
+    }
+
+    @Test
+    fun `변별력 없는 단봉 분포는 임계값을 만들지 않는다`() {
+        val bpm = List(500) { 100L + (it % 6) } // 100~105 좁은 범위
+        assertNull(otsuThreshold(bpm))
+    }
+
+    @Test
     fun `심박 샘플 공백을 일시정지로 보고 운동시간에서 뺀다`() {
         // 0~599초 연속 기록 + (600~899초 일시정지: 샘플 없음) + 900~1199초 연속 기록
         val samples = (0 until 600).map { t(it.toLong()) to 130L } +
             (900 until 1200).map { t(it.toLong()) to 130L }
-        // 연속 구간 내 간격 합: 599 + 299 = 898초 (공백 300초 제외)
+        // 연속 구간 내 간격 합: 599 + 299 = 898초 (공백 300초 제외, 단봉이라 휴식 차감 없음)
         assertEquals(898, hrActiveSeconds(samples))
     }
 
     @Test
-    fun `심박 수준과 무관하게 샘플이 이어진 시간은 모두 운동시간이다`() {
-        // 벽에서 쉬어 심박이 낮아도 워치가 기록 중이면 운동시간에 포함 (워치 기준과 동일)
-        val samples = (0 until 600).map { t(it.toLong()) to 95L }
-        assertEquals(599, hrActiveSeconds(samples))
+    fun `지속된 저심박 구간은 벽 휴식으로 보고 추가 차감한다`() {
+        // 수영 600초 + 벽 휴식 120초(저심박, 기록은 계속) + 수영 600초
+        val samples = (0 until 600).map { t(it.toLong()) to 150L } +
+            (600 until 720).map { t(it.toLong()) to 95L } +
+            (720 until 1320).map { t(it.toLong()) to 150L }
+        // 공백 기반 1319초 - 지속 저심박 120초 = 1199초
+        assertEquals(1199, hrActiveSeconds(samples))
+    }
+
+    @Test
+    fun `짧은 심박 출렁임은 휴식으로 치지 않는다`() {
+        // 저심박이 20초만 지속 — 45초 미만이라 차감하지 않는다
+        val samples = (0 until 600).map { t(it.toLong()) to 150L } +
+            (600 until 620).map { t(it.toLong()) to 95L } +
+            (620 until 1220).map { t(it.toLong()) to 150L }
+        assertEquals(1219, hrActiveSeconds(samples))
     }
 
     @Test

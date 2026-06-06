@@ -100,21 +100,81 @@ internal fun downsampleHr(samples: List<Pair<Instant, Long>>, maxPoints: Int = 1
 }
 
 /**
- * [실험] 심박 샘플 공백 기반 실운동시간(초).
- * 워치는 일시정지 동안 심박을 기록하지 않으므로, 샘플이 이어진 구간(공백 ≤ [maxGapSec])만
- * 합산하면 일시정지를 뺀 워치 기준 운동시간이 된다. 벽 휴식(기록은 계속됨)은 운동시간에 포함.
+ * [실험] Otsu 방식 임계값 — 이중봉 분포(운동 고심박/휴식 저심박)를 두 무리로 가르는 경계.
+ * 분포 폭이 20bpm 미만(단봉·변별력 없음)이면 null.
+ */
+internal fun otsuThreshold(values: List<Long>): Long? {
+    if (values.isEmpty()) return null
+    val min = values.min()
+    val max = values.max()
+    if (max - min < 20) return null
+
+    val hist = IntArray((max - min + 1).toInt())
+    values.forEach { hist[(it - min).toInt()]++ }
+    val total = values.size
+
+    var sumAll = 0.0
+    hist.forEachIndexed { i, c -> sumAll += i.toDouble() * c }
+
+    var sumB = 0.0
+    var wB = 0
+    var best = -1.0
+    var bestIdx = 0
+    for (i in hist.indices) {
+        wB += hist[i]
+        if (wB == 0) continue
+        val wF = total - wB
+        if (wF == 0) break
+        sumB += i.toDouble() * hist[i]
+        val mB = sumB / wB
+        val mF = (sumAll - sumB) / wF
+        val between = wB.toDouble() * wF * (mB - mF) * (mB - mF)
+        if (between > best) {
+            best = between
+            bestIdx = i
+        }
+    }
+    return min + bestIdx + 1
+}
+
+/**
+ * [실험] 심박 기반 실운동시간(초) — 2단계 추정.
+ * 1) 워치는 일시정지 동안 심박을 기록하지 않으므로, 샘플이 이어진 구간(공백 ≤ [maxGapSec])만 합산
+ * 2) 그 안에서 [minRestRunSec] 이상 지속된 저심박(Otsu 임계 미만) 구간만 벽 휴식으로 추가 차감.
+ *    짧은 출렁임은 무시하고, 분포가 단봉이면 휴식 차감 없이 1)만 적용한다.
  *
  * @param samples (시각, bpm) 목록. 60개 미만이면 추정 포기(null)
  */
-internal fun hrActiveSeconds(samples: List<Pair<Instant, Long>>, maxGapSec: Long = 10): Int? {
+internal fun hrActiveSeconds(
+    samples: List<Pair<Instant, Long>>,
+    maxGapSec: Long = 10,
+    minRestRunSec: Long = 45,
+): Int? {
     if (samples.size < 60) return null
     val sorted = samples.sortedBy { it.first }
+    val threshold = otsuThreshold(sorted.map { it.second })
+
     var active = 0L
+    var sustainedRest = 0L
+    var restRun = 0L
+    fun flushRest() {
+        if (restRun >= minRestRunSec) sustainedRest += restRun
+        restRun = 0L
+    }
     for (i in 0 until sorted.size - 1) {
         val dt = Duration.between(sorted[i].first, sorted[i + 1].first).seconds
-        if (dt in 1..maxGapSec) active += dt
+        if (dt !in 1..maxGapSec) {
+            // 일시정지 경계 — 진행 중이던 저심박 구간을 마감한다.
+            flushRest()
+            continue
+        }
+        active += dt
+        if (threshold != null && sorted[i].second < threshold) restRun += dt else flushRest()
     }
-    return if (active > 0) active.toInt() else null
+    flushRest()
+
+    val result = active - sustainedRest
+    return if (result > 0) result.toInt() else null
 }
 
 /**
