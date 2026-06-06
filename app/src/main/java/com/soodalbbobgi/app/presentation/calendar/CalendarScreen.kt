@@ -1,5 +1,11 @@
 package com.soodalbbobgi.app.presentation.calendar
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -52,17 +58,30 @@ import com.soodalbbobgi.app.presentation.common.SectionLabel
 import com.soodalbbobgi.app.presentation.common.TrendBadge
 import com.soodalbbobgi.app.presentation.common.WeeklyActivityCard
 import java.time.LocalDate
+import java.time.YearMonth
 
 // 주말 요일 색 — 디자인 확정값 (강조색은 테마 accentBlue 사용).
 private val SundayColor = Color(0xFFFF9B9B)
 private val SaturdayColor = Color(0xFF9BC4FF)
 
-private val DISPLAY_STROKES = listOf(
+// 범례 — 막대 그래프에 나오는 6개 영법 전부.
+private val LEGEND_STROKES = listOf(
     "자유형" to StrokePalette.Free,
     "평영" to StrokePalette.Breast,
     "배영" to StrokePalette.Back,
     "접영" to StrokePalette.Fly,
+    "킥판" to StrokePalette.Kick,
+    "혼영" to StrokePalette.Medley,
 )
+
+// 막대 그래프 세그먼트 순서 — 디자인 확정: 혼영/자유형/평영/배영/접영/킥판.
+private val BAR_COLORS = listOf(
+    StrokePalette.Medley, StrokePalette.Free, StrokePalette.Breast,
+    StrokePalette.Back, StrokePalette.Fly, StrokePalette.Kick,
+)
+
+/** 막대 그래프 순서(BAR_COLORS와 동일)로 영법 거리(m)를 늘어놓는다. */
+private fun barMeters(d: SwimDayData) = listOf(d.mixedM, d.freeM, d.breastM, d.backM, d.flyM, d.kickM)
 
 private val monthNames = listOf("1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월")
 
@@ -101,16 +120,45 @@ fun CalendarScreen(
 
             Spacer(Modifier.height(6.dp))
 
-            // ── 그리드 (좌우 스와이프로 월 이동) ─────────────
-            CalendarGrid(
-                year = state.year,
-                month = state.month,
-                selectedDay = state.selectedDay,
-                swimData = state.swimData,
-                onSelect = viewModel::selectDay,
-                onSwipePrev = viewModel::previousMonth,
-                onSwipeNext = viewModel::nextMonth,
-            )
+            // ── 그리드 (좌우 스와이프로 월 이동, 방향에 맞춰 슬라이드) ─────
+            val currentYm = YearMonth.of(state.year, state.month)
+            // 나가는 달의 그리드가 자기 달 데이터로 그려지도록 월별 데이터를 보관한다.
+            val gridData = remember { HashMap<YearMonth, Map<Int, SwimDayData>>() }
+            gridData[currentYm] = state.swimData
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pointerInput(Unit) {
+                        var dragTotal = 0f
+                        detectHorizontalDragGestures(
+                            onDragStart = { dragTotal = 0f },
+                            onDragEnd = {
+                                val threshold = 56.dp.toPx()
+                                if (dragTotal > threshold) viewModel.previousMonth()
+                                else if (dragTotal < -threshold) viewModel.nextMonth()
+                            },
+                        ) { _, dragAmount -> dragTotal += dragAmount }
+                    },
+            ) {
+                AnimatedContent(
+                    targetState = currentYm,
+                    transitionSpec = {
+                        // 다음 달은 오른쪽에서, 이전 달은 왼쪽에서 밀려 들어온다.
+                        val forward = targetState > initialState
+                        (slideInHorizontally { w -> if (forward) w else -w } + fadeIn()) togetherWith
+                            (slideOutHorizontally { w -> if (forward) -w else w } + fadeOut())
+                    },
+                    label = "calendarMonth",
+                ) { ym ->
+                    CalendarGrid(
+                        year = ym.year,
+                        month = ym.monthValue,
+                        selectedDay = if (ym == currentYm) state.selectedDay else null,
+                        swimData = gridData[ym] ?: emptyMap(),
+                        onSelect = viewModel::selectDay,
+                    )
+                }
+            }
 
             // ── 영법 범례 ──────────────────────────────────
             Spacer(Modifier.height(12.dp))
@@ -245,27 +293,13 @@ private fun CalendarGrid(
     selectedDay: Int?,
     swimData: Map<Int, SwimDayData>,
     onSelect: (Int) -> Unit,
-    onSwipePrev: () -> Unit,
-    onSwipeNext: () -> Unit,
 ) {
     val cells = remember(year, month) { buildMonthCells(year, month) }
     val today = LocalDate.now()
     val isCurrentMonth = year == today.year && month == today.monthValue
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .pointerInput(year, month) {
-                var dragTotal = 0f
-                val threshold = 56.dp.toPx()
-                detectHorizontalDragGestures(
-                    onDragStart = { dragTotal = 0f },
-                    onDragEnd = {
-                        if (dragTotal > threshold) onSwipePrev()
-                        else if (dragTotal < -threshold) onSwipeNext()
-                    },
-                ) { _, dragAmount -> dragTotal += dragAmount }
-            },
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         // 모든 셀이 당월 밖인 마지막 주는 건너뛴다.
@@ -362,23 +396,17 @@ private fun DayCell(
             )
             Spacer(Modifier.height(4.dp))
             Box(Modifier.fillMaxWidth().padding(horizontal = 2.dp)) {
-                StrokeRatioBar(strokes = data.strokes, barHeight = 7.dp, compact = true)
+                StrokeRatioBar(meters = barMeters(data), barHeight = 7.dp, compact = true)
             }
         }
     }
 }
 
-// ── 영법 비율 막대 ───────────────────────────────────────────────
+// ── 영법 비율 막대 — 6개 영법 전부 표시 ─────────────────────────
 @Composable
-private fun StrokeRatioBar(strokes: StrokeBreakdown, barHeight: Dp = 12.dp, compact: Boolean = false) {
+private fun StrokeRatioBar(meters: List<Int>, barHeight: Dp = 12.dp, compact: Boolean = false) {
     val colors = SoodalDesign.colors
-    val parts = listOf(
-        strokes.freestyle to StrokePalette.Free,
-        strokes.breaststroke to StrokePalette.Breast,
-        strokes.backstroke to StrokePalette.Back,
-        strokes.butterfly to StrokePalette.Fly,
-    )
-    val total = parts.sumOf { it.first.toDouble() }.toFloat().coerceAtLeast(0.0001f)
+    val total = meters.sum().coerceAtLeast(1)
     val bgColor = if (colors.isDark) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.05f)
 
     Row(
@@ -388,13 +416,13 @@ private fun StrokeRatioBar(strokes: StrokeBreakdown, barHeight: Dp = 12.dp, comp
             .clip(RoundedCornerShape(999.dp))
             .background(bgColor),
     ) {
-        parts.forEach { (ratio, color) ->
-            if (ratio > 0f) {
+        meters.forEachIndexed { i, m ->
+            if (m > 0) {
                 Box(
                     modifier = Modifier
-                        .weight(ratio / total)
+                        .weight(m.toFloat() / total)
                         .fillMaxHeight()
-                        .background(color.copy(alpha = if (compact) 0.95f else 1f)),
+                        .background(BAR_COLORS[i].copy(alpha = if (compact) 0.95f else 1f)),
                 )
             }
         }
@@ -414,7 +442,7 @@ private fun StrokeLegend() {
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        DISPLAY_STROKES.forEach { (label, color) ->
+        LEGEND_STROKES.forEach { (label, color) ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 Box(Modifier.size(9.dp).clip(RoundedCornerShape(2.dp)).background(color))
                 Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
@@ -495,20 +523,20 @@ private fun DayDetailCard(
             }
 
             Spacer(Modifier.height(8.dp))
-            StrokeRatioBar(strokes = data.strokes, barHeight = 12.dp)
+            StrokeRatioBar(meters = barMeters(data))
             Spacer(Modifier.height(10.dp))
 
-            // 영법별 % 그리드 (4열)
-            val ratios = listOf(
-                Triple("자유형", data.strokes.freestyle, StrokePalette.Free),
-                Triple("평영", data.strokes.breaststroke, StrokePalette.Breast),
-                Triple("배영", data.strokes.backstroke, StrokePalette.Back),
-                Triple("접영", data.strokes.butterfly, StrokePalette.Fly),
+            // 영법별 % 그리드 — 수치는 접/배/평/자 4개만, 비율은 전체(6영법 합) 기준.
+            val totalMeters = barMeters(data).sum().coerceAtLeast(1)
+            val entries = listOf(
+                Triple("자유형", data.freeM, StrokePalette.Free),
+                Triple("평영", data.breastM, StrokePalette.Breast),
+                Triple("배영", data.backM, StrokePalette.Back),
+                Triple("접영", data.flyM, StrokePalette.Fly),
             )
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                ratios.forEach { (label, ratio, color) ->
-                    val pct = Math.round(ratio * 100)
-                    val meters = (data.distanceM * ratio).toInt()
+                entries.forEach { (label, meters, color) ->
+                    val pct = strokePercent(meters, totalMeters)
                     Column(
                         modifier = Modifier
                             .weight(1f)

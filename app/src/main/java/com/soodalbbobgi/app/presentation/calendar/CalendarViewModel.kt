@@ -22,25 +22,16 @@ import java.time.LocalDate
 import java.time.YearMonth
 import javax.inject.Inject
 
-/** 캘린더 셀·상세에 쓰는 4개 영법 비율(0~1). 합계 기준 환산값. */
-data class StrokeBreakdown(
-    val freestyle: Float = 0f,
-    val backstroke: Float = 0f,
-    val breaststroke: Float = 0f,
-    val butterfly: Float = 0f,
-)
-
 /**
  * 하루치 수영 데이터.
  *
- * strokes는 표시용 4개 영법 비율, freeM~kickM은 수정 시트용 원본 영법 거리(m)다.
+ * freeM~kickM은 영법별 원본 거리(m) — 막대 그래프·상세·수정 시트가 모두 이 값을 쓴다.
  * maxHr·minHr은 최대·최소 심박(bpm)이며 Health Connect 심박 연동 전까지는 null이라 심박 행이 표시되지 않는다.
  */
 data class SwimDayData(
     val distanceM: Int,
     val durationMin: Int,
     val kcal: Int,
-    val strokes: StrokeBreakdown,
     val shellReward: Int,
     val freeM: Int = 0,
     val breastM: Int = 0,
@@ -74,22 +65,24 @@ class CalendarViewModel @Inject constructor(
     // 진입 시 오늘 날짜를 선택해 "선택한 날" 카드가 비어 보이지 않게 한다.
     private val _selectedDay = MutableStateFlow<Int?>(LocalDate.now().dayOfMonth)
 
+    /** 월과 그 달의 로그를 한 묶음으로 — 월만 먼저 바뀌어 이전 달 데이터가 잠깐 보이는 깜빡임을 막는다. */
+    private data class MonthLogs(val ym: YearMonth, val logs: List<SwimLog>)
+
     val uiState: StateFlow<CalendarUiState> = combine(
-        _yearMonth,
         _selectedDay,
         _yearMonth.flatMapLatest { ym ->
             val start = "${ym.year}-${"%02d".format(ym.monthValue)}-01"
             val end = "${ym.year}-${"%02d".format(ym.monthValue)}-${"%02d".format(ym.lengthOfMonth())}"
-            swimLogUseCase.getLogsByDateRange(start, end)
+            swimLogUseCase.getLogsByDateRange(start, end).map { logs -> MonthLogs(ym, logs) }
         },
-    ) { ym, selected, logs ->
-        val swimMap = logs.associate { log ->
+    ) { selected, month ->
+        val swimMap = month.logs.associate { log ->
             val day = log.date.substringAfterLast("-").toInt()
             day to log.toDayData()
         }
         CalendarUiState(
-            year = ym.year,
-            month = ym.monthValue,
+            year = month.ym.year,
+            month = month.ym.monthValue,
             selectedDay = selected,
             swimData = swimMap,
         )
@@ -128,26 +121,17 @@ class CalendarViewModel @Inject constructor(
     }
 }
 
-/** 도메인 로그 → 하루치 표시 데이터. 4개 영법 비율은 합계 기준으로 환산한다. */
-private fun SwimLog.toDayData(): SwimDayData {
-    val sum = (strokeFreestyleM + strokeBreastM + strokeBackM + strokeFlyM).toFloat().coerceAtLeast(1f)
-    return SwimDayData(
-        distanceM = distanceMeters,
-        durationMin = durationSeconds / 60,
-        kcal = calories,
-        strokes = StrokeBreakdown(
-            freestyle = strokeFreestyleM / sum,
-            breaststroke = strokeBreastM / sum,
-            backstroke = strokeBackM / sum,
-            butterfly = strokeFlyM / sum,
-        ),
-        shellReward = shellsEarned,
-        freeM = strokeFreestyleM,
-        breastM = strokeBreastM,
-        backM = strokeBackM,
-        flyM = strokeFlyM,
-        mixedM = strokeMixedM,
-        kickM = strokeKickM,
-    )
-}
+/** 도메인 로그 → 하루치 표시 데이터. */
+private fun SwimLog.toDayData(): SwimDayData = SwimDayData(
+    distanceM = distanceMeters,
+    durationMin = durationSeconds / 60,
+    kcal = calories,
+    shellReward = shellsEarned,
+    freeM = strokeFreestyleM,
+    breastM = strokeBreastM,
+    backM = strokeBackM,
+    flyM = strokeFlyM,
+    mixedM = strokeMixedM,
+    kickM = strokeKickM,
+)
 
