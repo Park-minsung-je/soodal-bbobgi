@@ -10,7 +10,6 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,7 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -45,8 +43,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -54,12 +50,14 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.ChipColor
 import com.soodalbbobgi.app.core.ui.GlassPanel
-import com.soodalbbobgi.app.core.ui.GradeBadge
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.motion.Motion
+import com.soodalbbobgi.app.presentation.common.SectionLabel
+import com.soodalbbobgi.app.presentation.common.TrendBadge
+import com.soodalbbobgi.app.presentation.common.WeeklyActivityCard
 import com.soodalbbobgi.app.presentation.profile.CardLayers
 import com.soodalbbobgi.app.presentation.profile.EditorSheet
 import com.soodalbbobgi.app.presentation.profile.ProfileCardBounds
@@ -142,18 +140,12 @@ fun HomeScreen(
                         fontSize = 13.sp,
                         color = colors.textSecondary,
                     )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Text(
-                            text = state.nickname,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = colors.textPrimary,
-                        )
-                        SoodalIcon(icon = SoodalIcons.Otter, size = 20.dp)
-                    }
+                    Text(
+                        text = "${state.nickname}님",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = colors.textPrimary,
+                    )
                 }
                 Row(
                     modifier = Modifier
@@ -296,6 +288,7 @@ fun HomeScreen(
                 Spacer(Modifier.height(spacing.s3))
 
                 // ── Currency Row ────────────────────────────────────
+                // 동일 너비 3칩: 조개/진주/연속 (뽑기 진입은 하단 탭바 — 디자인 확정).
                 GlassPanel(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -307,81 +300,55 @@ fun HomeScreen(
                             label = "조개",
                             value = state.shells.formatNumber(),
                             color = ChipColor.Gold,
+                            modifier = Modifier.weight(1f),
                         )
                         CurrencyChip(
                             iconType = SoodalIcons.Pearl,
                             label = "진주",
                             value = state.pearls.formatNumber(),
                             color = ChipColor.Purple,
+                            modifier = Modifier.weight(1f),
                         )
-                        Spacer(Modifier.weight(1f))
-                        // 뽑기: 시안 반투명 보조 버튼 (디자인 시안 기준).
-                        Row(
-                            modifier = Modifier
-                                .height(40.dp)
-                                .clip(SoodalShape.md)
-                                .background(colors.accentBlue.copy(alpha = 0.12f))
-                                .border(1.dp, colors.accentBlue.copy(alpha = 0.35f), SoodalShape.md)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = { onNavigateToTab("gacha") },
-                                )
-                                .padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text("뽑기 →", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
-                        }
+                        CurrencyChip(
+                            iconType = SoodalIcons.Fire,
+                            label = "연속",
+                            value = "${state.streak}일",
+                            color = ChipColor.Blue,
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
 
-                Spacer(Modifier.height(spacing.s3))
-
-                // ── No-record Banner (conditional) ──────────────────
-                if (!state.todayHasRecord) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(SoodalShape.md)
-                            .background(colors.warn.copy(alpha = 0.12f))
-                            .border(1.dp, colors.warn.copy(alpha = 0.3f), SoodalShape.md)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { viewModel.onSync() },
-                            )
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                        ) {
-                            SoodalIcon(
-                                icon = if (state.syncing) SoodalIcons.Sync else SoodalIcons.Warn,
-                                tint = colors.warn,
-                                size = 18.dp,
-                            )
-                            Text(
-                                text = if (state.syncing) "동기화 중이에요…"
-                                else "오늘 수영 기록이 없어요. Health Connect를 동기화해보세요.",
-                                fontSize = 13.sp,
-                                color = colors.warn.copy(alpha = 0.8f),
-                                modifier = Modifier.weight(1f),
-                                lineHeight = 18.sp,
-                            )
-                            Text("동기화", fontSize = 12.sp, color = colors.warn, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    Spacer(Modifier.height(spacing.s3))
-                }
-
-                // ── Month Stats ─────────────────────────────────────
-                Text(
-                    text = "이번 달 수영",
-                    fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                    color = colors.textSecondary, letterSpacing = 0.6.sp,
+                // ── 오늘 ────────────────────────────────────────────
+                SectionLabel(
+                    text = "오늘",
+                    action = if (state.todayHasRecord) {
+                        { Text("기록 완료 ✓", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue) }
+                    } else {
+                        null
+                    },
                 )
-                Spacer(Modifier.height(spacing.s2))
+                Spacer(Modifier.height(12.dp))
+                TodayCard(
+                    hasRecord = state.todayHasRecord,
+                    distanceM = state.todayDistanceM,
+                    durationMin = state.todayDurationMin,
+                    kcal = state.todayKcal,
+                    syncing = state.syncing,
+                    onSync = { viewModel.onSync() },
+                )
+
+                // ── 이번 주 활동 ─────────────────────────────────────
+                SectionLabel(
+                    text = "이번 주 활동",
+                    action = { TrendBadge(state.weekly.trendPercent) },
+                )
+                Spacer(Modifier.height(12.dp))
+                WeeklyActivityCard(state.weekly, onTap = { onNavigateToTab("calendar") })
+
+                // ── 이번 달 수영 ─────────────────────────────────────
+                SectionLabel(text = "이번 달 수영")
+                Spacer(Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(spacing.s2),
@@ -398,26 +365,6 @@ fun HomeScreen(
                         value = state.totalKcal.formatNumber(), unit = "kcal",
                         valueColor = colors.success,
                         onClick = { onNavigateToTab("calendar") })
-                }
-
-                Spacer(Modifier.height(spacing.s5))
-
-                // ── Recent Items ────────────────────────────────────
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("최근 획득 아이템", fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                        color = colors.textSecondary, letterSpacing = 0.6.sp)
-                    Text("최근 7일", fontSize = 11.sp, color = colors.textTertiary)
-                }
-                Spacer(Modifier.height(spacing.s2))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-                ) {
-                    state.recentItems.forEach { item ->
-                        RecentItemCard(item = item)
-                    }
                 }
 
                 Spacer(Modifier.height(spacing.s4))
@@ -483,6 +430,7 @@ private fun CurrencyChip(
     label: String,
     value: String,
     color: ChipColor,
+    modifier: Modifier = Modifier,
 ) {
     val colors = SoodalDesign.colors
     val (bg, border, fg) = when (color) {
@@ -491,7 +439,7 @@ private fun CurrencyChip(
         ChipColor.Blue -> Triple(colors.accentBlueSoft, colors.accentBlue.copy(alpha = 0.35f), colors.accentBlue)
     }
     Row(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .background(bg)
             .border(1.dp, border, RoundedCornerShape(14.dp))
@@ -534,52 +482,85 @@ private fun StatCard(
     }
 }
 
+/**
+ * 오늘 수영 카드 — 기록이 있으면 거리/시간/칼로리 요약, 없으면 차분한 빈 상태 + 동기화 버튼.
+ * (수동 입력은 v1 비활성 — DECISIONS 참조)
+ */
 @Composable
-private fun RecentItemCard(item: RecentItem) {
+private fun TodayCard(
+    hasRecord: Boolean,
+    distanceM: Int,
+    durationMin: Int,
+    kcal: Int,
+    syncing: Boolean,
+    onSync: () -> Unit,
+) {
     val colors = SoodalDesign.colors
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(72.dp),
-    ) {
-        val (icon, bgColor) = when (item.kind) {
-            "char" -> SoodalIcons.Otter to colors.accentGoldSoft
-            "frame" -> SoodalIcons.Frame to colors.accentBlueSoft
-            "bg" -> SoodalIcons.Aurora to colors.accentPurpleSoft
-            else -> SoodalIcons.Gift to colors.surface2
-        }
-        val iconTint = when (item.kind) {
-            "char" -> colors.accentGold
-            "frame" -> colors.accentBlue
-            "bg" -> colors.accentPurple
-            else -> colors.textTertiary
-        }
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .clip(SoodalShape.md)
-                .background(bgColor),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (!item.imageAsset.isNullOrBlank()) {
-                com.soodalbbobgi.app.core.ui.AssetImage(
-                    imageAsset = item.imageAsset,
-                    contentDescription = item.name,
-                    modifier = Modifier.size(56.dp),
+    SoodalCard(modifier = Modifier.fillMaxWidth()) {
+        if (hasRecord) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                TodayMetric(Modifier.weight(1f), "거리", distanceM.formatNumber(), "m", colors.accentBlue)
+                TodayMetric(Modifier.weight(1f), "시간", "$durationMin", "분", colors.textPrimary)
+                TodayMetric(Modifier.weight(1f), "칼로리", kcal.formatNumber(), "kcal", colors.success)
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                SoodalIcon(
+                    icon = if (syncing) SoodalIcons.Sync else SoodalIcons.Wave,
+                    tint = if (syncing) colors.accentBlue else colors.textTertiary,
+                    size = 22.dp,
                 )
-            } else {
-                SoodalIcon(icon = icon, tint = iconTint, size = 28.dp)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (syncing) "동기화 중이에요…" else "아직 오늘 기록이 없어요",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = "Health Connect에서 동기화해보세요",
+                        fontSize = 11.sp,
+                        color = colors.textSecondary,
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .height(34.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(colors.accentBlue.copy(alpha = 0.10f))
+                        .border(1.dp, colors.accentBlue.copy(alpha = 0.30f), RoundedCornerShape(10.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            enabled = !syncing,
+                            onClick = onSync,
+                        )
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    SoodalIcon(icon = SoodalIcons.Sync, tint = colors.accentBlue, size = 15.dp)
+                    Text("동기화", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun TodayMetric(modifier: Modifier, label: String, value: String, unit: String, valueColor: Color) {
+    val colors = SoodalDesign.colors
+    Column(modifier = modifier) {
+        Text(label, fontSize = 10.sp, color = colors.textSecondary)
         Spacer(Modifier.height(4.dp))
-        GradeBadge(grade = item.grade)
-        Spacer(Modifier.height(2.dp))
-        Text(
-            text = item.name,
-            fontSize = 11.sp,
-            color = colors.textSecondary,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(value, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = valueColor)
+            Text(unit, fontSize = 10.sp, color = colors.textSecondary, modifier = Modifier.padding(start = 2.dp, bottom = 3.dp))
+        }
     }
 }

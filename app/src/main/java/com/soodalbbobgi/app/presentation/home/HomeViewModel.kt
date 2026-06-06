@@ -10,9 +10,11 @@ import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.data.health.SwimSession
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.data.remote.dto.SwimLogRequest
-import com.soodalbbobgi.app.domain.model.Grade
 import com.soodalbbobgi.app.domain.model.SwimLog
 import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
+import com.soodalbbobgi.app.presentation.common.WeeklyActivity
+import com.soodalbbobgi.app.presentation.common.buildWeeklyActivity
+import com.soodalbbobgi.app.presentation.common.swimStreak
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,14 +29,6 @@ import java.time.YearMonth
 import java.time.ZoneId
 import javax.inject.Inject
 
-data class RecentItem(
-    val name: String,
-    val kind: String,
-    val grade: Grade,
-    /** items 마스터의 imageAsset 경로. 없으면 카드는 정적 아이콘으로 폴백. */
-    val imageAsset: String? = null,
-)
-
 data class HomeUiState(
     val nickname: String = "",
     val shells: Int = 0,
@@ -43,8 +37,15 @@ data class HomeUiState(
     val swimSessions: Int = 0,
     val totalKcal: Int = 0,
     val todayHasRecord: Boolean = false,
+    /** 오늘 기록 요약 (없으면 0). */
+    val todayDistanceM: Int = 0,
+    val todayDurationMin: Int = 0,
+    val todayKcal: Int = 0,
+    /** 연속 수영 일수 (오늘 미기록 시 어제까지 기준). */
+    val streak: Int = 0,
+    /** 최근 7일 활동 + 지난주 대비 추세. */
+    val weekly: WeeklyActivity = WeeklyActivity(),
     val syncing: Boolean = false,
-    val recentItems: List<RecentItem> = emptyList(),
     /** 프로필 카드에 표시할 닉네임 (없으면 빈 문자열). */
     val cardNickname: String = "",
     /** 프로필 카드 하단 한 줄 소개 문구. 사용자 입력 텍스트 또는 기본값. */
@@ -123,7 +124,8 @@ class HomeViewModel @Inject constructor(
         appState.inventory,
         appState.items,
         appState.profileCard,
-        swimLogUseCase.getLogsByDateRange(monthStart(), monthEnd()),
+        // 최근 60일: 오늘 기록 + 주간 활동(14일) + 스트릭 계산을 모두 커버한다.
+        swimLogUseCase.getLogsByDateRange(LocalDate.now().minusDays(59).toString(), LocalDate.now().toString()),
         _syncing,
     ) { values ->
         val profile = values[0] as com.soodalbbobgi.app.domain.model.UserProfile?
@@ -131,25 +133,17 @@ class HomeViewModel @Inject constructor(
         val inventory = values[2] as List<com.soodalbbobgi.app.domain.model.InventoryItem>
         val itemsMap = values[3] as Map<Long, com.soodalbbobgi.app.domain.model.Item>
         val profileCard = values[4] as com.soodalbbobgi.app.domain.model.ProfileCard?
-        val monthLogs = values[5] as List<SwimLog>
+        val recentLogs = values[5] as List<SwimLog>
         val syncing = values[6] as Boolean
 
         val stats = swimLogUseCase.getMonthStats(monthStart(), monthEnd())
-        val today = LocalDate.now().toString()
-        // "최근 획득"은 가챠/상점으로 얻은 아이템만 노출. 신규 가입 시 자동 지급되는
-        // 기본 아이템(isDefault=true)은 '획득'이 아니라 출발점이라 제외.
-        val recent = inventory
-            .filterNot { inv -> itemsMap[inv.itemId]?.isDefault == true }
-            .take(8)
-            .map { inv ->
-                val meta = itemsMap[inv.itemId]
-                RecentItem(
-                    name = meta?.name ?: "아이템 #${inv.itemId}",
-                    kind = inv.category,
-                    grade = inv.grade,
-                    imageAsset = meta?.imageAsset,
-                )
-            }
+        val todayDate = LocalDate.now()
+        val todayLog = recentLogs.firstOrNull { it.date == todayDate.toString() }
+        val weekly = buildWeeklyActivity(
+            recentLogs.filter { it.date >= todayDate.minusDays(13).toString() },
+            todayDate,
+        )
+        val streak = swimStreak(recentLogs.map { LocalDate.parse(it.date) }.toSet(), todayDate)
 
         // 저장된 프로필 카드를 ProfileCardComposite에 전달할 형태로 매핑.
         // 장착된 아이템의 imageAsset 경로를 ItemsMap에서 조회해 카드 합성에 사용.
@@ -164,9 +158,13 @@ class HomeViewModel @Inject constructor(
             totalDistance = stats.totalDistanceMeters,
             swimSessions = stats.swimCount,
             totalKcal = stats.totalCalories,
-            todayHasRecord = monthLogs.any { it.date == today },
+            todayHasRecord = todayLog != null,
+            todayDistanceM = todayLog?.distanceMeters ?: 0,
+            todayDurationMin = (todayLog?.durationSeconds ?: 0) / 60,
+            todayKcal = todayLog?.calories ?: 0,
+            streak = streak,
+            weekly = weekly,
             syncing = syncing,
-            recentItems = recent,
             cardNickname = profile?.nickname ?: "",
             cardTagline = cardTaglineText,
             cardStats = cardStatsText,

@@ -36,6 +36,7 @@ enum class SoodalIcons(@DrawableRes val resId: Int) {
     Close(R.drawable.ic_close),
     Coral(R.drawable.ic_coral),
     Diamond(R.drawable.ic_diamond),
+    Fire(R.drawable.ic_fire),
     Frame(R.drawable.ic_frame),
     Gift(R.drawable.ic_gift),
     Heart(R.drawable.ic_heart),
