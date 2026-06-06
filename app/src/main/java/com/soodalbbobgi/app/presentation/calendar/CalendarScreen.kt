@@ -62,9 +62,9 @@ import com.soodalbbobgi.app.presentation.common.WeeklyActivityCard
 import java.time.LocalDate
 import java.time.YearMonth
 
-// 주말 요일 색 — 디자인 확정값 (강조색은 테마 accentBlue 사용).
-private val SundayColor = Color(0xFFFF9B9B)
-private val SaturdayColor = Color(0xFF9BC4FF)
+// 주말 요일 색 — 흐릿하다는 피드백으로 디자인 원안(#FF9B9B/#9BC4FF)보다 한 단계 진하게.
+private val SundayColor = Color(0xFFFF7A7A)
+private val SaturdayColor = Color(0xFF6FA8FF)
 
 // 범례 — 막대 그래프에 나오는 6개 영법 전부.
 private val LEGEND_STROKES = listOf(
@@ -344,11 +344,12 @@ private fun DayCell(
     val shape = RoundedCornerShape(10.dp)
 
     // 선택은 배경을 바꾸지 않고 테두리만 강조한다 (디자인 확정).
+    // 빈 칸 배경은 더 연하게, 이전/다음 달 칸은 배경 없이 (칙칙함 피드백 반영).
     val bg = when {
         data != null -> colors.surface1
         isToday -> colors.accentBlue.copy(alpha = 0.08f)
-        inMonth -> if (colors.isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.035f)
-        else -> if (colors.isDark) Color.White.copy(alpha = 0.02f) else Color.Black.copy(alpha = 0.02f)
+        inMonth -> if (colors.isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.02f)
+        else -> Color.Transparent
     }
     val borderColor = if (isSelected) colors.accentBlue else Color.Transparent
     val borderWidth = if (isSelected) 1.5.dp else 1.dp
@@ -492,10 +493,11 @@ private fun DayDetailCard(
                 MetricCol("칼로리", data.kcal.toString(), "kcal", colors.success)
             }
 
-            // 최대·최소 심박 (Health Connect 심박 연동 시 표시)
-            if (data.maxHr != null && data.minHr != null) {
+            // 최대·최소 심박(HC 심박 기록이 있을 때) + 평균 페이스
+            val pace = paceSecPer100m(data.distanceM, data.durationSec)
+            if ((data.maxHr != null && data.minHr != null) || pace != null) {
                 Spacer(Modifier.height(14.dp))
-                HeartRateRow(maxHr = data.maxHr, minHr = data.minHr)
+                VitalsRow(maxHr = data.maxHr, minHr = data.minHr, paceSec = pace)
             }
 
             Spacer(Modifier.height(16.dp))
@@ -604,31 +606,52 @@ private fun MetricCol(label: String, value: String, unit: String, valueColor: Co
     }
 }
 
+/**
+ * 심박(최대/최소) + 평균 페이스 행.
+ * 라벨(11sp)과 수치(17sp 모노)는 폰트 패딩 차이로 높이가 어긋나서 베이스라인으로 정렬한다.
+ */
 @Composable
-private fun HeartRateRow(maxHr: Int, minHr: Int) {
+private fun VitalsRow(maxHr: Int?, minHr: Int?, paceSec: Int?) {
     val colors = SoodalDesign.colors
     val rose = Color(0xFFF43F5E)
+    val hasHr = maxHr != null && minHr != null
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(rose.copy(alpha = 0.06f))
-            .padding(horizontal = 14.dp, vertical = 11.dp),
+            .background(if (hasHr) rose.copy(alpha = 0.06f) else colors.accentBlue.copy(alpha = 0.05f))
+            .padding(horizontal = 12.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        SoodalIcon(icon = SoodalIcons.Heart, tint = rose, size = 18.dp)
-        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("최대", fontSize = 11.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
-            Text("$maxHr", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = rose, fontFamily = JetBrainsMonoFamily)
-        }
-        Box(Modifier.width(1.dp).height(16.dp).background(colors.glassBorder))
-        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("최소", fontSize = 11.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
-            Text("$minHr", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary, fontFamily = JetBrainsMonoFamily)
+        SoodalIcon(
+            icon = if (hasHr) SoodalIcons.Heart else SoodalIcons.Swimmer,
+            tint = if (hasHr) rose else colors.accentBlue,
+            size = 16.dp,
+        )
+        Spacer(Modifier.width(8.dp))
+        if (hasHr) {
+            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text("최대", fontSize = 11.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold, modifier = Modifier.alignByBaseline())
+                Text("$maxHr", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = rose, fontFamily = JetBrainsMonoFamily, modifier = Modifier.alignByBaseline())
+            }
+            Spacer(Modifier.width(8.dp))
+            Box(Modifier.width(1.dp).height(16.dp).background(colors.glassBorder))
+            Spacer(Modifier.width(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text("최소", fontSize = 11.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold, modifier = Modifier.alignByBaseline())
+                Text("$minHr", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary, fontFamily = JetBrainsMonoFamily, modifier = Modifier.alignByBaseline())
+                Text("bpm", fontSize = 10.sp, color = colors.textTertiary, fontWeight = FontWeight.SemiBold, modifier = Modifier.alignByBaseline())
+            }
         }
         Spacer(Modifier.weight(1f))
-        Text("bpm", fontSize = 10.sp, color = colors.textTertiary, fontWeight = FontWeight.SemiBold)
+        if (paceSec != null) {
+            // 평균 페이스 (100m 기준)
+            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text("페이스", fontSize = 11.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold, modifier = Modifier.alignByBaseline())
+                Text(formatPace(paceSec), fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary, fontFamily = JetBrainsMonoFamily, modifier = Modifier.alignByBaseline())
+            }
+        }
     }
 }
 

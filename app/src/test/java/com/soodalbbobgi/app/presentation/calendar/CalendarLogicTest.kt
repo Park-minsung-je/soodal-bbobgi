@@ -1,6 +1,7 @@
 package com.soodalbbobgi.app.presentation.calendar
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -44,6 +45,21 @@ class CalendarLogicTest {
         assertEquals(50, strokePercent(500, 1000))
         assertEquals(0, strokePercent(0, 1000))
         assertEquals(0, strokePercent(100, 0)) // 합계 0 → 0
+    }
+
+    @Test
+    fun `평균 페이스는 100m당 소요 시간이다`() {
+        assertEquals(126, paceSecPer100m(1500, 1890)) // 1890초 / 15 = 126초
+        assertEquals(120, paceSecPer100m(1000, 1200))
+        assertNull(paceSecPer100m(0, 1890)) // 거리 없음 → 계산 불가
+        assertNull(paceSecPer100m(1500, 0)) // 시간 없음 → 계산 불가
+    }
+
+    @Test
+    fun `페이스는 분'초 형식으로 표기한다`() {
+        assertEquals("2'06\"", formatPace(126))
+        assertEquals("0'59\"", formatPace(59))
+        assertEquals("10'00\"", formatPace(600))
     }
 
     @Test

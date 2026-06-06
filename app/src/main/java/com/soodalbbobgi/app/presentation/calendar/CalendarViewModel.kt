@@ -34,6 +34,8 @@ import javax.inject.Inject
 data class SwimDayData(
     val distanceM: Int,
     val durationMin: Int,
+    /** 총 시간(초) — 평균 페이스 계산용 (분 단위는 반올림 오차가 큼). */
+    val durationSec: Int,
     val kcal: Int,
     val shellReward: Int,
     val freeM: Int = 0,
@@ -141,6 +143,7 @@ class CalendarViewModel @Inject constructor(
 private fun SwimLog.toDayData(): SwimDayData = SwimDayData(
     distanceM = distanceMeters,
     durationMin = durationSeconds / 60,
+    durationSec = durationSeconds,
     kcal = calories,
     shellReward = shellsEarned,
     freeM = strokeFreestyleM,

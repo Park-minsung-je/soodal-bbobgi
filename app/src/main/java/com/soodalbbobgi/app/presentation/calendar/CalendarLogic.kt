@@ -44,6 +44,19 @@ fun strokePercent(meters: Int, sumMeters: Int): Int =
     if (sumMeters <= 0) 0 else Math.round(meters.toFloat() / sumMeters * 100f)
 
 /**
+ * 평균 페이스 — 100m당 소요 시간(초). 거리나 시간이 없으면 계산 불가(null).
+ *
+ * @param distanceM 총 거리(m)
+ * @param durationSec 총 시간(초)
+ */
+fun paceSecPer100m(distanceM: Int, durationSec: Int): Int? =
+    if (distanceM <= 0 || durationSec <= 0) null
+    else Math.round(durationSec * 100f / distanceM)
+
+/** 페이스(초)를 분'초" 형식으로 표기한다. 예: 126 → 2'06". */
+fun formatPace(sec: Int): String = "${sec / 60}'${"%02d".format(sec % 60)}\""
+
+/**
  * 영법 슬라이더 입력값을 기록된 거리 안으로 제한한다.
  * 수정은 입력된 기록(총 거리)의 재분배만 허용 — 다른 영법 합계를 뺀 잔여까지만 늘릴 수 있다.
  *
