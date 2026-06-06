@@ -187,6 +187,15 @@ class HealthConnectManager @Inject constructor(
                     .map { it.beatsPerMinute }
                     .toList()
 
+                val activeSeconds = computeActiveSeconds(session.segments, session.laps)
+                // 진단: 워치가 세그먼트/랩/심박을 실제로 써주는지 확인용.
+                Timber.d(
+                    "수영 세션 %s: segments=%d, laps=%d, hr샘플=%d, 경과=%d초, 실운동=%s초",
+                    session.startTime.atZone(ZoneId.systemDefault()).toLocalDate(),
+                    session.segments.size, session.laps.size, bpm.size,
+                    duration.seconds, activeSeconds?.toString() ?: "없음",
+                )
+
                 SwimSession(
                     date = session.startTime.atZone(ZoneId.systemDefault())
                         .toLocalDate().toString(),
@@ -196,7 +205,7 @@ class HealthConnectManager @Inject constructor(
                     hcRecordId = session.metadata.id,
                     maxHr = bpm.maxOrNull()?.toInt(),
                     minHr = bpm.minOrNull()?.toInt(),
-                    activeSeconds = computeActiveSeconds(session.segments, session.laps),
+                    activeSeconds = activeSeconds,
                 )
             }
         } catch (e: Exception) {
