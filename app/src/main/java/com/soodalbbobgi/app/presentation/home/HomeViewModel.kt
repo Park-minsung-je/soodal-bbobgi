@@ -235,6 +235,7 @@ class HomeViewModel @Inject constructor(
                     totalEarned = fullReadAndInitToken()
                 }
                 pullServerSwimLogs()
+                backfillHeartRate()
                 appStateLoader.refreshCurrency()
                 _shellReward.value = totalEarned
             } catch (e: Exception) {
@@ -315,6 +316,26 @@ class HomeViewModel @Inject constructor(
             } catch (e: Exception) {
                 Timber.w(e, "수영 기록 삭제 동기화 실패: $hcRecordId")
             }
+        }
+    }
+
+    /**
+     * HC 원본에서 최근 30일 세션의 심박을 다시 읽어 로컬 기록에 채워 넣는다.
+     * 서버 복원/구버전 동기화로 들어온 기록에는 심박이 없으므로 백필이 필요하다.
+     */
+    private suspend fun backfillHeartRate() {
+        try {
+            val zone = ZoneId.systemDefault()
+            val today = LocalDate.now()
+            val start = today.minusDays(29).atStartOfDay(zone).toInstant()
+            val end = today.plusDays(1).atStartOfDay(zone).toInstant()
+            for (session in healthConnectManager.readSwimSessions(start, end)) {
+                if (session.maxHr != null && session.minHr != null) {
+                    swimLogUseCase.updateHeartRate(session.date, session.maxHr, session.minHr)
+                }
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "심박 백필 실패")
         }
     }
 
