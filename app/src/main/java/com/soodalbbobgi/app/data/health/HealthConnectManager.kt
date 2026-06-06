@@ -115,7 +115,7 @@ internal fun hrActiveSeconds(
     dropDelta: Int = 15,
     riseDelta: Int = 10,
     levelWindowSec: Double = 60.0,
-    minRestRunSec: Long = 30,
+    minRestRunSec: Long = 5,
 ): Int? {
     if (samples.size < 60) return null
     val sorted = samples.sortedBy { it.first }

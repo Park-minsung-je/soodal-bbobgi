@@ -92,12 +92,22 @@ class ActiveSecondsTest {
     }
 
     @Test
-    fun `짧은 심박 출렁임은 휴식으로 치지 않는다`() {
-        // 하락이 20초만 지속 — 최소 휴식 길이(30초) 미만이라 차감하지 않는다
+    fun `10초 안팎의 짧은 휴식도 차감한다`() {
+        // 인터벌 사이 12초 휴식 — 짧아도 뚜렷한 하락이면 휴식으로 친다
         val samples = (0 until 600).map { t(it.toLong()) to 150L } +
-            (600 until 620).map { t(it.toLong()) to 95L } +
-            (620 until 1220).map { t(it.toLong()) to 150L }
-        assertEquals(1219, hrActiveSeconds(samples))
+            (600 until 612).map { t(it.toLong()) to 110L } +
+            (612 until 1212).map { t(it.toLong()) to 150L }
+        // 공백 기반 1,211초 - 휴식 12초 = 1,199초
+        assertEquals(1199, hrActiveSeconds(samples))
+    }
+
+    @Test
+    fun `한두 샘플짜리 글리치는 휴식으로 치지 않는다`() {
+        // 3초짜리 순간 하락 — 최소 휴식 길이(5초) 미만이라 무시
+        val samples = (0 until 600).map { t(it.toLong()) to 150L } +
+            (600 until 603).map { t(it.toLong()) to 95L } +
+            (603 until 1203).map { t(it.toLong()) to 150L }
+        assertEquals(1202, hrActiveSeconds(samples))
     }
 
     @Test
