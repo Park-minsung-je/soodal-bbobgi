@@ -133,5 +133,7 @@ private fun SwimLog.toDayData(): SwimDayData = SwimDayData(
     flyM = strokeFlyM,
     mixedM = strokeMixedM,
     kickM = strokeKickM,
+    maxHr = maxHr,
+    minHr = minHr,
 )
 

@@ -7,6 +7,7 @@ import androidx.health.connect.client.changes.UpsertionChange
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -27,6 +28,8 @@ import javax.inject.Singleton
  * @property durationSeconds 수영 시간 (초)
  * @property calories 소모 칼로리
  * @property hcRecordId Health Connect 레코드 UID (삭제 추적용)
+ * @property maxHr 세션 중 최대 심박(bpm). 심박 기록이 없으면 null
+ * @property minHr 세션 중 최소 심박(bpm). 심박 기록이 없으면 null
  */
 data class SwimSession(
     val date: String,
@@ -34,6 +37,8 @@ data class SwimSession(
     val durationSeconds: Int,
     val calories: Int,
     val hcRecordId: String? = null,
+    val maxHr: Int? = null,
+    val minHr: Int? = null,
 )
 
 /**
@@ -130,6 +135,9 @@ class HealthConnectManager @Inject constructor(
                 )
             ).records
 
+            // 심박 레코드 — 권한이 없거나 실패해도 세션 수집은 계속한다.
+            val heartRateRecords = readHeartRateRecords(startTime, endTime)
+
             swimSessions.map { session ->
                 val duration = Duration.between(session.startTime, session.endTime)
 
@@ -145,6 +153,13 @@ class HealthConnectManager @Inject constructor(
                     .sumOf { it.energy.inKilocalories }
                     .toInt()
 
+                // 세션 시간 범위 내 심박 샘플의 최대/최소
+                val bpm = heartRateRecords.asSequence()
+                    .flatMap { it.samples }
+                    .filter { it.time >= session.startTime && it.time <= session.endTime }
+                    .map { it.beatsPerMinute }
+                    .toList()
+
                 SwimSession(
                     date = session.startTime.atZone(ZoneId.systemDefault())
                         .toLocalDate().toString(),
@@ -152,6 +167,8 @@ class HealthConnectManager @Inject constructor(
                     durationSeconds = duration.seconds.toInt(),
                     calories = totalCalories,
                     hcRecordId = session.metadata.id,
+                    maxHr = bpm.maxOrNull()?.toInt(),
+                    minHr = bpm.minOrNull()?.toInt(),
                 )
             }
         } catch (e: Exception) {
@@ -238,16 +255,40 @@ class HealthConnectManager @Inject constructor(
                 ReadRecordsRequest(TotalCaloriesBurnedRecord::class, timeFilter)
             ).records.sumOf { it.energy.inKilocalories }.toInt()
 
+            val bpm = readHeartRateRecords(session.startTime, session.endTime)
+                .flatMap { it.samples }
+                .map { it.beatsPerMinute }
+
             SwimSession(
                 date = session.startTime.atZone(ZoneId.systemDefault()).toLocalDate().toString(),
                 distanceMeters = distanceM,
                 durationSeconds = duration.seconds.toInt(),
                 calories = calories,
                 hcRecordId = session.metadata.id,
+                maxHr = bpm.maxOrNull()?.toInt(),
+                minHr = bpm.minOrNull()?.toInt(),
             )
         } catch (e: Exception) {
             Timber.w(e, "수영 세션 상세 정보 읽기 실패: ${session.metadata.id}")
             null
+        }
+    }
+
+    /**
+     * 시간 범위 내 심박 레코드를 읽는다.
+     * 심박 권한이 없거나 조회에 실패해도 빈 목록을 반환해 세션 동기화를 막지 않는다.
+     */
+    private suspend fun readHeartRateRecords(startTime: Instant, endTime: Instant): List<HeartRateRecord> {
+        return try {
+            healthConnectClient.readRecords(
+                ReadRecordsRequest(
+                    recordType = HeartRateRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
+                )
+            ).records
+        } catch (e: Exception) {
+            Timber.w(e, "심박 레코드 읽기 실패 — 심박 없이 진행")
+            emptyList()
         }
     }
 

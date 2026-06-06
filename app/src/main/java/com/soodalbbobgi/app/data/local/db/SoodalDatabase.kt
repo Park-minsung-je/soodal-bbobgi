@@ -10,7 +10,7 @@ import com.soodalbbobgi.app.data.local.entity.SwimLogEntity
  */
 @Database(
     entities = [SwimLogEntity::class],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 abstract class SoodalDatabase : RoomDatabase() {

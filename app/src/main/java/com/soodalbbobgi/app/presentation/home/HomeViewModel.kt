@@ -277,6 +277,8 @@ class HomeViewModel @Inject constructor(
                     strokeMixedM = session.distanceMeters,
                     source = "health_connect",
                     hcRecordId = session.hcRecordId,
+                    maxHr = session.maxHr,
+                    minHr = session.minHr,
                 ))
                 val response = soodalApi.addSwimLog(SwimLogRequest(
                     date = session.date,

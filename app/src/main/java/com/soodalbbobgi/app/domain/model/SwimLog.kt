@@ -16,4 +16,7 @@ data class SwimLog(
     val source: String,
     val shellsEarned: Int = 0,
     val hcRecordId: String? = null,
+    /** 세션 중 최대/최소 심박(bpm). 심박 기록이 없으면 null. */
+    val maxHr: Int? = null,
+    val minHr: Int? = null,
 )
