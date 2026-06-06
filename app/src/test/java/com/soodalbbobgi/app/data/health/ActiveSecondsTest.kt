@@ -80,6 +80,24 @@ class ActiveSecondsTest {
     }
 
     @Test
+    fun `일시정지 복귀 직후의 저심박은 램프업으로 보고 차감하지 않는다`() {
+        // 수영 600초 + (일시정지 300초) + 복귀 직후 저심박 램프업 120초 + 수영 600초
+        val samples = (0 until 600).map { t(it.toLong()) to 150L } +
+            (900 until 1020).map { t(it.toLong()) to 95L } +
+            (1020 until 1620).map { t(it.toLong()) to 150L }
+        // 공백 기반 1,318초 — 램프업 120초는 경계 직후라 휴식으로 빼지 않는다
+        assertEquals(1318, hrActiveSeconds(samples))
+    }
+
+    @Test
+    fun `세션 시작 직후의 저심박도 차감하지 않는다`() {
+        // 시작하자마자 심박이 낮은 상태(워밍업)에서 올라가는 구간
+        val samples = (0 until 120).map { t(it.toLong()) to 95L } +
+            (120 until 720).map { t(it.toLong()) to 150L }
+        assertEquals(719, hrActiveSeconds(samples))
+    }
+
+    @Test
     fun `짧은 심박 출렁임은 휴식으로 치지 않는다`() {
         // 저심박이 20초만 지속 — 45초 미만이라 차감하지 않는다
         val samples = (0 until 600).map { t(it.toLong()) to 150L } +
