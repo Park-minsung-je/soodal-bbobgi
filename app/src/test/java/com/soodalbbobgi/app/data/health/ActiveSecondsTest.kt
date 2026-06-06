@@ -48,21 +48,8 @@ class ActiveSecondsTest {
     }
 
     @Test
-    fun `Otsu 임계값은 이중봉 심박 분포를 두 무리 사이에서 가른다`() {
-        val bpm = List(600) { 150L } + List(300) { 95L }
-        val threshold = otsuThreshold(bpm)!!
-        org.junit.Assert.assertTrue("threshold=$threshold", threshold in 96..150)
-    }
-
-    @Test
-    fun `변별력 없는 단봉 분포는 임계값을 만들지 않는다`() {
-        val bpm = List(500) { 100L + (it % 6) } // 100~105 좁은 범위
-        assertNull(otsuThreshold(bpm))
-    }
-
-    @Test
-    fun `임계 이상 구간만 운동시간으로 합산한다`() {
-        // 수영 600초(150bpm) + 벽 휴식 300초(95bpm 유지 — 상승 아님)
+    fun `휴식 바닥보다 30 이상 높은 구간만 운동시간으로 합산한다`() {
+        // 수영 600초(150bpm) + 벽 휴식 300초(95bpm) → 바닥 95, 임계 125
         val samples = (0 until 900).map { sec ->
             t(sec.toLong()) to if (sec < 600) 150L else 95L
         }
@@ -70,13 +57,27 @@ class ActiveSecondsTest {
     }
 
     @Test
-    fun `임계 미만이어도 상승 중인 심박(램프업)은 운동으로 친다`() {
-        // 수영 600초 + (일시정지 300초) + 복귀 후 60초간 1bpm/초로 상승(95→154) + 수영 600초
+    fun `일시정지 공백은 운동시간에서 자동 제외된다`() {
+        // 수영 600초 + (일시정지 300초: 샘플 없음) + 벽 휴식 300초
         val samples = (0 until 600).map { t(it.toLong()) to 150L } +
-            (900 until 960).map { t(it.toLong()) to (95L + (it - 900)) } +
-            (960 until 1560).map { t(it.toLong()) to 150L }
-        // 램프업 초반 +3bpm 상승이 보이기 전 3초만 휴식, 나머지는 전부 운동
-        assertEquals(1255, hrActiveSeconds(samples))
+            (900 until 1200).map { t(it.toLong()) to 95L }
+        assertEquals(599, hrActiveSeconds(samples))
+    }
+
+    @Test
+    fun `휴식 없이 수영한 세션은 차감하지 않는다`() {
+        // 바닥이 125bpm(>110) — 쉼 없이 수영한 날은 임계 분류 없이 전체가 운동
+        val samples = (0 until 600).map { t(it.toLong()) to (125L + (it % 20)) }
+        assertEquals(599, hrActiveSeconds(samples))
+    }
+
+    @Test
+    fun `순간 글리치는 휴식 바닥을 끌어내리지 않는다`() {
+        // 40bpm짜리 글리치 5개 — 하위 2% 바닥은 여전히 95 부근이라 임계가 흔들리지 않는다
+        val samples = (0 until 600).map { t(it.toLong()) to 150L } +
+            (600 until 900).map { t(it.toLong()) to 95L } +
+            (900 until 905).map { t(it.toLong()) to 40L }
+        assertEquals(600, hrActiveSeconds(samples))
     }
 
     @Test

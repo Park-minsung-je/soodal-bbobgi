@@ -100,74 +100,34 @@ internal fun downsampleHr(samples: List<Pair<Instant, Long>>, maxPoints: Int = 1
 }
 
 /**
- * [실험] Otsu 방식 임계값 — 이중봉 분포(운동 고심박/휴식 저심박)를 두 무리로 가르는 경계.
- * 분포 폭이 20bpm 미만(단봉·변별력 없음)이면 null.
- */
-internal fun otsuThreshold(values: List<Long>): Long? {
-    if (values.isEmpty()) return null
-    val min = values.min()
-    val max = values.max()
-    if (max - min < 20) return null
-
-    val hist = IntArray((max - min + 1).toInt())
-    values.forEach { hist[(it - min).toInt()]++ }
-    val total = values.size
-
-    var sumAll = 0.0
-    hist.forEachIndexed { i, c -> sumAll += i.toDouble() * c }
-
-    var sumB = 0.0
-    var wB = 0
-    var best = -1.0
-    var bestIdx = 0
-    for (i in hist.indices) {
-        wB += hist[i]
-        if (wB == 0) continue
-        val wF = total - wB
-        if (wF == 0) break
-        sumB += i.toDouble() * hist[i]
-        val mB = sumB / wB
-        val mF = (sumAll - sumB) / wF
-        val between = wB.toDouble() * wF * (mB - mF) * (mB - mF)
-        if (between > best) {
-            best = between
-            bestIdx = i
-        }
-    }
-    return min + bestIdx + 1
-}
-
-/**
- * [실험] 심박 기반 실운동시간 추정(초) — 임계값 + 상승 감지 혼합.
- * 기본은 최초 방식: Otsu 임계값으로 운동/휴식을 가르고 임계 이상인 샘플 구간만 합산한다.
- * 단, 임계 미만이어도 심박이 올라가는 중([riseLookbackSec] 전 대비 +[riseMinDelta] 이상)이면
- * 일시정지 복귀 직후의 램프업이므로 운동으로 친다. 샘플 공백(일시정지)은 자동 제외.
+ * [실험] 심박 기반 실운동시간 추정(초) — 휴식 바닥 기준.
+ * 세션 최저 심박(하위 2% — 글리치에 둔감)은 가장 깊은 휴식 수준이므로, 그보다 [restBand] 이상
+ * 높은 샘플 구간만 운동으로 합산한다. 샘플 공백(일시정지)은 자동 제외.
+ * 바닥이 [restFloorCap]보다 높으면 휴식 없이 수영한 세션으로 보고 차감하지 않는다.
  *
- * @param samples (시각, bpm) 목록. 60개 미만이거나 분포가 단봉이면 추정 포기(null)
+ * 보정 근거: 2026-06-04/05 두 세션을 삼성헬스 실측과 대조해 min+30이 양일 오차 ≤2.4초/100m.
+ *
+ * @param samples (시각, bpm) 목록. 60개 미만이면 추정 포기(null)
  */
 internal fun hrActiveSeconds(
     samples: List<Pair<Instant, Long>>,
     maxGapSec: Long = 10,
-    riseLookbackSec: Long = 15,
-    riseMinDelta: Long = 3,
+    restBand: Long = 30,
+    restFloorCap: Long = 110,
 ): Int? {
     if (samples.size < 60) return null
-    val threshold = otsuThreshold(samples.map { it.second }) ?: return null
-
     val sorted = samples.sortedBy { it.first }
+
+    // 휴식 바닥 — 하위 2% 지점 (순간 글리치가 바닥을 끌어내리지 않게)
+    val byBpm = samples.map { it.second }.sorted()
+    val floor = byBpm[(byBpm.size * 2 / 100).coerceAtMost(byBpm.size - 1)]
+    // 바닥이 높으면(휴식 구간 없음) 임계값 없이 전체를 운동으로 본다.
+    val threshold = if (floor <= restFloorCap) floor + restBand else Long.MIN_VALUE
+
     var active = 0L
-    var segStart = 0 // 현재 연속 구간의 시작 인덱스 — 일시정지 너머와는 비교하지 않는다
-    var look = 0 // riseLookbackSec 이전 샘플 포인터
     for (i in 0 until sorted.size - 1) {
         val dt = Duration.between(sorted[i].first, sorted[i + 1].first).seconds
-        if (dt !in 1..maxGapSec) {
-            segStart = i + 1
-            continue
-        }
-        if (look < segStart) look = segStart
-        while (look < i && Duration.between(sorted[look].first, sorted[i].first).seconds > riseLookbackSec) look++
-        val rising = sorted[i].second - sorted[look].second >= riseMinDelta
-        if (sorted[i].second >= threshold || rising) active += dt
+        if (dt in 1..maxGapSec && sorted[i].second >= threshold) active += dt
     }
     return if (active > 0) active.toInt() else null
 }
