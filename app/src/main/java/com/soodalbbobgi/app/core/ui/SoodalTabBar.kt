@@ -63,7 +63,7 @@ fun SoodalTabBar(
             ) {
                 SoodalIcon(
                     icon = tab.icon,
-                    tint = if (isActive) colors.accentCyan else colors.textTertiary,
+                    tint = if (isActive) colors.accentBlue else colors.textTertiary,
                     size = 22.dp,
                 )
                 Text(
@@ -71,7 +71,7 @@ fun SoodalTabBar(
                     fontSize = 10.sp,
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 0.4.sp,
-                    color = if (isActive) colors.accentCyan else colors.textTertiary,
+                    color = if (isActive) colors.accentBlue else colors.textTertiary,
                 )
             }
         }

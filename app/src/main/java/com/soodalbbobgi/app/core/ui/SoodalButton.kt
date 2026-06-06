@@ -42,7 +42,7 @@ fun SoodalButton(
 ) {
     val colors = SoodalDesign.colors
     val background = when (style) {
-        ButtonStyle.Primary -> colors.gradCyan
+        ButtonStyle.Primary -> colors.gradBlue
         ButtonStyle.Gold -> colors.gradGold
         ButtonStyle.Purple -> colors.gradPurple
         else -> null
@@ -55,7 +55,7 @@ fun SoodalButton(
         ButtonStyle.Ghost -> colors.textSecondary
     }
     val glowColor = when (style) {
-        ButtonStyle.Primary -> colors.glowCyan
+        ButtonStyle.Primary -> colors.glowBlue
         ButtonStyle.Gold -> colors.glowGold
         ButtonStyle.Purple -> colors.glowPurple
         else -> null

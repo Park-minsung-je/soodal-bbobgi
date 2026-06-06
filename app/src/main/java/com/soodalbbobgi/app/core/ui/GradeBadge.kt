@@ -26,7 +26,7 @@ fun GradeBadge(
     val (fg, borderColor, bg) = when (grade) {
         Grade.SSR -> Triple(colors.accentGold, colors.accentGold.copy(alpha = 0.45f), colors.accentGoldSoft)
         Grade.SR -> Triple(colors.accentPurple, colors.accentPurple.copy(alpha = 0.45f), colors.accentPurpleSoft)
-        Grade.R -> Triple(colors.accentCyan, colors.accentCyan.copy(alpha = 0.45f), colors.accentCyanSoft)
+        Grade.R -> Triple(colors.accentBlue, colors.accentBlue.copy(alpha = 0.45f), colors.accentBlueSoft)
         Grade.N -> Triple(colors.textSecondary, colors.textTertiary, colors.surface2)
     }
 

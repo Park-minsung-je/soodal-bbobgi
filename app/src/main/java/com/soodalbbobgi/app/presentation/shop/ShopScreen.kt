@@ -232,7 +232,7 @@ private fun BoxGridItem(
         ) {
             val (boxBg, boxTint) = when (item.icon) {
                 SoodalIcons.Gift -> colors.accentGoldSoft to colors.accentGold
-                SoodalIcons.Aurora -> colors.accentCyanSoft to colors.accentCyan
+                SoodalIcons.Aurora -> colors.accentBlueSoft to colors.accentBlue
                 SoodalIcons.Otter -> colors.accentGoldSoft to colors.accentGold
                 SoodalIcons.Frame -> colors.accentPurpleSoft to colors.accentPurple
                 else -> colors.surface2 to colors.textTertiary
@@ -316,7 +316,7 @@ private fun DirectItemCard(
             val (itemBg, itemTint) = when (item.grade) {
                 Grade.SSR -> colors.accentGoldSoft to colors.accentGold
                 Grade.SR -> colors.accentPurpleSoft to colors.accentPurple
-                Grade.R -> colors.accentCyanSoft to colors.accentCyan
+                Grade.R -> colors.accentBlueSoft to colors.accentBlue
                 else -> colors.surface2 to colors.textTertiary
             }
             Box(

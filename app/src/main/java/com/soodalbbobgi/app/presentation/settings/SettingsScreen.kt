@@ -182,7 +182,7 @@ fun SettingsScreen(
                             text = "21:00",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = colors.accentCyan,
+                            color = colors.accentBlue,
                         )
                     }
                 }
@@ -314,7 +314,7 @@ private fun ToggleSwitch(
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val colors = SoodalDesign.colors
-    val trackColor = if (checked) colors.accentCyan else colors.surface3
+    val trackColor = if (checked) colors.accentBlue else colors.surface3
     val thumbOffset by animateDpAsState(
         targetValue = if (checked) 20.dp else 2.dp,
         animationSpec = tween(200),

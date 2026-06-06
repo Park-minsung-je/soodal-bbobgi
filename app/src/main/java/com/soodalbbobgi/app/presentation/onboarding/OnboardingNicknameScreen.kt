@@ -64,13 +64,13 @@ fun OnboardingNicknameScreen(
     Column(Modifier.fillMaxSize().background(colors.bgDeep).padding(24.dp)) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             Text("STEP 1 / 2", fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                color = colors.accentCyan, letterSpacing = 1.5.sp)
+                color = colors.accentBlue, letterSpacing = 1.5.sp)
             Spacer(Modifier.height(16.dp))
             Text("반가워요!\n닉네임을 알려주세요", style = SoodalDesign.typography.xl, color = colors.textPrimary)
             Text("닉네임은 프로필 카드와 뽑기 기록에 표시됩니다.", fontSize = 14.sp,
                 color = colors.textSecondary, modifier = Modifier.padding(top = 12.dp))
             Spacer(Modifier.height(48.dp))
-            SoodalIcon(SoodalIcons.Edit, tint = colors.accentCyan, size = 64.dp,
+            SoodalIcon(SoodalIcons.Edit, tint = colors.accentBlue, size = 64.dp,
                 modifier = Modifier.align(Alignment.CenterHorizontally))
             Spacer(Modifier.height(36.dp))
             SoodalTextField(nickname, { nickname = it }, placeholder = "닉네임 입력 (최대 10자)",
@@ -129,9 +129,9 @@ fun OnboardingNicknameScreen(
 private fun SelectChip(text: String, selected: Boolean, onClick: () -> Unit) {
     val colors = SoodalDesign.colors
     val shape = RoundedCornerShape(20.dp)
-    val bgColor = if (selected) colors.accentCyan.copy(alpha = 0.15f) else colors.surface1
-    val borderColor = if (selected) colors.accentCyan else colors.glassBorder
-    val textColor = if (selected) colors.accentCyan else colors.textSecondary
+    val bgColor = if (selected) colors.accentBlue.copy(alpha = 0.15f) else colors.surface1
+    val borderColor = if (selected) colors.accentBlue else colors.glassBorder
+    val textColor = if (selected) colors.accentBlue else colors.textSecondary
 
     Box(
         modifier = Modifier

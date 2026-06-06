@@ -288,8 +288,8 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        SoodalIcon(icon = SoodalIcons.Edit, tint = colors.accentCyan, size = 14.dp)
-                        Text("프로필 편집", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.accentCyan)
+                        SoodalIcon(icon = SoodalIcons.Edit, tint = colors.accentBlue, size = 14.dp)
+                        Text("프로필 편집", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
                     }
                 }
 
@@ -320,8 +320,8 @@ fun HomeScreen(
                             modifier = Modifier
                                 .height(40.dp)
                                 .clip(SoodalShape.md)
-                                .background(colors.accentCyan.copy(alpha = 0.12f))
-                                .border(1.dp, colors.accentCyan.copy(alpha = 0.35f), SoodalShape.md)
+                                .background(colors.accentBlue.copy(alpha = 0.12f))
+                                .border(1.dp, colors.accentBlue.copy(alpha = 0.35f), SoodalShape.md)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null,
@@ -330,7 +330,7 @@ fun HomeScreen(
                                 .padding(horizontal = 16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("뽑기 →", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.accentCyan)
+                            Text("뽑기 →", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
                         }
                     }
                 }
@@ -388,7 +388,7 @@ fun HomeScreen(
                 ) {
                     StatCard(modifier = Modifier.weight(1f), label = "누적거리",
                         value = state.totalDistance.formatNumber(), unit = "m",
-                        valueColor = colors.accentCyan,
+                        valueColor = colors.accentBlue,
                         onClick = { onNavigateToTab("calendar") })
                     StatCard(modifier = Modifier.weight(1f), label = "수영 횟수",
                         value = "${state.swimSessions}", unit = "회",
@@ -488,7 +488,7 @@ private fun CurrencyChip(
     val (bg, border, fg) = when (color) {
         ChipColor.Gold -> Triple(colors.accentGoldSoft, colors.accentGold.copy(alpha = 0.35f), colors.accentGold)
         ChipColor.Purple -> Triple(colors.accentPurpleSoft, colors.accentPurple.copy(alpha = 0.35f), colors.accentPurple)
-        ChipColor.Cyan -> Triple(colors.accentCyanSoft, colors.accentCyan.copy(alpha = 0.35f), colors.accentCyan)
+        ChipColor.Blue -> Triple(colors.accentBlueSoft, colors.accentBlue.copy(alpha = 0.35f), colors.accentBlue)
     }
     Row(
         modifier = Modifier
@@ -543,13 +543,13 @@ private fun RecentItemCard(item: RecentItem) {
     ) {
         val (icon, bgColor) = when (item.kind) {
             "char" -> SoodalIcons.Otter to colors.accentGoldSoft
-            "frame" -> SoodalIcons.Frame to colors.accentCyanSoft
+            "frame" -> SoodalIcons.Frame to colors.accentBlueSoft
             "bg" -> SoodalIcons.Aurora to colors.accentPurpleSoft
             else -> SoodalIcons.Gift to colors.surface2
         }
         val iconTint = when (item.kind) {
             "char" -> colors.accentGold
-            "frame" -> colors.accentCyan
+            "frame" -> colors.accentBlue
             "bg" -> colors.accentPurple
             else -> colors.textTertiary
         }

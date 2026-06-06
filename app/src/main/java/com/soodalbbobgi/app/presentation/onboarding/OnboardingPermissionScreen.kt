@@ -110,14 +110,14 @@ fun OnboardingPermissionScreen(onConnect: () -> Unit, onSkip: () -> Unit) {
 
     Column(Modifier.fillMaxSize().background(colors.bgDeep).padding(24.dp)) {
         Text("STEP 2 / 2", fontSize = 11.sp, fontWeight = FontWeight.Bold,
-            color = colors.accentCyan, letterSpacing = 1.5.sp)
+            color = colors.accentBlue, letterSpacing = 1.5.sp)
         Spacer(Modifier.height(16.dp))
         Text("수영 기록을\n자동으로 가져올게요", style = SoodalDesign.typography.xl, color = colors.textPrimary)
         Text("Health Connect와 연동하면 수영 후 자동으로 기록이 등록되고 조개를 받을 수 있어요.",
             fontSize = 14.sp, color = colors.textSecondary, lineHeight = 22.sp,
             modifier = Modifier.padding(top = 12.dp))
         Spacer(Modifier.height(36.dp))
-        SoodalIcon(SoodalIcons.Swimmer, tint = colors.accentCyan, size = 64.dp,
+        SoodalIcon(SoodalIcons.Swimmer, tint = colors.accentBlue, size = 64.dp,
             modifier = Modifier.align(Alignment.CenterHorizontally))
         Spacer(Modifier.height(30.dp))
 
@@ -135,7 +135,7 @@ fun OnboardingPermissionScreen(onConnect: () -> Unit, onSkip: () -> Unit) {
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text("Health Connect", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                            SoodalChip("필수", color = ChipColor.Cyan)
+                            SoodalChip("필수", color = ChipColor.Blue)
                         }
                         Spacer(Modifier.height(4.dp))
                         Text(

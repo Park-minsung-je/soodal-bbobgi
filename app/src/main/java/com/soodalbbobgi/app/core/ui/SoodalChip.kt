@@ -16,19 +16,19 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 
-enum class ChipColor { Cyan, Purple, Gold }
+enum class ChipColor { Blue, Purple, Gold }
 
 @Composable
 fun SoodalChip(
     text: String,
     modifier: Modifier = Modifier,
-    color: ChipColor = ChipColor.Cyan,
+    color: ChipColor = ChipColor.Blue,
     iconType: SoodalIcons? = null,
     label: String? = null,
 ) {
     val colors = SoodalDesign.colors
     val (bg, border, fg) = when (color) {
-        ChipColor.Cyan -> Triple(colors.accentCyanSoft, colors.accentCyan.copy(alpha = 0.35f), colors.accentCyan)
+        ChipColor.Blue -> Triple(colors.accentBlueSoft, colors.accentBlue.copy(alpha = 0.35f), colors.accentBlue)
         ChipColor.Purple -> Triple(colors.accentPurpleSoft, colors.accentPurple.copy(alpha = 0.35f), colors.accentPurple)
         ChipColor.Gold -> Triple(colors.accentGoldSoft, colors.accentGold.copy(alpha = 0.35f), colors.accentGold)
     }

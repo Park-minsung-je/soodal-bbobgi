@@ -73,7 +73,7 @@ private fun kindIcon(kind: String): SoodalIcons = when (kind) {
 private fun gradeColor(grade: Grade) = when (grade) {
     Grade.SSR -> SoodalDesign.colors.accentGold
     Grade.SR -> SoodalDesign.colors.accentPurple
-    Grade.R -> SoodalDesign.colors.accentCyan
+    Grade.R -> SoodalDesign.colors.accentBlue
     Grade.N -> SoodalDesign.colors.textSecondary
 }
 
@@ -176,7 +176,7 @@ private fun ResultSingle(
                     )
                 }
 
-                SoodalChip("${kindLabel(item.kind)} 상자", color = ChipColor.Cyan, iconType = SoodalIcons.Box)
+                SoodalChip("${kindLabel(item.kind)} 상자", color = ChipColor.Blue, iconType = SoodalIcons.Box)
                 Spacer(Modifier.height(16.dp))
                 GradeBadge(item.grade)
                 Spacer(Modifier.height(20.dp))
@@ -258,7 +258,7 @@ private fun ResultGrid(
                     start = Offset.Zero, end = Offset(size.width, size.height),
                 ))
             }
-            .border(1.5.dp, colors.accentCyan.copy(alpha = 0.4f), RoundedCornerShape(24.dp))
+            .border(1.5.dp, colors.accentBlue.copy(alpha = 0.4f), RoundedCornerShape(24.dp))
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

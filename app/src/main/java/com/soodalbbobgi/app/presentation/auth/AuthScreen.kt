@@ -82,7 +82,7 @@ fun AuthScreen(
             modifier = Modifier.size(160.dp),
         )
         Spacer(Modifier.height(18.dp))
-        Text("수달 뽑기", fontSize = 30.sp, fontWeight = FontWeight.Black, color = colors.accentCyan)
+        Text("수달 뽑기", fontSize = 30.sp, fontWeight = FontWeight.Black, color = colors.accentBlue)
         Text("수영하고, 뽑고, 모아요", fontSize = 14.sp, color = colors.textSecondary)
         Spacer(Modifier.weight(1f))
 

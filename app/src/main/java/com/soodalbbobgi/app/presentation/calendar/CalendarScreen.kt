@@ -49,8 +49,7 @@ import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import java.time.LocalDate
 
-// 캘린더 강조색 — 앱 기본 포인트(시안)와 별개로 캘린더는 생기있는 블루로 통일 (디자인 확정).
-private val CalAccent = Color(0xFF2563EB)
+// 주말 요일 색 — 디자인 확정값 (강조색은 테마 accentBlue 사용).
 private val SundayColor = Color(0xFFFF9B9B)
 private val SaturdayColor = Color(0xFF9BC4FF)
 
@@ -186,7 +185,7 @@ private fun CalendarHeader(year: Int, month: Int, swimData: Map<Int, SwimDayData
         )
         Spacer(Modifier.weight(1f))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            HeaderStat(label = "수영", value = "$swimDays", unit = "일", color = CalAccent, first = true)
+            HeaderStat(label = "수영", value = "$swimDays", unit = "일", color = colors.accentBlue, first = true)
             HeaderStat(label = "조개", value = "$totalShells", unit = "개", color = colors.accentGold)
             HeaderStat(label = "거리", value = String.format("%.1f", totalKm), unit = "km", color = colors.accentPurple)
         }
@@ -315,16 +314,16 @@ private fun DayCell(
     // 선택은 배경을 바꾸지 않고 테두리만 강조한다 (디자인 확정).
     val bg = when {
         data != null -> colors.surface1
-        isToday -> CalAccent.copy(alpha = 0.08f)
+        isToday -> colors.accentBlue.copy(alpha = 0.08f)
         inMonth -> if (colors.isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.035f)
         else -> if (colors.isDark) Color.White.copy(alpha = 0.02f) else Color.Black.copy(alpha = 0.02f)
     }
-    val borderColor = if (isSelected) CalAccent else Color.Transparent
+    val borderColor = if (isSelected) colors.accentBlue else Color.Transparent
     val borderWidth = if (isSelected) 1.5.dp else 1.dp
 
     val dayColor = when {
         !inMonth -> colors.textTertiary
-        isSelected || isToday -> CalAccent
+        isSelected || isToday -> colors.accentBlue
         dow == 0 -> SundayColor
         dow == 6 -> SaturdayColor
         else -> colors.textPrimary
@@ -360,7 +359,7 @@ private fun DayCell(
                 text = "${formatNumber(data.distanceM)}m",
                 fontSize = 8.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isSelected) CalAccent else colors.textSecondary,
+                color = if (isSelected) colors.accentBlue else colors.textSecondary,
                 fontFamily = JetBrainsMonoFamily,
                 letterSpacing = (-0.2).sp,
                 lineHeight = 8.sp,
@@ -461,7 +460,7 @@ private fun DayDetailCard(
 
             // 거리 / 시간 / 칼로리
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                MetricCol("거리", formatNumber(data.distanceM), "m", CalAccent)
+                MetricCol("거리", formatNumber(data.distanceM), "m", colors.accentBlue)
                 MetricCol("시간", data.durationMin.toString(), "분", colors.textPrimary)
                 MetricCol("칼로리", data.kcal.toString(), "kcal", colors.success)
             }
@@ -484,7 +483,7 @@ private fun DayDetailCard(
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(7.dp))
-                        .background(CalAccent.copy(alpha = 0.12f))
+                        .background(colors.accentBlue.copy(alpha = 0.12f))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
@@ -494,8 +493,8 @@ private fun DayDetailCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    SoodalIcon(icon = SoodalIcons.Edit, tint = CalAccent, size = 12.dp)
-                    Text("수정", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CalAccent)
+                    SoodalIcon(icon = SoodalIcons.Edit, tint = colors.accentBlue, size = 12.dp)
+                    Text("수정", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
                 }
             }
 
@@ -622,7 +621,7 @@ private fun WeeklyActivityCard(weekly: WeeklyActivity) {
                 verticalAlignment = Alignment.Bottom,
             ) {
                 Row(verticalAlignment = Alignment.Bottom) {
-                    Text(formatNumber(weekly.totalMeters), fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = CalAccent)
+                    Text(formatNumber(weekly.totalMeters), fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue)
                     Text("m", fontSize = 11.sp, color = colors.textSecondary, modifier = Modifier.padding(start = 3.dp, bottom = 2.dp))
                 }
                 Text("${weekly.activeDays}일 운동 · 주간", fontSize = 11.sp, color = colors.textSecondary)
@@ -657,7 +656,7 @@ private fun WeeklyActivityCard(weekly: WeeklyActivity) {
                                             bar.distanceM == 0 ->
                                                 if (colors.isDark) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.06f)
                                             // 거리만 있고 영법 정보 없는 날 — 단색 폴백 (스택 세그먼트가 덮음)
-                                            else -> CalAccent.copy(alpha = 0.45f)
+                                            else -> colors.accentBlue.copy(alpha = 0.45f)
                                         },
                                     )
                                     .alpha(if (bar.isToday) 1f else 0.9f),
@@ -681,7 +680,7 @@ private fun WeeklyActivityCard(weekly: WeeklyActivity) {
                             text = bar.label,
                             fontSize = 10.sp,
                             fontWeight = if (bar.isToday) FontWeight.ExtraBold else FontWeight.Medium,
-                            color = if (bar.isToday) CalAccent else colors.textTertiary,
+                            color = if (bar.isToday) colors.accentBlue else colors.textTertiary,
                         )
                     }
                 }
@@ -699,7 +698,7 @@ private fun MonthSwimStats(swimData: Map<Int, SwimDayData>) {
     val totalKcal = swimData.values.sumOf { it.kcal }
 
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        CalStatCard(Modifier.weight(1f), "누적거리", formatNumber(totalDistance), "m", CalAccent)
+        CalStatCard(Modifier.weight(1f), "누적거리", formatNumber(totalDistance), "m", colors.accentBlue)
         CalStatCard(Modifier.weight(1f), "수영 횟수", "$sessions", "회", colors.textPrimary)
         CalStatCard(Modifier.weight(1f), "칼로리", formatNumber(totalKcal), "kcal", colors.success)
     }

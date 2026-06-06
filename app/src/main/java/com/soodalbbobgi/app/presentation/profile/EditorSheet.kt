@@ -156,9 +156,9 @@ fun EditorSheet(
                         modifier = Modifier
                             .weight(1f)
                             .clip(SoodalShape.md)
-                            .background(if (isActive) colors.accentCyanSoft else Color.Transparent)
+                            .background(if (isActive) colors.accentBlueSoft else Color.Transparent)
                             .then(
-                                if (isActive) Modifier.border(1.dp, colors.accentCyan.copy(alpha = 0.3f), SoodalShape.md)
+                                if (isActive) Modifier.border(1.dp, colors.accentBlue.copy(alpha = 0.3f), SoodalShape.md)
                                 else Modifier
                             )
                             .clickable(
@@ -173,7 +173,7 @@ fun EditorSheet(
                             text = tab.label,
                             fontSize = 13.sp,
                             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isActive) colors.accentCyan else colors.textTertiary,
+                            color = if (isActive) colors.accentBlue else colors.textTertiary,
                         )
                     }
                 }
@@ -322,7 +322,7 @@ fun EditorSheet(
                             onCheckedChange = { vm.setShowStats(it) },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = colors.btnPrimaryText,
-                                checkedTrackColor = colors.accentCyan,
+                                checkedTrackColor = colors.accentBlue,
                                 uncheckedTrackColor = colors.surface3,
                             ),
                         )
@@ -353,9 +353,9 @@ fun EditorSheet(
                             Box(
                                 modifier = Modifier
                                     .clip(SoodalShape.md)
-                                    .background(if (isActive) colors.accentCyanSoft else colors.surface2)
+                                    .background(if (isActive) colors.accentBlueSoft else colors.surface2)
                                     .then(
-                                        if (isActive) Modifier.border(1.dp, colors.accentCyan.copy(alpha = 0.3f), SoodalShape.md)
+                                        if (isActive) Modifier.border(1.dp, colors.accentBlue.copy(alpha = 0.3f), SoodalShape.md)
                                         else Modifier
                                     )
                                     .clickable(
@@ -369,7 +369,7 @@ fun EditorSheet(
                                     text = label,
                                     fontSize = 13.sp,
                                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isActive) colors.accentCyan else colors.textTertiary,
+                                    color = if (isActive) colors.accentBlue else colors.textTertiary,
                                 )
                             }
                         }
@@ -391,7 +391,7 @@ fun EditorSheet(
             ) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),
-                    color = colors.accentCyan,
+                    color = colors.accentBlue,
                     strokeWidth = 2.dp,
                 )
             }
@@ -478,7 +478,7 @@ private fun NoneGridCell(
     modifier: Modifier = Modifier,
 ) {
     val colors = SoodalDesign.colors
-    val borderColor = if (isSelected) colors.accentCyan else colors.cardBorder
+    val borderColor = if (isSelected) colors.accentBlue else colors.cardBorder
     val borderWidth = if (isSelected) 2.dp else 1.dp
 
     Box(modifier = modifier) {
@@ -528,7 +528,7 @@ private fun ItemGridCell(
     modifier: Modifier = Modifier,
 ) {
     val colors = SoodalDesign.colors
-    val borderColor = if (item.isSelected) colors.accentCyan else colors.cardBorder
+    val borderColor = if (item.isSelected) colors.accentBlue else colors.cardBorder
     val borderWidth = if (item.isSelected) 2.dp else 1.dp
 
     Box(modifier = modifier) {
@@ -549,7 +549,7 @@ private fun ItemGridCell(
             val gradeColor = when (item.grade) {
                 com.soodalbbobgi.app.domain.model.Grade.SSR -> colors.accentGold
                 com.soodalbbobgi.app.domain.model.Grade.SR -> colors.accentPurple
-                com.soodalbbobgi.app.domain.model.Grade.R -> colors.accentCyan
+                com.soodalbbobgi.app.domain.model.Grade.R -> colors.accentBlue
                 com.soodalbbobgi.app.domain.model.Grade.N -> colors.textTertiary
             }
             Box(
@@ -601,8 +601,8 @@ private fun SliderRow(
             valueRange = range,
             modifier = Modifier.weight(1f),
             colors = SliderDefaults.colors(
-                thumbColor = colors.accentCyan,
-                activeTrackColor = colors.accentCyan,
+                thumbColor = colors.accentBlue,
+                activeTrackColor = colors.accentBlue,
                 inactiveTrackColor = colors.surface3,
             ),
         )
@@ -639,9 +639,9 @@ private fun SegmentChip(
     Box(
         modifier = Modifier
             .clip(SoodalShape.md)
-            .background(if (isActive) colors.accentCyanSoft else colors.surface2)
+            .background(if (isActive) colors.accentBlueSoft else colors.surface2)
             .then(
-                if (isActive) Modifier.border(1.dp, colors.accentCyan.copy(alpha = 0.3f), SoodalShape.md)
+                if (isActive) Modifier.border(1.dp, colors.accentBlue.copy(alpha = 0.3f), SoodalShape.md)
                 else Modifier
             )
             .clickable(
@@ -655,7 +655,7 @@ private fun SegmentChip(
             text = label,
             fontSize = 13.sp,
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-            color = if (isActive) colors.accentCyan else colors.textTertiary,
+            color = if (isActive) colors.accentBlue else colors.textTertiary,
         )
     }
 }
@@ -695,7 +695,7 @@ private fun ColorPaletteRow(
                         .background(parseSwatchColor(hex))
                         .border(
                             width = if (isSelected) 2.dp else 1.dp,
-                            color = if (isSelected) colors.accentCyan else colors.cardBorder,
+                            color = if (isSelected) colors.accentBlue else colors.cardBorder,
                             shape = CircleShape,
                         )
                         .clickable(

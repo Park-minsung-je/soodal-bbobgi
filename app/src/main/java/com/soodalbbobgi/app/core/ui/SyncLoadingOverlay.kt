@@ -43,7 +43,7 @@ fun SyncLoadingOverlay(message: String = "동기화 중이에요...") {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator(
                 modifier = Modifier.size(40.dp),
-                color = colors.accentCyan,
+                color = colors.accentBlue,
                 strokeWidth = 3.dp,
             )
             Spacer(Modifier.height(16.dp))

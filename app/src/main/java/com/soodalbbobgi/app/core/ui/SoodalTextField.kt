@@ -37,7 +37,7 @@ fun SoodalTextField(
             fontSize = 15.sp,
             fontWeight = FontWeight.Normal,
         ),
-        cursorBrush = SolidColor(colors.accentCyan),
+        cursorBrush = SolidColor(colors.accentBlue),
         singleLine = true,
         decorationBox = { innerTextField ->
             Box(
