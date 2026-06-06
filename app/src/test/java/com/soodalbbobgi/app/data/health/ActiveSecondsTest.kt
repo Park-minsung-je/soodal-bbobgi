@@ -41,6 +41,13 @@ class ActiveSecondsTest {
     }
 
     @Test
+    fun `속도 기반 실운동시간은 거리 나누기 평균속도다`() {
+        assertEquals(1800, speedBasedActiveSeconds(1500, 1500.0 / 1800.0))
+        assertNull(speedBasedActiveSeconds(0, 1.0)) // 거리 없음
+        assertNull(speedBasedActiveSeconds(1500, 0.0)) // 속도 없음
+    }
+
+    @Test
     fun `휴식뿐인 세그먼트는 무시하고 랩으로 폴백한다`() {
         val segments = listOf(
             ExerciseSegment(t(0), t(120), ExerciseSegment.EXERCISE_SEGMENT_TYPE_REST),

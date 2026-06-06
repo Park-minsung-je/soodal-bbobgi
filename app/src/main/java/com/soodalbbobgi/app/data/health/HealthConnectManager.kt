@@ -8,6 +8,7 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.SpeedRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -67,6 +68,14 @@ internal fun computeActiveSeconds(
     }
     return null
 }
+
+/**
+ * SpeedRecord 평균 속도(m/s) 기반 실운동시간(초) — 세그먼트/랩이 없을 때의 폴백.
+ * 속도 샘플은 이동 중에만 찍히므로 거리/평균속도가 곧 실운동시간에 가깝다.
+ */
+internal fun speedBasedActiveSeconds(distanceM: Int, avgSpeedMps: Double): Int? =
+    if (distanceM <= 0 || avgSpeedMps <= 0.0) null
+    else Math.round(distanceM / avgSpeedMps).toInt()
 
 /**
  * HC Changes API 동기화 결과.
@@ -162,8 +171,9 @@ class HealthConnectManager @Inject constructor(
                 )
             ).records
 
-            // 심박 레코드 — 권한이 없거나 실패해도 세션 수집은 계속한다.
+            // 심박/속도 레코드 — 권한이 없거나 실패해도 세션 수집은 계속한다.
             val heartRateRecords = readHeartRateRecords(startTime, endTime)
+            val speedRecords = readSpeedRecords(startTime, endTime)
 
             swimSessions.map { session ->
                 val duration = Duration.between(session.startTime, session.endTime)
@@ -187,12 +197,22 @@ class HealthConnectManager @Inject constructor(
                     .map { it.beatsPerMinute }
                     .toList()
 
+                // 세션 시간 범위 내 속도 샘플 평균 (세그먼트/랩 없을 때 실운동시간 폴백)
+                val speedSamples = speedRecords.asSequence()
+                    .flatMap { it.samples }
+                    .filter { it.time >= session.startTime && it.time <= session.endTime }
+                    .map { it.speed.inMetersPerSecond }
+                    .filter { it > 0 }
+                    .toList()
+                val avgSpeed = if (speedSamples.isEmpty()) 0.0 else speedSamples.average()
+
                 val activeSeconds = computeActiveSeconds(session.segments, session.laps)
-                // 진단: 워치가 세그먼트/랩/심박을 실제로 써주는지 확인용.
+                    ?: speedBasedActiveSeconds(totalDistanceM, avgSpeed)
+                // 진단: 워치가 세그먼트/랩/심박/속도를 실제로 써주는지 확인용.
                 Timber.d(
-                    "수영 세션 %s: segments=%d, laps=%d, hr샘플=%d, 경과=%d초, 실운동=%s초",
+                    "수영 세션 %s: segments=%d, laps=%d, hr샘플=%d, 속도샘플=%d, 경과=%d초, 실운동=%s초",
                     session.startTime.atZone(ZoneId.systemDefault()).toLocalDate(),
-                    session.segments.size, session.laps.size, bpm.size,
+                    session.segments.size, session.laps.size, bpm.size, speedSamples.size,
                     duration.seconds, activeSeconds?.toString() ?: "없음",
                 )
 
@@ -296,6 +316,12 @@ class HealthConnectManager @Inject constructor(
                 .flatMap { it.samples }
                 .map { it.beatsPerMinute }
 
+            val speedSamples = readSpeedRecords(session.startTime, session.endTime)
+                .flatMap { it.samples }
+                .map { it.speed.inMetersPerSecond }
+                .filter { it > 0 }
+            val avgSpeed = if (speedSamples.isEmpty()) 0.0 else speedSamples.average()
+
             SwimSession(
                 date = session.startTime.atZone(ZoneId.systemDefault()).toLocalDate().toString(),
                 distanceMeters = distanceM,
@@ -304,7 +330,8 @@ class HealthConnectManager @Inject constructor(
                 hcRecordId = session.metadata.id,
                 maxHr = bpm.maxOrNull()?.toInt(),
                 minHr = bpm.minOrNull()?.toInt(),
-                activeSeconds = computeActiveSeconds(session.segments, session.laps),
+                activeSeconds = computeActiveSeconds(session.segments, session.laps)
+                    ?: speedBasedActiveSeconds(distanceM, avgSpeed),
             )
         } catch (e: Exception) {
             Timber.w(e, "수영 세션 상세 정보 읽기 실패: ${session.metadata.id}")
@@ -326,6 +353,24 @@ class HealthConnectManager @Inject constructor(
             ).records
         } catch (e: Exception) {
             Timber.w(e, "심박 레코드 읽기 실패 — 심박 없이 진행")
+            emptyList()
+        }
+    }
+
+    /**
+     * 시간 범위 내 속도 레코드를 읽는다.
+     * 속도 권한이 없거나 조회에 실패해도 빈 목록을 반환해 세션 동기화를 막지 않는다.
+     */
+    private suspend fun readSpeedRecords(startTime: Instant, endTime: Instant): List<SpeedRecord> {
+        return try {
+            healthConnectClient.readRecords(
+                ReadRecordsRequest(
+                    recordType = SpeedRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
+                )
+            ).records
+        } catch (e: Exception) {
+            Timber.w(e, "속도 레코드 읽기 실패 — 속도 없이 진행")
             emptyList()
         }
     }
