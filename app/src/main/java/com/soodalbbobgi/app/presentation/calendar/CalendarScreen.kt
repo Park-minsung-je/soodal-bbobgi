@@ -493,8 +493,9 @@ private fun DayDetailCard(
                 MetricCol("칼로리", data.kcal.toString(), "kcal", colors.success)
             }
 
-            // 최대·최소 심박(HC 심박 기록이 있을 때) + 평균 페이스 (실운동시간 우선, 없으면 경과시간)
-            val pace = paceSecPer100m(data.distanceM, data.activeSec ?: data.durationSec)
+            // 최대·최소 심박(HC 심박 기록이 있을 때) + 평균 페이스.
+            // 페이스는 실운동시간이 있을 때만 — 경과시간(휴식 포함) 기반 페이스는 오해를 줘서 표시하지 않는다.
+            val pace = data.activeSec?.let { paceSecPer100m(data.distanceM, it) }
             if ((data.maxHr != null && data.minHr != null) || pace != null) {
                 Spacer(Modifier.height(14.dp))
                 VitalsRow(maxHr = data.maxHr, minHr = data.minHr, paceSec = pace)
