@@ -3,6 +3,7 @@ package com.soodalbbobgi.app.presentation.calendar
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.session.UserSession
+import com.soodalbbobgi.app.core.util.decodeHrSeries
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.data.remote.dto.UpdateStrokesRequest
 import com.soodalbbobgi.app.domain.model.SwimLog
@@ -48,6 +49,8 @@ data class SwimDayData(
     val kickM: Int = 0,
     val maxHr: Int? = null,
     val minHr: Int? = null,
+    /** 차트용 심박 시계열 (오프셋초, bpm). 없으면 빈 목록. */
+    val hrSeries: List<Pair<Int, Int>> = emptyList(),
 )
 
 data class CalendarUiState(
@@ -157,5 +160,6 @@ private fun SwimLog.toDayData(): SwimDayData = SwimDayData(
     kickM = strokeKickM,
     maxHr = maxHr,
     minHr = minHr,
+    hrSeries = decodeHrSeries(hrSeries),
 )
 

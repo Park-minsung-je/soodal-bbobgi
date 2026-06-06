@@ -34,5 +34,7 @@ data class SwimLogEntity(
     val minHr: Int? = null,
     /** 실제 운동 시간(초) — HC 세그먼트/랩에서 계산. 없으면 null (경과 시간으로 폴백). */
     val activeSeconds: Int? = null,
+    /** 차트용 다운샘플 심박 시계열 ("오프셋초:bpm,..." 직렬화). 없으면 null. */
+    val hrSeries: String? = null,
     val createdAt: Long,
 )

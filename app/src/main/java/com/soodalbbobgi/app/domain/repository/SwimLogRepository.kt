@@ -14,8 +14,8 @@ interface SwimLogRepository {
     suspend fun updateShellsEarned(date: String, shellsEarned: Int)
     /** 같은 날짜 기록의 영법별 거리(m)를 갱신한다. */
     suspend fun updateStrokes(date: String, free: Int, breast: Int, back: Int, fly: Int, mixed: Int, kick: Int)
-    /** HC 원본에서 읽은 심박/실운동시간을 같은 날짜 row에 반영한다. null인 값은 기존 값 유지. */
-    suspend fun updateVitals(date: String, maxHr: Int?, minHr: Int?, activeSeconds: Int?)
+    /** HC 원본에서 읽은 심박/실운동시간/심박 시계열을 같은 날짜 row에 반영한다. null인 값은 기존 값 유지. */
+    suspend fun updateVitals(date: String, maxHr: Int?, minHr: Int?, activeSeconds: Int?, hrSeries: String?)
     suspend fun deleteByDate(date: String)
     suspend fun deleteByHcRecordId(hcRecordId: String)
     suspend fun getStats(startDate: String, endDate: String): SwimStats

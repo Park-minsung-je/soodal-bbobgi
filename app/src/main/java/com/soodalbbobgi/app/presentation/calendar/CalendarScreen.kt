@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -41,7 +42,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -501,6 +507,12 @@ private fun DayDetailCard(
                 VitalsRow(maxHr = data.maxHr, minHr = data.minHr, paceSec = pace)
             }
 
+            // 세션 심박 곡선
+            if (data.hrSeries.size >= 2) {
+                Spacer(Modifier.height(8.dp))
+                HrChart(points = data.hrSeries)
+            }
+
             Spacer(Modifier.height(16.dp))
 
             // 영법 비율 헤더 + 수정 버튼
@@ -604,6 +616,45 @@ private fun MetricCol(label: String, value: String, unit: String, valueColor: Co
             Text(value, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = valueColor)
             Text(unit, fontSize = 10.sp, color = colors.textSecondary, modifier = Modifier.padding(start = 2.dp, bottom = 3.dp))
         }
+    }
+}
+
+/**
+ * 세션 심박 곡선 — 로즈 라인 + 옅은 면 채움. 다운샘플된 (오프셋초, bpm) 포인트를 그린다.
+ */
+@Composable
+private fun HrChart(points: List<Pair<Int, Int>>) {
+    val rose = Color(0xFFF43F5E)
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(72.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(rose.copy(alpha = 0.04f))
+            .padding(horizontal = 6.dp, vertical = 8.dp),
+    ) {
+        val minBpm = points.minOf { it.second }.toFloat()
+        val maxBpm = points.maxOf { it.second }.toFloat()
+        val bpmSpan = (maxBpm - minBpm).coerceAtLeast(1f)
+        val firstOffset = points.first().first.toFloat()
+        val offsetSpan = (points.last().first - firstOffset).coerceAtLeast(1f)
+
+        fun px(p: Pair<Int, Int>) = (p.first - firstOffset) / offsetSpan * size.width
+        fun py(p: Pair<Int, Int>) = size.height - (p.second - minBpm) / bpmSpan * size.height
+
+        val line = Path().apply {
+            points.forEachIndexed { i, p ->
+                if (i == 0) moveTo(px(p), py(p)) else lineTo(px(p), py(p))
+            }
+        }
+        val area = Path().apply {
+            addPath(line)
+            lineTo(size.width, size.height)
+            lineTo(0f, size.height)
+            close()
+        }
+        drawPath(area, Brush.verticalGradient(listOf(rose.copy(alpha = 0.22f), rose.copy(alpha = 0f))))
+        drawPath(line, rose, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }
 

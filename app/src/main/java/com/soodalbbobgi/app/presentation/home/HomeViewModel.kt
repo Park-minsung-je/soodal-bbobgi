@@ -281,6 +281,7 @@ class HomeViewModel @Inject constructor(
                     maxHr = session.maxHr,
                     minHr = session.minHr,
                     activeSeconds = session.activeSeconds,
+                    hrSeries = session.hrSeries,
                 ))
                 val response = soodalApi.addSwimLog(SwimLogRequest(
                     date = session.date,
@@ -331,8 +332,8 @@ class HomeViewModel @Inject constructor(
             val start = today.minusDays(29).atStartOfDay(zone).toInstant()
             val end = today.plusDays(1).atStartOfDay(zone).toInstant()
             for (session in healthConnectManager.readSwimSessions(start, end)) {
-                if (session.maxHr != null || session.activeSeconds != null) {
-                    swimLogUseCase.updateVitals(session.date, session.maxHr, session.minHr, session.activeSeconds)
+                if (session.maxHr != null || session.activeSeconds != null || session.hrSeries != null) {
+                    swimLogUseCase.updateVitals(session.date, session.maxHr, session.minHr, session.activeSeconds, session.hrSeries)
                 }
             }
         } catch (e: Exception) {

@@ -13,6 +13,7 @@ import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import com.soodalbbobgi.app.core.util.encodeHrSeries
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
 import java.time.Duration
@@ -32,6 +33,7 @@ import javax.inject.Singleton
  * @property maxHr 세션 중 최대 심박(bpm). 심박 기록이 없으면 null
  * @property minHr 세션 중 최소 심박(bpm). 심박 기록이 없으면 null
  * @property activeSeconds 실제 운동 시간(초) — 세그먼트(휴식 제외)나 랩에서 계산. 둘 다 없으면 null
+ * @property hrSeries 차트용 다운샘플 심박 시계열 ("오프셋초:bpm,..." 직렬화). 없으면 null
  */
 data class SwimSession(
     val date: String,
@@ -42,6 +44,7 @@ data class SwimSession(
     val maxHr: Int? = null,
     val minHr: Int? = null,
     val activeSeconds: Int? = null,
+    val hrSeries: String? = null,
 )
 
 /**
@@ -113,6 +116,25 @@ internal fun otsuThreshold(values: List<Long>): Long? {
         }
     }
     return min + bestIdx + 1
+}
+
+/**
+ * 심박 샘플을 차트용으로 다운샘플한다 — 구간 평균으로 최대 [maxPoints]개의 (오프셋초, bpm) 포인트.
+ */
+internal fun downsampleHr(samples: List<Pair<Instant, Long>>, maxPoints: Int = 120): List<Pair<Int, Int>> {
+    if (samples.isEmpty()) return emptyList()
+    val sorted = samples.sortedBy { it.first }
+    val start = sorted.first().first
+    val totalSec = Duration.between(start, sorted.last().first).seconds.toInt().coerceAtLeast(1)
+    val bucketSec = totalSec / maxPoints + 1
+    return sorted
+        .groupBy { Duration.between(start, it.first).seconds.toInt() / bucketSec }
+        .toSortedMap()
+        .map { (_, group) ->
+            val avgOffset = group.map { Duration.between(start, it.first).seconds.toDouble() }.average().toInt()
+            val avgBpm = Math.round(group.map { it.second.toDouble() }.average()).toInt()
+            avgOffset to avgBpm
+        }
 }
 
 /**
@@ -295,6 +317,7 @@ class HealthConnectManager @Inject constructor(
                     maxHr = bpm.maxOrNull()?.toInt(),
                     minHr = bpm.minOrNull()?.toInt(),
                     activeSeconds = activeSeconds,
+                    hrSeries = downsampleHr(hrSamples).takeIf { it.isNotEmpty() }?.let { encodeHrSeries(it) },
                 )
             }
         } catch (e: Exception) {
@@ -403,6 +426,7 @@ class HealthConnectManager @Inject constructor(
                 activeSeconds = computeActiveSeconds(session.segments, session.laps)
                     ?: speedBasedActiveSeconds(distanceM, avgSpeed)
                     ?: hrActiveSeconds(hrSamples),
+                hrSeries = downsampleHr(hrSamples).takeIf { it.isNotEmpty() }?.let { encodeHrSeries(it) },
             )
         } catch (e: Exception) {
             Timber.w(e, "수영 세션 상세 정보 읽기 실패: ${session.metadata.id}")

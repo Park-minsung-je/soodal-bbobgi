@@ -28,12 +28,13 @@ interface SwimLogDao {
     @Query("UPDATE swim_logs SET shellsEarned = :shellsEarned WHERE date = :date")
     suspend fun updateShellsEarned(date: String, shellsEarned: Int)
 
-    /** HC 원본에서 읽은 심박/실운동시간을 같은 날짜 로컬 row에 반영. null인 값은 기존 값을 유지한다. */
+    /** HC 원본에서 읽은 심박/실운동시간/심박 시계열을 같은 날짜 로컬 row에 반영. null인 값은 기존 값을 유지한다. */
     @Query(
         "UPDATE swim_logs SET maxHr = COALESCE(:maxHr, maxHr), minHr = COALESCE(:minHr, minHr), " +
-            "activeSeconds = COALESCE(:activeSeconds, activeSeconds) WHERE date = :date",
+            "activeSeconds = COALESCE(:activeSeconds, activeSeconds), hrSeries = COALESCE(:hrSeries, hrSeries) " +
+            "WHERE date = :date",
     )
-    suspend fun updateVitals(date: String, maxHr: Int?, minHr: Int?, activeSeconds: Int?)
+    suspend fun updateVitals(date: String, maxHr: Int?, minHr: Int?, activeSeconds: Int?, hrSeries: String?)
 
     /** 같은 날짜 기록의 영법별 거리(m)를 갱신한다. (캘린더 영법 비율 수동 보정) */
     @Query(

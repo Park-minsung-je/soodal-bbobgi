@@ -76,6 +76,23 @@ class ActiveSecondsTest {
     }
 
     @Test
+    fun `심박 다운샘플은 포인트 수를 제한하고 구간 평균을 쓴다`() {
+        // 1시간(3600초) 1초 간격 샘플 → 최대 120포인트로 압축
+        val samples = (0 until 3600).map { t(it.toLong()) to (100L + (it % 40)) }
+        val points = downsampleHr(samples, maxPoints = 120)
+        org.junit.Assert.assertTrue("points=${points.size}", points.size in 60..120)
+        // 오프셋은 0에서 시작해 증가
+        org.junit.Assert.assertTrue(points.first().first < points.last().first)
+        // bpm은 원본 범위(100~139) 안의 평균값
+        org.junit.Assert.assertTrue(points.all { it.second in 100..139 })
+    }
+
+    @Test
+    fun `심박 다운샘플은 빈 입력에 빈 결과를 준다`() {
+        org.junit.Assert.assertTrue(downsampleHr(emptyList()).isEmpty())
+    }
+
+    @Test
     fun `휴식뿐인 세그먼트는 무시하고 랩으로 폴백한다`() {
         val segments = listOf(
             ExerciseSegment(t(0), t(120), ExerciseSegment.EXERCISE_SEGMENT_TYPE_REST),
