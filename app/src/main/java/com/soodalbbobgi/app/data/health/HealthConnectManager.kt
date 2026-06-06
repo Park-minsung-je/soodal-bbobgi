@@ -78,6 +78,65 @@ internal fun speedBasedActiveSeconds(distanceM: Int, avgSpeedMps: Double): Int? 
     else Math.round(distanceM / avgSpeedMps).toInt()
 
 /**
+ * [실험] Otsu 방식 임계값 — 이중봉 분포(운동 고심박/휴식 저심박)를 두 무리로 가르는 경계.
+ * 분포 폭이 20bpm 미만(단봉·변별력 없음)이면 null.
+ */
+internal fun otsuThreshold(values: List<Long>): Long? {
+    if (values.isEmpty()) return null
+    val min = values.min()
+    val max = values.max()
+    if (max - min < 20) return null
+
+    val hist = IntArray((max - min + 1).toInt())
+    values.forEach { hist[(it - min).toInt()]++ }
+    val total = values.size
+
+    var sumAll = 0.0
+    hist.forEachIndexed { i, c -> sumAll += i.toDouble() * c }
+
+    var sumB = 0.0
+    var wB = 0
+    var best = -1.0
+    var bestIdx = 0
+    for (i in hist.indices) {
+        wB += hist[i]
+        if (wB == 0) continue
+        val wF = total - wB
+        if (wF == 0) break
+        sumB += i.toDouble() * hist[i]
+        val mB = sumB / wB
+        val mF = (sumAll - sumB) / wF
+        val between = wB.toDouble() * wF * (mB - mF) * (mB - mF)
+        if (between > best) {
+            best = between
+            bestIdx = i
+        }
+    }
+    return min + bestIdx + 1
+}
+
+/**
+ * [실험] 심박 기반 실운동시간 추정(초).
+ * 심박 분포를 Otsu 임계값으로 운동/휴식 두 무리로 가르고, 임계 이상인 샘플 구간만 합산한다.
+ * 심박은 운동을 멈춘 뒤에도 잠시 높게 유지되므로 약간 과대 추정될 수 있다.
+ *
+ * @param samples (시각, bpm) 목록. 60개 미만이거나 분포가 단봉이면 추정 포기(null)
+ */
+internal fun hrActiveSeconds(samples: List<Pair<Instant, Long>>): Int? {
+    if (samples.size < 60) return null
+    val threshold = otsuThreshold(samples.map { it.second }) ?: return null
+
+    val sorted = samples.sortedBy { it.first }
+    var active = 0L
+    for (i in 0 until sorted.size - 1) {
+        val dt = Duration.between(sorted[i].first, sorted[i + 1].first).seconds
+        // 샘플 공백(워치 이탈 등)이 큰 구간은 활동으로 치지 않는다.
+        if (dt in 1..10 && sorted[i].second >= threshold) active += dt
+    }
+    return if (active > 0) active.toInt() else null
+}
+
+/**
  * HC Changes API 동기화 결과.
  *
  * @property addedSessions 추가/수정된 수영 세션 목록
@@ -190,12 +249,13 @@ class HealthConnectManager @Inject constructor(
                     .sumOf { it.energy.inKilocalories }
                     .toInt()
 
-                // 세션 시간 범위 내 심박 샘플의 최대/최소
-                val bpm = heartRateRecords.asSequence()
+                // 세션 시간 범위 내 심박 샘플 (시각+bpm — 최대/최소와 심박추정 양쪽에 사용)
+                val hrSamples = heartRateRecords.asSequence()
                     .flatMap { it.samples }
                     .filter { it.time >= session.startTime && it.time <= session.endTime }
-                    .map { it.beatsPerMinute }
+                    .map { it.time to it.beatsPerMinute }
                     .toList()
+                val bpm = hrSamples.map { it.second }
 
                 // 세션 시간 범위 내 속도 샘플 평균 (세그먼트/랩 없을 때 실운동시간 폴백)
                 val speedSamples = speedRecords.asSequence()
@@ -206,14 +266,23 @@ class HealthConnectManager @Inject constructor(
                     .toList()
                 val avgSpeed = if (speedSamples.isEmpty()) 0.0 else speedSamples.average()
 
-                val activeSeconds = computeActiveSeconds(session.segments, session.laps)
-                    ?: speedBasedActiveSeconds(totalDistanceM, avgSpeed)
-                // 진단: 워치가 세그먼트/랩/심박/속도를 실제로 써주는지 확인용.
+                // 실운동시간: 세그먼트/랩 → 속도 → [실험] 심박추정 순 폴백
+                val fromStructure = computeActiveSeconds(session.segments, session.laps)
+                val fromSpeed = speedBasedActiveSeconds(totalDistanceM, avgSpeed)
+                val fromHr = hrActiveSeconds(hrSamples)
+                val activeSeconds = fromStructure ?: fromSpeed ?: fromHr
+                // 진단: 워치가 세그먼트/랩/심박/속도를 실제로 써주는지 + 실운동시간 출처 확인용.
                 Timber.d(
-                    "수영 세션 %s: segments=%d, laps=%d, hr샘플=%d, 속도샘플=%d, 경과=%d초, 실운동=%s초",
+                    "수영 세션 %s: segments=%d, laps=%d, hr샘플=%d, 속도샘플=%d, 경과=%d초, 실운동=%s초(%s)",
                     session.startTime.atZone(ZoneId.systemDefault()).toLocalDate(),
                     session.segments.size, session.laps.size, bpm.size, speedSamples.size,
                     duration.seconds, activeSeconds?.toString() ?: "없음",
+                    when {
+                        fromStructure != null -> "세그먼트/랩"
+                        fromSpeed != null -> "속도"
+                        fromHr != null -> "심박추정"
+                        else -> "-"
+                    },
                 )
 
                 SwimSession(
@@ -312,9 +381,10 @@ class HealthConnectManager @Inject constructor(
                 ReadRecordsRequest(TotalCaloriesBurnedRecord::class, timeFilter)
             ).records.sumOf { it.energy.inKilocalories }.toInt()
 
-            val bpm = readHeartRateRecords(session.startTime, session.endTime)
+            val hrSamples = readHeartRateRecords(session.startTime, session.endTime)
                 .flatMap { it.samples }
-                .map { it.beatsPerMinute }
+                .map { it.time to it.beatsPerMinute }
+            val bpm = hrSamples.map { it.second }
 
             val speedSamples = readSpeedRecords(session.startTime, session.endTime)
                 .flatMap { it.samples }
@@ -331,7 +401,8 @@ class HealthConnectManager @Inject constructor(
                 maxHr = bpm.maxOrNull()?.toInt(),
                 minHr = bpm.minOrNull()?.toInt(),
                 activeSeconds = computeActiveSeconds(session.segments, session.laps)
-                    ?: speedBasedActiveSeconds(distanceM, avgSpeed),
+                    ?: speedBasedActiveSeconds(distanceM, avgSpeed)
+                    ?: hrActiveSeconds(hrSamples),
             )
         } catch (e: Exception) {
             Timber.w(e, "수영 세션 상세 정보 읽기 실패: ${session.metadata.id}")

@@ -48,6 +48,34 @@ class ActiveSecondsTest {
     }
 
     @Test
+    fun `Otsu 임계값은 이중봉 심박 분포를 두 무리 사이에서 가른다`() {
+        val bpm = List(600) { 150L } + List(300) { 95L }
+        val threshold = otsuThreshold(bpm)!!
+        org.junit.Assert.assertTrue("threshold=$threshold", threshold in 96..150)
+    }
+
+    @Test
+    fun `변별력 없는 단봉 분포는 임계값을 만들지 않는다`() {
+        val bpm = List(500) { 100L + (it % 6) } // 100~105 좁은 범위
+        assertNull(otsuThreshold(bpm))
+    }
+
+    @Test
+    fun `심박 추정 실운동시간은 임계 이상 구간만 합산한다`() {
+        // 0~599초 고심박(수영) + 600~899초 저심박(휴식), 1초 간격 샘플
+        val samples = (0 until 900).map { sec ->
+            t(sec.toLong()) to if (sec < 600) 150L else 95L
+        }
+        assertEquals(600, hrActiveSeconds(samples))
+    }
+
+    @Test
+    fun `심박 샘플이 너무 적으면 추정하지 않는다`() {
+        val samples = (0 until 30).map { t(it.toLong()) to 150L }
+        assertNull(hrActiveSeconds(samples))
+    }
+
+    @Test
     fun `휴식뿐인 세그먼트는 무시하고 랩으로 폴백한다`() {
         val segments = listOf(
             ExerciseSegment(t(0), t(120), ExerciseSegment.EXERCISE_SEGMENT_TYPE_REST),
