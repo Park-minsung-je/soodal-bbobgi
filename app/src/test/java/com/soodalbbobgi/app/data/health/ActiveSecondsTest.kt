@@ -90,6 +90,16 @@ class ActiveSecondsTest {
     }
 
     @Test
+    fun `복귀 직후 시작된 긴 휴식은 램프업 90초만 빼고 나머지를 차감한다`() {
+        // 수영 600초 + (일시정지 300초) + 복귀 직후 저심박 300초(램프업 90초 + 진짜 휴식 210초) + 수영 600초
+        val samples = (0 until 600).map { t(it.toLong()) to 150L } +
+            (900 until 1200).map { t(it.toLong()) to 95L } +
+            (1200 until 1800).map { t(it.toLong()) to 150L }
+        // 공백 기반 1,498초 - 휴식 210초 = 1,288초
+        assertEquals(1288, hrActiveSeconds(samples))
+    }
+
+    @Test
     fun `세션 시작 직후의 저심박도 차감하지 않는다`() {
         // 시작하자마자 심박이 낮은 상태(워밍업)에서 올라가는 구간
         val samples = (0 until 120).map { t(it.toLong()) to 95L } +

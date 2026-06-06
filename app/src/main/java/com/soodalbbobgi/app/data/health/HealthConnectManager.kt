@@ -141,8 +141,9 @@ internal fun otsuThreshold(values: List<Long>): Long? {
  * [실험] 심박 기반 실운동시간(초) — 2단계 추정.
  * 1) 워치는 일시정지 동안 심박을 기록하지 않으므로, 샘플이 이어진 구간(공백 ≤ [maxGapSec])만 합산
  * 2) 그 안에서 [minRestRunSec] 이상 지속된 저심박(Otsu 임계 미만) 구간만 벽 휴식으로 추가 차감.
- *    단, 경계(세션 시작·일시정지 복귀) 후 [rampSec] 안에 시작된 저심박은 심박이 올라가는 중인
- *    램프업이라 차감하지 않는다. 짧은 출렁임도 무시하고, 분포가 단봉이면 차감 없이 1)만 적용.
+ *    단, 경계(세션 시작·일시정지 복귀) 후 [rampSec]까지의 저심박은 심박이 올라가는 중인
+ *    램프업이라 휴식에서 제외하고, 그 이후 지속분만 차감한다. 짧은 출렁임도 무시하며,
+ *    분포가 단봉이면 차감 없이 1)만 적용.
  *
  * @param samples (시각, bpm) 목록. 60개 미만이면 추정 포기(null)
  */
@@ -160,9 +161,8 @@ internal fun hrActiveSeconds(
     var sustainedRest = 0L
     var restRun = 0L
     var sinceBoundary = 0L // 마지막 경계(시작·복귀) 이후 흐른 샘플 시간
-    var restStartedAt = 0L // 현재 저심박 구간이 시작된 시점의 sinceBoundary
     fun flushRest() {
-        if (restRun >= minRestRunSec && restStartedAt >= rampSec) sustainedRest += restRun
+        if (restRun >= minRestRunSec) sustainedRest += restRun
         restRun = 0L
     }
     for (i in 0 until sorted.size - 1) {
@@ -174,8 +174,9 @@ internal fun hrActiveSeconds(
             continue
         }
         if (threshold != null && sorted[i].second < threshold) {
-            if (restRun == 0L) restStartedAt = sinceBoundary
-            restRun += dt
+            // 경계 후 rampSec까지는 심박이 올라가는 중(램프업)이라 휴식으로 세지 않고,
+            // 그 이후로 이어지는 저심박만 휴식으로 누적한다.
+            if (sinceBoundary >= rampSec) restRun += dt
         } else {
             flushRest()
         }
