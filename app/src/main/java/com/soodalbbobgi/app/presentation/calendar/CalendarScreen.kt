@@ -642,19 +642,33 @@ private fun HrChart(points: List<Pair<Int, Int>>) {
         fun px(p: Pair<Int, Int>) = (p.first - firstOffset) / offsetSpan * size.width
         fun py(p: Pair<Int, Int>) = size.height - (p.second - minBpm) / bpmSpan * size.height
 
-        val line = Path().apply {
-            points.forEachIndexed { i, p ->
-                if (i == 0) moveTo(px(p), py(p)) else lineTo(px(p), py(p))
+        // 일시정지(샘플 공백) 구간은 선으로 잇지 않는다 — 평균 간격의 3배(최소 60초) 이상 벌어지면 끊기.
+        val breakGap = (offsetSpan / points.size * 3f).coerceAtLeast(60f)
+        val segments = mutableListOf<MutableList<Pair<Int, Int>>>()
+        points.forEach { p ->
+            val current = segments.lastOrNull()
+            if (current == null || p.first - current.last().first > breakGap) {
+                segments.add(mutableListOf(p))
+            } else {
+                current.add(p)
             }
         }
-        val area = Path().apply {
-            addPath(line)
-            lineTo(size.width, size.height)
-            lineTo(0f, size.height)
-            close()
+
+        segments.filter { it.size >= 2 }.forEach { seg ->
+            val line = Path().apply {
+                seg.forEachIndexed { i, p ->
+                    if (i == 0) moveTo(px(p), py(p)) else lineTo(px(p), py(p))
+                }
+            }
+            val area = Path().apply {
+                addPath(line)
+                lineTo(px(seg.last()), size.height)
+                lineTo(px(seg.first()), size.height)
+                close()
+            }
+            drawPath(area, Brush.verticalGradient(listOf(rose.copy(alpha = 0.22f), rose.copy(alpha = 0f))))
+            drawPath(line, rose, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
         }
-        drawPath(area, Brush.verticalGradient(listOf(rose.copy(alpha = 0.22f), rose.copy(alpha = 0f))))
-        drawPath(line, rose, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }
 

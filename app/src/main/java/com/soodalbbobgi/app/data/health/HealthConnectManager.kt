@@ -81,44 +81,6 @@ internal fun speedBasedActiveSeconds(distanceM: Int, avgSpeedMps: Double): Int? 
     else Math.round(distanceM / avgSpeedMps).toInt()
 
 /**
- * [실험] Otsu 방식 임계값 — 이중봉 분포(운동 고심박/휴식 저심박)를 두 무리로 가르는 경계.
- * 분포 폭이 20bpm 미만(단봉·변별력 없음)이면 null.
- */
-internal fun otsuThreshold(values: List<Long>): Long? {
-    if (values.isEmpty()) return null
-    val min = values.min()
-    val max = values.max()
-    if (max - min < 20) return null
-
-    val hist = IntArray((max - min + 1).toInt())
-    values.forEach { hist[(it - min).toInt()]++ }
-    val total = values.size
-
-    var sumAll = 0.0
-    hist.forEachIndexed { i, c -> sumAll += i.toDouble() * c }
-
-    var sumB = 0.0
-    var wB = 0
-    var best = -1.0
-    var bestIdx = 0
-    for (i in hist.indices) {
-        wB += hist[i]
-        if (wB == 0) continue
-        val wF = total - wB
-        if (wF == 0) break
-        sumB += i.toDouble() * hist[i]
-        val mB = sumB / wB
-        val mF = (sumAll - sumB) / wF
-        val between = wB.toDouble() * wF * (mB - mF) * (mB - mF)
-        if (between > best) {
-            best = between
-            bestIdx = i
-        }
-    }
-    return min + bestIdx + 1
-}
-
-/**
  * 심박 샘플을 차트용으로 다운샘플한다 — 구간 평균으로 최대 [maxPoints]개의 (오프셋초, bpm) 포인트.
  */
 internal fun downsampleHr(samples: List<Pair<Instant, Long>>, maxPoints: Int = 120): List<Pair<Int, Int>> {
@@ -137,32 +99,22 @@ internal fun downsampleHr(samples: List<Pair<Instant, Long>>, maxPoints: Int = 1
         }
 }
 
-// [실험] 사용자 실측 보정 — 심박 추정 페이스가 실제보다 ~35초/100m 빠르게 나와서 그만큼 늦춘다.
-// (2026-06-06, 최근 두 세션 기준 30~40초/100m 빠름 피드백)
-private const val HR_PACE_BIAS_SEC_PER_100M = 35
-
 /**
- * [실험] 심박 기반 실운동시간 추정(초).
- * 심박 분포를 Otsu 임계값으로 운동/휴식 두 무리로 가르고, 임계 이상인 샘플 구간을 합산한 뒤
- * 사용자 실측 보정(+35초/100m)을 더한다 — 페이스 표시값이 그만큼 느려진다.
+ * [실험] 심박 샘플 공백 기반 실운동시간(초).
+ * 워치는 일시정지 동안 심박을 기록하지 않으므로, 샘플이 이어진 구간(공백 ≤ [maxGapSec])만
+ * 합산하면 일시정지를 뺀 워치 기준 운동시간이 된다. 벽 휴식(기록은 계속됨)은 운동시간에 포함.
  *
- * @param samples (시각, bpm) 목록. 60개 미만이거나 분포가 단봉이면 추정 포기(null)
- * @param distanceM 세션 거리(m) — 페이스 보정 계산용. 0 이하면 보정 생략
+ * @param samples (시각, bpm) 목록. 60개 미만이면 추정 포기(null)
  */
-internal fun hrActiveSeconds(samples: List<Pair<Instant, Long>>, distanceM: Int): Int? {
+internal fun hrActiveSeconds(samples: List<Pair<Instant, Long>>, maxGapSec: Long = 10): Int? {
     if (samples.size < 60) return null
-    val threshold = otsuThreshold(samples.map { it.second }) ?: return null
-
     val sorted = samples.sortedBy { it.first }
     var active = 0L
     for (i in 0 until sorted.size - 1) {
         val dt = Duration.between(sorted[i].first, sorted[i + 1].first).seconds
-        // 샘플 공백(워치 이탈 등)이 큰 구간은 활동으로 치지 않는다.
-        if (dt in 1..10 && sorted[i].second >= threshold) active += dt
+        if (dt in 1..maxGapSec) active += dt
     }
-    if (active <= 0) return null
-    val bias = if (distanceM > 0) Math.round(distanceM * HR_PACE_BIAS_SEC_PER_100M / 100f) else 0
-    return active.toInt() + bias
+    return if (active > 0) active.toInt() else null
 }
 
 /**
@@ -298,7 +250,7 @@ class HealthConnectManager @Inject constructor(
                 // 실운동시간: 세그먼트/랩 → 속도 → [실험] 심박추정 순 폴백
                 val fromStructure = computeActiveSeconds(session.segments, session.laps)
                 val fromSpeed = speedBasedActiveSeconds(totalDistanceM, avgSpeed)
-                val fromHr = hrActiveSeconds(hrSamples, totalDistanceM)
+                val fromHr = hrActiveSeconds(hrSamples)
                 val activeSeconds = fromStructure ?: fromSpeed ?: fromHr
                 // 진단: 워치가 세그먼트/랩/심박/속도를 실제로 써주는지 + 실운동시간 출처 확인용.
                 Timber.d(
@@ -432,7 +384,7 @@ class HealthConnectManager @Inject constructor(
                 minHr = bpm.minOrNull()?.toInt(),
                 activeSeconds = computeActiveSeconds(session.segments, session.laps)
                     ?: speedBasedActiveSeconds(distanceM, avgSpeed)
-                    ?: hrActiveSeconds(hrSamples, distanceM),
+                    ?: hrActiveSeconds(hrSamples),
                 hrSeries = downsampleHr(hrSamples).takeIf { it.isNotEmpty() }?.let { encodeHrSeries(it) },
             )
         } catch (e: Exception) {
