@@ -137,14 +137,19 @@ internal fun downsampleHr(samples: List<Pair<Instant, Long>>, maxPoints: Int = 1
         }
 }
 
+// [실험] 사용자 실측 보정 — 심박 추정 페이스가 실제보다 ~35초/100m 빠르게 나와서 그만큼 늦춘다.
+// (2026-06-06, 최근 두 세션 기준 30~40초/100m 빠름 피드백)
+private const val HR_PACE_BIAS_SEC_PER_100M = 35
+
 /**
  * [실험] 심박 기반 실운동시간 추정(초).
- * 심박 분포를 Otsu 임계값으로 운동/휴식 두 무리로 가르고, 임계 이상인 샘플 구간만 합산한다.
- * 심박은 운동을 멈춘 뒤에도 잠시 높게 유지되므로 약간 과대 추정될 수 있다.
+ * 심박 분포를 Otsu 임계값으로 운동/휴식 두 무리로 가르고, 임계 이상인 샘플 구간을 합산한 뒤
+ * 사용자 실측 보정(+35초/100m)을 더한다 — 페이스 표시값이 그만큼 느려진다.
  *
  * @param samples (시각, bpm) 목록. 60개 미만이거나 분포가 단봉이면 추정 포기(null)
+ * @param distanceM 세션 거리(m) — 페이스 보정 계산용. 0 이하면 보정 생략
  */
-internal fun hrActiveSeconds(samples: List<Pair<Instant, Long>>): Int? {
+internal fun hrActiveSeconds(samples: List<Pair<Instant, Long>>, distanceM: Int): Int? {
     if (samples.size < 60) return null
     val threshold = otsuThreshold(samples.map { it.second }) ?: return null
 
@@ -155,7 +160,9 @@ internal fun hrActiveSeconds(samples: List<Pair<Instant, Long>>): Int? {
         // 샘플 공백(워치 이탈 등)이 큰 구간은 활동으로 치지 않는다.
         if (dt in 1..10 && sorted[i].second >= threshold) active += dt
     }
-    return if (active > 0) active.toInt() else null
+    if (active <= 0) return null
+    val bias = if (distanceM > 0) Math.round(distanceM * HR_PACE_BIAS_SEC_PER_100M / 100f) else 0
+    return active.toInt() + bias
 }
 
 /**
@@ -291,7 +298,7 @@ class HealthConnectManager @Inject constructor(
                 // 실운동시간: 세그먼트/랩 → 속도 → [실험] 심박추정 순 폴백
                 val fromStructure = computeActiveSeconds(session.segments, session.laps)
                 val fromSpeed = speedBasedActiveSeconds(totalDistanceM, avgSpeed)
-                val fromHr = hrActiveSeconds(hrSamples)
+                val fromHr = hrActiveSeconds(hrSamples, totalDistanceM)
                 val activeSeconds = fromStructure ?: fromSpeed ?: fromHr
                 // 진단: 워치가 세그먼트/랩/심박/속도를 실제로 써주는지 + 실운동시간 출처 확인용.
                 Timber.d(
@@ -425,7 +432,7 @@ class HealthConnectManager @Inject constructor(
                 minHr = bpm.minOrNull()?.toInt(),
                 activeSeconds = computeActiveSeconds(session.segments, session.laps)
                     ?: speedBasedActiveSeconds(distanceM, avgSpeed)
-                    ?: hrActiveSeconds(hrSamples),
+                    ?: hrActiveSeconds(hrSamples, distanceM),
                 hrSeries = downsampleHr(hrSamples).takeIf { it.isNotEmpty() }?.let { encodeHrSeries(it) },
             )
         } catch (e: Exception) {

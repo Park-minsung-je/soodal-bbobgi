@@ -61,18 +61,21 @@ class ActiveSecondsTest {
     }
 
     @Test
-    fun `심박 추정 실운동시간은 임계 이상 구간만 합산한다`() {
+    fun `심박 추정 실운동시간은 임계 이상 구간 합산에 페이스 보정을 더한다`() {
         // 0~599초 고심박(수영) + 600~899초 저심박(휴식), 1초 간격 샘플
         val samples = (0 until 900).map { sec ->
             t(sec.toLong()) to if (sec < 600) 150L else 95L
         }
-        assertEquals(600, hrActiveSeconds(samples))
+        // 기본 600초 + 사용자 보정 35초/100m × 10 (1,000m) = 950초
+        assertEquals(950, hrActiveSeconds(samples, distanceM = 1000))
+        // 거리를 모르면 보정 없이 기본값만
+        assertEquals(600, hrActiveSeconds(samples, distanceM = 0))
     }
 
     @Test
     fun `심박 샘플이 너무 적으면 추정하지 않는다`() {
         val samples = (0 until 30).map { t(it.toLong()) to 150L }
-        assertNull(hrActiveSeconds(samples))
+        assertNull(hrActiveSeconds(samples, distanceM = 1000))
     }
 
     @Test
