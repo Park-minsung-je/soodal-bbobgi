@@ -65,10 +65,11 @@ private val EDIT_STROKES = listOf(
 
 /**
  * 영법 비율 수정 바텀시트 (디자인 06b).
- * 거리·시간은 Health Connect 표시 전용, 영법별 거리(m)만 슬라이더로 보정한다.
+ * 거리·시간은 Health Connect 표시 전용 — 수정은 입력된 기록(총 거리)의 영법별 재분배만 허용한다.
+ * 자유형~킥판 5개만 직접 조절하고, 남은 거리는 혼영(기본)이 자동으로 가져간다.
  *
  * @param data 현재 선택한 날의 수영 데이터 (원본 영법 미터 포함)
- * @param onSave (free, breast, back, fly, kick, mixed) 순서의 보정값 콜백
+ * @param onSave (free, breast, back, fly, kick, mixed) 순서의 보정값 콜백 — 합계는 항상 기록 거리와 같다
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,16 +81,29 @@ fun StrokeEditSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
-    // 슬라이더 편집값 (m). EDIT_STROKES 순서와 동일.
-    var free by remember { mutableIntStateOf(data.freeM) }
-    var breast by remember { mutableIntStateOf(data.breastM) }
-    var back by remember { mutableIntStateOf(data.backM) }
-    var fly by remember { mutableIntStateOf(data.flyM) }
-    var kick by remember { mutableIntStateOf(data.kickM) }
-    var medley by remember { mutableIntStateOf(data.mixedM) }
+    val distance = data.distanceM.coerceAtLeast(0)
 
+    // 저장값이 거리를 넘는 비정상 데이터여도 앞에서부터 잔여 안으로 눌러 담는다.
+    val initial = remember(data) {
+        val stored = listOf(data.freeM, data.breastM, data.backM, data.flyM, data.kickM)
+        buildList {
+            var acc = 0
+            for (m in stored) {
+                val v = clampStrokeMeters(m, acc, distance)
+                add(v)
+                acc += v
+            }
+        }
+    }
+    // 직접 조절하는 5개 영법 (m). 혼영은 잔여로 파생된다.
+    var free by remember { mutableIntStateOf(initial[0]) }
+    var breast by remember { mutableIntStateOf(initial[1]) }
+    var back by remember { mutableIntStateOf(initial[2]) }
+    var fly by remember { mutableIntStateOf(initial[3]) }
+    var kick by remember { mutableIntStateOf(initial[4]) }
+
+    val medley = (distance - (free + breast + back + fly + kick)).coerceAtLeast(0)
     val values = listOf(free, breast, back, fly, kick, medley)
-    val sum = values.sum()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -127,23 +141,31 @@ fun StrokeEditSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("영법별 비율", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SheetTxt2, letterSpacing = 0.5.sp)
-                Text("합계 기준 자동 환산", fontSize = 11.sp, color = SheetTxt3, fontFamily = JetBrainsMonoFamily)
+                Text("남은 거리는 혼영으로 자동 배정", fontSize = 11.sp, color = SheetTxt3, fontFamily = JetBrainsMonoFamily)
             }
             Spacer(Modifier.height(10.dp))
             EditStrokeBar(values)
 
             Spacer(Modifier.height(18.dp))
 
-            // 슬라이더 6개
-            val setters = listOf<(Int) -> Unit>({ free = it }, { breast = it }, { back = it }, { fly = it }, { kick = it }, { medley = it })
+            // 슬라이더: 5개는 직접 조절(잔여까지만), 혼영(기본)은 잔여 표시 전용.
+            val setters = listOf<(Int) -> Unit>(
+                { free = clampStrokeMeters(it, breast + back + fly + kick, distance) },
+                { breast = clampStrokeMeters(it, free + back + fly + kick, distance) },
+                { back = clampStrokeMeters(it, free + breast + fly + kick, distance) },
+                { fly = clampStrokeMeters(it, free + breast + back + kick, distance) },
+                { kick = clampStrokeMeters(it, free + breast + back + fly, distance) },
+            )
             EDIT_STROKES.forEachIndexed { i, spec ->
                 if (i > 0) Spacer(Modifier.height(16.dp))
+                val editable = i < setters.size
                 StrokeSliderRow(
                     spec = spec,
                     value = values[i],
-                    pct = strokePercent(values[i], sum),
-                    maxMeters = data.distanceM.coerceAtLeast(1),
-                    onChange = setters[i],
+                    pct = strokePercent(values[i], distance),
+                    maxMeters = distance.coerceAtLeast(1),
+                    enabled = editable,
+                    onChange = if (editable) setters[i] else ({ }),
                 )
             }
 
@@ -235,6 +257,7 @@ private fun StrokeSliderRow(
     value: Int,
     pct: Int,
     maxMeters: Int,
+    enabled: Boolean = true,
     onChange: (Int) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
@@ -256,13 +279,13 @@ private fun StrokeSliderRow(
             }
         }
         Spacer(Modifier.height(6.dp))
-        StrokeSlider(value = value, maxMeters = maxMeters, step = 25, color = spec.color, onChange = onChange)
+        StrokeSlider(value = value, maxMeters = maxMeters, step = 25, color = spec.color, enabled = enabled, onChange = onChange)
     }
 }
 
-/** 트랙 + 썸 커스텀 슬라이더. 탭/드래그로 0~max(m) 사이 step 단위 선택. */
+/** 트랙 + 썸 커스텀 슬라이더. 탭/드래그로 0~max(m) 사이 step 단위 선택. enabled=false면 표시 전용. */
 @Composable
-private fun StrokeSlider(value: Int, maxMeters: Int, step: Int, color: Color, onChange: (Int) -> Unit) {
+private fun StrokeSlider(value: Int, maxMeters: Int, step: Int, color: Color, enabled: Boolean = true, onChange: (Int) -> Unit) {
     BoxWithConstraints(
         modifier = Modifier.fillMaxWidth().height(30.dp),
         contentAlignment = Alignment.CenterStart,
@@ -275,15 +298,21 @@ private fun StrokeSlider(value: Int, maxMeters: Int, step: Int, color: Color, on
             return (Math.round(ratio * maxMeters / step) * step).coerceIn(0, maxMeters)
         }
 
-        // 입력 영역
+        // 입력 영역 — 표시 전용(혼영=잔여)일 때는 제스처를 붙이지 않는다.
+        val inputModifier = if (enabled) {
+            Modifier
+                .pointerInput(maxMeters) { detectTapGestures { onChange(valueAt(it.x)) } }
+                .pointerInput(maxMeters) {
+                    detectHorizontalDragGestures { change, _ -> onChange(valueAt(change.position.x)) }
+                }
+        } else {
+            Modifier
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(30.dp)
-                .pointerInput(maxMeters) { detectTapGestures { onChange(valueAt(it.x)) } }
-                .pointerInput(maxMeters) {
-                    detectHorizontalDragGestures { change, _ -> onChange(valueAt(change.position.x)) }
-                },
+                .then(inputModifier),
             contentAlignment = Alignment.CenterStart,
         ) {
             // 트랙

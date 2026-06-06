@@ -45,4 +45,13 @@ class CalendarLogicTest {
         assertEquals(0, strokePercent(0, 1000))
         assertEquals(0, strokePercent(100, 0)) // 합계 0 → 0
     }
+
+    @Test
+    fun `영법 수정은 기록된 거리 안에서만 허용된다`() {
+        assertEquals(700, clampStrokeMeters(900, 800, 1500)) // 잔여 700까지만
+        assertEquals(900, clampStrokeMeters(900, 200, 1500)) // 잔여 내면 그대로
+        assertEquals(0, clampStrokeMeters(-50, 0, 1500)) // 음수 방지
+        assertEquals(0, clampStrokeMeters(100, 1500, 1500)) // 잔여 없음 → 0
+        assertEquals(0, clampStrokeMeters(100, 1600, 1500)) // 이미 초과돼도 음수 한도 없음
+    }
 }

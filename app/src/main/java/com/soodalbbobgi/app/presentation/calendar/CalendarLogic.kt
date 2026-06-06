@@ -42,3 +42,14 @@ fun buildMonthCells(year: Int, month: Int): List<CalendarCell> {
  */
 fun strokePercent(meters: Int, sumMeters: Int): Int =
     if (sumMeters <= 0) 0 else Math.round(meters.toFloat() / sumMeters * 100f)
+
+/**
+ * 영법 슬라이더 입력값을 기록된 거리 안으로 제한한다.
+ * 수정은 입력된 기록(총 거리)의 재분배만 허용 — 다른 영법 합계를 뺀 잔여까지만 늘릴 수 있다.
+ *
+ * @param desired 사용자가 끌어온 값(m)
+ * @param othersSum 혼영을 제외한 다른 영법들의 합(m)
+ * @param distanceM 기록된 총 거리(m)
+ */
+fun clampStrokeMeters(desired: Int, othersSum: Int, distanceM: Int): Int =
+    desired.coerceIn(0, (distanceM - othersSum).coerceAtLeast(0))
