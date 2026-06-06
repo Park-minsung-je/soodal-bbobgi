@@ -62,6 +62,7 @@ import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.theme.StrokePalette
+import com.soodalbbobgi.app.core.util.hrRestThreshold
 import com.soodalbbobgi.app.presentation.common.SectionLabel
 import com.soodalbbobgi.app.presentation.common.TrendBadge
 import com.soodalbbobgi.app.presentation.common.WeeklyActivityCard
@@ -620,11 +621,16 @@ private fun MetricCol(label: String, value: String, unit: String, valueColor: Co
 }
 
 /**
- * 세션 심박 곡선 — 로즈 라인 + 옅은 면 채움. 다운샘플된 (오프셋초, bpm) 포인트를 그린다.
+ * 세션 심박 곡선 — 운동 구간은 로즈, 휴식으로 계산된 구간은 회색(+옅은 밴드)으로 구분해 그린다.
+ * 일시정지(샘플 공백)는 x축에서 제거하고 세그먼트 사이 작은 틈으로만 표시한다.
  */
 @Composable
 private fun HrChart(points: List<Pair<Int, Int>>) {
     val rose = Color(0xFFF43F5E)
+    val restColor = SoodalDesign.colors.textTertiary
+    // 동기화의 실운동시간 계산과 동일한 휴식 임계 (null = 휴식 없는 세션)
+    val threshold = hrRestThreshold(points.map { it.second })
+
     Canvas(
         modifier = Modifier
             .fillMaxWidth()
@@ -636,14 +642,10 @@ private fun HrChart(points: List<Pair<Int, Int>>) {
         val minBpm = points.minOf { it.second }.toFloat()
         val maxBpm = points.maxOf { it.second }.toFloat()
         val bpmSpan = (maxBpm - minBpm).coerceAtLeast(1f)
-        val firstOffset = points.first().first.toFloat()
-        val offsetSpan = (points.last().first - firstOffset).coerceAtLeast(1f)
+        val rawSpan = (points.last().first - points.first().first).toFloat().coerceAtLeast(1f)
 
-        fun px(p: Pair<Int, Int>) = (p.first - firstOffset) / offsetSpan * size.width
-        fun py(p: Pair<Int, Int>) = size.height - (p.second - minBpm) / bpmSpan * size.height
-
-        // 일시정지(샘플 공백) 구간은 선으로 잇지 않는다 — 평균 간격의 3배(최소 60초) 이상 벌어지면 끊기.
-        val breakGap = (offsetSpan / points.size * 3f).coerceAtLeast(60f)
+        // 일시정지(샘플 공백) 경계 — 평균 간격의 3배(최소 60초) 이상 벌어지면 세그먼트 분리.
+        val breakGap = (rawSpan / points.size * 3f).coerceAtLeast(60f)
         val segments = mutableListOf<MutableList<Pair<Int, Int>>>()
         points.forEach { p ->
             val current = segments.lastOrNull()
@@ -653,21 +655,61 @@ private fun HrChart(points: List<Pair<Int, Int>>) {
                 current.add(p)
             }
         }
+        val drawSegs = segments.filter { it.size >= 2 }
+        if (drawSegs.isEmpty()) return@Canvas
 
-        segments.filter { it.size >= 2 }.forEach { seg ->
-            val line = Path().apply {
-                seg.forEachIndexed { i, p ->
-                    if (i == 0) moveTo(px(p), py(p)) else lineTo(px(p), py(p))
+        // 공백 압축 x축: 세그먼트 내부는 실제 시간 비례, 세그먼트 사이는 고정 틈.
+        val segSpans = drawSegs.map { (it.last().first - it.first().first).toFloat().coerceAtLeast(1f) }
+        val spacer = (segSpans.sum() * 0.03f).coerceAtLeast(30f)
+        val totalUnits = segSpans.sum() + spacer * (drawSegs.size - 1)
+        val segStartUnit = FloatArray(drawSegs.size)
+        var acc = 0f
+        drawSegs.forEachIndexed { i, _ ->
+            segStartUnit[i] = acc
+            acc += segSpans[i] + spacer
+        }
+
+        fun py(bpm: Int) = size.height - (bpm - minBpm) / bpmSpan * size.height
+
+        drawSegs.forEachIndexed { si, seg ->
+            fun px(p: Pair<Int, Int>) =
+                (segStartUnit[si] + (p.first - seg.first().first)) / totalUnits * size.width
+
+            fun isRest(p: Pair<Int, Int>) = threshold != null && p.second < threshold
+
+            // 같은 분류(운동/휴식)가 이어지는 서브런 단위로 색을 나눠 그린다.
+            var runStart = 0
+            for (i in 1 until seg.size) {
+                val clsPrev = isRest(seg[i - 1])
+                val boundary = i == seg.size - 1 || isRest(seg[i]) != clsPrev
+                if (!boundary) continue
+
+                val run = seg.subList(runStart, i + 1)
+                val line = Path().apply {
+                    run.forEachIndexed { ri, p ->
+                        if (ri == 0) moveTo(px(p), py(p.second)) else lineTo(px(p), py(p.second))
+                    }
                 }
+                if (clsPrev) {
+                    // 휴식으로 계산된 구간 — 회색 라인 + 옅은 배경 밴드
+                    drawRect(
+                        color = restColor.copy(alpha = 0.10f),
+                        topLeft = androidx.compose.ui.geometry.Offset(px(run.first()), 0f),
+                        size = androidx.compose.ui.geometry.Size(px(run.last()) - px(run.first()), size.height),
+                    )
+                    drawPath(line, restColor.copy(alpha = 0.75f), style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                } else {
+                    val area = Path().apply {
+                        addPath(line)
+                        lineTo(px(run.last()), size.height)
+                        lineTo(px(run.first()), size.height)
+                        close()
+                    }
+                    drawPath(area, Brush.verticalGradient(listOf(rose.copy(alpha = 0.22f), rose.copy(alpha = 0f))))
+                    drawPath(line, rose, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                }
+                runStart = i
             }
-            val area = Path().apply {
-                addPath(line)
-                lineTo(px(seg.last()), size.height)
-                lineTo(px(seg.first()), size.height)
-                close()
-            }
-            drawPath(area, Brush.verticalGradient(listOf(rose.copy(alpha = 0.22f), rose.copy(alpha = 0f))))
-            drawPath(line, rose, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
         }
     }
 }

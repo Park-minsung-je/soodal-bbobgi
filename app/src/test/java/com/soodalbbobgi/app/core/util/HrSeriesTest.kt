@@ -24,4 +24,12 @@ class HrSeriesTest {
         // 깨진 토큰은 건너뛰고 정상 토큰만 살린다
         assertEquals(listOf(10 to 120), decodeHrSeries("abc,10:120,5:"))
     }
+
+    @Test
+    fun `휴식 임계는 바닥+29이고 바닥이 높으면 분류하지 않는다`() {
+        // 바닥(하위 0.5%)=95 → 임계 124
+        assertEquals(124, hrRestThreshold(List(300) { 95 } + List(600) { 150 }))
+        // 바닥 125 > 110 — 휴식 없는 세션
+        org.junit.Assert.assertNull(hrRestThreshold(List(600) { 125 }))
+    }
 }

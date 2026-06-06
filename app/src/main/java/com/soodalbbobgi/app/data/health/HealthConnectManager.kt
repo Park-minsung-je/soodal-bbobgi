@@ -14,6 +14,7 @@ import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import com.soodalbbobgi.app.core.util.encodeHrSeries
+import com.soodalbbobgi.app.core.util.hrRestThreshold
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
 import java.time.Duration
@@ -113,17 +114,13 @@ internal fun downsampleHr(samples: List<Pair<Instant, Long>>, maxPoints: Int = 1
 internal fun hrActiveSeconds(
     samples: List<Pair<Instant, Long>>,
     maxGapSec: Long = 10,
-    restBand: Long = 29,
-    restFloorCap: Long = 110,
 ): Int? {
     if (samples.size < 60) return null
     val sorted = samples.sortedBy { it.first }
 
-    // 휴식 바닥 — 하위 0.5% 지점 (순간 글리치가 바닥을 끌어내리지 않게)
-    val byBpm = samples.map { it.second }.sorted()
-    val floor = byBpm[(byBpm.size * 5 / 1000).coerceAtMost(byBpm.size - 1)]
-    // 바닥이 높으면(휴식 구간 없음) 임계값 없이 전체를 운동으로 본다.
-    val threshold = if (floor <= restFloorCap) floor + restBand else Long.MIN_VALUE
+    // 휴식 임계 — 차트 표시와 동일 규칙 (core/util/HrSeries.kt 단일 소스).
+    // null이면(바닥이 높아 휴식 없는 세션) 전체를 운동으로 본다.
+    val threshold = hrRestThreshold(samples.map { it.second.toInt() })?.toLong() ?: Long.MIN_VALUE
 
     var active = 0L
     for (i in 0 until sorted.size - 1) {
