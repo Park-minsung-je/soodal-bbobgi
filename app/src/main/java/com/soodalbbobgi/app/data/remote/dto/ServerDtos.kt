@@ -230,6 +230,21 @@ data class ServerSwimLog(
     val createdAt: Long,
 )
 
+/** PATCH /swim-logs/by-date/:date/strokes 요청 — 영법별 거리(m), 합계는 총 거리와 일치해야 함 */
+data class UpdateStrokesRequest(
+    val strokeFreestyleM: Int,
+    val strokeBreastM: Int,
+    val strokeBackM: Int,
+    val strokeFlyM: Int,
+    val strokeMixedM: Int,
+    val strokeKickM: Int,
+)
+
+/** PATCH /swim-logs/by-date/:date/strokes 응답 */
+data class UpdateStrokesData(
+    val swimLog: ServerSwimLog,
+)
+
 /** DELETE /swim-logs/by-date/:date 응답 */
 data class DeleteSwimLogData(
     val date: String,

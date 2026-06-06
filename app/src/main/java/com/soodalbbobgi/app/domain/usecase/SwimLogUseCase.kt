@@ -27,13 +27,32 @@ class SwimLogUseCase @Inject constructor(
      * 서버에서 pull한 기록을 로컬에 반영한다.
      * - 같은 날짜 로컬 row가 없으면 insert
      * - 있으면 shellsEarned 차이가 있을 때 update (HC sync 직후 0으로 들어간 로컬 row를 서버 값으로 갱신)
+     * - 로컬 영법이 손대지 않은 상태(혼영 외 전부 0)면 서버 분배를 적용 (영법 수정은 서버에 저장되므로 서버가 진실).
+     *   로컬에서 편집한 분배(혼영 외 값 존재)는 보존한다 — 오프라인 편집을 옛 서버 값으로 덮지 않기 위함.
      */
     suspend fun saveFromServer(log: SwimLog) {
         val existing = swimLogRepo.getByDateOnce(log.date)
         if (existing == null) {
             swimLogRepo.addSwimLog(log)
-        } else if (existing.shellsEarned != log.shellsEarned) {
+            return
+        }
+        if (existing.shellsEarned != log.shellsEarned) {
             swimLogRepo.updateShellsEarned(log.date, log.shellsEarned)
+        }
+        val localUntouched = existing.strokeFreestyleM == 0 && existing.strokeBreastM == 0 &&
+            existing.strokeBackM == 0 && existing.strokeFlyM == 0 && existing.strokeKickM == 0
+        val strokesDiffer = existing.strokeFreestyleM != log.strokeFreestyleM ||
+            existing.strokeBreastM != log.strokeBreastM ||
+            existing.strokeBackM != log.strokeBackM ||
+            existing.strokeFlyM != log.strokeFlyM ||
+            existing.strokeMixedM != log.strokeMixedM ||
+            existing.strokeKickM != log.strokeKickM
+        if (localUntouched && strokesDiffer) {
+            swimLogRepo.updateStrokes(
+                log.date,
+                log.strokeFreestyleM, log.strokeBreastM, log.strokeBackM,
+                log.strokeFlyM, log.strokeMixedM, log.strokeKickM,
+            )
         }
     }
 

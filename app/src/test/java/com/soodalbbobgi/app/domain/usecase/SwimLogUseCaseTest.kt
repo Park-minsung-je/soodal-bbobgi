@@ -64,6 +64,40 @@ class SwimLogUseCaseTest {
     }
 
     @Test
+    fun `saveFromServer는 영법 정보가 빈 로컬 행에 서버 분배를 적용한다`() = runTest {
+        // 로컬: 영법 정보 없음(전부 0), 서버: 혼영 분배 보유 — 서버 값으로 치유
+        coEvery { swimLogRepo.getByDateOnce("2026-05-25") } returns testLog
+        val server = testLog.copy(strokeMixedM = 1500)
+
+        useCase.saveFromServer(server)
+
+        coVerify(exactly = 1) { swimLogRepo.updateStrokes("2026-05-25", 0, 0, 0, 0, 1500, 0) }
+    }
+
+    @Test
+    fun `saveFromServer는 HC 원시(혼영 전부) 로컬 행에 서버의 영법 수정을 적용한다`() = runTest {
+        // 로컬: HC 동기화 직후(전부 혼영), 서버: 사용자가 수정한 분배 — 서버가 진실
+        coEvery { swimLogRepo.getByDateOnce("2026-05-25") } returns testLog.copy(strokeMixedM = 1500)
+        val server = testLog.copy(strokeFreestyleM = 600, strokeMixedM = 900)
+
+        useCase.saveFromServer(server)
+
+        coVerify(exactly = 1) { swimLogRepo.updateStrokes("2026-05-25", 600, 0, 0, 0, 900, 0) }
+    }
+
+    @Test
+    fun `saveFromServer는 로컬에서 편집한 영법 분배를 덮어쓰지 않는다`() = runTest {
+        // 로컬: 수동 편집됨(자유형>0) — 서버 값이 달라도 보존
+        coEvery { swimLogRepo.getByDateOnce("2026-05-25") } returns
+            testLog.copy(strokeFreestyleM = 600, strokeMixedM = 900)
+        val server = testLog.copy(strokeMixedM = 1500)
+
+        useCase.saveFromServer(server)
+
+        coVerify(exactly = 0) { swimLogRepo.updateStrokes(any(), any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
     fun `getDateByHcRecordId returns date when found`() = runTest {
         val hcId = "hc-record-1"
         coEvery { swimLogRepo.getByHcRecordId(hcId) } returns testLog.copy(hcRecordId = hcId)

@@ -3,6 +3,8 @@ package com.soodalbbobgi.app.presentation.calendar
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.session.UserSession
+import com.soodalbbobgi.app.data.remote.api.SoodalApi
+import com.soodalbbobgi.app.data.remote.dto.UpdateStrokesRequest
 import com.soodalbbobgi.app.domain.model.SwimLog
 import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
 import com.soodalbbobgi.app.presentation.common.WeeklyActivity
@@ -18,6 +20,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.time.LocalDate
 import java.time.YearMonth
 import javax.inject.Inject
@@ -59,6 +62,7 @@ data class CalendarUiState(
 class CalendarViewModel @Inject constructor(
     private val userSession: UserSession,
     private val swimLogUseCase: SwimLogUseCase,
+    private val soodalApi: SoodalApi,
 ) : ViewModel() {
 
     private val _yearMonth = MutableStateFlow(YearMonth.now())
@@ -111,12 +115,24 @@ class CalendarViewModel @Inject constructor(
         _selectedDay.value = null
     }
 
-    /** 수정 시트에서 보정한 영법별 거리(m)를 현재 월의 해당 날짜에 저장한다. */
+    /** 수정 시트에서 보정한 영법별 거리(m)를 로컬과 서버에 저장한다. */
     fun saveStrokes(day: Int, free: Int, breast: Int, back: Int, fly: Int, kick: Int, mixed: Int) {
         val ym = _yearMonth.value
         val date = "%04d-%02d-%02d".format(ym.year, ym.monthValue, day)
         viewModelScope.launch {
             swimLogUseCase.updateStrokes(date, free, breast, back, fly, mixed, kick)
+            // 서버에도 반영 — 로컬 DB가 초기화돼도 분배가 보존되게. 실패해도 로컬 저장은 유지된다.
+            try {
+                soodalApi.updateSwimLogStrokes(
+                    date,
+                    UpdateStrokesRequest(
+                        strokeFreestyleM = free, strokeBreastM = breast, strokeBackM = back,
+                        strokeFlyM = fly, strokeMixedM = mixed, strokeKickM = kick,
+                    ),
+                )
+            } catch (e: Exception) {
+                Timber.w(e, "영법 수정 서버 반영 실패 — 로컬에만 저장됨: $date")
+            }
         }
     }
 }

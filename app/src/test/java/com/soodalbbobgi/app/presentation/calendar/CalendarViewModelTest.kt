@@ -57,7 +57,7 @@ class CalendarViewModelTest {
 
     @Test
     fun `월 전환 중에도 표시 월과 데이터의 달이 항상 일치한다`() = runTest(testDispatcher) {
-        val vm = CalendarViewModel(session, swimLogUseCase)
+        val vm = CalendarViewModel(session, swimLogUseCase, mockk(relaxed = true))
         val emissions = mutableListOf<CalendarUiState>()
         backgroundScope.launch(testDispatcher) { vm.uiState.collect { emissions.add(it) } }
         advanceUntilIdle()

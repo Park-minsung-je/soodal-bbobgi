@@ -98,6 +98,13 @@ interface SoodalApi {
         @Query("endDate") endDate: String,
     ): ApiResponse<SwimLogsData>
 
+    /** 영법별 거리 보정 (총 거리는 유지, 분배만 갱신) */
+    @PATCH("swim-logs/by-date/{date}/strokes")
+    suspend fun updateSwimLogStrokes(
+        @Path("date") date: String,
+        @Body request: UpdateStrokesRequest,
+    ): ApiResponse<UpdateStrokesData>
+
     /** 수영 기록 삭제 (soft-delete, 조개 미회수) */
     @DELETE("swim-logs/by-date/{date}")
     suspend fun deleteSwimLog(@Path("date") date: String): ApiResponse<DeleteSwimLogData>

@@ -118,8 +118,8 @@ fun WeeklyActivityCard(weekly: WeeklyActivity, onTap: (() -> Unit)? = null) {
                                             // 기록 없는 날 — 은은한 빈 막대
                                             bar.distanceM == 0 ->
                                                 if (colors.isDark) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.06f)
-                                            // 거리만 있고 영법 정보 없는 날 — 단색 폴백 (스택 세그먼트가 덮음)
-                                            else -> colors.accentBlue.copy(alpha = 0.45f)
+                                            // 거리만 있고 영법 정보 없는 날 — 중립 회색 폴백 (영법 색과 헷갈리지 않게)
+                                            else -> colors.textTertiary.copy(alpha = 0.55f)
                                         },
                                     )
                                     .alpha(if (bar.isToday) 1f else 0.9f),
