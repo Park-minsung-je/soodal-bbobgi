@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
+import com.soodalbbobgi.app.core.theme.StrokePalette
 import kotlinx.coroutines.launch
 
 // 시트는 항상 화이트(라이트) — 앱 테마와 무관하게 디자인 고정값 사용.
@@ -54,12 +55,12 @@ private val SheetBlue = Color(0xFF2563EB)
 private data class StrokeSpec(val label: String, val color: Color, val isDefault: Boolean = false)
 
 private val EDIT_STROKES = listOf(
-    StrokeSpec("자유형", Color(0xFF7DD3FC)),
-    StrokeSpec("평영", Color(0xFFC4B5FD)),
-    StrokeSpec("배영", Color(0xFF5CD69B)),
-    StrokeSpec("접영", Color(0xFFFDA4AF)),
-    StrokeSpec("킥판", Color(0xFF94A3B8)),
-    StrokeSpec("혼영", Color(0xFFFCD34D), isDefault = true),
+    StrokeSpec("자유형", StrokePalette.Free),
+    StrokeSpec("평영", StrokePalette.Breast),
+    StrokeSpec("배영", StrokePalette.Back),
+    StrokeSpec("접영", StrokePalette.Fly),
+    StrokeSpec("킥판", StrokePalette.Kick),
+    StrokeSpec("혼영", StrokePalette.Medley, isDefault = true),
 )
 
 /**

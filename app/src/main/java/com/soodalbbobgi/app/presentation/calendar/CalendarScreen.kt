@@ -47,25 +47,21 @@ import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
+import com.soodalbbobgi.app.core.theme.StrokePalette
+import com.soodalbbobgi.app.presentation.common.SectionLabel
+import com.soodalbbobgi.app.presentation.common.TrendBadge
+import com.soodalbbobgi.app.presentation.common.WeeklyActivityCard
 import java.time.LocalDate
 
 // 주말 요일 색 — 디자인 확정값 (강조색은 테마 accentBlue 사용).
 private val SundayColor = Color(0xFFFF9B9B)
 private val SaturdayColor = Color(0xFF9BC4FF)
 
-// 영법 파스텔 팔레트 — 디자인 확정. 순서: 자유형/평영/배영/접영/킥판/혼영.
-private val StrokeFree = Color(0xFF7DD3FC)
-private val StrokeBreast = Color(0xFFC4B5FD)
-private val StrokeBack = Color(0xFF5CD69B)
-private val StrokeFly = Color(0xFFFDA4AF)
-private val StrokeKick = Color(0xFF94A3B8)
-private val StrokeMedley = Color(0xFFFCD34D)
-
 private val DISPLAY_STROKES = listOf(
-    "자유형" to StrokeFree,
-    "평영" to StrokeBreast,
-    "배영" to StrokeBack,
-    "접영" to StrokeFly,
+    "자유형" to StrokePalette.Free,
+    "평영" to StrokePalette.Breast,
+    "배영" to StrokePalette.Back,
+    "접영" to StrokePalette.Fly,
 )
 
 private val monthNames = listOf("1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월")
@@ -377,10 +373,10 @@ private fun DayCell(
 private fun StrokeRatioBar(strokes: StrokeBreakdown, barHeight: Dp = 12.dp, compact: Boolean = false) {
     val colors = SoodalDesign.colors
     val parts = listOf(
-        strokes.freestyle to StrokeFree,
-        strokes.breaststroke to StrokeBreast,
-        strokes.backstroke to StrokeBack,
-        strokes.butterfly to StrokeFly,
+        strokes.freestyle to StrokePalette.Free,
+        strokes.breaststroke to StrokePalette.Breast,
+        strokes.backstroke to StrokePalette.Back,
+        strokes.butterfly to StrokePalette.Fly,
     )
     val total = parts.sumOf { it.first.toDouble() }.toFloat().coerceAtLeast(0.0001f)
     val bgColor = if (colors.isDark) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.05f)
@@ -504,10 +500,10 @@ private fun DayDetailCard(
 
             // 영법별 % 그리드 (4열)
             val ratios = listOf(
-                Triple("자유형", data.strokes.freestyle, StrokeFree),
-                Triple("평영", data.strokes.breaststroke, StrokeBreast),
-                Triple("배영", data.strokes.backstroke, StrokeBack),
-                Triple("접영", data.strokes.butterfly, StrokeFly),
+                Triple("자유형", data.strokes.freestyle, StrokePalette.Free),
+                Triple("평영", data.strokes.breaststroke, StrokePalette.Breast),
+                Triple("배영", data.strokes.backstroke, StrokePalette.Back),
+                Triple("접영", data.strokes.butterfly, StrokePalette.Fly),
             )
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 ratios.forEach { (label, ratio, color) ->
@@ -605,90 +601,6 @@ private fun HeartRateRow(maxHr: Int, minHr: Int) {
     }
 }
 
-// ── 이번 주 활동 ─────────────────────────────────────────────────
-@Composable
-private fun WeeklyActivityCard(weekly: WeeklyActivity) {
-    val colors = SoodalDesign.colors
-    val strokeColors = listOf(StrokeFree, StrokeBreast, StrokeBack, StrokeFly, StrokeKick, StrokeMedley)
-    val maxV = (weekly.days.maxOfOrNull { it.distanceM } ?: 0).coerceAtLeast(1)
-    val chartHeight = 84.dp
-
-    SoodalCard(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(formatNumber(weekly.totalMeters), fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue)
-                    Text("m", fontSize = 11.sp, color = colors.textSecondary, modifier = Modifier.padding(start = 3.dp, bottom = 2.dp))
-                }
-                Text("${weekly.activeDays}일 운동 · 주간", fontSize = 11.sp, color = colors.textSecondary)
-            }
-            Spacer(Modifier.height(14.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth().height(chartHeight + 22.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                weekly.days.forEach { bar ->
-                    val frac = if (bar.distanceM > 0) (bar.distanceM.toFloat() / maxV).coerceAtLeast(0.08f) else 0.04f
-                    val barHeight = chartHeight * frac
-                    val strokeSum = bar.strokeMeters.sum()
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Bottom,
-                    ) {
-                        Box(
-                            modifier = Modifier.height(chartHeight).fillMaxWidth(),
-                            contentAlignment = Alignment.BottomCenter,
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(barHeight)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(
-                                        when {
-                                            // 기록 없는 날 — 은은한 빈 막대
-                                            bar.distanceM == 0 ->
-                                                if (colors.isDark) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.06f)
-                                            // 거리만 있고 영법 정보 없는 날 — 단색 폴백 (스택 세그먼트가 덮음)
-                                            else -> colors.accentBlue.copy(alpha = 0.45f)
-                                        },
-                                    )
-                                    .alpha(if (bar.isToday) 1f else 0.9f),
-                            ) {
-                                if (bar.distanceM > 0 && strokeSum > 0) {
-                                    bar.strokeMeters.forEachIndexed { i, m ->
-                                        if (m > 0) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .weight(m.toFloat())
-                                                    .background(strokeColors[i]),
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            text = bar.label,
-                            fontSize = 10.sp,
-                            fontWeight = if (bar.isToday) FontWeight.ExtraBold else FontWeight.Medium,
-                            color = if (bar.isToday) colors.accentBlue else colors.textTertiary,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
 // ── 이번 달 수영 통계 ────────────────────────────────────────────
 @Composable
 private fun MonthSwimStats(swimData: Map<Int, SwimDayData>) {
@@ -718,33 +630,6 @@ private fun CalStatCard(modifier: Modifier, label: String, value: String, unit: 
             }
         }
     }
-}
-
-// ── 공용 ─────────────────────────────────────────────────────────
-@Composable
-private fun SectionLabel(text: String, action: (@Composable () -> Unit)? = null) {
-    val colors = SoodalDesign.colors
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 22.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(text, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary, letterSpacing = 0.7.sp)
-        action?.invoke()
-    }
-}
-
-@Composable
-private fun TrendBadge(trendPercent: Int?) {
-    val colors = SoodalDesign.colors
-    if (trendPercent == null) return
-    val up = trendPercent >= 0
-    Text(
-        text = "${if (up) "+" else ""}$trendPercent% ${if (up) "↑" else "↓"}",
-        fontSize = 11.sp,
-        fontWeight = FontWeight.Bold,
-        color = if (up) colors.success else Color(0xFFF43F5E),
-    )
 }
 
 private fun formatNumber(n: Int): String {

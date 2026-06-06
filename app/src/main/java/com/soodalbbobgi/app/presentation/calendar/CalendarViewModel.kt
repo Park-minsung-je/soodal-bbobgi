@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.session.UserSession
 import com.soodalbbobgi.app.domain.model.SwimLog
 import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
+import com.soodalbbobgi.app.presentation.common.WeeklyActivity
+import com.soodalbbobgi.app.presentation.common.buildWeeklyActivity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +18,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import javax.inject.Inject
@@ -56,22 +57,6 @@ data class CalendarUiState(
     val month: Int = YearMonth.now().monthValue,
     val selectedDay: Int? = null,
     val swimData: Map<Int, SwimDayData> = emptyMap(),
-)
-
-/** 주간 활동 막대 하나. strokeMeters 순서: [자유형, 평영, 배영, 접영, 킥판, 혼영]. */
-data class WeekdayBar(
-    val label: String,
-    val distanceM: Int,
-    val isToday: Boolean,
-    val strokeMeters: List<Int>,
-)
-
-/** 최근 7일 활동 + 지난주 대비 추세. */
-data class WeeklyActivity(
-    val days: List<WeekdayBar> = emptyList(),
-    val totalMeters: Int = 0,
-    val activeDays: Int = 0,
-    val trendPercent: Int? = null,
 )
 
 /**
@@ -166,37 +151,3 @@ private fun SwimLog.toDayData(): SwimDayData {
     )
 }
 
-private val WEEKDAY_LABELS = mapOf(
-    DayOfWeek.SUNDAY to "일", DayOfWeek.MONDAY to "월", DayOfWeek.TUESDAY to "화",
-    DayOfWeek.WEDNESDAY to "수", DayOfWeek.THURSDAY to "목", DayOfWeek.FRIDAY to "금",
-    DayOfWeek.SATURDAY to "토",
-)
-
-/** 최근 14일 로그에서 최근 7일 막대 + 지난주 대비 추세를 만든다. */
-private fun buildWeeklyActivity(logs: List<SwimLog>, today: LocalDate): WeeklyActivity {
-    val byDate = logs.associateBy { it.date }
-    val days = (0..6).map { i ->
-        val d = today.minusDays((6 - i).toLong())
-        val log = byDate[d.toString()]
-        WeekdayBar(
-            label = WEEKDAY_LABELS.getValue(d.dayOfWeek),
-            distanceM = log?.distanceMeters ?: 0,
-            isToday = d == today,
-            strokeMeters = if (log != null) {
-                listOf(log.strokeFreestyleM, log.strokeBreastM, log.strokeBackM, log.strokeFlyM, log.strokeKickM, log.strokeMixedM)
-            } else {
-                emptyList()
-            },
-        )
-    }
-    val thisWeek = days.sumOf { it.distanceM }
-    // 지난주 = 최근 7일 막대 이전(today-13 ~ today-7)
-    val weekCutoff = today.minusDays(6).toString()
-    val lastWeek = logs.filter { it.date < weekCutoff }.sumOf { it.distanceMeters }
-    return WeeklyActivity(
-        days = days,
-        totalMeters = thisWeek,
-        activeDays = days.count { it.distanceM > 0 },
-        trendPercent = weekTrendPercent(thisWeek, lastWeek),
-    )
-}

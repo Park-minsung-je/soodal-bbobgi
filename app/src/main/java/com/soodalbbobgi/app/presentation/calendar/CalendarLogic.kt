@@ -42,13 +42,3 @@ fun buildMonthCells(year: Int, month: Int): List<CalendarCell> {
  */
 fun strokePercent(meters: Int, sumMeters: Int): Int =
     if (sumMeters <= 0) 0 else Math.round(meters.toFloat() / sumMeters * 100f)
-
-/**
- * 주간 거리 추세(%) — 지난주 대비 증감률. 지난주 기록이 0이면 비교 불가(null).
- *
- * @param thisWeekMeters 이번 주 누적 거리(m)
- * @param lastWeekMeters 지난주 누적 거리(m)
- */
-fun weekTrendPercent(thisWeekMeters: Int, lastWeekMeters: Int): Int? =
-    if (lastWeekMeters <= 0) null
-    else Math.round((thisWeekMeters - lastWeekMeters).toFloat() / lastWeekMeters * 100f)

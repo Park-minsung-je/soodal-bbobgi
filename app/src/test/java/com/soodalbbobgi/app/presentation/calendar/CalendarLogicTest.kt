@@ -1,13 +1,12 @@
 package com.soodalbbobgi.app.presentation.calendar
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
  * 캘린더 순수 로직 검증.
- * 일요일 시작 그리드, 영법 비율 환산, 주간 추세 계산을 다룬다.
+ * 일요일 시작 그리드와 영법 비율 환산을 다룬다.
  */
 class CalendarLogicTest {
 
@@ -45,12 +44,5 @@ class CalendarLogicTest {
         assertEquals(50, strokePercent(500, 1000))
         assertEquals(0, strokePercent(0, 1000))
         assertEquals(0, strokePercent(100, 0)) // 합계 0 → 0
-    }
-
-    @Test
-    fun `주간 추세는 지난주 대비 증감 퍼센트다`() {
-        assertEquals(12, weekTrendPercent(1120, 1000))
-        assertEquals(-20, weekTrendPercent(800, 1000))
-        assertNull(weekTrendPercent(500, 0)) // 지난주 기록 없음 → 비교 불가
     }
 }
