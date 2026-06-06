@@ -1,6 +1,8 @@
 package com.soodalbbobgi.app.presentation.calendar
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -462,7 +464,8 @@ private fun DayDetailCard(
 ) {
     val colors = SoodalDesign.colors
 
-    SoodalCard(modifier = Modifier.fillMaxWidth()) {
+    // 기록 있는 날 ↔ 없는 날을 오갈 때 카드 높이가 탁 바뀌지 않고 부드럽게 변한다.
+    SoodalCard(modifier = Modifier.fillMaxWidth().animateContentSize(tween(220))) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = if (day != null) "${year}년 ${monthNames[month - 1]} ${day}일" else "날짜를 선택해 주세요",
