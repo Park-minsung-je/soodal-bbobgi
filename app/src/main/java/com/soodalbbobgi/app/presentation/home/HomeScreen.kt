@@ -388,7 +388,8 @@ fun HomeScreen(
     if (shellReward > 0) {
         ShellRewardPopup(
             shellCount = shellReward,
-            distance = "오늘의 수영 기록",
+            distanceM = state.todayDistanceM.takeIf { it > 0 },
+            durationMin = state.todayDurationMin.takeIf { it > 0 },
             onDismiss = { viewModel.clearShellReward() },
         )
     }
@@ -433,16 +434,16 @@ private fun CurrencyChip(
     modifier: Modifier = Modifier,
 ) {
     val colors = SoodalDesign.colors
-    val (bg, border, fg) = when (color) {
-        ChipColor.Gold -> Triple(colors.accentGoldSoft, colors.accentGold.copy(alpha = 0.35f), colors.accentGold)
-        ChipColor.Purple -> Triple(colors.accentPurpleSoft, colors.accentPurple.copy(alpha = 0.35f), colors.accentPurple)
-        ChipColor.Blue -> Triple(colors.accentBlueSoft, colors.accentBlue.copy(alpha = 0.35f), colors.accentBlue)
+    // borderless 원칙 — 칩은 채움색만으로 구분한다.
+    val (bg, fg) = when (color) {
+        ChipColor.Gold -> colors.accentGoldSoft to colors.accentGold
+        ChipColor.Purple -> colors.accentPurpleSoft to colors.accentPurple
+        ChipColor.Blue -> colors.accentBlueSoft to colors.accentBlue
     }
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .background(bg)
-            .border(1.dp, border, RoundedCornerShape(14.dp))
             .padding(horizontal = 14.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
