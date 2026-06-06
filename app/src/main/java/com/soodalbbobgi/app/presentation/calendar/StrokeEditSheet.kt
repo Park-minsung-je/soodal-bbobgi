@@ -54,13 +54,14 @@ private val SheetBlue = Color(0xFF2563EB)
 /** 수정 시트의 6개 영법 — 표시 라벨/색/기본 여부. */
 private data class StrokeSpec(val label: String, val color: Color, val isDefault: Boolean = false)
 
+// 디자인 순서: 혼영(기본)이 맨 위, 이후 자유형~킥판. 막대 그래프 순서와도 동일.
 private val EDIT_STROKES = listOf(
+    StrokeSpec("혼영", StrokePalette.Medley, isDefault = true),
     StrokeSpec("자유형", StrokePalette.Free),
     StrokeSpec("평영", StrokePalette.Breast),
     StrokeSpec("배영", StrokePalette.Back),
     StrokeSpec("접영", StrokePalette.Fly),
     StrokeSpec("킥판", StrokePalette.Kick),
-    StrokeSpec("혼영", StrokePalette.Medley, isDefault = true),
 )
 
 /**
@@ -103,7 +104,8 @@ fun StrokeEditSheet(
     var kick by remember { mutableIntStateOf(initial[4]) }
 
     val medley = (distance - (free + breast + back + fly + kick)).coerceAtLeast(0)
-    val values = listOf(free, breast, back, fly, kick, medley)
+    // EDIT_STROKES 순서와 동일: 혼영(잔여)이 맨 앞.
+    val values = listOf(medley, free, breast, back, fly, kick)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -148,8 +150,9 @@ fun StrokeEditSheet(
 
             Spacer(Modifier.height(18.dp))
 
-            // 슬라이더: 5개는 직접 조절(잔여까지만), 혼영(기본)은 잔여 표시 전용.
-            val setters = listOf<(Int) -> Unit>(
+            // 슬라이더: 혼영(기본)은 잔여 표시 전용, 나머지 5개는 잔여까지만 직접 조절.
+            val setters = listOf<((Int) -> Unit)?>(
+                null, // 혼영 — 남은 거리가 자동 배정된다
                 { free = clampStrokeMeters(it, breast + back + fly + kick, distance) },
                 { breast = clampStrokeMeters(it, free + back + fly + kick, distance) },
                 { back = clampStrokeMeters(it, free + breast + fly + kick, distance) },
@@ -158,14 +161,14 @@ fun StrokeEditSheet(
             )
             EDIT_STROKES.forEachIndexed { i, spec ->
                 if (i > 0) Spacer(Modifier.height(16.dp))
-                val editable = i < setters.size
+                val setter = setters[i]
                 StrokeSliderRow(
                     spec = spec,
                     value = values[i],
                     pct = strokePercent(values[i], distance),
                     maxMeters = distance.coerceAtLeast(1),
-                    enabled = editable,
-                    onChange = if (editable) setters[i] else ({ }),
+                    enabled = setter != null,
+                    onChange = setter ?: { },
                 )
             }
 
