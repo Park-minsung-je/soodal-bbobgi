@@ -101,31 +101,75 @@ internal fun downsampleHr(samples: List<Pair<Instant, Long>>, maxPoints: Int = 1
 }
 
 /**
- * [실험] 심박 기반 실운동시간 추정(초) — 휴식 바닥 기준.
- * 세션 최저 심박(하위 0.5% — 글리치에 둔감)은 가장 깊은 휴식 수준이므로, 그보다 [restBand] 이상
- * 높은 샘플 구간만 운동으로 합산한다. 샘플 공백(일시정지)은 자동 제외.
- * 바닥이 [restFloorCap]보다 높으면 휴식 없이 수영한 세션으로 보고 차감하지 않는다.
+ * [실험] 심박 기반 실운동시간 추정(초) — 휴식 경계 보정판.
+ * 휴식 임계(바닥+28, [hrRestThreshold]) 미만 코어를 휴식으로 잡되, 경계를 생리적으로 보정한다:
+ *  - 휴식 시작 = 심박이 내려가기 시작한 꼭대기 (하락 시작점까지 거꾸로 확장)
+ *  - 휴식 끝 = 진행 최저점 대비 +[riseTol] 반등이 시작되는 지점 (출발하면 심박이 오르기 시작)
+ * 샘플 공백(일시정지)은 자동 제외하고, 임계가 없으면(휴식 없는 세션) 전체를 운동으로 본다.
  *
- * 보정 근거: 2026-06-04/05 두 세션의 원본 심박을 삼성헬스 실측 페이스와 대조해
- * "하위 0.5% 바닥 + 29bpm"이 양일 오차 1.6초/100m 이내로 최적.
+ * 보정 근거: 2026-06-04/05 원본 심박을 삼성헬스 실측 페이스와 대조해
+ * "바닥+28, 반등 9bpm"이 양일 오차 2.1초/100m 이내로 최적.
  *
  * @param samples (시각, bpm) 목록. 60개 미만이면 추정 포기(null)
  */
 internal fun hrActiveSeconds(
     samples: List<Pair<Instant, Long>>,
     maxGapSec: Long = 10,
+    riseTol: Long = 9,
 ): Int? {
     if (samples.size < 60) return null
     val sorted = samples.sortedBy { it.first }
+    val n = sorted.size
 
     // 휴식 임계 — 차트 표시와 동일 규칙 (core/util/HrSeries.kt 단일 소스).
     // null이면(바닥이 높아 휴식 없는 세션) 전체를 운동으로 본다.
-    val threshold = hrRestThreshold(samples.map { it.second.toInt() })?.toLong() ?: Long.MIN_VALUE
+    val threshold = hrRestThreshold(samples.map { it.second.toInt() })?.toLong()
+
+    fun gapAt(i: Int): Boolean {
+        val dt = Duration.between(sorted[i].first, sorted[i + 1].first).seconds
+        return dt !in 1..maxGapSec
+    }
+
+    val rest = BooleanArray(n)
+    if (threshold != null) {
+        var segStart = 0
+        var i = 0
+        while (i < n) {
+            if (i > 0 && gapAt(i - 1)) segStart = i
+            if (sorted[i].second < threshold) {
+                // 임계 미만 코어의 끝 찾기 (세그먼트 내)
+                var runEnd = i
+                while (runEnd + 1 < n && sorted[runEnd + 1].second < threshold && !gapAt(runEnd)) runEnd++
+                // 휴식 시작 = 심박이 내려가기 시작한 꼭대기까지 거꾸로 확장 (노이즈 1bpm 허용)
+                var start = i
+                while (start - 1 >= segStart && !gapAt(start - 1) &&
+                    sorted[start - 1].second >= sorted[start].second - 1
+                ) {
+                    start--
+                }
+                // 휴식 끝 = 진행 최저점 대비 +riseTol 반등이 시작되는 지점 (출발 = 상승 시작)
+                var minV = Long.MAX_VALUE
+                var riseStart = runEnd + 1
+                for (k in i..runEnd) {
+                    if (sorted[k].second < minV) minV = sorted[k].second
+                    if (sorted[k].second > minV + riseTol) {
+                        riseStart = k
+                        break
+                    }
+                }
+                for (k in start until riseStart) rest[k] = true
+                i = runEnd + 1
+            } else {
+                i++
+            }
+        }
+    }
 
     var active = 0L
-    for (i in 0 until sorted.size - 1) {
-        val dt = Duration.between(sorted[i].first, sorted[i + 1].first).seconds
-        if (dt in 1..maxGapSec && sorted[i].second >= threshold) active += dt
+    for (i in 0 until n - 1) {
+        if (!gapAt(i) && !rest[i]) {
+            active += Duration.between(sorted[i].first, sorted[i + 1].first).seconds
+        }
     }
     return if (active > 0) active.toInt() else null
 }

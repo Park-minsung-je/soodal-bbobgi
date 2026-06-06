@@ -12,7 +12,7 @@ fun encodeHrSeries(points: List<Pair<Int, Int>>): String =
  * 바닥이 [floorCap]보다 높으면 휴식 없는 세션으로 보고 null(분류 안 함).
  * 동기화의 실운동시간 계산과 차트의 휴식 표시가 같은 규칙을 쓰도록 여기에 단일화한다.
  */
-fun hrRestThreshold(bpms: List<Int>, restBand: Int = 29, floorCap: Int = 110): Int? {
+fun hrRestThreshold(bpms: List<Int>, restBand: Int = 28, floorCap: Int = 110): Int? {
     if (bpms.isEmpty()) return null
     val sorted = bpms.sorted()
     val floor = sorted[(sorted.size * 5 / 1000).coerceAtMost(sorted.size - 1)]

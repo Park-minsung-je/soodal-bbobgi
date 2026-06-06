@@ -26,9 +26,9 @@ class HrSeriesTest {
     }
 
     @Test
-    fun `휴식 임계는 바닥+29이고 바닥이 높으면 분류하지 않는다`() {
-        // 바닥(하위 0.5%)=95 → 임계 124
-        assertEquals(124, hrRestThreshold(List(300) { 95 } + List(600) { 150 }))
+    fun `휴식 임계는 바닥+28이고 바닥이 높으면 분류하지 않는다`() {
+        // 바닥(하위 0.5%)=95 → 임계 123
+        assertEquals(123, hrRestThreshold(List(300) { 95 } + List(600) { 150 }))
         // 바닥 125 > 110 — 휴식 없는 세션
         org.junit.Assert.assertNull(hrRestThreshold(List(600) { 125 }))
     }

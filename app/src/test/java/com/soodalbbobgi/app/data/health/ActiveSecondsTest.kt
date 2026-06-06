@@ -47,19 +47,34 @@ class ActiveSecondsTest {
         assertNull(speedBasedActiveSeconds(1500, 0.0)) // 속도 없음
     }
 
+    /** 수영 구간용 — 150/152 교대로 출렁여서 휴식 시작점 역확장이 수영 구간을 침범하지 않게 한다. */
+    private fun swimBpm(sec: Int): Long = if (sec % 2 == 0) 150L else 152L
+
     @Test
-    fun `휴식 바닥보다 29 이상 높은 구간만 운동시간으로 합산한다`() {
-        // 수영 600초(150bpm) + 벽 휴식 300초(95bpm) → 바닥 95, 임계 124
-        val samples = (0 until 900).map { sec ->
-            t(sec.toLong()) to if (sec < 600) 150L else 95L
-        }
-        assertEquals(600, hrActiveSeconds(samples))
+    fun `휴식은 하락 시작점부터 반등 시작점까지다`() {
+        // 수영 600초 + 하강 61초(150→90) + 바닥 119초(90/91) + 상승 60초(90→149) + 수영 600초
+        val samples = (0 until 600).map { t(it.toLong()) to swimBpm(it) } +
+            (600 until 661).map { t(it.toLong()) to (150L - (it - 600)) } +
+            (661 until 780).map { t(it.toLong()) to if (it % 2 == 1) 91L else 90L } +
+            (780 until 840).map { t(it.toLong()) to (90L + (it - 780)) } +
+            (840 until 1440).map { t(it.toLong()) to swimBpm(it) }
+        // 바닥 90 → 임계 118. 휴식 = 하락 시작(599) ~ 반등 시작(바닥+9 초과 = bpm 100, 790) 직전
+        // 총 1,439초 - 휴식 191초 = 1,248초
+        assertEquals(1248, hrActiveSeconds(samples))
     }
 
     @Test
-    fun `일시정지 공백은 운동시간에서 자동 제외된다`() {
+    fun `벽 휴식 코어는 꼭대기까지 확장돼 차감된다`() {
+        // 수영 600초 + 벽 휴식 300초(95bpm, 반등 없음) → 휴식이 599초 지점(꼭대기)부터 끝까지
+        val samples = (0 until 600).map { t(it.toLong()) to swimBpm(it) } +
+            (600 until 900).map { t(it.toLong()) to 95L }
+        assertEquals(599, hrActiveSeconds(samples))
+    }
+
+    @Test
+    fun `일시정지 공백 너머로는 휴식이 확장되지 않는다`() {
         // 수영 600초 + (일시정지 300초: 샘플 없음) + 벽 휴식 300초
-        val samples = (0 until 600).map { t(it.toLong()) to 150L } +
+        val samples = (0 until 600).map { t(it.toLong()) to swimBpm(it) } +
             (900 until 1200).map { t(it.toLong()) to 95L }
         assertEquals(599, hrActiveSeconds(samples))
     }
@@ -74,10 +89,10 @@ class ActiveSecondsTest {
     @Test
     fun `순간 글리치는 휴식 바닥을 끌어내리지 않는다`() {
         // 40bpm짜리 글리치 3개 — 하위 0.5% 바닥은 여전히 95 부근이라 임계가 흔들리지 않는다
-        val samples = (0 until 600).map { t(it.toLong()) to 150L } +
+        val samples = (0 until 600).map { t(it.toLong()) to swimBpm(it) } +
             (600 until 900).map { t(it.toLong()) to 95L } +
             (900 until 903).map { t(it.toLong()) to 40L }
-        assertEquals(600, hrActiveSeconds(samples))
+        assertEquals(599, hrActiveSeconds(samples))
     }
 
     @Test
