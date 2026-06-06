@@ -30,6 +30,7 @@ import javax.inject.Singleton
  * @property hcRecordId Health Connect 레코드 UID (삭제 추적용)
  * @property maxHr 세션 중 최대 심박(bpm). 심박 기록이 없으면 null
  * @property minHr 세션 중 최소 심박(bpm). 심박 기록이 없으면 null
+ * @property activeSeconds 실제 운동 시간(초) — 세그먼트(휴식 제외)나 랩에서 계산. 둘 다 없으면 null
  */
 data class SwimSession(
     val date: String,
@@ -39,7 +40,33 @@ data class SwimSession(
     val hcRecordId: String? = null,
     val maxHr: Int? = null,
     val minHr: Int? = null,
+    val activeSeconds: Int? = null,
 )
+
+/**
+ * 세션의 실제 운동 시간(초)을 계산한다.
+ * 1순위: 세그먼트에서 휴식·일시정지 구간을 제외한 합. 2순위: 랩 시간 합산. 둘 다 없으면 null
+ * (호출자는 경과 시간으로 폴백한다).
+ */
+internal fun computeActiveSeconds(
+    segments: List<androidx.health.connect.client.records.ExerciseSegment>,
+    laps: List<androidx.health.connect.client.records.ExerciseLap>,
+): Int? {
+    if (segments.isNotEmpty()) {
+        val active = segments
+            .filter {
+                it.segmentType != androidx.health.connect.client.records.ExerciseSegment.EXERCISE_SEGMENT_TYPE_REST &&
+                    it.segmentType != androidx.health.connect.client.records.ExerciseSegment.EXERCISE_SEGMENT_TYPE_PAUSE
+            }
+            .sumOf { Duration.between(it.startTime, it.endTime).seconds }
+        if (active > 0) return active.toInt()
+    }
+    if (laps.isNotEmpty()) {
+        val active = laps.sumOf { Duration.between(it.startTime, it.endTime).seconds }
+        if (active > 0) return active.toInt()
+    }
+    return null
+}
 
 /**
  * HC Changes API 동기화 결과.
@@ -169,6 +196,7 @@ class HealthConnectManager @Inject constructor(
                     hcRecordId = session.metadata.id,
                     maxHr = bpm.maxOrNull()?.toInt(),
                     minHr = bpm.minOrNull()?.toInt(),
+                    activeSeconds = computeActiveSeconds(session.segments, session.laps),
                 )
             }
         } catch (e: Exception) {
@@ -267,6 +295,7 @@ class HealthConnectManager @Inject constructor(
                 hcRecordId = session.metadata.id,
                 maxHr = bpm.maxOrNull()?.toInt(),
                 minHr = bpm.minOrNull()?.toInt(),
+                activeSeconds = computeActiveSeconds(session.segments, session.laps),
             )
         } catch (e: Exception) {
             Timber.w(e, "수영 세션 상세 정보 읽기 실패: ${session.metadata.id}")

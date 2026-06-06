@@ -32,5 +32,7 @@ data class SwimLogEntity(
     /** 세션 중 최대/최소 심박(bpm). HC에 심박 기록이 없으면 null. */
     val maxHr: Int? = null,
     val minHr: Int? = null,
+    /** 실제 운동 시간(초) — HC 세그먼트/랩에서 계산. 없으면 null (경과 시간으로 폴백). */
+    val activeSeconds: Int? = null,
     val createdAt: Long,
 )

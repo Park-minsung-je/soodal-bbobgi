@@ -235,7 +235,7 @@ class HomeViewModel @Inject constructor(
                     totalEarned = fullReadAndInitToken()
                 }
                 pullServerSwimLogs()
-                backfillHeartRate()
+                backfillVitals()
                 appStateLoader.refreshCurrency()
                 _shellReward.value = totalEarned
             } catch (e: Exception) {
@@ -280,6 +280,7 @@ class HomeViewModel @Inject constructor(
                     hcRecordId = session.hcRecordId,
                     maxHr = session.maxHr,
                     minHr = session.minHr,
+                    activeSeconds = session.activeSeconds,
                 ))
                 val response = soodalApi.addSwimLog(SwimLogRequest(
                     date = session.date,
@@ -320,22 +321,22 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * HC 원본에서 최근 30일 세션의 심박을 다시 읽어 로컬 기록에 채워 넣는다.
-     * 서버 복원/구버전 동기화로 들어온 기록에는 심박이 없으므로 백필이 필요하다.
+     * HC 원본에서 최근 30일 세션의 심박·실운동시간을 다시 읽어 로컬 기록에 채워 넣는다.
+     * 서버 복원/구버전 동기화로 들어온 기록에는 이 값들이 없으므로 백필이 필요하다.
      */
-    private suspend fun backfillHeartRate() {
+    private suspend fun backfillVitals() {
         try {
             val zone = ZoneId.systemDefault()
             val today = LocalDate.now()
             val start = today.minusDays(29).atStartOfDay(zone).toInstant()
             val end = today.plusDays(1).atStartOfDay(zone).toInstant()
             for (session in healthConnectManager.readSwimSessions(start, end)) {
-                if (session.maxHr != null && session.minHr != null) {
-                    swimLogUseCase.updateHeartRate(session.date, session.maxHr, session.minHr)
+                if (session.maxHr != null || session.activeSeconds != null) {
+                    swimLogUseCase.updateVitals(session.date, session.maxHr, session.minHr, session.activeSeconds)
                 }
             }
         } catch (e: Exception) {
-            Timber.w(e, "심박 백필 실패")
+            Timber.w(e, "심박·운동시간 백필 실패")
         }
     }
 

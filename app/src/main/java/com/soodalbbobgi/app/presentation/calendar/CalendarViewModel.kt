@@ -34,8 +34,10 @@ import javax.inject.Inject
 data class SwimDayData(
     val distanceM: Int,
     val durationMin: Int,
-    /** 총 시간(초) — 평균 페이스 계산용 (분 단위는 반올림 오차가 큼). */
+    /** 총 경과 시간(초) — 운동시간이 없을 때 페이스 폴백용. */
     val durationSec: Int,
+    /** 실제 운동 시간(초) — HC 세그먼트/랩 기반. 없으면 null. */
+    val activeSec: Int? = null,
     val kcal: Int,
     val shellReward: Int,
     val freeM: Int = 0,
@@ -144,6 +146,7 @@ private fun SwimLog.toDayData(): SwimDayData = SwimDayData(
     distanceM = distanceMeters,
     durationMin = durationSeconds / 60,
     durationSec = durationSeconds,
+    activeSec = activeSeconds,
     kcal = calories,
     shellReward = shellsEarned,
     freeM = strokeFreestyleM,

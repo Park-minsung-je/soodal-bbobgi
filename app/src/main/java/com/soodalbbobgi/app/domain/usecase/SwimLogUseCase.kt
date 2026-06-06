@@ -64,9 +64,9 @@ class SwimLogUseCase @Inject constructor(
     suspend fun updateStrokes(date: String, free: Int, breast: Int, back: Int, fly: Int, mixed: Int, kick: Int) =
         swimLogRepo.updateStrokes(date, free, breast, back, fly, mixed, kick)
 
-    /** HC 원본에서 읽은 최대/최소 심박(bpm)을 같은 날짜 로컬 row에 반영. */
-    suspend fun updateHeartRate(date: String, maxHr: Int, minHr: Int) =
-        swimLogRepo.updateHeartRate(date, maxHr, minHr)
+    /** HC 원본에서 읽은 심박/실운동시간을 같은 날짜 로컬 row에 반영. null인 값은 기존 값 유지. */
+    suspend fun updateVitals(date: String, maxHr: Int?, minHr: Int?, activeSeconds: Int?) =
+        swimLogRepo.updateVitals(date, maxHr, minHr, activeSeconds)
 
     /** HC 레코드 UID로 로컬 기록을 찾아 날짜를 반환한다. */
     suspend fun getDateByHcRecordId(hcRecordId: String): String? =
