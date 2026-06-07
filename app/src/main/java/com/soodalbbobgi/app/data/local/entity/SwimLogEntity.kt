@@ -7,8 +7,9 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "swim_logs",
     indices = [
-        Index(value = ["date"], unique = true),
-        Index(value = ["hcRecordId"]),
+        // 하루에 여러 세션이 있을 수 있다 — HC 세션의 정체성은 hcRecordId (서버산 행은 null 허용)
+        Index(value = ["date"]),
+        Index(value = ["hcRecordId"], unique = true),
     ]
 )
 data class SwimLogEntity(
@@ -16,6 +17,8 @@ data class SwimLogEntity(
     val id: Long = 0,
     val userId: String,
     val date: String,
+    /** 세션 시작 시각(epoch 초) — 같은 날 세션 정렬·시간대 표시용. 서버산 행은 null. */
+    val startEpochSec: Long? = null,
     val distanceMeters: Int,
     val durationSeconds: Int,
     val calories: Int,

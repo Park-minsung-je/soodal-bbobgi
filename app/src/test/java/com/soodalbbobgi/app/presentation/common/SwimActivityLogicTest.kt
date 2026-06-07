@@ -46,6 +46,23 @@ class SwimActivityLogicTest {
     }
 
     @Test
+    fun `같은 날 여러 세션은 막대에 합산된다`() {
+        val today = LocalDate.of(2026, 6, 6)
+        val logs = listOf(
+            log(date = "2026-06-06", distance = 500, free = 500),
+            log(date = "2026-06-06", distance = 700, mixed = 700),
+        )
+        val weekly = buildWeeklyActivity(logs, today)
+
+        assertEquals(1200, weekly.days.last().distanceM)
+        assertEquals(1200, weekly.totalMeters)
+        assertEquals(1, weekly.activeDays)
+        // 영법 분포도 합산: free=500, mixed=700
+        assertEquals(500, weekly.days.last().strokeMeters[0])
+        assertEquals(700, weekly.days.last().strokeMeters[5])
+    }
+
+    @Test
     fun `스트릭은 오늘부터 거꾸로 연속된 일수를 센다`() {
         val today = LocalDate.of(2026, 6, 6)
         val dates = setOf(

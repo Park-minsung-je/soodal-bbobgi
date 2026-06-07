@@ -121,8 +121,7 @@ class HomeViewModelTest {
                 appStateLoader = loader,
                 swimLogUseCase = swimLogUseCase,
                 healthConnectManager = hcManager,
-                soodalApi = api,
-                hcSyncPreferences = hcPrefs,
+                hcSwimSyncer = mockk(relaxed = true),
             )
             startCollect(vm)
             advanceUntilIdle()

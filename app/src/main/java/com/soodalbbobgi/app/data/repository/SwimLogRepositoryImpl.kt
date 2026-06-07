@@ -12,11 +12,13 @@ import javax.inject.Inject
 class SwimLogRepositoryImpl @Inject constructor(
     private val dao: SwimLogDao,
 ) : SwimLogRepository {
-    override suspend fun addSwimLog(log: SwimLog) = dao.insert(log.toEntity())
-    override fun getByDate(date: String): Flow<SwimLog?> =
-        dao.getByDate(date).map { it?.toDomain() }
-    override suspend fun getByDateOnce(date: String): SwimLog? =
-        dao.getByDateOnce(date)?.toDomain()
+    override suspend fun addSwimLog(log: SwimLog) {
+        dao.insert(log.toEntity())
+    }
+    override fun getByDate(date: String): Flow<List<SwimLog>> =
+        dao.getByDate(date).map { list -> list.map { it.toDomain() } }
+    override suspend fun getLogsForDateOnce(date: String): List<SwimLog> =
+        dao.getByDateOnce(date).map { it.toDomain() }
     override suspend fun getByHcRecordId(hcRecordId: String): SwimLog? =
         dao.getByHcRecordId(hcRecordId)?.toDomain()
     override fun getByDateRange(startDate: String, endDate: String): Flow<List<SwimLog>> =
@@ -25,8 +27,21 @@ class SwimLogRepositoryImpl @Inject constructor(
         dao.updateShellsEarned(date, shellsEarned)
     override suspend fun updateStrokes(date: String, free: Int, breast: Int, back: Int, fly: Int, mixed: Int, kick: Int) =
         dao.updateStrokes(date, free, breast, back, fly, mixed, kick)
-    override suspend fun updateVitals(date: String, maxHr: Int?, minHr: Int?, activeSeconds: Int?, hrSeries: String?) =
-        dao.updateVitals(date, maxHr, minHr, activeSeconds, hrSeries)
+    override suspend fun updateStrokesById(id: Long, free: Int, breast: Int, back: Int, fly: Int, mixed: Int, kick: Int) =
+        dao.updateStrokesById(id, free, breast, back, fly, mixed, kick)
+    override suspend fun updateFromHc(id: Long, log: SwimLog) =
+        dao.updateFromHc(
+            id = id,
+            hcRecordId = log.hcRecordId,
+            startEpochSec = log.startEpochSec,
+            distance = log.distanceMeters,
+            duration = log.durationSeconds,
+            calories = log.calories,
+            maxHr = log.maxHr,
+            minHr = log.minHr,
+            activeSeconds = log.activeSeconds,
+            hrSeries = log.hrSeries,
+        )
     override suspend fun deleteByDate(date: String) = dao.deleteByDate(date)
     override suspend fun deleteByHcRecordId(hcRecordId: String) = dao.deleteByHcRecordId(hcRecordId)
     override suspend fun getStats(startDate: String, endDate: String) = SwimStats(
@@ -38,7 +53,8 @@ class SwimLogRepositoryImpl @Inject constructor(
 }
 
 private fun SwimLogEntity.toDomain() = SwimLog(
-    id = id, userId = userId, date = date, distanceMeters = distanceMeters,
+    id = id, userId = userId, date = date, startEpochSec = startEpochSec,
+    distanceMeters = distanceMeters,
     durationSeconds = durationSeconds, calories = calories,
     strokeFreestyleM = strokeFreestyleM, strokeBreastM = strokeBreastM,
     strokeBackM = strokeBackM, strokeFlyM = strokeFlyM,
@@ -49,7 +65,8 @@ private fun SwimLogEntity.toDomain() = SwimLog(
 )
 
 private fun SwimLog.toEntity() = SwimLogEntity(
-    id = id, userId = userId, date = date, distanceMeters = distanceMeters,
+    id = id, userId = userId, date = date, startEpochSec = startEpochSec,
+    distanceMeters = distanceMeters,
     durationSeconds = durationSeconds, calories = calories,
     strokeFreestyleM = strokeFreestyleM, strokeBreastM = strokeBreastM,
     strokeBackM = strokeBackM, strokeFlyM = strokeFlyM,

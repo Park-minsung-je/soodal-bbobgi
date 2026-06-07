@@ -36,18 +36,25 @@ private val WEEKDAY_LABELS = mapOf(
     DayOfWeek.SATURDAY to "토",
 )
 
-/** 최근 14일 로그에서 최근 7일 막대 + 지난주(그 이전 7일) 대비 추세를 만든다. */
+/** 최근 14일 로그에서 최근 7일 막대 + 지난주(그 이전 7일) 대비 추세를 만든다. 같은 날 여러 세션은 합산. */
 fun buildWeeklyActivity(logs: List<SwimLog>, today: LocalDate): WeeklyActivity {
-    val byDate = logs.associateBy { it.date }
+    val byDate = logs.groupBy { it.date }
     val days = (0..6).map { i ->
         val d = today.minusDays((6 - i).toLong())
-        val log = byDate[d.toString()]
+        val dayLogs = byDate[d.toString()].orEmpty()
         WeekdayBar(
             label = WEEKDAY_LABELS.getValue(d.dayOfWeek),
-            distanceM = log?.distanceMeters ?: 0,
+            distanceM = dayLogs.sumOf { it.distanceMeters },
             isToday = d == today,
-            strokeMeters = if (log != null) {
-                listOf(log.strokeFreestyleM, log.strokeBreastM, log.strokeBackM, log.strokeFlyM, log.strokeKickM, log.strokeMixedM)
+            strokeMeters = if (dayLogs.isNotEmpty()) {
+                listOf(
+                    dayLogs.sumOf { it.strokeFreestyleM },
+                    dayLogs.sumOf { it.strokeBreastM },
+                    dayLogs.sumOf { it.strokeBackM },
+                    dayLogs.sumOf { it.strokeFlyM },
+                    dayLogs.sumOf { it.strokeKickM },
+                    dayLogs.sumOf { it.strokeMixedM },
+                )
             } else {
                 emptyList()
             },

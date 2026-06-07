@@ -11,42 +11,61 @@ class SwimLogUseCase @Inject constructor(
     private val swimLogRepo: SwimLogRepository,
 ) {
     /**
-     * 같은 날짜의 로컬 swim_log가 없으면 저장한다.
+     * HC 세션을 로컬에 upsert한다 — 하루 여러 세션 전제, 정체성은 hcRecordId.
+     * - 같은 hcRecordId 행이 있으면 핵심 필드만 갱신 (영법 편집·조개는 보존)
+     * - 없고 그 날짜에 서버산 행(hcRecordId 없음)이 있으면 그 행에 HC 정체성을 승격
+     * - 둘 다 아니면 새 행 insert (같은 날 다른 세션이 있어도 추가)
      * 조개 지급은 서버에서 처리하므로 여기서는 로컬 저장만 담당.
      *
-     * @return 저장된 행이 있으면 1, 이미 있어서 스킵하면 0
+     * @return 새로 저장된 행이 있으면 1, 기존 행 갱신/승격이면 0
      */
     suspend fun syncSwimLog(userId: String, log: SwimLog): Int {
-        val existing = swimLogRepo.getByDateOnce(log.date)
-        if (existing != null) return 0
+        val hcRecordId = log.hcRecordId
+        if (hcRecordId != null) {
+            val existing = swimLogRepo.getByHcRecordId(hcRecordId)
+            if (existing != null) {
+                swimLogRepo.updateFromHc(existing.id, log)
+                return 0
+            }
+            val serverRow = swimLogRepo.getLogsForDateOnce(log.date).firstOrNull { it.hcRecordId == null }
+            if (serverRow != null) {
+                swimLogRepo.updateFromHc(serverRow.id, log)
+                return 0
+            }
+            swimLogRepo.addSwimLog(log)
+            return 1
+        }
+        // hcRecordId 없는 기록(수동 등) — 날짜에 행이 없을 때만 저장
+        if (swimLogRepo.getLogsForDateOnce(log.date).isNotEmpty()) return 0
         swimLogRepo.addSwimLog(log)
         return 1
     }
 
     /**
-     * 서버에서 pull한 기록을 로컬에 반영한다.
-     * - 같은 날짜 로컬 row가 없으면 insert
-     * - 있으면 shellsEarned 차이가 있을 때 update (HC sync 직후 0으로 들어간 로컬 row를 서버 값으로 갱신)
-     * - 로컬 영법이 손대지 않은 상태(혼영 외 전부 0)면 서버 분배를 적용 (영법 수정은 서버에 저장되므로 서버가 진실).
-     *   로컬에서 편집한 분배(혼영 외 값 존재)는 보존한다 — 오프라인 편집을 옛 서버 값으로 덮지 않기 위함.
+     * 서버에서 pull한 일 단위 기록을 로컬에 반영한다.
+     * - 그 날짜에 행이 하나도 없으면 insert (HC가 못 채운 과거 복원용)
+     * - 단일 세션 날: 조개 차이 반영 + 로컬 영법이 손대지 않은 상태(혼영 외 전부 0)면 서버 분배 적용.
+     *   로컬에서 편집한 분배는 보존한다 — 오프라인 편집을 옛 서버 값으로 덮지 않기 위함.
+     * - 다중 세션 날: 서버는 일 집계라 세션별 분배를 모르므로 조개만 반영.
      */
     suspend fun saveFromServer(log: SwimLog) {
-        val existing = swimLogRepo.getByDateOnce(log.date)
-        if (existing == null) {
+        val existing = swimLogRepo.getLogsForDateOnce(log.date)
+        if (existing.isEmpty()) {
             swimLogRepo.addSwimLog(log)
             return
         }
-        if (existing.shellsEarned != log.shellsEarned) {
+        if (existing.sumOf { it.shellsEarned } != log.shellsEarned) {
             swimLogRepo.updateShellsEarned(log.date, log.shellsEarned)
         }
-        val localUntouched = existing.strokeFreestyleM == 0 && existing.strokeBreastM == 0 &&
-            existing.strokeBackM == 0 && existing.strokeFlyM == 0 && existing.strokeKickM == 0
-        val strokesDiffer = existing.strokeFreestyleM != log.strokeFreestyleM ||
-            existing.strokeBreastM != log.strokeBreastM ||
-            existing.strokeBackM != log.strokeBackM ||
-            existing.strokeFlyM != log.strokeFlyM ||
-            existing.strokeMixedM != log.strokeMixedM ||
-            existing.strokeKickM != log.strokeKickM
+        val single = existing.singleOrNull() ?: return
+        val localUntouched = single.strokeFreestyleM == 0 && single.strokeBreastM == 0 &&
+            single.strokeBackM == 0 && single.strokeFlyM == 0 && single.strokeKickM == 0
+        val strokesDiffer = single.strokeFreestyleM != log.strokeFreestyleM ||
+            single.strokeBreastM != log.strokeBreastM ||
+            single.strokeBackM != log.strokeBackM ||
+            single.strokeFlyM != log.strokeFlyM ||
+            single.strokeMixedM != log.strokeMixedM ||
+            single.strokeKickM != log.strokeKickM
         if (localUntouched && strokesDiffer) {
             swimLogRepo.updateStrokes(
                 log.date,
@@ -56,17 +75,17 @@ class SwimLogUseCase @Inject constructor(
         }
     }
 
+    /** 같은 날짜의 세션 목록을 반환한다 — 서버 일 집계 전송용. */
+    suspend fun getLogsForDate(date: String): List<SwimLog> =
+        swimLogRepo.getLogsForDateOnce(date)
+
     /** HC sync POST /swim-logs 응답으로 받은 조개 지급량을 같은 날짜 로컬 row에 반영. */
     suspend fun updateShellsEarned(date: String, shellsEarned: Int) =
         swimLogRepo.updateShellsEarned(date, shellsEarned)
 
-    /** 캘린더에서 보정한 영법별 거리(m)를 같은 날짜 로컬 row에 반영. */
-    suspend fun updateStrokes(date: String, free: Int, breast: Int, back: Int, fly: Int, mixed: Int, kick: Int) =
-        swimLogRepo.updateStrokes(date, free, breast, back, fly, mixed, kick)
-
-    /** HC 원본에서 읽은 심박/실운동시간/심박 시계열을 같은 날짜 로컬 row에 반영. null인 값은 기존 값 유지. */
-    suspend fun updateVitals(date: String, maxHr: Int?, minHr: Int?, activeSeconds: Int?, hrSeries: String?) =
-        swimLogRepo.updateVitals(date, maxHr, minHr, activeSeconds, hrSeries)
+    /** 캘린더에서 보정한 영법별 거리(m)를 해당 세션 행에 반영. */
+    suspend fun updateStrokes(id: Long, free: Int, breast: Int, back: Int, fly: Int, mixed: Int, kick: Int) =
+        swimLogRepo.updateStrokesById(id, free, breast, back, fly, mixed, kick)
 
     /** HC 레코드 UID로 로컬 기록을 찾아 날짜를 반환한다. */
     suspend fun getDateByHcRecordId(hcRecordId: String): String? =

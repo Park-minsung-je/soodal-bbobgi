@@ -40,6 +40,8 @@ import javax.inject.Singleton
  */
 data class SwimSession(
     val date: String,
+    /** 세션 시작 시각(epoch 초) — 같은 날 여러 세션의 정렬·시간대 표시용. */
+    val startEpochSec: Long? = null,
     val distanceMeters: Int,
     val durationSeconds: Int,
     val calories: Int,
@@ -344,6 +346,7 @@ class HealthConnectManager @Inject constructor(
                 SwimSession(
                     date = session.startTime.atZone(ZoneId.systemDefault())
                         .toLocalDate().toString(),
+                    startEpochSec = session.startTime.epochSecond,
                     distanceMeters = totalDistanceM,
                     durationSeconds = duration.seconds.toInt(),
                     calories = totalCalories,
@@ -453,6 +456,7 @@ class HealthConnectManager @Inject constructor(
 
             SwimSession(
                 date = session.startTime.atZone(ZoneId.systemDefault()).toLocalDate().toString(),
+                startEpochSec = session.startTime.epochSecond,
                 distanceMeters = distanceM,
                 durationSeconds = duration.seconds.toInt(),
                 calories = calories,

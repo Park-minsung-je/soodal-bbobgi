@@ -74,12 +74,10 @@ class SplashViewModelTest {
     private fun vm() = SplashViewModel(
         tokenStore = tokenStore,
         soodalApi = soodalApi,
-        userSession = userSession,
         appState = appState,
         appStateLoader = appStateLoader,
         healthConnectManager = healthConnectManager,
-        swimLogUseCase = swimLogUseCase,
-        hcSyncPreferences = hcSyncPreferences,
+        hcSwimSyncer = mockk(relaxed = true),
         assetManager = assetManager,
     )
 

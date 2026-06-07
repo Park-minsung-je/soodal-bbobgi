@@ -4,6 +4,8 @@ data class SwimLog(
     val id: Long = 0,
     val userId: String,
     val date: String,
+    /** 세션 시작 시각(epoch 초) — 같은 날 세션 정렬·시간대 표시용. 서버산 행은 null. */
+    val startEpochSec: Long? = null,
     val distanceMeters: Int,
     val durationSeconds: Int,
     val calories: Int,

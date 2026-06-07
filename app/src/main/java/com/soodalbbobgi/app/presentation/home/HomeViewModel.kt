@@ -5,11 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.session.UserSession
 import com.soodalbbobgi.app.core.state.AppState
 import com.soodalbbobgi.app.core.state.AppStateLoader
-import com.soodalbbobgi.app.data.health.HcSyncPreferences
+import com.soodalbbobgi.app.data.health.HcSwimSyncer
 import com.soodalbbobgi.app.data.health.HealthConnectManager
-import com.soodalbbobgi.app.data.health.SwimSession
-import com.soodalbbobgi.app.data.remote.api.SoodalApi
-import com.soodalbbobgi.app.data.remote.dto.SwimLogRequest
 import com.soodalbbobgi.app.domain.model.SwimLog
 import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
 import com.soodalbbobgi.app.presentation.common.WeeklyActivity
@@ -24,9 +21,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.YearMonth
-import java.time.ZoneId
 import javax.inject.Inject
 
 data class HomeUiState(
@@ -96,8 +91,7 @@ class HomeViewModel @Inject constructor(
     private val appStateLoader: AppStateLoader,
     private val swimLogUseCase: SwimLogUseCase,
     private val healthConnectManager: HealthConnectManager,
-    private val soodalApi: SoodalApi,
-    private val hcSyncPreferences: HcSyncPreferences,
+    private val hcSwimSyncer: HcSwimSyncer,
 ) : ViewModel() {
 
     private val _shellReward = MutableStateFlow(0)
@@ -138,7 +132,8 @@ class HomeViewModel @Inject constructor(
 
         val stats = swimLogUseCase.getMonthStats(monthStart(), monthEnd())
         val todayDate = LocalDate.now()
-        val todayLog = recentLogs.firstOrNull { it.date == todayDate.toString() }
+        // 하루 여러 세션 가능 — 오늘 요약은 세션 합계로 표시
+        val todayLogs = recentLogs.filter { it.date == todayDate.toString() }
         val weekly = buildWeeklyActivity(
             recentLogs.filter { it.date >= todayDate.minusDays(13).toString() },
             todayDate,
@@ -158,10 +153,10 @@ class HomeViewModel @Inject constructor(
             totalDistance = stats.totalDistanceMeters,
             swimSessions = stats.swimCount,
             totalKcal = stats.totalCalories,
-            todayHasRecord = todayLog != null,
-            todayDistanceM = todayLog?.distanceMeters ?: 0,
-            todayDurationMin = (todayLog?.durationSeconds ?: 0) / 60,
-            todayKcal = todayLog?.calories ?: 0,
+            todayHasRecord = todayLogs.isNotEmpty(),
+            todayDistanceM = todayLogs.sumOf { it.distanceMeters },
+            todayDurationMin = todayLogs.sumOf { it.durationSeconds } / 60,
+            todayKcal = todayLogs.sumOf { it.calories },
             streak = streak,
             weekly = weekly,
             syncing = syncing,
@@ -209,7 +204,7 @@ class HomeViewModel @Inject constructor(
         return items[inv.itemId]?.imageAsset
     }
 
-    /** 수동 동기화 — Splash와 동일한 HC sync 흐름. */
+    /** 수동 동기화 — Splash와 공유하는 [HcSwimSyncer] 흐름. */
     fun onSync() {
         viewModelScope.launch {
             _shellReward.value = 0
@@ -219,23 +214,7 @@ class HomeViewModel @Inject constructor(
                     Timber.w("Health Connect 권한이 없어 동기화를 건너뜀")
                     return@launch
                 }
-
-                val storedToken = hcSyncPreferences.getChangesToken()
-                var totalEarned = 0
-                if (storedToken != null) {
-                    val result = healthConnectManager.getChanges(storedToken)
-                    if (result != null) {
-                        totalEarned = processAddedSessions(result.addedSessions)
-                        processDeletedRecords(result.deletedRecordIds)
-                        hcSyncPreferences.saveChangesToken(result.nextToken)
-                    } else {
-                        totalEarned = fullReadAndInitToken()
-                    }
-                } else {
-                    totalEarned = fullReadAndInitToken()
-                }
-                pullServerSwimLogs()
-                backfillVitals()
+                val totalEarned = hcSwimSyncer.sync()
                 appStateLoader.refreshCurrency()
                 _shellReward.value = totalEarned
             } catch (e: Exception) {
@@ -248,127 +227,6 @@ class HomeViewModel @Inject constructor(
             } finally {
                 _syncing.value = false
             }
-        }
-    }
-
-    private suspend fun fullReadAndInitToken(): Int {
-        val token = healthConnectManager.getChangesToken()
-        val now = LocalDateTime.now()
-        val today = now.toLocalDate()
-        val zone = ZoneId.systemDefault()
-        val fetchFrom = if (now.hour < 2) today.minusDays(1) else today
-        val startOfDay = fetchFrom.atStartOfDay(zone).toInstant()
-        val endOfDay = today.plusDays(1).atStartOfDay(zone).toInstant()
-        val sessions = healthConnectManager.readSwimSessions(startOfDay, endOfDay)
-        val earned = processAddedSessions(sessions)
-        hcSyncPreferences.saveChangesToken(token)
-        return earned
-    }
-
-    private suspend fun processAddedSessions(sessions: List<SwimSession>): Int {
-        var totalEarned = 0
-        for (session in sessions) {
-            try {
-                swimLogUseCase.syncSwimLog(userSession.userId, SwimLog(
-                    userId = userSession.userId,
-                    date = session.date,
-                    distanceMeters = session.distanceMeters,
-                    durationSeconds = session.durationSeconds,
-                    calories = session.calories,
-                    strokeMixedM = session.distanceMeters,
-                    source = "health_connect",
-                    hcRecordId = session.hcRecordId,
-                    maxHr = session.maxHr,
-                    minHr = session.minHr,
-                    activeSeconds = session.activeSeconds,
-                    hrSeries = session.hrSeries,
-                ))
-                val response = soodalApi.addSwimLog(SwimLogRequest(
-                    date = session.date,
-                    distanceMeters = session.distanceMeters,
-                    durationSeconds = session.durationSeconds,
-                    calories = session.calories,
-                    strokeFreestyleM = 0, strokeBreastM = 0,
-                    strokeBackM = 0, strokeFlyM = 0,
-                    strokeMixedM = session.distanceMeters, strokeKickM = 0,
-                    source = "health_connect",
-                ))
-                if (response.success && response.data != null) {
-                    val earned = response.data.shellReward?.earned ?: 0
-                    totalEarned += earned
-                    // 서버가 지급한 조개량을 로컬 swim_log에도 즉시 반영 (캘린더 표시용)
-                    if (earned > 0) {
-                        swimLogUseCase.updateShellsEarned(session.date, earned)
-                    }
-                    response.data.shellReward?.newBalance?.let { appStateLoader.applyShellReward(it) }
-                }
-            } catch (e: Exception) {
-                Timber.w(e, "수영 기록 전송 실패: ${session.date}")
-            }
-        }
-        return totalEarned
-    }
-
-    private suspend fun processDeletedRecords(deletedRecordIds: List<String>) {
-        for (hcRecordId in deletedRecordIds) {
-            try {
-                val date = swimLogUseCase.getDateByHcRecordId(hcRecordId) ?: continue
-                swimLogUseCase.deleteByHcRecordId(hcRecordId)
-                soodalApi.deleteSwimLog(date)
-            } catch (e: Exception) {
-                Timber.w(e, "수영 기록 삭제 동기화 실패: $hcRecordId")
-            }
-        }
-    }
-
-    /**
-     * HC 원본에서 최근 30일 세션의 심박·실운동시간을 다시 읽어 로컬 기록에 채워 넣는다.
-     * 서버 복원/구버전 동기화로 들어온 기록에는 이 값들이 없으므로 백필이 필요하다.
-     */
-    private suspend fun backfillVitals() {
-        try {
-            val zone = ZoneId.systemDefault()
-            val today = LocalDate.now()
-            val start = today.minusDays(29).atStartOfDay(zone).toInstant()
-            val end = today.plusDays(1).atStartOfDay(zone).toInstant()
-            for (session in healthConnectManager.readSwimSessions(start, end)) {
-                if (session.maxHr != null || session.activeSeconds != null || session.hrSeries != null) {
-                    swimLogUseCase.updateVitals(session.date, session.maxHr, session.minHr, session.activeSeconds, session.hrSeries)
-                }
-            }
-        } catch (e: Exception) {
-            Timber.w(e, "심박·운동시간 백필 실패")
-        }
-    }
-
-    private suspend fun pullServerSwimLogs() {
-        try {
-            val today = LocalDate.now()
-            val response = soodalApi.getSwimLogs(
-                startDate = today.minusDays(30).toString(),
-                endDate = today.toString(),
-            )
-            if (response.success && response.data != null) {
-                for (serverLog in response.data.items) {
-                    swimLogUseCase.saveFromServer(SwimLog(
-                        userId = userSession.userId,
-                        date = serverLog.date,
-                        distanceMeters = serverLog.distanceMeters,
-                        durationSeconds = serverLog.durationSeconds,
-                        calories = serverLog.calories,
-                        strokeFreestyleM = serverLog.strokeFreestyleM,
-                        strokeBreastM = serverLog.strokeBreastM,
-                        strokeBackM = serverLog.strokeBackM,
-                        strokeFlyM = serverLog.strokeFlyM,
-                        strokeMixedM = serverLog.strokeMixedM,
-                        strokeKickM = serverLog.strokeKickM,
-                        source = serverLog.source,
-                        shellsEarned = serverLog.shellsEarned,
-                    ))
-                }
-            }
-        } catch (e: Exception) {
-            Timber.w(e, "서버 수영 기록 pull 실패")
         }
     }
 

@@ -28,20 +28,23 @@ import java.time.YearMonth
 import javax.inject.Inject
 
 /**
- * 하루치 수영 데이터.
+ * 한 세션(한 번의 수영)의 표시 데이터.
  *
  * freeM~kickM은 영법별 원본 거리(m) — 막대 그래프·상세·수정 시트가 모두 이 값을 쓴다.
- * maxHr·minHr은 최대·최소 심박(bpm)이며 Health Connect 심박 연동 전까지는 null이라 심박 행이 표시되지 않는다.
+ * maxHr·minHr은 최대·최소 심박(bpm)이며 심박 기록이 없으면 null이라 심박 행이 표시되지 않는다.
  */
-data class SwimDayData(
+data class SwimSessionData(
+    /** swim_logs 행 id — 영법 수정 저장 대상. */
+    val logId: Long,
+    /** 세션 시작 시각(epoch 초) — 같은 날 여러 세션의 시간대 라벨용. 서버산이면 null. */
+    val startEpochSec: Long? = null,
     val distanceM: Int,
     val durationMin: Int,
     /** 총 경과 시간(초) — 운동시간이 없을 때 페이스 폴백용. */
     val durationSec: Int,
-    /** 실제 운동 시간(초) — HC 세그먼트/랩 기반. 없으면 null. */
+    /** 실제 운동 시간(초) — 심박 추정 기반. 없으면 null. */
     val activeSec: Int? = null,
     val kcal: Int,
-    val shellReward: Int,
     val freeM: Int = 0,
     val breastM: Int = 0,
     val backM: Int = 0,
@@ -54,6 +57,24 @@ data class SwimDayData(
     val hrSeries: List<Pair<Int, Int>> = emptyList(),
     /** 휴식으로 계산된 구간 (오프셋초 범위) — 동기화 때 원본 해상도로 분류된 값. */
     val hrRestRanges: List<IntRange> = emptyList(),
+)
+
+/**
+ * 하루치 수영 데이터 — 하루 여러 세션 전제.
+ * 달력 셀·헤더·월 통계는 합계 필드를 쓰고, 상세 카드는 [sessions]를 세션별로 보여준다.
+ */
+data class SwimDayData(
+    /** 그 날의 세션 목록 — 시작 시각 순. */
+    val sessions: List<SwimSessionData>,
+    val distanceM: Int,
+    val kcal: Int,
+    val shellReward: Int,
+    val freeM: Int = 0,
+    val breastM: Int = 0,
+    val backM: Int = 0,
+    val flyM: Int = 0,
+    val mixedM: Int = 0,
+    val kickM: Int = 0,
 )
 
 data class CalendarUiState(
@@ -90,10 +111,10 @@ class CalendarViewModel @Inject constructor(
             swimLogUseCase.getLogsByDateRange(start, end).map { logs -> MonthLogs(ym, logs) }
         },
     ) { selected, month ->
-        val swimMap = month.logs.associate { log ->
-            val day = log.date.substringAfterLast("-").toInt()
-            day to log.toDayData()
-        }
+        // 하루 여러 세션 가능 — 날짜별로 묶어 합계 + 세션 목록을 만든다
+        val swimMap = month.logs
+            .groupBy { it.date.substringAfterLast("-").toInt() }
+            .mapValues { (_, logs) -> logs.toDayData() }
         CalendarUiState(
             year = month.ym.year,
             month = month.ym.monthValue,
@@ -125,19 +146,25 @@ class CalendarViewModel @Inject constructor(
         _selectedDay.value = null
     }
 
-    /** 수정 시트에서 보정한 영법별 거리(m)를 로컬과 서버에 저장한다. */
-    fun saveStrokes(day: Int, free: Int, breast: Int, back: Int, fly: Int, kick: Int, mixed: Int) {
+    /** 수정 시트에서 보정한 세션의 영법별 거리(m)를 로컬과 서버에 저장한다. */
+    fun saveStrokes(day: Int, logId: Long, free: Int, breast: Int, back: Int, fly: Int, kick: Int, mixed: Int) {
         val ym = _yearMonth.value
         val date = "%04d-%02d-%02d".format(ym.year, ym.monthValue, day)
         viewModelScope.launch {
-            swimLogUseCase.updateStrokes(date, free, breast, back, fly, mixed, kick)
-            // 서버에도 반영 — 로컬 DB가 초기화돼도 분배가 보존되게. 실패해도 로컬 저장은 유지된다.
+            swimLogUseCase.updateStrokes(logId, free, breast, back, fly, mixed, kick)
+            // 서버에도 반영 — 로컬 DB가 초기화돼도 분배가 보존되게. 서버는 일 단위라
+            // 그 날 모든 세션의 합계를 보낸다. 실패해도 로컬 저장은 유지된다.
             try {
+                val dayLogs = swimLogUseCase.getLogsForDate(date)
                 soodalApi.updateSwimLogStrokes(
                     date,
                     UpdateStrokesRequest(
-                        strokeFreestyleM = free, strokeBreastM = breast, strokeBackM = back,
-                        strokeFlyM = fly, strokeMixedM = mixed, strokeKickM = kick,
+                        strokeFreestyleM = dayLogs.sumOf { it.strokeFreestyleM },
+                        strokeBreastM = dayLogs.sumOf { it.strokeBreastM },
+                        strokeBackM = dayLogs.sumOf { it.strokeBackM },
+                        strokeFlyM = dayLogs.sumOf { it.strokeFlyM },
+                        strokeMixedM = dayLogs.sumOf { it.strokeMixedM },
+                        strokeKickM = dayLogs.sumOf { it.strokeKickM },
                     ),
                 )
             } catch (e: Exception) {
@@ -147,14 +174,15 @@ class CalendarViewModel @Inject constructor(
     }
 }
 
-/** 도메인 로그 → 하루치 표시 데이터. */
-private fun SwimLog.toDayData(): SwimDayData = SwimDayData(
+/** 도메인 로그 → 세션 표시 데이터. */
+private fun SwimLog.toSessionData(): SwimSessionData = SwimSessionData(
+    logId = id,
+    startEpochSec = startEpochSec,
     distanceM = distanceMeters,
     durationMin = durationSeconds / 60,
     durationSec = durationSeconds,
     activeSec = activeSeconds,
     kcal = calories,
-    shellReward = shellsEarned,
     freeM = strokeFreestyleM,
     breastM = strokeBreastM,
     backM = strokeBackM,
@@ -165,5 +193,19 @@ private fun SwimLog.toDayData(): SwimDayData = SwimDayData(
     minHr = minHr,
     hrSeries = decodeHrSeries(hrSeries),
     hrRestRanges = decodeHrRestRanges(hrSeries),
+)
+
+/** 같은 날짜의 로그 목록 → 하루치 표시 데이터 (합계 + 세션 목록). */
+private fun List<SwimLog>.toDayData(): SwimDayData = SwimDayData(
+    sessions = sortedWith(compareBy(nullsLast()) { it.startEpochSec }).map { it.toSessionData() },
+    distanceM = sumOf { it.distanceMeters },
+    kcal = sumOf { it.calories },
+    shellReward = sumOf { it.shellsEarned },
+    freeM = sumOf { it.strokeFreestyleM },
+    breastM = sumOf { it.strokeBreastM },
+    backM = sumOf { it.strokeBackM },
+    flyM = sumOf { it.strokeFlyM },
+    mixedM = sumOf { it.strokeMixedM },
+    kickM = sumOf { it.strokeKickM },
 )
 

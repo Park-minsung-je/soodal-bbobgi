@@ -93,6 +93,9 @@ private val BAR_COLORS = listOf(
 /** 막대 그래프 순서(BAR_COLORS와 동일)로 영법 거리(m)를 늘어놓는다. */
 private fun barMeters(d: SwimDayData) = listOf(d.mixedM, d.freeM, d.breastM, d.backM, d.flyM, d.kickM)
 
+/** 세션 단위 막대 그래프용 — 순서는 [barMeters]와 동일. */
+private fun barMeters(s: SwimSessionData) = listOf(s.mixedM, s.freeM, s.breastM, s.backM, s.flyM, s.kickM)
+
 private val monthNames = listOf("1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월")
 
 @Composable
@@ -104,10 +107,10 @@ fun CalendarScreen(
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
 
-    // 영법 비율 수정 시트 — 어느 날을 수정 중인지.
-    var editDay by remember { mutableStateOf<Int?>(null) }
+    // 영법 비율 수정 시트 — 어느 날의 어느 세션을 수정 중인지.
+    var editTarget by remember { mutableStateOf<Pair<Int, SwimSessionData>?>(null) }
     // 선택한 날이 바뀌면 열린 수정 시트는 닫는다.
-    LaunchedEffect(state.selectedDay) { editDay = null }
+    LaunchedEffect(state.selectedDay) { editTarget = null }
 
     Box(modifier = Modifier.fillMaxSize().background(colors.bgDeep)) {
         Column(
@@ -182,7 +185,7 @@ fun CalendarScreen(
                 month = state.month,
                 day = state.selectedDay,
                 data = state.selectedDay?.let { state.swimData[it] },
-                onEdit = { state.selectedDay?.let { editDay = it } },
+                onEdit = { session -> state.selectedDay?.let { editTarget = it to session } },
             )
 
             // ── 이번 주 활동 ────────────────────────────────
@@ -201,17 +204,17 @@ fun CalendarScreen(
             Spacer(Modifier.height(12.dp))
         }
 
-        // ── 기록 수정 바텀시트 ──────────────────────────────
-        val day = editDay
-        val data = day?.let { state.swimData[it] }
-        if (day != null && data != null) {
+        // ── 기록 수정 바텀시트 (세션 단위) ──────────────────
+        val target = editTarget
+        if (target != null) {
+            val (day, session) = target
             StrokeEditSheet(
                 dateLabel = "${state.year}년 ${monthNames[state.month - 1]} ${day}일",
-                data = data,
-                onDismiss = { editDay = null },
+                data = session,
+                onDismiss = { editTarget = null },
                 onSave = { free, breast, back, fly, kick, mixed ->
-                    viewModel.saveStrokes(day, free, breast, back, fly, kick, mixed)
-                    editDay = null
+                    viewModel.saveStrokes(day, session.logId, free, breast, back, fly, kick, mixed)
+                    editTarget = null
                 },
             )
         }
@@ -469,7 +472,7 @@ private fun DayDetailCard(
     month: Int,
     day: Int?,
     data: SwimDayData?,
-    onEdit: () -> Unit,
+    onEdit: (SwimSessionData) -> Unit,
 ) {
     val colors = SoodalDesign.colors
 
@@ -494,103 +497,21 @@ private fun DayDetailCard(
                 return@Column
             }
 
-            // 거리 / 시간 / 칼로리
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                MetricCol("거리", formatNumber(data.distanceM), "m", colors.accentBlue)
-                MetricCol("시간", data.durationMin.toString(), "분", colors.textPrimary)
-                MetricCol("칼로리", data.kcal.toString(), "kcal", colors.success)
-            }
-
-            // 최대·최소 심박(HC 심박 기록이 있을 때) + 평균 페이스.
-            // 페이스는 실운동시간이 있을 때만 — 경과시간(휴식 포함) 기반 페이스는 오해를 줘서 표시하지 않는다.
-            val pace = data.activeSec?.let { paceSecPer100m(data.distanceM, it) }
-            if ((data.maxHr != null && data.minHr != null) || pace != null) {
-                Spacer(Modifier.height(14.dp))
-                VitalsRow(maxHr = data.maxHr, minHr = data.minHr, paceSec = pace)
-            }
-
-            // 세션 심박 곡선
-            if (data.hrSeries.size >= 2) {
-                Spacer(Modifier.height(8.dp))
-                HrChart(points = data.hrSeries, restRanges = data.hrRestRanges)
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            // 영법 비율 헤더 + 수정 버튼
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("영법 비율", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary, letterSpacing = 0.4.sp)
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(7.dp))
-                        .background(colors.accentBlue.copy(alpha = 0.12f))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onEdit,
-                        )
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    SoodalIcon(icon = SoodalIcons.Edit, tint = colors.accentBlue, size = 12.dp)
-                    Text("수정", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
+            // 하루 여러 세션 가능 — 각 세션을 자체 블록으로 모두 보여준다
+            data.sessions.forEachIndexed { index, session ->
+                if (index > 0) {
+                    Spacer(Modifier.height(16.dp))
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(colors.glassBorder))
+                    Spacer(Modifier.height(16.dp))
                 }
-            }
-
-            Spacer(Modifier.height(8.dp))
-            StrokeRatioBar(meters = barMeters(data))
-            Spacer(Modifier.height(10.dp))
-
-            // 영법별 % 그리드 — 수치는 접/배/평/자 4개만, 비율은 전체(6영법 합) 기준.
-            val totalMeters = barMeters(data).sum().coerceAtLeast(1)
-            val entries = listOf(
-                Triple("자유형", data.freeM, StrokePalette.Free),
-                Triple("평영", data.breastM, StrokePalette.Breast),
-                Triple("배영", data.backM, StrokePalette.Back),
-                Triple("접영", data.flyM, StrokePalette.Fly),
-            )
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                entries.forEach { (label, meters, color) ->
-                    val pct = strokePercent(meters, totalMeters)
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(SoodalShape.sm)
-                            .background(
-                                if (pct > 0) {
-                                    if (colors.isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.03f)
-                                } else {
-                                    Color.Transparent
-                                },
-                            )
-                            .alpha(if (pct > 0) 1f else 0.4f)
-                            .padding(vertical = 6.dp, horizontal = 4.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Box(Modifier.size(8.dp).clip(RoundedCornerShape(2.dp)).background(color))
-                            Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = "$pct%",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = if (pct > 0) color else colors.textTertiary,
-                            fontFamily = JetBrainsMonoFamily,
-                        )
-                        Spacer(Modifier.height(1.dp))
-                        Text("${meters}m", fontSize = 9.sp, color = colors.textTertiary)
-                    }
+                if (data.sessions.size > 1) {
+                    SessionTimeLabel(index = index, startEpochSec = session.startEpochSec)
+                    Spacer(Modifier.height(10.dp))
                 }
+                SessionDetail(session = session, onEdit = { onEdit(session) })
             }
 
-            // 조개 획득
+            // 조개 획득 (일 단위 지급)
             Spacer(Modifier.height(14.dp))
             Row(
                 modifier = Modifier
@@ -603,6 +524,130 @@ private fun DayDetailCard(
             ) {
                 SoodalIcon(icon = SoodalIcons.Shell, tint = colors.accentGold, size = 18.dp)
                 Text("조개 ${data.shellReward}개 획득!", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.accentGold)
+            }
+        }
+    }
+}
+
+/** "1회차 · 오전 11:02" 라벨 — 같은 날 여러 세션 구분용. */
+@Composable
+private fun SessionTimeLabel(index: Int, startEpochSec: Long?) {
+    val colors = SoodalDesign.colors
+    val time = startEpochSec?.let {
+        val t = java.time.Instant.ofEpochSecond(it).atZone(java.time.ZoneId.systemDefault()).toLocalTime()
+        "%s %d:%02d".format(
+            if (t.hour < 12) "오전" else "오후",
+            if (t.hour % 12 == 0) 12 else t.hour % 12,
+            t.minute,
+        )
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(Modifier.size(6.dp).clip(RoundedCornerShape(3.dp)).background(colors.accentBlue))
+        Text("${index + 1}회차", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
+        if (time != null) {
+            Text(time, fontSize = 11.sp, color = colors.textTertiary, fontFamily = JetBrainsMonoFamily)
+        }
+    }
+}
+
+/** 한 세션의 상세 블록 — 거리/시간/칼로리 + 심박/페이스 + 심박 곡선 + 영법 비율. */
+@Composable
+private fun SessionDetail(session: SwimSessionData, onEdit: () -> Unit) {
+    val colors = SoodalDesign.colors
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // 거리 / 시간 / 칼로리
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            MetricCol("거리", formatNumber(session.distanceM), "m", colors.accentBlue)
+            MetricCol("시간", session.durationMin.toString(), "분", colors.textPrimary)
+            MetricCol("칼로리", session.kcal.toString(), "kcal", colors.success)
+        }
+
+        // 최대·최소 심박(HC 심박 기록이 있을 때) + 평균 페이스.
+        // 페이스는 실운동시간이 있을 때만 — 경과시간(휴식 포함) 기반 페이스는 오해를 줘서 표시하지 않는다.
+        val pace = session.activeSec?.let { paceSecPer100m(session.distanceM, it) }
+        if ((session.maxHr != null && session.minHr != null) || pace != null) {
+            Spacer(Modifier.height(14.dp))
+            VitalsRow(maxHr = session.maxHr, minHr = session.minHr, paceSec = pace)
+        }
+
+        // 세션 심박 곡선
+        if (session.hrSeries.size >= 2) {
+            Spacer(Modifier.height(8.dp))
+            HrChart(points = session.hrSeries, restRanges = session.hrRestRanges)
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // 영법 비율 헤더 + 수정 버튼
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("영법 비율", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary, letterSpacing = 0.4.sp)
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(colors.accentBlue.copy(alpha = 0.12f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onEdit,
+                    )
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                SoodalIcon(icon = SoodalIcons.Edit, tint = colors.accentBlue, size = 12.dp)
+                Text("수정", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+        StrokeRatioBar(meters = barMeters(session))
+        Spacer(Modifier.height(10.dp))
+
+        // 영법별 % 그리드 — 수치는 접/배/평/자 4개만, 비율은 전체(6영법 합) 기준.
+        val totalMeters = barMeters(session).sum().coerceAtLeast(1)
+        val entries = listOf(
+            Triple("자유형", session.freeM, StrokePalette.Free),
+            Triple("평영", session.breastM, StrokePalette.Breast),
+            Triple("배영", session.backM, StrokePalette.Back),
+            Triple("접영", session.flyM, StrokePalette.Fly),
+        )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            entries.forEach { (label, meters, color) ->
+                val pct = strokePercent(meters, totalMeters)
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(SoodalShape.sm)
+                        .background(
+                            if (pct > 0) {
+                                if (colors.isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.03f)
+                            } else {
+                                Color.Transparent
+                            },
+                        )
+                        .alpha(if (pct > 0) 1f else 0.4f)
+                        .padding(vertical = 6.dp, horizontal = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Box(Modifier.size(8.dp).clip(RoundedCornerShape(2.dp)).background(color))
+                        Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "$pct%",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (pct > 0) color else colors.textTertiary,
+                        fontFamily = JetBrainsMonoFamily,
+                    )
+                    Spacer(Modifier.height(1.dp))
+                    Text("${meters}m", fontSize = 9.sp, color = colors.textTertiary)
+                }
             }
         }
     }

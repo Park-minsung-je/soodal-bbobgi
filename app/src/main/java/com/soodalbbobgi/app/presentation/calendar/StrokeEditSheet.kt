@@ -69,14 +69,14 @@ private val EDIT_STROKES = listOf(
  * 거리·시간은 Health Connect 표시 전용 — 수정은 입력된 기록(총 거리)의 영법별 재분배만 허용한다.
  * 자유형~킥판 5개만 직접 조절하고, 남은 거리는 혼영(기본)이 자동으로 가져간다.
  *
- * @param data 현재 선택한 날의 수영 데이터 (원본 영법 미터 포함)
+ * @param data 수정 대상 세션의 수영 데이터 (원본 영법 미터 포함)
  * @param onSave (free, breast, back, fly, kick, mixed) 순서의 보정값 콜백 — 합계는 항상 기록 거리와 같다
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StrokeEditSheet(
     dateLabel: String,
-    data: SwimDayData,
+    data: SwimSessionData,
     onDismiss: () -> Unit,
     onSave: (free: Int, breast: Int, back: Int, fly: Int, kick: Int, mixed: Int) -> Unit,
 ) {
