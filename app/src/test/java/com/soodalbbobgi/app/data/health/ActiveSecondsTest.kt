@@ -75,15 +75,15 @@ class ActiveSecondsTest {
     }
 
     @Test
-    fun `골짜기 세션 추정은 골짜기 추정의 30퍼 보정 한도 안에 있다`() {
+    fun `골짜기 세션 추정은 골짜기 추정의 35퍼 보정 한도 안에 있다`() {
         val points = valleyPoints()
         val rest = com.soodalbbobgi.app.core.util.hrRestMask(points)
         val tv = (0 until points.size - 1).count { !rest[it] }
         val est = estimateActive(points, distanceM = 500)!!
-        // 보정식 결과는 골짜기 추정(Tv)의 ±30% 안으로 제한된다
+        // 보정식 결과는 골짜기 추정(Tv)의 ±35% 안으로 제한된다
         org.junit.Assert.assertTrue(
             "act=${est.activeSeconds}, tv=$tv",
-            est.activeSeconds in (tv * 0.7).toInt() - 1..(tv * 1.3).toInt() + 1,
+            est.activeSeconds in (tv * 0.65).toInt() - 1..(tv * 1.35).toInt() + 1,
         )
         org.junit.Assert.assertTrue(est.activeSeconds <= 1439)
     }

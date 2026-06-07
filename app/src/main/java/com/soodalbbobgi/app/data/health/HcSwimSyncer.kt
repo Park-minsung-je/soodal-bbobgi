@@ -12,14 +12,18 @@ import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
+// 페이스/휴식구간 알고리즘 버전 — 계산 방식이 바뀌면 +1 해서
+// 기존 기록을 한 번만 다시 계산하게 한다.
+internal const val HC_ALGO_VERSION = 2
+
 /**
  * HC ↔ 로컬 ↔ 서버 수영 기록 동기화 오케스트레이터 — Splash 자동 동기화와 홈 수동 동기화가 공유한다.
  *
- * 하루 여러 세션을 전제로 하며 HC 세션의 정체성은 hcRecordId다. 흐름:
- * 1) 변경 토큰으로 삭제 변경을 처리하고 토큰을 갱신한다 (추가/수정 변경은 2가 어차피 커버)
- * 2) 최근 30일 HC 세션을 모두 읽어 hcRecordId 기준 upsert — 재설치·유실 후에도 HC가 과거 복원의 1차 소스.
- *    날짜에 기록이 처음 생기면 서버에 일 집계를 POST한다 (조개는 서버가 일 단위로 지급)
- * 3) 서버 pull — HC가 못 채운 날짜(워치 미착용, 30일 이전 등)만 복원
+ * 하루 여러 세션을 전제로 하며 HC 세션의 정체성은 hcRecordId다. 매 동기화는 가볍게:
+ * 1) 변경 토큰으로 추가/수정/삭제 변경분만 처리 (토큰이 없거나 만료면 오늘 기록만 읽고 새 토큰 발급)
+ * 2) 알고리즘 버전이 바뀐 빌드의 첫 동기화에만 — 최근 30일 기록의 페이스·휴식구간을 한 번 재계산
+ * 3) 서버에 아직 보고 안 된(synced=false) 날짜의 일 집계를 전송 — 실패해도 다음 동기화에 재시도
+ * 4) 서버 pull — 로컬에 없는 과거 날짜를 서버 백업에서 복원
  */
 @Singleton
 class HcSwimSyncer @Inject constructor(
@@ -37,49 +41,74 @@ class HcSwimSyncer @Inject constructor(
      * @return 이번 동기화로 서버가 지급한 조개 수
      */
     suspend fun sync(): Int {
-        val storedToken = hcSyncPreferences.getChangesToken()
-        if (storedToken != null) {
-            val result = healthConnectManager.getChanges(storedToken)
-            if (result != null) {
-                processDeletedRecords(result.deletedRecordIds)
-                hcSyncPreferences.saveChangesToken(result.nextToken)
-            } else {
-                // 토큰 만료 — 새로 발급 (복원은 reconcile이 담당)
-                hcSyncPreferences.saveChangesToken(healthConnectManager.getChangesToken())
-            }
-        } else {
-            hcSyncPreferences.saveChangesToken(healthConnectManager.getChangesToken())
-        }
-        val earned = reconcileRecentSessions()
+        syncChanges()
+        refreshIfAlgoChanged()
+        val earned = pushUnsyncedDates()
         pullServerSwimLogs()
         return earned
     }
 
-    /**
-     * 최근 30일 HC 세션을 로컬과 대조해 빠진 세션은 추가하고 기존 세션은 갱신한다.
-     * 변경 이벤트 유실(같은 날 두 세션 중 하나 누락 등)이 있어도 여기서 복구된다.
-     */
-    private suspend fun reconcileRecentSessions(): Int {
-        val zone = ZoneId.systemDefault()
-        val today = LocalDate.now()
-        val start = today.minusDays(29).atStartOfDay(zone).toInstant()
-        val end = today.plusDays(1).atStartOfDay(zone).toInstant()
-        val sessions = healthConnectManager.readSwimSessions(start, end)
-
-        var totalEarned = 0
-        for ((date, daySessions) in sessions.groupBy { it.date }) {
-            try {
-                for (session in daySessions) {
-                    swimLogUseCase.syncSwimLog(userSession.userId, session.toLog())
-                }
-            } catch (e: Exception) {
-                Timber.w(e, "수영 세션 저장 실패: $date")
+    /** HC 변경분(추가/수정/삭제)을 반영한다. 토큰이 없거나 만료면 오늘 기록만 읽고 새 토큰 발급. */
+    private suspend fun syncChanges() {
+        val storedToken = hcSyncPreferences.getChangesToken()
+        if (storedToken != null) {
+            val result = healthConnectManager.getChanges(storedToken)
+            if (result != null) {
+                for (session in result.addedSessions) upsert(session)
+                processDeletedRecords(result.deletedRecordIds)
+                hcSyncPreferences.saveChangesToken(result.nextToken)
+                return
             }
-            // 서버에 아직 보고 안 된(synced=false) 행이 있는 날짜는 일 집계를 전송한다.
-            // 네트워크 실패면 미전송으로 남아 다음 동기화에 자동 재시도된다.
+        }
+        val token = healthConnectManager.getChangesToken()
+        val zone = ZoneId.systemDefault()
+        val now = java.time.LocalDateTime.now()
+        // 자정 직후 동기화하면 어제 밤 수영이 빠지지 않게 새벽 2시까지는 어제부터 읽는다
+        val fetchFrom = if (now.hour < 2) now.toLocalDate().minusDays(1) else now.toLocalDate()
+        val start = fetchFrom.atStartOfDay(zone).toInstant()
+        val end = now.toLocalDate().plusDays(1).atStartOfDay(zone).toInstant()
+        for (session in healthConnectManager.readSwimSessions(start, end)) upsert(session)
+        hcSyncPreferences.saveChangesToken(token)
+    }
+
+    /**
+     * 페이스·휴식구간 알고리즘이 바뀐 빌드의 첫 동기화에만 최근 30일 기록을 다시 읽어
+     * 기존 행의 실운동시간과 휴식구간을 재계산한다. 평소 동기화에는 실행되지 않는다.
+     */
+    private suspend fun refreshIfAlgoChanged() {
+        if (hcSyncPreferences.getAlgoVersion() == HC_ALGO_VERSION) return
+        try {
+            val zone = ZoneId.systemDefault()
+            val today = LocalDate.now()
+            val start = today.minusDays(29).atStartOfDay(zone).toInstant()
+            val end = today.plusDays(1).atStartOfDay(zone).toInstant()
+            for (session in healthConnectManager.readSwimSessions(start, end)) upsert(session)
+            hcSyncPreferences.saveAlgoVersion(HC_ALGO_VERSION)
+            Timber.d("알고리즘 v%d 재계산 완료", HC_ALGO_VERSION)
+        } catch (e: Exception) {
+            // 버전을 저장하지 않아 다음 동기화에 다시 시도된다
+            Timber.w(e, "알고리즘 변경 재계산 실패")
+        }
+    }
+
+    private suspend fun upsert(session: SwimSession) {
+        try {
+            swimLogUseCase.syncSwimLog(userSession.userId, session.toLog())
+        } catch (e: Exception) {
+            Timber.w(e, "수영 세션 저장 실패: ${session.date}")
+        }
+    }
+
+    /**
+     * 서버에 아직 보고 안 된(synced=false) 행이 있는 날짜의 일 집계를 전송한다.
+     * 네트워크 실패면 미전송으로 남아 다음 동기화에 자동 재시도된다.
+     */
+    private suspend fun pushUnsyncedDates(): Int {
+        var totalEarned = 0
+        for (date in swimLogUseCase.getUnsyncedDates()) {
             try {
                 val rows = swimLogUseCase.getLogsForDate(date)
-                if (rows.isNotEmpty() && rows.any { !it.synced }) {
+                if (rows.isNotEmpty()) {
                     totalEarned += postDayAggregate(date, rows)
                 }
             } catch (e: Exception) {

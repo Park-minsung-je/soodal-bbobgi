@@ -138,11 +138,12 @@ internal data class HrEstimate(
 
 // 실운동시간 보정식 ψ = W_R + W_I·ī + W_TV·φ 의 계수.
 // (ī = 평균 상대심박 = Σ(평활심박-기저)dt / 기록초, φ = 골짜기 활동비율 = Tv/R)
-// 2026-06-07 삼성헬스 실측 4세션(05-20/31, 06-04/05)에 적합 — 적합오차 ±1.0s/100m,
-// LOO 교차검증 ±7.2s/100m. ī는 적합 범위 밖 외삽을 막기 위해 [28.5, 37.5]로 클램프.
-private const val HR_W_I = -0.049936
-private const val HR_W_R = 1.134051
-private const val HR_W_TV = 1.682677
+// 2026-06-08 삼성헬스 실측 4세션(05-20/31, 06-04/05)에 적합 — "휴식 끝 = 상승 시작" 경계 기준.
+// 적합오차 ±0.7s/100m, LOO 교차검증 ±4.8s/100m.
+// ī는 적합 범위 밖 외삽을 막기 위해 [28.5, 37.5]로 클램프.
+private const val HR_W_I = -0.042733
+private const val HR_W_R = 0.765914
+private const val HR_W_TV = 1.783039
 private const val HR_IBAR_MIN = 28.5
 private const val HR_IBAR_MAX = 37.5
 
@@ -152,7 +153,7 @@ private const val HR_IBAR_MAX = 37.5
  * 1) [hrRestMask] 골짜기 모델로 휴식을 분류해 골짜기 활동시간(Tv)을 얻고,
  * 2) 평균 강도(ī)와 활동비율(φ)로 보정식을 적용한다 — 느린 연속 수영(심박 골짜기가
  *    실제론 수영)과 휴식 위주 세션(높은 심박 어슬렁거림이 실제론 휴식)을 가른다.
- * 3) 안전장치: 보정량은 Tv의 ±30% 이내, 페이스 하한 1'20"/100m, 기록시간 상한.
+ * 3) 안전장치: 보정량은 Tv의 ±35% 이내, 페이스 하한 1'20"/100m, 기록시간 상한.
  * 차트 휴식 구간은 골짜기 위치·크기 그대로 두되, 총합이 보정된 휴식 총량을 넘으면
  * 긴 골짜기부터 예산만큼만 남긴다 ([pruneRestRanges]) — 페이스와 차트가 일치하도록.
  *
@@ -187,7 +188,7 @@ internal fun estimateActive(
     val phi = valleyActive.toDouble() / recorded
     val psi = HR_W_R + HR_W_I * iBar + HR_W_TV * phi
     var act = recorded * psi
-    act = act.coerceIn(valleyActive * 0.7, valleyActive * 1.3) // 보정량 제한
+    act = act.coerceIn(valleyActive * 0.65, valleyActive * 1.35) // 보정량 제한
     act = act.coerceAtLeast(distanceM * 0.8) // 페이스 하한 1'20"/100m
     act = act.coerceAtMost(recorded.toDouble())
     val activeSeconds = Math.round(act).toInt()

@@ -21,6 +21,8 @@ interface SwimLogRepository {
     suspend fun updateFromHc(id: Long, log: SwimLog)
     /** 그 날짜 모든 행을 서버 보고 완료(synced)로 표시한다. */
     suspend fun markSynced(date: String)
+    /** 서버 보고가 안 된 행이 있는 날짜 목록. */
+    suspend fun getUnsyncedDates(): List<String>
     suspend fun deleteByDate(date: String)
     suspend fun deleteByHcRecordId(hcRecordId: String)
     suspend fun getStats(startDate: String, endDate: String): SwimStats

@@ -30,6 +30,7 @@ class SwimLogRepositoryImpl @Inject constructor(
     override suspend fun updateStrokesById(id: Long, free: Int, breast: Int, back: Int, fly: Int, mixed: Int, kick: Int) =
         dao.updateStrokesById(id, free, breast, back, fly, mixed, kick)
     override suspend fun markSynced(date: String) = dao.markSynced(date)
+    override suspend fun getUnsyncedDates(): List<String> = dao.getUnsyncedDates()
     override suspend fun updateFromHc(id: Long, log: SwimLog) =
         dao.updateFromHc(
             id = id,

@@ -81,6 +81,10 @@ interface SwimLogDao {
     @Query("UPDATE swim_logs SET synced = 1 WHERE date = :date")
     suspend fun markSynced(date: String)
 
+    /** 서버 보고가 안 된 행이 있는 날짜 목록 — 동기화 때 재전송 대상. */
+    @Query("SELECT DISTINCT date FROM swim_logs WHERE synced = 0 ORDER BY date ASC")
+    suspend fun getUnsyncedDates(): List<String>
+
     @Query("DELETE FROM swim_logs WHERE date = :date")
     suspend fun deleteByDate(date: String)
 

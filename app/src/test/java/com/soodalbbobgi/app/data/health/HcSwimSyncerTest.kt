@@ -40,8 +40,10 @@ class HcSwimSyncerTest {
         prefs = mockk(relaxed = true)
         loader = mockk(relaxed = true)
         every { prefs.getChangesToken() } returns null
+        every { prefs.getAlgoVersion() } returns HC_ALGO_VERSION // 재계산 경로 비활성
         coEvery { hcm.getChangesToken() } returns "tok"
         coEvery { hcm.readSwimSessions(any(), any()) } returns listOf(hcSession())
+        coEvery { useCase.getUnsyncedDates() } returns listOf("2026-06-07")
         coEvery { api.getSwimLogs(any(), any()) } returns ApiResponse(false, null, null)
         val session = UserSession().apply { setAuthenticatedUser("u1") }
         syncer = HcSwimSyncer(hcm, useCase, api, prefs, session, loader)
@@ -88,12 +90,43 @@ class HcSwimSyncerTest {
     }
 
     @Test
-    fun `모든 행이 전송된 날짜는 다시 보내지 않는다`() = runTest {
-        coEvery { useCase.getLogsForDate("2026-06-07") } returns listOf(row(synced = true))
+    fun `모든 행이 전송된 상태면 보낼 날짜가 없다`() = runTest {
+        coEvery { useCase.getUnsyncedDates() } returns emptyList()
 
         syncer.sync()
 
         coVerify(exactly = 0) { api.addSwimLog(any()) }
+    }
+
+    @Test
+    fun `평소 동기화는 30일을 읽지 않는다 - 오늘 창만 읽는다`() = runTest {
+        coEvery { useCase.getLogsForDate("2026-06-07") } returns listOf(row(synced = false))
+        coEvery { api.addSwimLog(any()) } returns okResponse(earned = 1)
+
+        syncer.sync()
+
+        // 토큰 초기화 경로의 읽기 창이 이틀(어제~내일)을 넘지 않아야 한다
+        coVerify(exactly = 1) {
+            hcm.readSwimSessions(
+                match { start ->
+                    java.time.Duration.between(start, java.time.Instant.now()).toDays() <= 2
+                },
+                any(),
+            )
+        }
+    }
+
+    @Test
+    fun `알고리즘 버전이 바뀌면 한 번만 30일 재계산을 한다`() = runTest {
+        every { prefs.getAlgoVersion() } returns HC_ALGO_VERSION - 1
+        coEvery { useCase.getLogsForDate("2026-06-07") } returns listOf(row(synced = false))
+        coEvery { api.addSwimLog(any()) } returns okResponse(earned = 1)
+
+        syncer.sync()
+
+        // 오늘 창 1회 + 30일 재계산 1회
+        coVerify(exactly = 2) { hcm.readSwimSessions(any(), any()) }
+        coVerify(exactly = 1) { prefs.saveAlgoVersion(HC_ALGO_VERSION) }
     }
 
     @Test

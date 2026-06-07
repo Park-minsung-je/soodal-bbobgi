@@ -94,9 +94,9 @@ class HrSeriesTest {
         assertFalse("offset 1100", rest[points.indexOfFirst { it.first == 1100 }])
         // 바닥 한가운데는 휴식이다
         assertTrue("offset 700", rest[points.indexOfFirst { it.first == 700 }])
-        // 휴식 총량: 하락 시작(마지막 사인 꼭대기 ~550)~반등 시작(~796) 부근
+        // 휴식 총량: 하락 시작(~596)~상승 시작(~772) — 실제 골짜기(600~780)와 거의 일치
         val count = rest.count { it }
-        assertTrue("rest=$count", count in 200..280)
+        assertTrue("rest=$count", count in 150..210)
     }
 
     @Test
@@ -160,9 +160,10 @@ class HrSeriesTest {
         }
         if (start >= 0) expected.add(points[start].first..points.last().first)
         assertEquals(expected, ranges)
-        // 골짜기 하나 = 구간 하나, 경계는 하락 시작(마지막 꼭대기 ~550)과 반등 시작(~796) 부근
+        // 골짜기 하나 = 구간 하나, 경계는 하락 시작(마지막 꼭대기 ~550)과 상승 시작(~775) 부근
+        // (휴식 끝 = 마지막 연속 상승의 시작 — 상승 구간은 수영)
         assertEquals(1, ranges.size)
         assertTrue("start=${ranges[0].first}", ranges[0].first in 540..645)
-        assertTrue("end=${ranges[0].last}", ranges[0].last in 785..810)
+        assertTrue("end=${ranges[0].last}", ranges[0].last in 755..800)
     }
 }

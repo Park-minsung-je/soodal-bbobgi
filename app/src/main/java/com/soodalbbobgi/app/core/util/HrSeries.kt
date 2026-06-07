@@ -20,7 +20,8 @@ fun encodeHrSeries(points: List<Pair<Int, Int>>, restRanges: List<IntRange> = em
  * 완만한 표류는 기준선이 따라가서 오탐하지 않는다):
  *  - 휴식 시작: 최근 수영 수준([levelWindowSec] 트레일링 최대, [smoothSec] 평활) 대비
  *    [dropDelta] 이상 뚝 떨어질 때 — 하락 시작점(꼭대기)까지 거꾸로 확장
- *  - 휴식 끝: 진행 최저점 대비 [riseDelta] 이상 반등이 시작될 때 (출발 = 상승 시작)
+ *  - 휴식 끝: 진행 최저점 대비 [riseDelta] 반등으로 출발을 확인하면,
+ *    마지막 연속 상승이 시작된 순간까지 되돌린다 (상승 시작 = 수영 시작)
  *  - 샘플 공백 > [gapSec] = 일시정지 경계 (그 너머와는 비교하지 않음)
  *
  * 파라미터는 2026-05-20/31·06-04/05 네 세션을 삼성헬스 실측 페이스와 대조해 적합한 값.
@@ -74,6 +75,10 @@ fun hrRestMask(
             } else {
                 if (sm[i] < restMin) restMin = sm[i]
                 if (sm[i] >= restMin + riseDelta) {
+                    // 출발 확인 — 마지막 연속 상승의 시작까지 휴식을 되돌린다 (상승 = 수영)
+                    var k = i
+                    while (k - 1 >= seg.first && sm[k - 1] < sm[k]) k--
+                    for (q in k..i) rest[q] = false
                     resting = false
                     deque.clear()
                     deque.addLast(i) // 수준 재학습
