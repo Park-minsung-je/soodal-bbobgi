@@ -17,7 +17,6 @@ import com.soodalbbobgi.app.core.util.encodeHrSeries
 import com.soodalbbobgi.app.core.util.hrRestMask
 import com.soodalbbobgi.app.core.util.hrRestRanges
 import com.soodalbbobgi.app.core.util.hrSmoothed
-import com.soodalbbobgi.app.core.util.scaleRestRanges
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
 import java.time.Duration
@@ -104,13 +103,23 @@ internal fun downsampleHr(samples: List<Pair<Instant, Long>>, maxPoints: Int = 1
 }
 
 /**
- * (시각, bpm) 심박 샘플을 첫 샘플 기준 (오프셋초, bpm) 포인트로 변환한다 — 시간순 정렬 포함.
+ * (시각, bpm) 심박 샘플을 첫 샘플 기준 (오프셋초, bpm) 포인트로 변환한다.
+ * 시간순으로 정렬하고, 겹치는 레코드에서 온 같은 초의 중복 샘플은 첫 값만 남긴다
+ * (중복은 dt=0 경계로 휴식 마스크의 세그먼트를 파편화시킨다).
  */
 internal fun hrPoints(samples: List<Pair<Instant, Long>>): List<Pair<Int, Int>> {
     if (samples.isEmpty()) return emptyList()
     val sorted = samples.sortedBy { it.first }
     val base = sorted.first().first
-    return sorted.map { Duration.between(base, it.first).seconds.toInt() to it.second.toInt() }
+    val points = ArrayList<Pair<Int, Int>>(sorted.size)
+    var lastOffset = -1
+    for ((time, bpm) in sorted) {
+        val offset = Duration.between(base, time).seconds.toInt()
+        if (offset == lastOffset) continue
+        lastOffset = offset
+        points.add(offset to bpm.toInt())
+    }
+    return points
 }
 
 /**
@@ -141,7 +150,7 @@ private const val HR_IBAR_MAX = 37.5
  * 2) 평균 강도(ī)와 활동비율(φ)로 보정식을 적용한다 — 느린 연속 수영(심박 골짜기가
  *    실제론 수영)과 휴식 위주 세션(높은 심박 어슬렁거림이 실제론 휴식)을 가른다.
  * 3) 안전장치: 보정량은 Tv의 ±30% 이내, 페이스 하한 1'20"/100m, 기록시간 상한.
- * 차트 휴식 구간은 보정된 휴식 총량에 맞게 스케일해서 페이스와 항상 일치시킨다.
+ * 차트 휴식 구간은 심박이 보여주는 골짜기 위치 그대로 둔다 — 보정은 총량에만 적용된다.
  *
  * @param points (오프셋초, bpm) 목록 — [hrPoints] 결과. 60개 미만이면 추정 포기(null)
  * @param distanceM 세션 거리(미터) — 페이스 하한 클램프용
@@ -179,12 +188,7 @@ internal fun estimateActive(
     act = act.coerceAtMost(recorded.toDouble())
     val activeSeconds = Math.round(act).toInt()
 
-    // 차트 밴드: 휴식 총량이 (기록 - 실운동)과 일치하도록 골짜기 구간을 스케일
-    val ranges = hrRestRanges(points, gapSec = gapSec)
-    val factor = if (recorded > valleyActive) {
-        ((recorded - activeSeconds).toDouble() / (recorded - valleyActive)).coerceIn(0.25, 2.0)
-    } else 1.0
-    return HrEstimate(activeSeconds, scaleRestRanges(ranges, factor))
+    return HrEstimate(activeSeconds, hrRestRanges(points, gapSec = gapSec))
 }
 
 /**

@@ -59,19 +59,6 @@ class HrSeriesTest {
         assertEquals(listOf(5..10), decodeHrRestRanges("0:98|abc,5-10,20-"))
     }
 
-    @Test
-    fun `휴식 구간 스케일은 중심 기준으로 늘리고 줄인다`() {
-        // 절반으로: [100..200] → 중심 150, 반폭 50→25
-        assertEquals(listOf(125..175), scaleRestRanges(listOf(100..200), 0.5))
-        // 1.5배 — 겹치면 병합
-        assertEquals(listOf(75..235), scaleRestRanges(listOf(100..200, 210..230), 1.5))
-        // 1.0배는 그대로, 빈 목록은 빈 목록
-        assertEquals(listOf(100..200), scaleRestRanges(listOf(100..200), 1.0))
-        assertTrue(scaleRestRanges(emptyList(), 2.0).isEmpty())
-        // 음수 시작은 0으로 자른다
-        assertEquals(listOf(0..150), scaleRestRanges(listOf(0..100), 2.0))
-    }
-
     // ── 휴식 마스크 ──────────────────────────────────────────────
 
     /** 수영 구간용 합성 심박 — 주기 60초 ±12bpm 사인 출렁임 (실측처럼 평활 후에도 굴곡이 남는다). */

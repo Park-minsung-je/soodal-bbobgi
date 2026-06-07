@@ -68,6 +68,13 @@ class ActiveSecondsTest {
     }
 
     @Test
+    fun `겹치는 레코드의 중복 샘플은 오프셋 기준으로 제거된다`() {
+        // 같은 초의 중복 샘플은 dt=0 경계로 세그먼트를 파편화시키므로 첫 값만 남긴다
+        val samples = listOf(t(1000) to 150L, t(1001) to 151L, t(1001) to 153L, t(1002) to 152L)
+        assertEquals(listOf(0 to 150, 1 to 151, 2 to 152), hrPoints(samples))
+    }
+
+    @Test
     fun `골짜기 세션 추정은 골짜기 추정의 30퍼 보정 한도 안에 있다`() {
         val points = valleyPoints()
         val rest = com.soodalbbobgi.app.core.util.hrRestMask(points)
@@ -109,16 +116,12 @@ class ActiveSecondsTest {
     }
 
     @Test
-    fun `차트 휴식 구간은 보정된 휴식 총량에 맞게 스케일된다`() {
+    fun `차트 휴식 구간은 골짜기 구간 그대로다`() {
+        // 보정은 세션 총량에만 적용 — 휴식 위치는 심박이 보여주는 골짜기 그대로 표시한다
+        // (스케일/병합하면 인접 휴식이 한 덩어리로 보여 차트가 왜곡된다)
         val points = valleyPoints()
         val est = estimateActive(points, distanceM = 500)!!
-        // 구간 총합 ≈ 기록시간 - 실운동시간 (스케일 클램프·반올림 오차 허용)
-        val bandSum = est.restRanges.sumOf { it.last - it.first }
-        val restSec = 1439 - est.activeSeconds
-        org.junit.Assert.assertTrue(
-            "bands=$bandSum, rest=$restSec",
-            bandSum in (restSec * 0.8).toInt()..(restSec * 1.2).toInt(),
-        )
+        assertEquals(com.soodalbbobgi.app.core.util.hrRestRanges(points), est.restRanges)
     }
 
     @Test

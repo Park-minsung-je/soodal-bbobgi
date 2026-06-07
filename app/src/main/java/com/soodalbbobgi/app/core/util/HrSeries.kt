@@ -116,32 +116,6 @@ fun hrSmoothed(points: List<Pair<Int, Int>>, smoothSec: Int = 15): DoubleArray {
 }
 
 /**
- * 휴식 구간을 각 구간의 중심 기준으로 [factor]배 늘리거나 줄인다.
- * 보정된 실운동시간과 차트의 휴식 총량이 일치하도록 맞출 때 쓴다.
- * 스케일 후 겹치는 구간은 병합하고, 음수 시작은 0으로 자른다.
- */
-fun scaleRestRanges(ranges: List<IntRange>, factor: Double): List<IntRange> {
-    if (ranges.isEmpty() || factor == 1.0) return ranges
-    val scaled = ranges.map { range ->
-        val center = (range.first + range.last) / 2.0
-        val half = (range.last - range.first) * factor / 2.0
-        val start = Math.round(center - half).toInt().coerceAtLeast(0)
-        val end = Math.round(center + half).toInt()
-        start..end
-    }
-    val merged = mutableListOf<IntRange>()
-    for (range in scaled.sortedBy { it.first }) {
-        val prev = merged.lastOrNull()
-        if (prev != null && range.first <= prev.last) {
-            merged[merged.size - 1] = prev.first..maxOf(prev.last, range.last)
-        } else {
-            merged.add(range)
-        }
-    }
-    return merged
-}
-
-/**
  * [hrRestMask]의 휴식 마스크를 (시작오프셋..끝오프셋) 연속 구간 목록으로 접는다.
  * 동기화 시 원본 샘플로 계산해 [encodeHrSeries]에 함께 저장한다.
  */
