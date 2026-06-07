@@ -103,38 +103,6 @@ class AssetManagerTest {
         assertThat(progress.removed).isEqualTo(0)
     }
 
-    @Test
-    fun `매니페스트가 최신이어도 디스크에 파일이 없으면 다시 받는다`() = runTest {
-        // 자동 백업 등으로 manifest.json만 복원되고 실제 파일이 없는 상태 —
-        // diff가 매니페스트 해시만 믿으면 영영 안 받는다. 디스크 존재 여부도 봐야 한다.
-        val helloBytes = "hello".toByteArray()
-        val helloHash = sha256("hello")
-        store.saveLocalManifest(
-            AssetManifest(
-                version = "1.0.0",
-                updatedAt = 100L,
-                files = listOf(AssetFile("char/c1.png", helloHash, helloBytes.size.toLong())),
-            ),
-        )
-        // 파일은 디스크에 없음 (매니페스트만 존재)
-        coEvery { api.getAssetManifest() } returns ApiResponse(
-            true,
-            AssetManifestData(
-                "1.0.0",
-                100L,
-                listOf(ServerAssetFile("char/c1.png", helloHash, helloBytes.size.toLong())),
-            ),
-            null,
-        )
-        coEvery { api.downloadAssetFile("char/c1.png") } returns successBody(helloBytes)
-
-        val result = manager.sync()
-
-        assertThat(result.isSuccess).isTrue()
-        assertThat(store.exists("char/c1.png")).isTrue()
-        coVerify(exactly = 1) { api.downloadAssetFile("char/c1.png") }
-    }
-
     // ─── 증분 동기화 ───────────────────────────────────────────
 
     @Test

@@ -19,12 +19,9 @@
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
 
-    <!-- allowBackup=false: 자동 백업이 재설치 때 manifest.json 등 일부 파일만 복원해
-         에셋/동기화 상태가 어긋난다. 서버가 진실의 소스이므로 재설치는 깨끗한 상태에서
-         서버 복원으로 시작한다. -->
     <application
         android:name=".SoodalBbobgiApp"
-        android:allowBackup="false"
+        android:allowBackup="true"
         android:icon="@android:drawable/sym_def_app_icon"
         android:label="@string/app_name"
         android:supportsRtl="true"

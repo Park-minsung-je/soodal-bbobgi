@@ -85,10 +85,8 @@ class AssetManager @Inject constructor(
             val serverByPath: Map<String, String> =
                 serverManifest.files.associate { it.path to it.hash }
 
-            // 매니페스트 해시가 같아도 디스크에 파일이 없으면 다시 받는다 —
-            // 자동 백업 복원 등으로 manifest.json만 살아남은 상태를 자가 치유하기 위함.
             val toDownload: List<AssetFile> =
-                serverManifest.files.filter { localByPath[it.path] != it.hash || !store.exists(it.path) }
+                serverManifest.files.filter { localByPath[it.path] != it.hash }
             val toDelete: List<String> =
                 localByPath.keys.filter { it !in serverByPath }
 
