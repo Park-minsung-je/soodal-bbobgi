@@ -111,6 +111,14 @@ class HcSwimSyncer @Inject constructor(
                 if (rows.isNotEmpty()) {
                     totalEarned += postDayAggregate(date, rows)
                 }
+            } catch (e: retrofit2.HttpException) {
+                if (e.code() in 400..499) {
+                    // 서버의 명시적 거부(409 중복 등) — 재시도 무의미, 전송됨 처리
+                    swimLogUseCase.markSynced(date)
+                    Timber.w("수영 기록 전송 거부(HTTP %d) — 전송됨 처리: %s", e.code(), date)
+                } else {
+                    Timber.w(e, "수영 기록 전송 실패: $date")
+                }
             } catch (e: Exception) {
                 Timber.w(e, "수영 기록 전송 실패: $date")
             }

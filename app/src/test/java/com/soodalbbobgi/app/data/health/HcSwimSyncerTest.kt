@@ -141,6 +141,22 @@ class HcSwimSyncerTest {
     }
 
     @Test
+    fun `서버가 409로 거부하면 전송됨 처리해 재전송 루프를 막는다`() = runTest {
+        coEvery { useCase.getLogsForDate("2026-06-07") } returns listOf(row(synced = false))
+        coEvery { api.addSwimLog(any()) } throws retrofit2.HttpException(
+            retrofit2.Response.error<Any>(
+                409,
+                okhttp3.ResponseBody.create(null, "{\"success\":false}"),
+            ),
+        )
+
+        val earned = syncer.sync()
+
+        assertThat(earned).isEqualTo(0)
+        coVerify(exactly = 1) { useCase.markSynced("2026-06-07") }
+    }
+
+    @Test
     fun `서버가 거부해도 전송됨 처리해 재전송 루프를 막는다`() = runTest {
         coEvery { useCase.getLogsForDate("2026-06-07") } returns listOf(row(synced = false))
         coEvery { api.addSwimLog(any()) } returns ApiResponse(false, null, null)
