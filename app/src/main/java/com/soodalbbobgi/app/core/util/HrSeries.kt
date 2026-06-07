@@ -142,6 +142,30 @@ fun hrRestRanges(
 }
 
 /**
+ * 휴식 구간을 예산(보정된 휴식 총량) 안에서 추려낸다.
+ * 골짜기 총합이 예산을 넘으면 — 즉 보정식이 "이 중 일부는 느린 수영이었다"고 판단하면 —
+ * 길수록 진짜 휴식일 가능성이 높으므로 긴 골짜기부터 예산만큼 채택한다.
+ * 위치·크기는 변형하지 않아 차트가 심박 모양과 어긋나지 않는다.
+ *
+ * @param budgetSec 보정된 휴식 총량(초) = 기록시간 - 실운동시간
+ */
+fun pruneRestRanges(ranges: List<IntRange>, budgetSec: Long): List<IntRange> {
+    if (budgetSec <= 0) return emptyList()
+    if (ranges.isEmpty()) return ranges
+    val total = ranges.sumOf { (it.last - it.first).toLong() }
+    if (total <= budgetSec) return ranges
+    val kept = mutableListOf<IntRange>()
+    var sum = 0L
+    for (range in ranges.sortedByDescending { it.last - it.first }) {
+        val len = (range.last - range.first).toLong()
+        if (sum + len > budgetSec) continue
+        kept.add(range)
+        sum += len
+    }
+    return kept.sortedBy { it.first }
+}
+
+/**
  * 직렬화된 심박 시계열을 복원한다. 깨진 토큰은 건너뛰고, 휴식 구간 부분('|' 뒤)은 무시한다.
  */
 fun decodeHrSeries(raw: String?): List<Pair<Int, Int>> {

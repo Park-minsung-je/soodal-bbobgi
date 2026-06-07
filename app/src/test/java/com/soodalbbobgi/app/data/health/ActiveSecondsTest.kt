@@ -116,9 +116,9 @@ class ActiveSecondsTest {
     }
 
     @Test
-    fun `차트 휴식 구간은 골짜기 구간 그대로다`() {
-        // 보정은 세션 총량에만 적용 — 휴식 위치는 심박이 보여주는 골짜기 그대로 표시한다
-        // (스케일/병합하면 인접 휴식이 한 덩어리로 보여 차트가 왜곡된다)
+    fun `차트 휴식 구간은 골짜기 위치 그대로다 - 예산이 충분하면 전부 유지`() {
+        // 휴식 위치·크기는 변형하지 않는다 (스케일/병합하면 차트가 심박 모양과 어긋난다).
+        // 이 데이터는 골짜기 총합(~250초) < 보정 휴식 총량(~500초)이라 전부 유지된다.
         val points = valleyPoints()
         val est = estimateActive(points, distanceM = 500)!!
         assertEquals(com.soodalbbobgi.app.core.util.hrRestRanges(points), est.restRanges)

@@ -29,6 +29,7 @@ class SwimLogRepositoryImpl @Inject constructor(
         dao.updateStrokes(date, free, breast, back, fly, mixed, kick)
     override suspend fun updateStrokesById(id: Long, free: Int, breast: Int, back: Int, fly: Int, mixed: Int, kick: Int) =
         dao.updateStrokesById(id, free, breast, back, fly, mixed, kick)
+    override suspend fun markSynced(date: String) = dao.markSynced(date)
     override suspend fun updateFromHc(id: Long, log: SwimLog) =
         dao.updateFromHc(
             id = id,
@@ -59,7 +60,7 @@ private fun SwimLogEntity.toDomain() = SwimLog(
     strokeFreestyleM = strokeFreestyleM, strokeBreastM = strokeBreastM,
     strokeBackM = strokeBackM, strokeFlyM = strokeFlyM,
     strokeMixedM = strokeMixedM, strokeKickM = strokeKickM,
-    source = source, shellsEarned = shellsEarned,
+    source = source, shellsEarned = shellsEarned, synced = synced,
     hcRecordId = hcRecordId,
     maxHr = maxHr, minHr = minHr, activeSeconds = activeSeconds, hrSeries = hrSeries,
 )
@@ -71,7 +72,7 @@ private fun SwimLog.toEntity() = SwimLogEntity(
     strokeFreestyleM = strokeFreestyleM, strokeBreastM = strokeBreastM,
     strokeBackM = strokeBackM, strokeFlyM = strokeFlyM,
     strokeMixedM = strokeMixedM, strokeKickM = strokeKickM,
-    source = source, shellsEarned = shellsEarned,
+    source = source, shellsEarned = shellsEarned, synced = synced,
     hcRecordId = hcRecordId,
     maxHr = maxHr, minHr = minHr, activeSeconds = activeSeconds, hrSeries = hrSeries,
     createdAt = System.currentTimeMillis(),

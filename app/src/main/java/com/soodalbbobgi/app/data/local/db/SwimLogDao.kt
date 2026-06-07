@@ -77,6 +77,10 @@ interface SwimLogDao {
     )
     suspend fun updateStrokesById(id: Long, free: Int, breast: Int, back: Int, fly: Int, mixed: Int, kick: Int)
 
+    /** 그 날짜 모든 행을 서버 보고 완료로 표시한다. */
+    @Query("UPDATE swim_logs SET synced = 1 WHERE date = :date")
+    suspend fun markSynced(date: String)
+
     @Query("DELETE FROM swim_logs WHERE date = :date")
     suspend fun deleteByDate(date: String)
 

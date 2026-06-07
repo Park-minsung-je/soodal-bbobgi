@@ -17,6 +17,7 @@ import com.soodalbbobgi.app.core.util.encodeHrSeries
 import com.soodalbbobgi.app.core.util.hrRestMask
 import com.soodalbbobgi.app.core.util.hrRestRanges
 import com.soodalbbobgi.app.core.util.hrSmoothed
+import com.soodalbbobgi.app.core.util.pruneRestRanges
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
 import java.time.Duration
@@ -152,7 +153,8 @@ private const val HR_IBAR_MAX = 37.5
  * 2) 평균 강도(ī)와 활동비율(φ)로 보정식을 적용한다 — 느린 연속 수영(심박 골짜기가
  *    실제론 수영)과 휴식 위주 세션(높은 심박 어슬렁거림이 실제론 휴식)을 가른다.
  * 3) 안전장치: 보정량은 Tv의 ±30% 이내, 페이스 하한 1'20"/100m, 기록시간 상한.
- * 차트 휴식 구간은 심박이 보여주는 골짜기 위치 그대로 둔다 — 보정은 총량에만 적용된다.
+ * 차트 휴식 구간은 골짜기 위치·크기 그대로 두되, 총합이 보정된 휴식 총량을 넘으면
+ * 긴 골짜기부터 예산만큼만 남긴다 ([pruneRestRanges]) — 페이스와 차트가 일치하도록.
  *
  * @param points (오프셋초, bpm) 목록 — [hrPoints] 결과. 60개 미만이면 추정 포기(null)
  * @param distanceM 세션 거리(미터) — 페이스 하한 클램프용
@@ -190,7 +192,10 @@ internal fun estimateActive(
     act = act.coerceAtMost(recorded.toDouble())
     val activeSeconds = Math.round(act).toInt()
 
-    return HrEstimate(activeSeconds, hrRestRanges(points, gapSec = gapSec))
+    // 차트 밴드: 골짜기 총합이 보정된 휴식 총량을 넘으면(일부는 느린 수영으로 판정)
+    // 긴 골짜기부터 예산만큼만 남긴다 — 페이스와 차트가 같은 이야기를 하게.
+    val ranges = pruneRestRanges(hrRestRanges(points, gapSec = gapSec), recorded - activeSeconds)
+    return HrEstimate(activeSeconds, ranges)
 }
 
 /**

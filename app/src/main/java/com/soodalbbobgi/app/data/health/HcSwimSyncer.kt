@@ -68,55 +68,54 @@ class HcSwimSyncer @Inject constructor(
 
         var totalEarned = 0
         for ((date, daySessions) in sessions.groupBy { it.date }) {
-            var added = 0
-            var hadRows = true
             try {
-                hadRows = swimLogUseCase.getLogsForDate(date).isNotEmpty()
                 for (session in daySessions) {
-                    added += swimLogUseCase.syncSwimLog(userSession.userId, session.toLog())
+                    swimLogUseCase.syncSwimLog(userSession.userId, session.toLog())
                 }
             } catch (e: Exception) {
                 Timber.w(e, "수영 세션 저장 실패: $date")
             }
-            // 날짜에 기록이 처음 생겼을 때만 서버에 일 집계 보고 (조개 지급 요청).
-            // 이미 행이 있던 날짜는 서버도 알고 있거나(서버산) 이전에 보고된 날이다.
-            if (!hadRows && added > 0) {
-                totalEarned += postDayAggregate(date)
+            // 서버에 아직 보고 안 된(synced=false) 행이 있는 날짜는 일 집계를 전송한다.
+            // 네트워크 실패면 미전송으로 남아 다음 동기화에 자동 재시도된다.
+            try {
+                val rows = swimLogUseCase.getLogsForDate(date)
+                if (rows.isNotEmpty() && rows.any { !it.synced }) {
+                    totalEarned += postDayAggregate(date, rows)
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "수영 기록 전송 실패: $date")
             }
         }
         return totalEarned
     }
 
-    /** 그 날짜의 세션 합계를 서버에 POST하고 지급된 조개 수를 반환한다. */
-    private suspend fun postDayAggregate(date: String): Int {
-        return try {
-            val rows = swimLogUseCase.getLogsForDate(date)
-            if (rows.isEmpty()) return 0
-            val response = soodalApi.addSwimLog(
-                SwimLogRequest(
-                    date = date,
-                    distanceMeters = rows.sumOf { it.distanceMeters },
-                    durationSeconds = rows.sumOf { it.durationSeconds },
-                    calories = rows.sumOf { it.calories },
-                    strokeFreestyleM = 0, strokeBreastM = 0,
-                    strokeBackM = 0, strokeFlyM = 0,
-                    strokeMixedM = rows.sumOf { it.distanceMeters }, strokeKickM = 0,
-                    source = "health_connect",
-                )
+    /**
+     * 그 날짜의 세션 합계를 서버에 POST하고 지급된 조개 수를 반환한다.
+     * 서버 응답을 받았으면(수락이든 거부든) 전송됨으로 표시한다 —
+     * 거부(이미 있는 날짜 등)를 무한 재시도하지 않기 위함. 예외는 호출자가 처리.
+     */
+    private suspend fun postDayAggregate(date: String, rows: List<SwimLog>): Int {
+        val response = soodalApi.addSwimLog(
+            SwimLogRequest(
+                date = date,
+                distanceMeters = rows.sumOf { it.distanceMeters },
+                durationSeconds = rows.sumOf { it.durationSeconds },
+                calories = rows.sumOf { it.calories },
+                strokeFreestyleM = 0, strokeBreastM = 0,
+                strokeBackM = 0, strokeFlyM = 0,
+                strokeMixedM = rows.sumOf { it.distanceMeters }, strokeKickM = 0,
+                source = "health_connect",
             )
-            if (response.success && response.data != null) {
-                val earned = response.data.shellReward?.earned ?: 0
-                // 서버가 지급한 조개량을 로컬 swim_log에도 즉시 반영 (캘린더 표시용)
-                if (earned > 0) {
-                    swimLogUseCase.updateShellsEarned(date, earned)
-                }
-                response.data.shellReward?.newBalance?.let { appStateLoader.applyShellReward(it) }
-                earned
-            } else 0
-        } catch (e: Exception) {
-            Timber.w(e, "수영 기록 전송 실패: $date")
-            0
+        )
+        swimLogUseCase.markSynced(date)
+        if (!response.success || response.data == null) return 0
+        val earned = response.data.shellReward?.earned ?: 0
+        // 서버가 지급한 조개량을 로컬 swim_log에도 즉시 반영 (캘린더 표시용)
+        if (earned > 0) {
+            swimLogUseCase.updateShellsEarned(date, earned)
         }
+        response.data.shellReward?.newBalance?.let { appStateLoader.applyShellReward(it) }
+        return earned
     }
 
     private suspend fun processDeletedRecords(deletedRecordIds: List<String>) {
@@ -160,6 +159,7 @@ class HcSwimSyncer @Inject constructor(
                             strokeKickM = serverLog.strokeKickM,
                             source = serverLog.source,
                             shellsEarned = serverLog.shellsEarned,
+                            synced = true, // 서버에서 온 기록 — 되돌려 보낼 필요 없음
                         )
                     )
                 }

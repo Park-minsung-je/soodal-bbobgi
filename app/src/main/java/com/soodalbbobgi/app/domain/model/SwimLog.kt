@@ -17,6 +17,8 @@ data class SwimLog(
     val strokeKickM: Int = 0,
     val source: String,
     val shellsEarned: Int = 0,
+    /** 서버에 일 집계가 보고된 행인지 — false면 다음 동기화 때 재전송된다. */
+    val synced: Boolean = false,
     val hcRecordId: String? = null,
     /** 세션 중 최대/최소 심박(bpm). 심박 기록이 없으면 null. */
     val maxHr: Int? = null,

@@ -59,6 +59,18 @@ class HrSeriesTest {
         assertEquals(listOf(5..10), decodeHrRestRanges("0:98|abc,5-10,20-"))
     }
 
+    @Test
+    fun `휴식 구간 추림은 예산 안에서 긴 골짜기부터 남긴다`() {
+        val ranges = listOf(100..150, 300..500, 700..760, 900..1100)
+        // 총합 50+200+60+200=510 > 예산 420 → 긴 것(200,200)부터, 60·50은 예산 초과로 제외
+        assertEquals(listOf(300..500, 900..1100), pruneRestRanges(ranges, 420))
+        // 예산이 충분하면 그대로
+        assertEquals(ranges, pruneRestRanges(ranges, 600))
+        // 예산 0 이하면 빈 목록
+        assertTrue(pruneRestRanges(ranges, 0).isEmpty())
+        assertTrue(pruneRestRanges(emptyList(), 100).isEmpty())
+    }
+
     // ── 휴식 마스크 ──────────────────────────────────────────────
 
     /** 수영 구간용 합성 심박 — 주기 60초 ±12bpm 사인 출렁임 (실측처럼 평활 후에도 굴곡이 남는다). */

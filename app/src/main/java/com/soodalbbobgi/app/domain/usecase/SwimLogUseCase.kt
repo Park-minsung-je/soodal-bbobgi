@@ -79,6 +79,9 @@ class SwimLogUseCase @Inject constructor(
     suspend fun getLogsForDate(date: String): List<SwimLog> =
         swimLogRepo.getLogsForDateOnce(date)
 
+    /** 그 날짜 모든 행을 서버 보고 완료(synced)로 표시한다. */
+    suspend fun markSynced(date: String) = swimLogRepo.markSynced(date)
+
     /** HC sync POST /swim-logs 응답으로 받은 조개 지급량을 같은 날짜 로컬 row에 반영. */
     suspend fun updateShellsEarned(date: String, shellsEarned: Int) =
         swimLogRepo.updateShellsEarned(date, shellsEarned)
