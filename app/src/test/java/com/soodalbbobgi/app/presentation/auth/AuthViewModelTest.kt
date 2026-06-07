@@ -20,6 +20,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,7 +71,8 @@ class AuthViewModelTest {
 
     @After fun tearDown() { Dispatchers.resetMain() }
 
-    private fun vm() = AuthViewModel(kakao, google, api, tokenStore, appStateLoader, hc, assetManager, hcSwimSyncer)
+    private fun vm() = AuthViewModel(kakao, google, api, tokenStore, appStateLoader, hc, assetManager, hcSwimSyncer,
+        CoroutineScope(UnconfinedTestDispatcher()))
 
     @Test
     fun `loginWithGoogle on new user routes to Onboarding`() = runTest {

@@ -107,8 +107,7 @@ fun OnboardingPermissionScreen(
         permissionGranted = grantedPermissions.isNotEmpty()
         Timber.d("Health Connect 권한 결과: granted=$permissionGranted (${grantedPermissions.size}/${healthPermissions.size})")
         if (permissionGranted) {
-            // 권한 허용 직후 에셋·HC 동기화를 백그라운드로 시작한다.
-            // 화면 전환 전에 시작해야 viewModelScope가 살아 있어 동기화가 진행된다.
+            // 권한 허용 직후 에셋·HC 동기화를 시작한다 (앱 스코프라 화면 전환과 무관하게 완료됨).
             viewModel.onPermissionGranted()
             onConnect()
         } else {
