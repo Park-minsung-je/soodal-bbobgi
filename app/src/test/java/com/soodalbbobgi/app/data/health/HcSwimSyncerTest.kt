@@ -40,7 +40,6 @@ class HcSwimSyncerTest {
         prefs = mockk(relaxed = true)
         loader = mockk(relaxed = true)
         every { prefs.getChangesToken() } returns null
-        every { prefs.getAlgoVersion() } returns HC_ALGO_VERSION // 재계산 경로 비활성
         coEvery { hcm.getChangesToken() } returns "tok"
         coEvery { hcm.readSwimSessions(any(), any()) } returns listOf(hcSession())
         coEvery { useCase.getUnsyncedDates() } returns listOf("2026-06-07")
@@ -114,19 +113,6 @@ class HcSwimSyncerTest {
                 any(),
             )
         }
-    }
-
-    @Test
-    fun `알고리즘 버전이 바뀌면 한 번만 30일 재계산을 한다`() = runTest {
-        every { prefs.getAlgoVersion() } returns HC_ALGO_VERSION - 1
-        coEvery { useCase.getLogsForDate("2026-06-07") } returns listOf(row(synced = false))
-        coEvery { api.addSwimLog(any()) } returns okResponse(earned = 1)
-
-        syncer.sync()
-
-        // 오늘 창 1회 + 30일 재계산 1회
-        coVerify(exactly = 2) { hcm.readSwimSessions(any(), any()) }
-        coVerify(exactly = 1) { prefs.saveAlgoVersion(HC_ALGO_VERSION) }
     }
 
     @Test

@@ -12,18 +12,13 @@ import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// 페이스/휴식구간 알고리즘 버전 — 계산 방식이 바뀌면 +1 해서
-// 기존 기록을 한 번만 다시 계산하게 한다.
-internal const val HC_ALGO_VERSION = 2
-
 /**
  * HC ↔ 로컬 ↔ 서버 수영 기록 동기화 오케스트레이터 — Splash 자동 동기화와 홈 수동 동기화가 공유한다.
  *
  * 하루 여러 세션을 전제로 하며 HC 세션의 정체성은 hcRecordId다. 매 동기화는 가볍게:
  * 1) 변경 토큰으로 추가/수정/삭제 변경분만 처리 (토큰이 없거나 만료면 오늘 기록만 읽고 새 토큰 발급)
- * 2) 알고리즘 버전이 바뀐 빌드의 첫 동기화에만 — 최근 30일 기록의 페이스·휴식구간을 한 번 재계산
- * 3) 서버에 아직 보고 안 된(synced=false) 날짜의 일 집계를 전송 — 실패해도 다음 동기화에 재시도
- * 4) 서버 pull — 로컬에 없는 과거 날짜를 서버 백업에서 복원
+ * 2) 서버에 아직 보고 안 된(synced=false) 날짜의 일 집계를 전송 — 실패해도 다음 동기화에 재시도
+ * 3) 서버 pull — 로컬에 없는 과거 날짜를 서버 백업에서 복원
  */
 @Singleton
 class HcSwimSyncer @Inject constructor(
@@ -42,7 +37,6 @@ class HcSwimSyncer @Inject constructor(
      */
     suspend fun sync(): Int {
         syncChanges()
-        refreshIfAlgoChanged()
         val earned = pushUnsyncedDates()
         pullServerSwimLogs()
         return earned
@@ -69,26 +63,6 @@ class HcSwimSyncer @Inject constructor(
         val end = now.toLocalDate().plusDays(1).atStartOfDay(zone).toInstant()
         for (session in healthConnectManager.readSwimSessions(start, end)) upsert(session)
         hcSyncPreferences.saveChangesToken(token)
-    }
-
-    /**
-     * 페이스·휴식구간 알고리즘이 바뀐 빌드의 첫 동기화에만 최근 30일 기록을 다시 읽어
-     * 기존 행의 실운동시간과 휴식구간을 재계산한다. 평소 동기화에는 실행되지 않는다.
-     */
-    private suspend fun refreshIfAlgoChanged() {
-        if (hcSyncPreferences.getAlgoVersion() == HC_ALGO_VERSION) return
-        try {
-            val zone = ZoneId.systemDefault()
-            val today = LocalDate.now()
-            val start = today.minusDays(29).atStartOfDay(zone).toInstant()
-            val end = today.plusDays(1).atStartOfDay(zone).toInstant()
-            for (session in healthConnectManager.readSwimSessions(start, end)) upsert(session)
-            hcSyncPreferences.saveAlgoVersion(HC_ALGO_VERSION)
-            Timber.d("알고리즘 v%d 재계산 완료", HC_ALGO_VERSION)
-        } catch (e: Exception) {
-            // 버전을 저장하지 않아 다음 동기화에 다시 시도된다
-            Timber.w(e, "알고리즘 변경 재계산 실패")
-        }
     }
 
     private suspend fun upsert(session: SwimSession) {

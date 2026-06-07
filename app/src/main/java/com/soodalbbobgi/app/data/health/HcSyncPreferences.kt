@@ -29,16 +29,7 @@ class HcSyncPreferences @Inject constructor(
         prefs.edit().remove(KEY_CHANGES_TOKEN).apply()
     }
 
-    /** 마지막으로 재계산을 마친 페이스 알고리즘 버전. 없으면 0. */
-    fun getAlgoVersion(): Int = prefs.getInt(KEY_ALGO_VERSION, 0)
-
-    /** 페이스 알고리즘 버전을 저장한다 (재계산 완료 표시). */
-    fun saveAlgoVersion(version: Int) {
-        prefs.edit().putInt(KEY_ALGO_VERSION, version).apply()
-    }
-
     companion object {
         private const val KEY_CHANGES_TOKEN = "hc_changes_token"
-        private const val KEY_ALGO_VERSION = "hc_algo_version"
     }
 }
