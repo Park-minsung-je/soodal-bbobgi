@@ -3,9 +3,12 @@ package com.soodalbbobgi.app.presentation.auth
 import android.app.Activity
 import com.google.common.truth.Truth.assertThat
 import com.soodalbbobgi.app.core.state.AppStateLoader
+import com.soodalbbobgi.app.data.asset.AssetManager
+import com.soodalbbobgi.app.data.asset.AssetSyncProgress
 import com.soodalbbobgi.app.data.auth.GoogleAuthManager
 import com.soodalbbobgi.app.data.auth.KakaoAuthManager
 import com.soodalbbobgi.app.data.auth.TokenStore
+import com.soodalbbobgi.app.data.health.HcSwimSyncer
 import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.data.remote.dto.ApiError
@@ -15,9 +18,11 @@ import com.soodalbbobgi.app.data.remote.dto.GoogleAuthRequest
 import com.soodalbbobgi.app.data.remote.dto.UserData
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -31,6 +36,7 @@ import org.junit.Test
  *
  * 카카오 분기는 패턴이 동일하므로 한쪽 검증으로 양쪽 신뢰도를 확보한다.
  * Credential Manager/네트워크/Health Connect는 모두 mockk로 대체.
+ * 재설치 직후 로그인 후 에셋·HC 동기화 트리거도 함께 검증한다.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class AuthViewModelTest {
@@ -40,6 +46,8 @@ class AuthViewModelTest {
     private lateinit var tokenStore: TokenStore
     private lateinit var appStateLoader: AppStateLoader
     private lateinit var hc: HealthConnectManager
+    private lateinit var assetManager: AssetManager
+    private lateinit var hcSwimSyncer: HcSwimSyncer
     private lateinit var activity: Activity
 
     @Before
@@ -51,13 +59,18 @@ class AuthViewModelTest {
         tokenStore = mockk(relaxed = true)
         appStateLoader = mockk(relaxed = true)
         hc = mockk(relaxed = true)
+        assetManager = mockk(relaxed = true)
+        hcSwimSyncer = mockk(relaxed = true)
         activity = mockk(relaxed = true)
         coEvery { appStateLoader.loadAll() } returns Result.success(Unit)
+        coEvery { assetManager.sync() } returns Result.success(Unit)
+        every { assetManager.progress } returns MutableStateFlow(AssetSyncProgress.Idle)
+        coEvery { hcSwimSyncer.sync() } returns 0
     }
 
     @After fun tearDown() { Dispatchers.resetMain() }
 
-    private fun vm() = AuthViewModel(kakao, google, api, tokenStore, appStateLoader, hc)
+    private fun vm() = AuthViewModel(kakao, google, api, tokenStore, appStateLoader, hc, assetManager, hcSwimSyncer)
 
     @Test
     fun `loginWithGoogle on new user routes to Onboarding`() = runTest {
@@ -169,6 +182,73 @@ class AuthViewModelTest {
 
         // 첫 번째 호출만 dispatch
         coVerify(exactly = 1) { google.signIn(activity) }
+    }
+
+    // ── 재설치 직후 동기화 트리거 검증 ──────────────────────────────────────
+
+    @Test
+    fun `loginWithGoogle triggers assetManager sync after success`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(any()) } returns ApiResponse(
+            success = true,
+            data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")),
+            error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns true
+
+        vm().loginWithGoogle(activity)
+
+        // 에셋 동기화가 로그인 성공 후 반드시 호출되어야 한다 (증상 1 수정 확인)
+        coVerify { assetManager.sync() }
+    }
+
+    @Test
+    fun `loginWithGoogle triggers HC sync when permission granted`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(any()) } returns ApiResponse(
+            success = true,
+            data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")),
+            error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns true
+
+        vm().loginWithGoogle(activity)
+
+        // HC 권한이 있으면 수영 기록 동기화도 트리거되어야 한다 (증상 2 수정 확인)
+        coVerify { hcSwimSyncer.sync() }
+    }
+
+    @Test
+    fun `loginWithGoogle skips HC sync when no permission`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(any()) } returns ApiResponse(
+            success = true,
+            data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")),
+            error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns false
+
+        vm().loginWithGoogle(activity)
+
+        // HC 권한이 없으면 HC 동기화를 건너뛰어야 한다
+        coVerify(exactly = 0) { hcSwimSyncer.sync() }
+        // 에셋 동기화는 권한 무관하게 항상 실행되어야 한다
+        coVerify { assetManager.sync() }
+    }
+
+    @Test
+    fun `loginWithGoogle does not trigger sync on server error`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(any()) } returns ApiResponse(
+            success = false, data = null,
+            error = ApiError("INVALID_TOKEN", "bad token"),
+        )
+
+        vm().loginWithGoogle(activity)
+
+        // 로그인 실패 시 동기화 트리거 없음
+        coVerify(exactly = 0) { assetManager.sync() }
+        coVerify(exactly = 0) { hcSwimSyncer.sync() }
     }
 
     private fun sampleUser(nickname: String?) = UserData(
