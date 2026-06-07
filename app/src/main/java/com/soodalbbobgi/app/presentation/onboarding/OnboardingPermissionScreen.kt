@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.health.connect.client.PermissionController
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.ui.ButtonStyle
 import com.soodalbbobgi.app.core.ui.SoodalButton
@@ -46,7 +47,11 @@ import timber.log.Timber
  * @param onSkip "나중에 하기" 콜백
  */
 @Composable
-fun OnboardingPermissionScreen(onConnect: () -> Unit, onSkip: () -> Unit) {
+fun OnboardingPermissionScreen(
+    onConnect: () -> Unit,
+    onSkip: () -> Unit,
+    viewModel: OnboardingPermissionViewModel = hiltViewModel(),
+) {
     val context = LocalContext.current
     val colors = SoodalDesign.colors
 
@@ -102,6 +107,8 @@ fun OnboardingPermissionScreen(onConnect: () -> Unit, onSkip: () -> Unit) {
         permissionGranted = grantedPermissions.isNotEmpty()
         Timber.d("Health Connect 권한 결과: granted=$permissionGranted (${grantedPermissions.size}/${healthPermissions.size})")
         if (permissionGranted) {
+            // 권한 허용 직후 에셋·HC 동기화를 시작한다 (앱 스코프라 화면 전환과 무관하게 완료됨).
+            viewModel.onPermissionGranted()
             onConnect()
         } else {
             errorMessage = "권한이 허용되지 않았어요. 다시 시도하거나 나중에 설정에서 허용할 수 있어요."
