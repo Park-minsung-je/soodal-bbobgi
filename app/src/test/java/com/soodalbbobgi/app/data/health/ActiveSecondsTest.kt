@@ -75,12 +75,22 @@ class ActiveSecondsTest {
     }
 
     @Test
-    fun `골짜기 세션 추정은 골짜기 추정의 35퍼 보정 한도 안에 있다`() {
+    fun `칼로리가 없으면 골짜기 추정을 그대로 쓴다`() {
+        // 보정식의 입력(칼로리)이 없으면 보정 없이 Tv — 동기화와 차트가 같은 분류 공유
         val points = valleyPoints()
         val rest = com.soodalbbobgi.app.core.util.hrRestMask(points)
         val tv = (0 until points.size - 1).count { !rest[it] }
-        val est = estimateActive(points, distanceM = 500)!!
-        // 보정식 결과는 골짜기 추정(Tv)의 ±35% 안으로 제한된다
+        val est = estimateActive(points, distanceM = 500, calories = 0)!!
+        assertEquals(tv, est.activeSeconds)
+    }
+
+    @Test
+    fun `칼로리 보정 결과는 골짜기 추정의 35퍼 한도 안에 있다`() {
+        val points = valleyPoints()
+        val rest = com.soodalbbobgi.app.core.util.hrRestMask(points)
+        val tv = (0 until points.size - 1).count { !rest[it] }
+        // 칼로리가 커도 보정량은 Tv의 ±35%로 제한된다
+        val est = estimateActive(points, distanceM = 500, calories = 2000)!!
         org.junit.Assert.assertTrue(
             "act=${est.activeSeconds}, tv=$tv",
             est.activeSeconds in (tv * 0.65).toInt() - 1..(tv * 1.35).toInt() + 1,
@@ -90,21 +100,21 @@ class ActiveSecondsTest {
 
     @Test
     fun `연속 수영 세션은 기록 시간 전체가 운동이다`() {
-        // 휴식 골짜기가 없으면 보정식이 위로 밀어도 기록 시간에서 캡
+        // 휴식 골짜기가 없으면 전체가 운동 시간
         val points = (0 until 1200).map { it to swimBpm(it) }
-        assertEquals(1199, estimateActive(points, distanceM = 0)!!.activeSeconds)
+        assertEquals(1199, estimateActive(points, distanceM = 0, calories = 0)!!.activeSeconds)
     }
 
     @Test
     fun `페이스 하한으로 비현실적으로 빠른 추정을 클램프한다`() {
         // 거리 1,700m → 하한 1,360초(1'20"/100m). 추정이 그보다 빠르면 하한으로 올린다
-        assertEquals(1360, estimateActive(valleyPoints(), distanceM = 1700)!!.activeSeconds)
+        assertEquals(1360, estimateActive(valleyPoints(), distanceM = 1700, calories = 0)!!.activeSeconds)
     }
 
     @Test
     fun `하한은 기록된 시간을 넘지 않는다`() {
         // 거리 3,000m → 하한 2,400초 > 기록 1,439초 — 기록된 시간으로 캡
-        assertEquals(1439, estimateActive(valleyPoints(), distanceM = 3000)!!.activeSeconds)
+        assertEquals(1439, estimateActive(valleyPoints(), distanceM = 3000, calories = 0)!!.activeSeconds)
     }
 
     @Test
@@ -112,22 +122,21 @@ class ActiveSecondsTest {
         // 수영 600초 + (공백 300초) + 수영 300초 — 공백은 기록이 없으므로 599+299
         val points = (0 until 600).map { it to swimBpm(it) } +
             (900 until 1200).map { it to swimBpm(it) }
-        assertEquals(898, estimateActive(points, distanceM = 0)!!.activeSeconds)
+        assertEquals(898, estimateActive(points, distanceM = 0, calories = 0)!!.activeSeconds)
     }
 
     @Test
     fun `차트 휴식 구간은 골짜기 위치 그대로다 - 예산이 충분하면 전부 유지`() {
-        // 휴식 위치·크기는 변형하지 않는다 (스케일/병합하면 차트가 심박 모양과 어긋난다).
-        // 이 데이터는 골짜기 총합(~250초) < 보정 휴식 총량(~500초)이라 전부 유지된다.
+        // 휴식 위치·크기는 변형하지 않는다 (스케일/병합하면 차트가 심박 모양과 어긋난다)
         val points = valleyPoints()
-        val est = estimateActive(points, distanceM = 500)!!
+        val est = estimateActive(points, distanceM = 500, calories = 0)!!
         assertEquals(com.soodalbbobgi.app.core.util.hrRestRanges(points), est.restRanges)
     }
 
     @Test
     fun `심박 샘플이 너무 적으면 추정하지 않는다`() {
         val points = (0 until 30).map { it to 150 }
-        assertNull(estimateActive(points, distanceM = 500))
+        assertNull(estimateActive(points, distanceM = 500, calories = 100))
     }
 
     @Test

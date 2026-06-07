@@ -136,33 +136,35 @@ internal data class HrEstimate(
     val restRanges: List<IntRange>,
 )
 
-// 실운동시간 보정식 ψ = W_R + W_I·ī + W_TV·φ 의 계수.
-// (ī = 평균 상대심박 = Σ(평활심박-기저)dt / 기록초, φ = 골짜기 활동비율 = Tv/R)
-// 2026-06-08 삼성헬스 실측 4세션(05-20/31, 06-04/05)에 적합 — "휴식 끝 = 상승 시작" 경계 기준.
-// 적합오차 ±0.7s/100m, LOO 교차검증 ±4.8s/100m.
-// ī는 적합 범위 밖 외삽을 막기 위해 [28.5, 37.5]로 클램프.
-private const val HR_W_I = -0.042733
-private const val HR_W_R = 0.765914
-private const val HR_W_TV = 1.783039
-private const val HR_IBAR_MIN = 28.5
-private const val HR_IBAR_MAX = 37.5
+// 실운동시간 보정식 act = W_K·kcal + W_I·I + W_TV·Tv 의 계수.
+// (I = Σ(평활심박-기저)dt, Tv = 골짜기 활동시간)
+// 직관: 칼로리가 많으면 그만큼 수영한 것이고, 칼로리 없이 심박만 높으면 서서 보낸 시간이다 —
+// 심박 모양이 같아도 "느린 연속 수영"과 "휴식 위주"를 세션 칼로리가 가른다.
+// 2026-06-08 삼성헬스 실측 4세션(05-30/31, 06-04/05)에 적합 — "휴식 끝 = 상승 시작" 경계 기준.
+// 적합오차 ±3.8s/100m, LOO 교차검증 ±19.5s/100m.
+private const val HR_W_K = 2.080062
+private const val HR_W_I = -0.012113
+private const val HR_W_TV = 1.003630
 
 /**
  * 심박 기반 실운동시간 추정 — 페이스 계산과 차트 휴식 표시의 단일 소스.
  *
  * 1) [hrRestMask] 골짜기 모델로 휴식을 분류해 골짜기 활동시간(Tv)을 얻고,
- * 2) 평균 강도(ī)와 활동비율(φ)로 보정식을 적용한다 — 느린 연속 수영(심박 골짜기가
- *    실제론 수영)과 휴식 위주 세션(높은 심박 어슬렁거림이 실제론 휴식)을 가른다.
+ * 2) 세션 칼로리와 심박 적분으로 보정한다 — 심박 모양이 같아도
+ *    느린 연속 수영(칼로리 높음)과 휴식 위주(칼로리 낮음)를 칼로리가 가른다.
  * 3) 안전장치: 보정량은 Tv의 ±35% 이내, 페이스 하한 1'20"/100m, 기록시간 상한.
+ *    칼로리가 없으면 보정 없이 Tv를 그대로 쓴다.
  * 차트 휴식 구간은 골짜기 위치·크기 그대로 두되, 총합이 보정된 휴식 총량을 넘으면
  * 긴 골짜기부터 예산만큼만 남긴다 ([pruneRestRanges]) — 페이스와 차트가 일치하도록.
  *
  * @param points (오프셋초, bpm) 목록 — [hrPoints] 결과. 60개 미만이면 추정 포기(null)
  * @param distanceM 세션 거리(미터) — 페이스 하한 클램프용
+ * @param calories 세션 소모 칼로리(kcal) — 보정 입력. 0 이하면 보정 생략
  */
 internal fun estimateActive(
     points: List<Pair<Int, Int>>,
     distanceM: Int,
+    calories: Int,
     gapSec: Int = 5,
 ): HrEstimate? {
     if (points.size < 60) return null
@@ -184,10 +186,11 @@ internal fun estimateActive(
     }
     if (recorded <= 0 || valleyActive <= 0) return null
 
-    val iBar = (integral / recorded).coerceIn(HR_IBAR_MIN, HR_IBAR_MAX)
-    val phi = valleyActive.toDouble() / recorded
-    val psi = HR_W_R + HR_W_I * iBar + HR_W_TV * phi
-    var act = recorded * psi
+    var act = if (calories > 0) {
+        HR_W_K * calories + HR_W_I * integral + HR_W_TV * valleyActive
+    } else {
+        valleyActive.toDouble()
+    }
     act = act.coerceIn(valleyActive * 0.65, valleyActive * 1.35) // 보정량 제한
     act = act.coerceAtLeast(distanceM * 0.8) // 페이스 하한 1'20"/100m
     act = act.coerceAtMost(recorded.toDouble())
@@ -331,7 +334,7 @@ class HealthConnectManager @Inject constructor(
 
                 // 실운동시간: 세그먼트/랩 → 속도 → 심박추정 순 폴백
                 val hrPts = hrPoints(hrSamples)
-                val hrEstimate = estimateActive(hrPts, totalDistanceM)
+                val hrEstimate = estimateActive(hrPts, totalDistanceM, totalCalories)
                 val fromStructure = computeActiveSeconds(session.segments, session.laps)
                 val fromSpeed = speedBasedActiveSeconds(totalDistanceM, avgSpeed)
                 val activeSeconds = fromStructure ?: fromSpeed ?: hrEstimate?.activeSeconds
@@ -452,7 +455,7 @@ class HealthConnectManager @Inject constructor(
                 .flatMap { it.samples }
                 .map { it.time to it.beatsPerMinute }
             val bpm = hrSamples.map { it.second }
-            val hrEstimate = estimateActive(hrPoints(hrSamples), distanceM)
+            val hrEstimate = estimateActive(hrPoints(hrSamples), distanceM, calories)
 
             val speedSamples = readSpeedRecords(session.startTime, session.endTime)
                 .flatMap { it.samples }
