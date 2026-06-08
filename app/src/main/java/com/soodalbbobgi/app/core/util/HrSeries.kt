@@ -148,10 +148,16 @@ fun hrRestRanges(
 
 // 직관 모델 파라미터 기본값 (사용자 조정 가능성을 위해 상수로 분리)
 /** 수영 수준 대비 이 값 이상 낮게 깔린 구간을 휴식으로 판정한다 (bpm). */
-const val INTUITIVE_DROP_DEFAULT = 24.0
+const val INTUITIVE_DROP_DEFAULT = 22.0
 
 /** 이 초 미만의 짧은 휴식 골짜기는 무시한다 (초). */
 const val INTUITIVE_MIN_REST_DEFAULT = 25
+
+/**
+ * 수영 수준 산출 양방향 창(초). 90으로 두면 휴식이 이보다 길 때 양옆 봉우리가
+ * 창 밖으로 나가 수준이 휴식값에 오염돼 긴 휴식이 안 잡힌다. 넉넉히 잡아 방지한다.
+ */
+const val INTUITIVE_LEVEL_WINDOW_DEFAULT = 120
 
 /**
  * 직관 모델 기반 휴식 구간과 휴식초를 반환한다.
@@ -172,7 +178,7 @@ fun intuitiveRestRanges(
     points: List<Pair<Int, Int>>,
     gapSec: Int = 5,
     smoothSec: Int = 15,
-    levelWindowSec: Int = 90,
+    levelWindowSec: Int = INTUITIVE_LEVEL_WINDOW_DEFAULT,
     dropDelta: Double = INTUITIVE_DROP_DEFAULT,
     minRestSec: Int = INTUITIVE_MIN_REST_DEFAULT,
 ): Pair<List<IntRange>, Int> {
