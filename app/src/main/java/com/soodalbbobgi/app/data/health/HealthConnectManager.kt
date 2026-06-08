@@ -14,6 +14,7 @@ import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import com.soodalbbobgi.app.core.util.encodeHrSeries
+import com.soodalbbobgi.app.core.util.hrSmoothed
 import com.soodalbbobgi.app.core.util.intuitiveRestRanges
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
@@ -133,18 +134,26 @@ internal data class HrEstimate(
     val restRanges: List<IntRange>,
 )
 
+// 페이스 보정식 act = W_K·kcal + W_I·I + W_TV·Tv 의 계수 (I = 심박 적분, Tv = 직관 운동시간).
+// 2026-06-09 삼성헬스 실측 4세션(05-30/31, 06-04/05)에 적합 — 적합오차 ±12.6s/100m.
+// 데이터가 4개뿐이라 적합 범위 밖 세션은 불안정 → estimateActive에서 Tv ±30%로 클램프.
+private const val HR_W_K = 3.2268
+private const val HR_W_I = -0.01849
+private const val HR_W_TV = 1.1482
+
 /**
  * 직관 모델 기반 심박 실운동시간 추정 — 페이스 계산과 차트 휴식 표시의 단일 소스.
  *
- * 수영 수준(양방향 90초 트레일링 최대) 대비 24bpm 이상 낮게 깔린 구간을 휴식으로 잡고,
- * 25초 미만 짧은 골짜기는 무시한다. activeSeconds = 기록된 시간 - 휴식초.
- * 보정식/페이스 하한 없이 심박 그래프에서 명백한 골짜기만 본다.
- *
- * 직관 모델 전환으로 calories 미사용, 호출 호환 위해 유지.
+ * 차트 휴식 구간(restRanges)은 직관 모델 그대로 — 수영 수준(양방향 120초 트레일링 최대)
+ * 대비 22bpm 이상 낮게 깔린 골짜기, 25초 미만은 무시.
+ * 페이스(activeSeconds)는 칼로리 보정식으로 산출한다 — 심박 그래프만으로는 느린 연속 수영과
+ * 휴식 위주를 구분 못 하므로(5/30 vs 5/31), 세션 칼로리로 실제 운동시간을 보정한다.
+ * 차트 회색 총량과 페이스가 정확히 일치하진 않지만, 둘 다 의미 있게 맞춘 절충이다.
+ * 보정량은 직관 운동시간(Tv)의 ±30%로 제한해 적합 범위 밖 세션의 폭주를 막는다.
  *
  * @param points (오프셋초, bpm) 목록 — [hrPoints] 결과. 60개 미만이면 추정 포기(null)
- * @param distanceM 세션 거리(미터) — 직관 모델에서는 미사용, 호환 유지
- * @param calories 소모 칼로리(kcal) — 직관 모델 전환으로 미사용, 호환 유지
+ * @param distanceM 세션 거리(미터) — 페이스 하한 클램프용
+ * @param calories 소모 칼로리(kcal) — 페이스 보정 입력. 0 이하면 보정 없이 직관 Tv 사용
  */
 internal fun estimateActive(
     points: List<Pair<Int, Int>>,
@@ -154,19 +163,37 @@ internal fun estimateActive(
 ): HrEstimate? {
     if (points.size < 60) return null
 
-    // 유효 기록시간 = dt가 1부터 gapSec까지인 구간의 합
+    val sm = hrSmoothed(points)
+    // 기저 심박 = 세션 하위 5% (순간 글리치에 흔들리지 않는 개인 기저 근사)
+    val floorBpm = points.map { it.second }.sorted()[points.size / 20]
+
+    // 유효 기록시간 = dt가 1부터 gapSec까지인 구간의 합 + 그 구간 심박 적분
     var recorded = 0
+    var integral = 0.0
     for (i in 0 until points.size - 1) {
         val dt = points[i + 1].first - points[i].first
-        if (dt in 1..gapSec) recorded += dt
+        if (dt in 1..gapSec) {
+            recorded += dt
+            integral += maxOf(0.0, sm[i] - floorBpm) * dt
+        }
     }
     if (recorded <= 0) return null
 
+    // 차트용 휴식 구간 (직관 모델) — 그래프는 이걸 그대로 회색으로 표시
     val (restRanges, restSec) = intuitiveRestRanges(points, gapSec = gapSec)
-    val activeSeconds = (recorded - restSec)
-    if (activeSeconds <= 0) return null
+    val tv = recorded - restSec
+    if (tv <= 0) return null
 
-    return HrEstimate(activeSeconds, restRanges)
+    // 페이스용 실운동시간 — 칼로리 보정 (그래프 휴식과 분리)
+    var act = if (calories > 0) {
+        HR_W_K * calories + HR_W_I * integral + HR_W_TV * tv
+    } else {
+        tv.toDouble()
+    }
+    act = act.coerceIn(tv * 0.7, tv * 1.3)        // 보정량 ±30% 제한 (외삽 폭주 방지)
+    act = act.coerceAtLeast(distanceM * 0.8)      // 페이스 하한 1'20"/100m
+    act = act.coerceAtMost(recorded.toDouble())
+    return HrEstimate(Math.round(act).toInt(), restRanges)
 }
 
 /**

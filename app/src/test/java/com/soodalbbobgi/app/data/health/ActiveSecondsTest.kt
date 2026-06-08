@@ -109,13 +109,17 @@ class ActiveSecondsTest {
     }
 
     @Test
-    fun `calories 파라미터는 결과에 영향을 주지 않는다`() {
-        // 직관 모델은 calories를 사용하지 않으므로 어떤 값이든 결과가 같아야 한다
+    fun `calories는 페이스를 보정하되 차트 휴식 구간은 바꾸지 않는다`() {
+        // 차트 회색(restRanges)은 직관 모델이라 칼로리 무관, 페이스(activeSeconds)만 보정된다
         val points = valleyPoints()
         val est0 = estimateActive(points, distanceM = 500, calories = 0)!!
         val est2000 = estimateActive(points, distanceM = 500, calories = 2000)!!
-        assertEquals("calories 무관 activeSeconds", est0.activeSeconds, est2000.activeSeconds)
-        assertEquals("calories 무관 restRanges", est0.restRanges, est2000.restRanges)
+        assertEquals("칼로리 무관 restRanges", est0.restRanges, est2000.restRanges)
+        // 큰 칼로리는 운동시간을 늘린다 (보정 상한 Tv*1.3)
+        org.junit.Assert.assertTrue(
+            "act0=${est0.activeSeconds}, act2000=${est2000.activeSeconds}",
+            est2000.activeSeconds > est0.activeSeconds,
+        )
     }
 
     @Test
