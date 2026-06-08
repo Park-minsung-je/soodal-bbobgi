@@ -16,8 +16,8 @@ import androidx.health.connect.client.time.TimeRangeFilter
 import com.soodalbbobgi.app.core.util.encodeHrSeries
 import com.soodalbbobgi.app.core.util.hrRestMask
 import com.soodalbbobgi.app.core.util.hrRestRanges
+import com.soodalbbobgi.app.core.util.chartRestRanges
 import com.soodalbbobgi.app.core.util.hrSmoothed
-import com.soodalbbobgi.app.core.util.pruneRestRanges
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
 import java.time.Duration
@@ -196,10 +196,10 @@ internal fun estimateActive(
     act = act.coerceAtMost(recorded.toDouble())
     val activeSeconds = Math.round(act).toInt()
 
-    // 차트 밴드: 골짜기 총합이 보정된 휴식 총량을 넘으면(일부는 느린 수영으로 판정)
-    // 긴 골짜기부터 예산만큼만 남긴다 — 페이스와 차트가 같은 이야기를 하게.
-    val ranges = pruneRestRanges(hrRestRanges(points, gapSec = gapSec), recorded - activeSeconds)
-    return HrEstimate(activeSeconds, ranges)
+    // 차트 밴드: 마스크 골짜기를 그대로 쓰되 봉우리 진입부만 트림한다.
+    // 페이스(activeSeconds)와 회색 총량이 정확히 일치하진 않지만, 차트는 심박이
+    // 보여주는 골짜기를 정직하게 표시하는 게 더 자연스럽다.
+    return HrEstimate(activeSeconds, chartRestRanges(points, gapSec = gapSec))
 }
 
 /**

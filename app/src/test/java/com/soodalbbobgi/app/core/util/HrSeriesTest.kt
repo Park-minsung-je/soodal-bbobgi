@@ -60,15 +60,31 @@ class HrSeriesTest {
     }
 
     @Test
-    fun `휴식 구간 추림은 예산 안에서 긴 골짜기부터 남긴다`() {
-        val ranges = listOf(100..150, 300..500, 700..760, 900..1100)
-        // 총합 50+200+60+200=510 > 예산 420 → 긴 것(200,200)부터, 60·50은 예산 초과로 제외
-        assertEquals(listOf(300..500, 900..1100), pruneRestRanges(ranges, 420))
-        // 예산이 충분하면 그대로
-        assertEquals(ranges, pruneRestRanges(ranges, 600))
-        // 예산 0 이하면 빈 목록
-        assertTrue(pruneRestRanges(ranges, 0).isEmpty())
-        assertTrue(pruneRestRanges(emptyList(), 100).isEmpty())
+    fun `차트 휴식 구간은 봉우리에서 충분히 내려온 지점부터 시작한다`() {
+        // 수영 정점(150)에서 바닥(90)까지 내려가는 골짜기 — 역확장이 정점까지 가면
+        // 봉우리가 통째로 회색이 된다. 차트용 구간은 정점에서 깊이의 frac만큼
+        // 내려온 지점부터 시작해 봉우리를 흰색으로 남긴다 (페이스 계산엔 영향 없음).
+        val points = (0 until 600).map { it to swimBpm(it) } +
+            (600 until 660).map { it to (150 - (it - 600)) } +  // 150→90 하강
+            (660 until 780).map { it to (90 + it % 2) } +        // 바닥
+            (780 until 840).map { it to (90 + (it - 780)) } +    // 90→149 상승
+            (840 until 1440).map { it to swimBpm(it) }
+        val full = hrRestRanges(points)
+        val trimmed = chartRestRanges(points, entryTrimFrac = 0.33)
+        assertEquals(1, trimmed.size)
+        // 시작은 원본보다 뒤로 밀린다 (봉우리 트림)
+        assertTrue("trim start ${trimmed[0].first} > ${full[0].first}", trimmed[0].first > full[0].first)
+        // 끝은 동일 (반등부는 이미 마스크에서 처리됨)
+        assertEquals(full[0].last, trimmed[0].last)
+        // 트림된 시작 지점의 심박은 정점(150)보다 충분히 낮다 — 임계 150-(150-90)*0.33≈130 부근
+        val startBpm = points.first { it.first == trimmed[0].first }.second
+        assertTrue("startBpm=$startBpm", startBpm in 120..140)
+    }
+
+    @Test
+    fun `차트 휴식 구간 트림은 frac 0이면 원본과 같다`() {
+        val points = valleySession()
+        assertEquals(hrRestRanges(points), chartRestRanges(points, entryTrimFrac = 0.0))
     }
 
     // ── 휴식 마스크 ──────────────────────────────────────────────

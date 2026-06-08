@@ -147,27 +147,53 @@ fun hrRestRanges(
 }
 
 /**
- * 휴식 구간을 예산(보정된 휴식 총량) 안에서 추려낸다.
- * 골짜기 총합이 예산을 넘으면 — 즉 보정식이 "이 중 일부는 느린 수영이었다"고 판단하면 —
- * 길수록 진짜 휴식일 가능성이 높으므로 긴 골짜기부터 예산만큼 채택한다.
- * 위치·크기는 변형하지 않아 차트가 심박 모양과 어긋나지 않는다.
+ * 차트 표시용 휴식 구간 — 마스크 골짜기에서 봉우리 진입부를 잘라낸다.
+ * 휴식 시작 역확장이 하락 정점(그 세션 최고 심박대)까지 거슬러 올라가면 봉우리가
+ * 통째로 회색이 되므로, 각 골짜기의 시작을 정점에서 깊이의 [entryTrimFrac]만큼
+ * 내려온 지점으로 당긴다. 페이스 계산(Tv)에는 영향을 주지 않고 시각 표시만 조정한다.
  *
- * @param budgetSec 보정된 휴식 총량(초) = 기록시간 - 실운동시간
+ * @param entryTrimFrac 진입부 트림 비율 (0이면 트림 없음 = [hrRestRanges]와 동일)
  */
-fun pruneRestRanges(ranges: List<IntRange>, budgetSec: Long): List<IntRange> {
-    if (budgetSec <= 0) return emptyList()
-    if (ranges.isEmpty()) return ranges
-    val total = ranges.sumOf { (it.last - it.first).toLong() }
-    if (total <= budgetSec) return ranges
-    val kept = mutableListOf<IntRange>()
-    var sum = 0L
-    for (range in ranges.sortedByDescending { it.last - it.first }) {
-        val len = (range.last - range.first).toLong()
-        if (sum + len > budgetSec) continue
-        kept.add(range)
-        sum += len
+fun chartRestRanges(
+    points: List<Pair<Int, Int>>,
+    gapSec: Int = 5,
+    smoothSec: Int = 15,
+    levelWindowSec: Int = 90,
+    dropDelta: Double = 36.0,
+    riseDelta: Double = 22.0,
+    entryTrimFrac: Double = 0.33,
+): List<IntRange> {
+    val rest = hrRestMask(points, gapSec, smoothSec, levelWindowSec, dropDelta, riseDelta)
+    val sm = hrSmoothed(points, smoothSec)
+    val ranges = mutableListOf<IntRange>()
+    var start = -1
+    for (i in points.indices) {
+        if (rest[i] && start < 0) start = i
+        if (!rest[i] && start >= 0) {
+            ranges.add(trimEntry(points, sm, start, i - 1, entryTrimFrac))
+            start = -1
+        }
     }
-    return kept.sortedBy { it.first }
+    if (start >= 0) ranges.add(trimEntry(points, sm, start, points.lastIndex, entryTrimFrac))
+    return ranges
+}
+
+/** 골짜기(인덱스 a~b)의 시작을 정점에서 깊이의 frac만큼 내려온 지점으로 당긴 오프셋 구간. */
+private fun trimEntry(
+    points: List<Pair<Int, Int>>,
+    sm: DoubleArray,
+    a: Int,
+    b: Int,
+    frac: Double,
+): IntRange {
+    if (frac <= 0.0) return points[a].first..points[b].first
+    val peak = sm[a]
+    var bottom = sm[a]
+    for (i in a..b) if (sm[i] < bottom) bottom = sm[i]
+    val threshold = peak - (peak - bottom) * frac
+    var k = a
+    while (k < b && sm[k] > threshold) k++
+    return points[k].first..points[b].first
 }
 
 /**

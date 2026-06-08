@@ -126,11 +126,16 @@ class ActiveSecondsTest {
     }
 
     @Test
-    fun `차트 휴식 구간은 골짜기 위치 그대로다 - 예산이 충분하면 전부 유지`() {
-        // 휴식 위치·크기는 변형하지 않는다 (스케일/병합하면 차트가 심박 모양과 어긋난다)
+    fun `차트 휴식 구간은 봉우리 진입부를 트림한 마스크 골짜기다`() {
+        // prune(예산 추림) 없이 마스크 골짜기를 그대로 쓰되, 봉우리 진입부만 트림한다.
         val points = valleyPoints()
         val est = estimateActive(points, distanceM = 500, calories = 0)!!
-        assertEquals(com.soodalbbobgi.app.core.util.hrRestRanges(points), est.restRanges)
+        assertEquals(com.soodalbbobgi.app.core.util.chartRestRanges(points), est.restRanges)
+        // 골짜기 개수는 트림해도 줄지 않는다 (예산 때문에 통째로 사라지는 일 없음)
+        assertEquals(
+            com.soodalbbobgi.app.core.util.hrRestRanges(points).size,
+            est.restRanges.size,
+        )
     }
 
     @Test
