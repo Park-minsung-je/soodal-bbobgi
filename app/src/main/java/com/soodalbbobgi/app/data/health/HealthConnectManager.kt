@@ -13,10 +13,9 @@ import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import com.soodalbbobgi.app.core.util.adaptiveRestRanges
 import com.soodalbbobgi.app.core.util.encodeHrSeries
 import com.soodalbbobgi.app.core.util.hrRestMask
-import com.soodalbbobgi.app.core.util.hrRestRanges
-import com.soodalbbobgi.app.core.util.chartRestRanges
 import com.soodalbbobgi.app.core.util.hrSmoothed
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
@@ -149,13 +148,13 @@ private const val HR_W_TV = 1.003630
 /**
  * 심박 기반 실운동시간 추정 — 페이스 계산과 차트 휴식 표시의 단일 소스.
  *
- * 1) [hrRestMask] 골짜기 모델로 휴식을 분류해 골짜기 활동시간(Tv)을 얻고,
- * 2) 세션 칼로리와 심박 적분으로 보정한다 — 심박 모양이 같아도
- *    느린 연속 수영(칼로리 높음)과 휴식 위주(칼로리 낮음)를 칼로리가 가른다.
- * 3) 안전장치: 보정량은 Tv의 ±35% 이내, 페이스 하한 1'20"/100m, 기록시간 상한.
- *    칼로리가 없으면 보정 없이 Tv를 그대로 쓴다.
- * 차트 휴식 구간은 골짜기 위치·크기 그대로 두되, 총합이 보정된 휴식 총량을 넘으면
- * 긴 골짜기부터 예산만큼만 남긴다 ([pruneRestRanges]) — 페이스와 차트가 일치하도록.
+ * 1) 기본 drop=36 마스크로 골짜기 활동시간(Tv0)과 심박 적분(I), 유효 기록시간(R)을 계산한다.
+ * 2) 보정식 act = W_K*kcal + W_I*I + W_TV*Tv0 으로 목표 운동시간을 산출하고
+ *    clamp(0.65*Tv0~1.35*Tv0) → coerceAtLeast(0.8*distanceM) → coerceAtMost(R) 를 적용한다.
+ *    칼로리가 없으면 보정 없이 Tv0를 그대로 쓴다.
+ * 3) targetRest = R - act 로 목표 휴식총량을 정한 뒤, [adaptiveRestRanges]가 drop 이진탐색으로
+ *    restSec이 targetRest 이상이 되는 마스크를 확정한다. activeSeconds = R - restSec.
+ * 차트 회색 구간과 페이스가 같은 마스크에서 나오므로 완전히 일치한다.
  *
  * @param points (오프셋초, bpm) 목록 — [hrPoints] 결과. 60개 미만이면 추정 포기(null)
  * @param distanceM 세션 거리(미터) — 페이스 하한 클램프용
@@ -168,6 +167,8 @@ internal fun estimateActive(
     gapSec: Int = 5,
 ): HrEstimate? {
     if (points.size < 60) return null
+
+    // 1단계: 기본 drop=36 마스크로 Tv0, I, R 계산
     val rest = hrRestMask(points, gapSec = gapSec)
     val sm = hrSmoothed(points)
     // 기저 심박 = 세션 하위 5% (순간 글리치에 흔들리지 않는 개인 기저 근사)
@@ -186,20 +187,22 @@ internal fun estimateActive(
     }
     if (recorded <= 0 || valleyActive <= 0) return null
 
+    // 2단계: 보정식으로 목표 운동시간 act 산출
     var act = if (calories > 0) {
         HR_W_K * calories + HR_W_I * integral + HR_W_TV * valleyActive
     } else {
         valleyActive.toDouble()
     }
-    act = act.coerceIn(valleyActive * 0.65, valleyActive * 1.35) // 보정량 제한
-    act = act.coerceAtLeast(distanceM * 0.8) // 페이스 하한 1'20"/100m
+    act = act.coerceIn(valleyActive * 0.65, valleyActive * 1.35) // 보정량 제한 ±35%
+    act = act.coerceAtLeast(distanceM * 0.8)                      // 페이스 하한 1'20"/100m
     act = act.coerceAtMost(recorded.toDouble())
-    val activeSeconds = Math.round(act).toInt()
 
-    // 차트 밴드: 마스크 골짜기를 그대로 쓰되 봉우리 진입부만 트림한다.
-    // 페이스(activeSeconds)와 회색 총량이 정확히 일치하진 않지만, 차트는 심박이
-    // 보여주는 골짜기를 정직하게 표시하는 게 더 자연스럽다.
-    return HrEstimate(activeSeconds, chartRestRanges(points, gapSec = gapSec))
+    // 3단계: 적응형 drop 이진탐색 — targetRest를 실현하는 마스크를 확정한다
+    val targetRest = (recorded - Math.round(act)).toInt().coerceAtLeast(0)
+    val (restRanges, restSec) = adaptiveRestRanges(points, targetRest, gapSec = gapSec)
+    val activeSeconds = (recorded - restSec).toInt().coerceAtLeast(0)
+
+    return HrEstimate(activeSeconds, restRanges)
 }
 
 /**

@@ -60,31 +60,26 @@ class HrSeriesTest {
     }
 
     @Test
-    fun `차트 휴식 구간은 봉우리에서 충분히 내려온 지점부터 시작한다`() {
-        // 수영 정점(150)에서 바닥(90)까지 내려가는 골짜기 — 역확장이 정점까지 가면
-        // 봉우리가 통째로 회색이 된다. 차트용 구간은 정점에서 깊이의 frac만큼
-        // 내려온 지점부터 시작해 봉우리를 흰색으로 남긴다 (페이스 계산엔 영향 없음).
-        val points = (0 until 600).map { it to swimBpm(it) } +
-            (600 until 660).map { it to (150 - (it - 600)) } +  // 150→90 하강
-            (660 until 780).map { it to (90 + it % 2) } +        // 바닥
-            (780 until 840).map { it to (90 + (it - 780)) } +    // 90→149 상승
-            (840 until 1440).map { it to swimBpm(it) }
-        val full = hrRestRanges(points)
-        val trimmed = chartRestRanges(points, entryTrimFrac = 0.33)
-        assertEquals(1, trimmed.size)
-        // 시작은 원본보다 뒤로 밀린다 (봉우리 트림)
-        assertTrue("trim start ${trimmed[0].first} > ${full[0].first}", trimmed[0].first > full[0].first)
-        // 끝은 동일 (반등부는 이미 마스크에서 처리됨)
-        assertEquals(full[0].last, trimmed[0].last)
-        // 트림된 시작 지점의 심박은 정점(150)보다 충분히 낮다 — 임계 150-(150-90)*0.33≈130 부근
-        val startBpm = points.first { it.first == trimmed[0].first }.second
-        assertTrue("startBpm=$startBpm", startBpm in 120..140)
+    fun `adaptiveRestRanges는 목표 휴식이 클수록 휴식초가 많거나 같다`() {
+        // 단조성: targetRest 클수록 drop이 낮아지고 휴식 구간이 넓어진다
+        val points = valleySession()
+        val (_, smallRest) = adaptiveRestRanges(points, targetRestSec = 50)
+        val (_, largeRest) = adaptiveRestRanges(points, targetRestSec = 200)
+        assertTrue(
+            "largeRest=$largeRest >= smallRest=$smallRest",
+            largeRest >= smallRest,
+        )
     }
 
     @Test
-    fun `차트 휴식 구간 트림은 frac 0이면 원본과 같다`() {
+    fun `adaptiveRestRanges는 골짜기 하나인 세션에서 합리적 휴식초를 반환한다`() {
+        // 골짜기 하나 세션에서 목표 100초 → 실제 restSec은 목표 대비 합리적 범위
         val points = valleySession()
-        assertEquals(hrRestRanges(points), chartRestRanges(points, entryTrimFrac = 0.0))
+        val (ranges, restSec) = adaptiveRestRanges(points, targetRestSec = 100)
+        // 골짜기가 있으므로 구간 1개, 휴식이 잡혀야 한다
+        assertTrue("ranges.size=${ranges.size}", ranges.isNotEmpty())
+        // 목표(100)에 근접하거나 골짜기 한계로 초과 가능 — 최소 50초 이상은 잡혀야 함
+        assertTrue("restSec=$restSec", restSec >= 50)
     }
 
     // ── 휴식 마스크 ──────────────────────────────────────────────

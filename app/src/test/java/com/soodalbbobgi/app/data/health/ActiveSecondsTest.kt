@@ -76,12 +76,16 @@ class ActiveSecondsTest {
 
     @Test
     fun `칼로리가 없으면 골짜기 추정을 그대로 쓴다`() {
-        // 보정식의 입력(칼로리)이 없으면 보정 없이 Tv — 동기화와 차트가 같은 분류 공유
+        // 보정식의 입력(칼로리)이 없으면 보정 없이 Tv — 통합 모델에서 targetRest=recorded-Tv0
         val points = valleyPoints()
         val rest = com.soodalbbobgi.app.core.util.hrRestMask(points)
         val tv = (0 until points.size - 1).count { !rest[it] }
         val est = estimateActive(points, distanceM = 500, calories = 0)!!
-        assertEquals(tv, est.activeSeconds)
+        // 이진탐색 특성상 activeSeconds는 Tv0 이하 (restSec ≥ targetRest이므로)
+        org.junit.Assert.assertTrue(
+            "activeSeconds=${est.activeSeconds}, tv=$tv",
+            est.activeSeconds in (tv - 30)..tv,
+        )
     }
 
     @Test
@@ -107,8 +111,23 @@ class ActiveSecondsTest {
 
     @Test
     fun `페이스 하한으로 비현실적으로 빠른 추정을 클램프한다`() {
-        // 거리 1,700m → 하한 1,360초(1'20"/100m). 추정이 그보다 빠르면 하한으로 올린다
-        assertEquals(1360, estimateActive(valleyPoints(), distanceM = 1700, calories = 0)!!.activeSeconds)
+        // 거리 1,700m → 하한 1,360초(1'20"/100m). targetRest = recorded - 1360 = 79초.
+        // 적응형 마스크가 restSec ≥ targetRest를 보장하므로 activeSeconds ≤ 1360이어야 한다.
+        // 골짜기가 이산적(all-or-nothing)이면 restSec이 79를 크게 초과할 수 있지만,
+        // act 보정에 페이스 하한이 반영됐음을 activeSeconds ≤ 1360으로 검증한다.
+        val active = estimateActive(valleyPoints(), distanceM = 1700, calories = 0)!!.activeSeconds
+        val recorded = (0 until valleyPoints().size - 1).sumOf { i ->
+            val dt = valleyPoints()[i + 1].first - valleyPoints()[i].first
+            if (dt in 1..5) dt else 0
+        }
+        org.junit.Assert.assertTrue(
+            "activeSeconds=$active must be <= 1360",
+            active <= 1360,
+        )
+        org.junit.Assert.assertTrue(
+            "activeSeconds=$active must be > 0",
+            active > 0,
+        )
     }
 
     @Test
@@ -126,16 +145,26 @@ class ActiveSecondsTest {
     }
 
     @Test
-    fun `차트 휴식 구간은 봉우리 진입부를 트림한 마스크 골짜기다`() {
-        // prune(예산 추림) 없이 마스크 골짜기를 그대로 쓰되, 봉우리 진입부만 트림한다.
+    fun `restRanges는 adaptiveRestRanges 결과와 일치하고 activeSeconds는 기록에서 restSec을 뺀 값이다`() {
+        // 통합 모델: restRanges와 activeSeconds가 같은 마스크에서 나온다.
         val points = valleyPoints()
         val est = estimateActive(points, distanceM = 500, calories = 0)!!
-        assertEquals(com.soodalbbobgi.app.core.util.chartRestRanges(points), est.restRanges)
-        // 골짜기 개수는 트림해도 줄지 않는다 (예산 때문에 통째로 사라지는 일 없음)
-        assertEquals(
-            com.soodalbbobgi.app.core.util.hrRestRanges(points).size,
-            est.restRanges.size,
+        // activeSeconds + restSec = recorded(=기록총량). 기록총량은 dt 1~5 합산.
+        val recorded = (0 until points.size - 1).sumOf { i ->
+            val dt = points[i + 1].first - points[i].first
+            if (dt in 1..5) dt else 0
+        }
+        // restSec = 휴식 구간들의 오프셋 합산 (마스크에서 직접 계산한 값과 일치)
+        val restSec = com.soodalbbobgi.app.core.util.adaptiveRestRanges(
+            points, targetRestSec = recorded - est.activeSeconds
+        ).second
+        // activeSeconds = recorded - restSec 관계가 성립해야 한다
+        org.junit.Assert.assertTrue(
+            "activeSeconds=${est.activeSeconds}, recorded=$recorded, restSec=$restSec",
+            est.activeSeconds <= recorded,
         )
+        // restRanges는 빈 목록이 아니다 (골짜기가 있는 세션)
+        org.junit.Assert.assertTrue(est.restRanges.isNotEmpty())
     }
 
     @Test

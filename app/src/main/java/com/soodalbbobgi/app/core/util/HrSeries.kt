@@ -147,53 +147,106 @@ fun hrRestRanges(
 }
 
 /**
- * 차트 표시용 휴식 구간 — 마스크 골짜기에서 봉우리 진입부를 잘라낸다.
- * 휴식 시작 역확장이 하락 정점(그 세션 최고 심박대)까지 거슬러 올라가면 봉우리가
- * 통째로 회색이 되므로, 각 골짜기의 시작을 정점에서 깊이의 [entryTrimFrac]만큼
- * 내려온 지점으로 당긴다. 페이스 계산(Tv)에는 영향을 주지 않고 시각 표시만 조정한다.
+ * 목표 휴식총량에 맞는 drop 임계를 이진탐색해 휴식 구간과 실제 휴식초를 반환한다.
+ * 차트 회색 구간과 페이스 계산이 동일한 마스크를 공유하도록 단일 소스를 보장한다.
  *
- * @param entryTrimFrac 진입부 트림 비율 (0이면 트림 없음 = [hrRestRanges]와 동일)
+ * drop이 낮을수록 더 많은 골짜기를 잡아 휴식초가 늘어난다. 이진탐색(8.0~160.0, 24회)으로
+ * restSec이 [targetRestSec] 이상이 되는 최대 drop을 찾는다.
+ *
+ * @param points (오프셋초, bpm) 목록 — 시간 오름차순
+ * @param targetRestSec 목표 휴식총량(초) — 보정식이 산출한 값
+ * @return 확정된 휴식 구간 목록(오프셋초 IntRange)과 실제 휴식초의 쌍
  */
-fun chartRestRanges(
+fun adaptiveRestRanges(
     points: List<Pair<Int, Int>>,
+    targetRestSec: Int,
     gapSec: Int = 5,
     smoothSec: Int = 15,
     levelWindowSec: Int = 90,
-    dropDelta: Double = 36.0,
     riseDelta: Double = 22.0,
-    entryTrimFrac: Double = 0.33,
-): List<IntRange> {
-    val rest = hrRestMask(points, gapSec, smoothSec, levelWindowSec, dropDelta, riseDelta)
+): Pair<List<IntRange>, Int> {
+    val n = points.size
+    if (n < 2) return Pair(emptyList(), 0)
+
     val sm = hrSmoothed(points, smoothSec)
+
+    // 세그먼트 경계 목록 — 공백(>gapSec 또는 <1초) 기준
+    val segs = mutableListOf<IntRange>()
+    var segStart = 0
+    for (i in 1 until n) {
+        val dt = points[i].first - points[i - 1].first
+        if (dt > gapSec || dt < 1) {
+            if (i - segStart >= 2) segs.add(segStart until i)
+            segStart = i
+        }
+    }
+    if (n - segStart >= 2) segs.add(segStart until n)
+
+    /** drop 임계로 마스크를 만들고 restSec(비공백 구간 중 rest=true인 dt 합)을 계산한다. */
+    fun restSecForDrop(drop: Double): Pair<BooleanArray, Int> {
+        val rest = BooleanArray(n)
+        for (seg in segs) {
+            var resting = false
+            var restMin = 0.0
+            val deque = ArrayDeque<Int>()
+            for (i in seg) {
+                if (!resting) {
+                    while (deque.isNotEmpty() && sm[deque.last()] <= sm[i]) deque.removeLast()
+                    deque.addLast(i)
+                    while (deque.isNotEmpty() && points[i].first - points[deque.first()].first > levelWindowSec) deque.removeFirst()
+                    if (sm[deque.first()] - sm[i] >= drop) {
+                        resting = true
+                        restMin = sm[i]
+                        var j = i
+                        while (j - 1 >= seg.first && !rest[j - 1] && sm[j - 1] >= sm[j] - 0.5) j--
+                        for (k in j..i) rest[k] = true
+                    }
+                } else {
+                    if (sm[i] < restMin) restMin = sm[i]
+                    if (sm[i] >= restMin + riseDelta) {
+                        var k = i
+                        while (k - 1 >= seg.first && sm[k - 1] < sm[k]) k--
+                        for (q in k..i) rest[q] = false
+                        resting = false
+                        deque.clear()
+                        deque.addLast(i)
+                    } else {
+                        rest[i] = true
+                    }
+                }
+            }
+        }
+        var restSec = 0
+        for (i in 0 until n - 1) {
+            val dt = points[i + 1].first - points[i].first
+            if (dt in 1..gapSec && rest[i]) restSec += dt
+        }
+        return Pair(rest, restSec)
+    }
+
+    // 이진탐색: restSec >= targetRestSec이 되는 최대 drop을 찾는다
+    var lo = 8.0
+    var hi = 160.0
+    repeat(24) {
+        val mid = (lo + hi) / 2.0
+        val (_, sec) = restSecForDrop(mid)
+        if (sec >= targetRestSec) lo = mid else hi = mid
+    }
+
+    // 확정된 lo로 최종 마스크와 구간 목록 생성
+    val (finalMask, finalRestSec) = restSecForDrop(lo)
     val ranges = mutableListOf<IntRange>()
     var start = -1
     for (i in points.indices) {
-        if (rest[i] && start < 0) start = i
-        if (!rest[i] && start >= 0) {
-            ranges.add(trimEntry(points, sm, start, i - 1, entryTrimFrac))
+        if (finalMask[i] && start < 0) start = i
+        if (!finalMask[i] && start >= 0) {
+            ranges.add(points[start].first..points[i - 1].first)
             start = -1
         }
     }
-    if (start >= 0) ranges.add(trimEntry(points, sm, start, points.lastIndex, entryTrimFrac))
-    return ranges
-}
+    if (start >= 0) ranges.add(points[start].first..points.last().first)
 
-/** 골짜기(인덱스 a~b)의 시작을 정점에서 깊이의 frac만큼 내려온 지점으로 당긴 오프셋 구간. */
-private fun trimEntry(
-    points: List<Pair<Int, Int>>,
-    sm: DoubleArray,
-    a: Int,
-    b: Int,
-    frac: Double,
-): IntRange {
-    if (frac <= 0.0) return points[a].first..points[b].first
-    val peak = sm[a]
-    var bottom = sm[a]
-    for (i in a..b) if (sm[i] < bottom) bottom = sm[i]
-    val threshold = peak - (peak - bottom) * frac
-    var k = a
-    while (k < b && sm[k] > threshold) k++
-    return points[k].first..points[b].first
+    return Pair(ranges, finalRestSec)
 }
 
 /**
