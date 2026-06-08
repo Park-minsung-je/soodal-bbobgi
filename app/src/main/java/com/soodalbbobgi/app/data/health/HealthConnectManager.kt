@@ -13,10 +13,8 @@ import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
-import com.soodalbbobgi.app.core.util.adaptiveRestRanges
 import com.soodalbbobgi.app.core.util.encodeHrSeries
-import com.soodalbbobgi.app.core.util.hrRestMask
-import com.soodalbbobgi.app.core.util.hrSmoothed
+import com.soodalbbobgi.app.core.util.intuitiveRestRanges
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
 import java.time.Duration
@@ -127,38 +125,26 @@ internal fun hrPoints(samples: List<Pair<Instant, Long>>): List<Pair<Int, Int>> 
 /**
  * 심박 기반 추정 결과.
  *
- * @property activeSeconds 실운동시간(초) — 골짜기 추정에 강도 보정식을 적용한 값
- * @property restRanges 차트용 휴식 구간 (오프셋초) — 보정된 휴식 총량에 맞게 스케일됨
+ * @property activeSeconds 실운동시간(초) — 기록된 시간에서 휴식초를 뺀 값
+ * @property restRanges 차트용 휴식 구간 (오프셋초) — intuitiveRestRanges 단일 소스
  */
 internal data class HrEstimate(
     val activeSeconds: Int,
     val restRanges: List<IntRange>,
 )
 
-// 실운동시간 보정식 act = W_K·kcal + W_I·I + W_TV·Tv 의 계수.
-// (I = Σ(평활심박-기저)dt, Tv = 골짜기 활동시간)
-// 직관: 칼로리가 많으면 그만큼 수영한 것이고, 칼로리 없이 심박만 높으면 서서 보낸 시간이다 —
-// 심박 모양이 같아도 "느린 연속 수영"과 "휴식 위주"를 세션 칼로리가 가른다.
-// 2026-06-08 삼성헬스 실측 4세션(05-30/31, 06-04/05)에 적합 — "휴식 끝 = 상승 시작" 경계 기준.
-// 적합오차 ±3.8s/100m, LOO 교차검증 ±19.5s/100m.
-private const val HR_W_K = 2.080062
-private const val HR_W_I = -0.012113
-private const val HR_W_TV = 1.003630
-
 /**
- * 심박 기반 실운동시간 추정 — 페이스 계산과 차트 휴식 표시의 단일 소스.
+ * 직관 모델 기반 심박 실운동시간 추정 — 페이스 계산과 차트 휴식 표시의 단일 소스.
  *
- * 1) 기본 drop=36 마스크로 골짜기 활동시간(Tv0)과 심박 적분(I), 유효 기록시간(R)을 계산한다.
- * 2) 보정식 act = W_K*kcal + W_I*I + W_TV*Tv0 으로 목표 운동시간을 산출하고
- *    clamp(0.65*Tv0~1.35*Tv0) → coerceAtLeast(0.8*distanceM) → coerceAtMost(R) 를 적용한다.
- *    칼로리가 없으면 보정 없이 Tv0를 그대로 쓴다.
- * 3) targetRest = R - act 로 목표 휴식총량을 정한 뒤, [adaptiveRestRanges]가 drop 이진탐색으로
- *    restSec이 targetRest 이상이 되는 마스크를 확정한다. activeSeconds = R - restSec.
- * 차트 회색 구간과 페이스가 같은 마스크에서 나오므로 완전히 일치한다.
+ * 수영 수준(양방향 90초 트레일링 최대) 대비 24bpm 이상 낮게 깔린 구간을 휴식으로 잡고,
+ * 25초 미만 짧은 골짜기는 무시한다. activeSeconds = 기록된 시간 - 휴식초.
+ * 보정식/페이스 하한 없이 심박 그래프에서 명백한 골짜기만 본다.
+ *
+ * 직관 모델 전환으로 calories 미사용, 호출 호환 위해 유지.
  *
  * @param points (오프셋초, bpm) 목록 — [hrPoints] 결과. 60개 미만이면 추정 포기(null)
- * @param distanceM 세션 거리(미터) — 페이스 하한 클램프용
- * @param calories 세션 소모 칼로리(kcal) — 보정 입력. 0 이하면 보정 생략
+ * @param distanceM 세션 거리(미터) — 직관 모델에서는 미사용, 호환 유지
+ * @param calories 소모 칼로리(kcal) — 직관 모델 전환으로 미사용, 호환 유지
  */
 internal fun estimateActive(
     points: List<Pair<Int, Int>>,
@@ -168,39 +154,17 @@ internal fun estimateActive(
 ): HrEstimate? {
     if (points.size < 60) return null
 
-    // 1단계: 기본 drop=36 마스크로 Tv0, I, R 계산
-    val rest = hrRestMask(points, gapSec = gapSec)
-    val sm = hrSmoothed(points)
-    // 기저 심박 = 세션 하위 5% (순간 글리치에 흔들리지 않는 개인 기저 근사)
-    val floorBpm = points.map { it.second }.sorted()[points.size / 20]
-
-    var recorded = 0L
-    var valleyActive = 0L
-    var integral = 0.0
+    // 유효 기록시간 = dt가 1부터 gapSec까지인 구간의 합
+    var recorded = 0
     for (i in 0 until points.size - 1) {
-        val dt = (points[i + 1].first - points[i].first).toLong()
-        if (dt in 1..gapSec.toLong()) {
-            recorded += dt
-            integral += maxOf(0.0, sm[i] - floorBpm) * dt
-            if (!rest[i]) valleyActive += dt
-        }
+        val dt = points[i + 1].first - points[i].first
+        if (dt in 1..gapSec) recorded += dt
     }
-    if (recorded <= 0 || valleyActive <= 0) return null
+    if (recorded <= 0) return null
 
-    // 2단계: 보정식으로 목표 운동시간 act 산출
-    var act = if (calories > 0) {
-        HR_W_K * calories + HR_W_I * integral + HR_W_TV * valleyActive
-    } else {
-        valleyActive.toDouble()
-    }
-    act = act.coerceIn(valleyActive * 0.65, valleyActive * 1.35) // 보정량 제한 ±35%
-    act = act.coerceAtLeast(distanceM * 0.8)                      // 페이스 하한 1'20"/100m
-    act = act.coerceAtMost(recorded.toDouble())
-
-    // 3단계: 적응형 drop 이진탐색 — targetRest를 실현하는 마스크를 확정한다
-    val targetRest = (recorded - Math.round(act)).toInt().coerceAtLeast(0)
-    val (restRanges, restSec) = adaptiveRestRanges(points, targetRest, gapSec = gapSec)
-    val activeSeconds = (recorded - restSec).toInt().coerceAtLeast(0)
+    val (restRanges, restSec) = intuitiveRestRanges(points, gapSec = gapSec)
+    val activeSeconds = (recorded - restSec)
+    if (activeSeconds <= 0) return null
 
     return HrEstimate(activeSeconds, restRanges)
 }

@@ -2,14 +2,17 @@ package com.soodalbbobgi.app.data.health
 
 import androidx.health.connect.client.records.ExerciseLap
 import androidx.health.connect.client.records.ExerciseSegment
+import com.soodalbbobgi.app.core.util.intuitiveRestRanges
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
 
 /**
- * 실제 운동 시간 계산 검증.
- * 세그먼트(휴식·일시정지 제외) → 랩 합산 → 없으면 null 순으로 폴백한다.
+ * 실제 운동 시간 계산 검증 — 직관 모델 기준.
+ * activeSeconds = 기록된 시간 - 휴식초 (보정식 없음).
+ * 세그먼트/랩 폴백 구조와 심박 유틸 함수는 기존과 동일하게 유지한다.
  */
 class ActiveSecondsTest {
 
@@ -75,65 +78,53 @@ class ActiveSecondsTest {
     }
 
     @Test
-    fun `칼로리가 없으면 골짜기 추정을 그대로 쓴다`() {
-        // 보정식의 입력(칼로리)이 없으면 보정 없이 Tv — 통합 모델에서 targetRest=recorded-Tv0
+    fun `estimateActive는 activeSeconds가 기록에서 휴식을 뺀 값이다`() {
+        // 직관 모델: activeSeconds = recorded - restSec (보정식 없음)
         val points = valleyPoints()
-        val rest = com.soodalbbobgi.app.core.util.hrRestMask(points)
-        val tv = (0 until points.size - 1).count { !rest[it] }
         val est = estimateActive(points, distanceM = 500, calories = 0)!!
-        // 이진탐색 특성상 activeSeconds는 Tv0 이하 (restSec ≥ targetRest이므로)
-        org.junit.Assert.assertTrue(
-            "activeSeconds=${est.activeSeconds}, tv=$tv",
-            est.activeSeconds in (tv - 30)..tv,
+        val recorded = (0 until points.size - 1).sumOf { i ->
+            val dt = points[i + 1].first - points[i].first
+            if (dt in 1..5) dt else 0
+        }
+        val (_, restSec) = intuitiveRestRanges(points)
+        // activeSeconds = recorded - restSec
+        assertEquals(
+            "activeSeconds=${est.activeSeconds}, recorded=$recorded, restSec=$restSec",
+            recorded - restSec,
+            est.activeSeconds,
         )
     }
 
     @Test
-    fun `칼로리 보정 결과는 골짜기 추정의 35퍼 한도 안에 있다`() {
+    fun `estimateActive의 restRanges는 intuitiveRestRanges 결과와 일치한다`() {
+        // restRanges가 intuitiveRestRanges와 동일한 소스에서 나와야 한다
         val points = valleyPoints()
-        val rest = com.soodalbbobgi.app.core.util.hrRestMask(points)
-        val tv = (0 until points.size - 1).count { !rest[it] }
-        // 칼로리가 커도 보정량은 Tv의 ±35%로 제한된다
-        val est = estimateActive(points, distanceM = 500, calories = 2000)!!
-        org.junit.Assert.assertTrue(
-            "act=${est.activeSeconds}, tv=$tv",
-            est.activeSeconds in (tv * 0.65).toInt() - 1..(tv * 1.35).toInt() + 1,
+        val est = estimateActive(points, distanceM = 500, calories = 0)!!
+        val (expectedRanges, _) = intuitiveRestRanges(points)
+        assertEquals(
+            "restRanges 불일치: est=${est.restRanges}, expected=$expectedRanges",
+            expectedRanges,
+            est.restRanges,
         )
-        org.junit.Assert.assertTrue(est.activeSeconds <= 1439)
+    }
+
+    @Test
+    fun `calories 파라미터는 결과에 영향을 주지 않는다`() {
+        // 직관 모델은 calories를 사용하지 않으므로 어떤 값이든 결과가 같아야 한다
+        val points = valleyPoints()
+        val est0 = estimateActive(points, distanceM = 500, calories = 0)!!
+        val est2000 = estimateActive(points, distanceM = 500, calories = 2000)!!
+        assertEquals("calories 무관 activeSeconds", est0.activeSeconds, est2000.activeSeconds)
+        assertEquals("calories 무관 restRanges", est0.restRanges, est2000.restRanges)
     }
 
     @Test
     fun `연속 수영 세션은 기록 시간 전체가 운동이다`() {
-        // 휴식 골짜기가 없으면 전체가 운동 시간
+        // 골짜기가 없으면 휴식 구간 없음 → activeSeconds = recorded
         val points = (0 until 1200).map { it to swimBpm(it) }
-        assertEquals(1199, estimateActive(points, distanceM = 0, calories = 0)!!.activeSeconds)
-    }
-
-    @Test
-    fun `페이스 하한으로 비현실적으로 빠른 추정을 클램프한다`() {
-        // 거리 1,700m → 하한 1,360초(1'20"/100m). targetRest = recorded - 1360 = 79초.
-        // 적응형 마스크가 restSec ≥ targetRest를 보장하므로 activeSeconds ≤ 1360이어야 한다.
-        // 골짜기가 이산적(all-or-nothing)이면 restSec이 79를 크게 초과할 수 있지만,
-        // act 보정에 페이스 하한이 반영됐음을 activeSeconds ≤ 1360으로 검증한다.
-        val active = estimateActive(valleyPoints(), distanceM = 1700, calories = 0)!!.activeSeconds
-        val recorded = (0 until valleyPoints().size - 1).sumOf { i ->
-            val dt = valleyPoints()[i + 1].first - valleyPoints()[i].first
-            if (dt in 1..5) dt else 0
-        }
-        org.junit.Assert.assertTrue(
-            "activeSeconds=$active must be <= 1360",
-            active <= 1360,
-        )
-        org.junit.Assert.assertTrue(
-            "activeSeconds=$active must be > 0",
-            active > 0,
-        )
-    }
-
-    @Test
-    fun `하한은 기록된 시간을 넘지 않는다`() {
-        // 거리 3,000m → 하한 2,400초 > 기록 1,439초 — 기록된 시간으로 캡
-        assertEquals(1439, estimateActive(valleyPoints(), distanceM = 3000, calories = 0)!!.activeSeconds)
+        val recorded = points.size - 1  // 1초 간격이므로 dt=1이 1199개
+        val est = estimateActive(points, distanceM = 0, calories = 0)!!
+        assertEquals(recorded, est.activeSeconds)
     }
 
     @Test
@@ -141,30 +132,14 @@ class ActiveSecondsTest {
         // 수영 600초 + (공백 300초) + 수영 300초 — 공백은 기록이 없으므로 599+299
         val points = (0 until 600).map { it to swimBpm(it) } +
             (900 until 1200).map { it to swimBpm(it) }
-        assertEquals(898, estimateActive(points, distanceM = 0, calories = 0)!!.activeSeconds)
-    }
-
-    @Test
-    fun `restRanges는 adaptiveRestRanges 결과와 일치하고 activeSeconds는 기록에서 restSec을 뺀 값이다`() {
-        // 통합 모델: restRanges와 activeSeconds가 같은 마스크에서 나온다.
-        val points = valleyPoints()
-        val est = estimateActive(points, distanceM = 500, calories = 0)!!
-        // activeSeconds + restSec = recorded(=기록총량). 기록총량은 dt 1~5 합산.
+        // 휴식 없는 세션이므로 activeSeconds = recorded = 599+299 = 898
+        val (ranges, _) = intuitiveRestRanges(points)
         val recorded = (0 until points.size - 1).sumOf { i ->
             val dt = points[i + 1].first - points[i].first
             if (dt in 1..5) dt else 0
         }
-        // restSec = 휴식 구간들의 오프셋 합산 (마스크에서 직접 계산한 값과 일치)
-        val restSec = com.soodalbbobgi.app.core.util.adaptiveRestRanges(
-            points, targetRestSec = recorded - est.activeSeconds
-        ).second
-        // activeSeconds = recorded - restSec 관계가 성립해야 한다
-        org.junit.Assert.assertTrue(
-            "activeSeconds=${est.activeSeconds}, recorded=$recorded, restSec=$restSec",
-            est.activeSeconds <= recorded,
-        )
-        // restRanges는 빈 목록이 아니다 (골짜기가 있는 세션)
-        org.junit.Assert.assertTrue(est.restRanges.isNotEmpty())
+        val est = estimateActive(points, distanceM = 0, calories = 0)!!
+        assertEquals(recorded, est.activeSeconds)
     }
 
     @Test
@@ -178,16 +153,16 @@ class ActiveSecondsTest {
         // 1시간(3600초) 1초 간격 샘플 → 최대 120포인트로 압축
         val samples = (0 until 3600).map { t(it.toLong()) to (100L + (it % 40)) }
         val points = downsampleHr(samples, maxPoints = 120)
-        org.junit.Assert.assertTrue("points=${points.size}", points.size in 60..120)
+        assertTrue("points=${points.size}", points.size in 60..120)
         // 오프셋은 0에서 시작해 증가
-        org.junit.Assert.assertTrue(points.first().first < points.last().first)
+        assertTrue(points.first().first < points.last().first)
         // bpm은 원본 범위(100~139) 안의 평균값
-        org.junit.Assert.assertTrue(points.all { it.second in 100..139 })
+        assertTrue(points.all { it.second in 100..139 })
     }
 
     @Test
     fun `심박 다운샘플은 빈 입력에 빈 결과를 준다`() {
-        org.junit.Assert.assertTrue(downsampleHr(emptyList()).isEmpty())
+        assertTrue(downsampleHr(emptyList()).isEmpty())
     }
 
     @Test
@@ -197,5 +172,12 @@ class ActiveSecondsTest {
         )
         val laps = listOf(ExerciseLap(t(0), t(500)))
         assertEquals(500, computeActiveSeconds(segments, laps))
+    }
+
+    @Test
+    fun `estimateActive는 activeSeconds가 0 이하이면 null이다`() {
+        // 60샘플 이상이지만 모든 구간이 공백이면 recorded=0 → null
+        val allGap = (0 until 100).map { it * 10 to 150 }  // dt=10 > gapSec=5 → recorded=0
+        assertNull(estimateActive(allGap, distanceM = 0, calories = 0))
     }
 }

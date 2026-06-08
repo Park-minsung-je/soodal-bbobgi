@@ -59,27 +59,82 @@ class HrSeriesTest {
         assertEquals(listOf(5..10), decodeHrRestRanges("0:98|abc,5-10,20-"))
     }
 
+    // ── intuitiveRestRanges ───────────────────────────────────────
+
+    /**
+     * 깊은 골짜기(40초) 하나 + 짧은 골짜기(10초) 하나 합성 세션.
+     * 수영(높은 평평) → 깊은 골짜기 40초 → 수영 → 짧은 골짜기 10초 → 수영 (1초 간격).
+     * drop=24, minRest=25로 호출하면 깊은 골짜기만 잡히고 짧은 것은 버려진다.
+     */
+    private fun twoValleySession(): List<Pair<Int, Int>> {
+        val swim = { sec: Int -> (150 + 12 * kotlin.math.sin(2 * Math.PI * sec / 60)).toInt() }
+        // 0..299: 수영
+        val seg1 = (0 until 300).map { it to swim(it) }
+        // 300..339: 깊은 골짜기 (40초, 바닥 ~110bpm — 수영 수준 150bpm과 40bpm 차이)
+        val deepDown = (300 until 320).map { it to (150 - (it - 300) * 2) }   // 150→110
+        val deepFlat = (320 until 340).map { it to (110 + it % 2) }
+        // 340..359: 반등 (110→150)
+        val deepUp = (340 until 360).map { it to (110 + (it - 340) * 2) }
+        // 360..659: 수영
+        val seg2 = (360 until 660).map { it to swim(it) }
+        // 660..669: 짧은 골짜기 (10초, 바닥 ~120bpm — 수준 대비 30bpm↓)
+        val shortDown = (660 until 665).map { it to (150 - (it - 660) * 6) }  // 150→120
+        val shortFlat = (665 until 670).map { it to (120 + it % 2) }
+        // 670..679: 반등 (120→150)
+        val shortUp = (670 until 680).map { it to (120 + (it - 670) * 3) }
+        // 680..979: 수영
+        val seg3 = (680 until 980).map { it to swim(it) }
+        return seg1 + deepDown + deepFlat + deepUp + seg2 + shortDown + shortFlat + shortUp + seg3
+    }
+
     @Test
-    fun `adaptiveRestRanges는 목표 휴식이 클수록 휴식초가 많거나 같다`() {
-        // 단조성: targetRest 클수록 drop이 낮아지고 휴식 구간이 넓어진다
-        val points = valleySession()
-        val (_, smallRest) = adaptiveRestRanges(points, targetRestSec = 50)
-        val (_, largeRest) = adaptiveRestRanges(points, targetRestSec = 200)
+    fun `intuitiveRestRanges는 깊은 골짜기만 잡고 짧은 골짜기는 버린다`() {
+        // drop=24, minRest=25 → 깊은 40초 골짜기는 잡히고, 10초 짧은 골짜기는 버려진다
+        val points = twoValleySession()
+        val (ranges, restSec) = intuitiveRestRanges(points, dropDelta = 24.0, minRestSec = 25)
+        assertEquals("구간 수 = 1 (짧은 골짜기 제거)", 1, ranges.size)
+        assertTrue("restSec=$restSec > 0", restSec > 0)
+        // 깊은 골짜기 중심부(320..339)가 휴식 구간 안에 포함돼야 한다
+        assertTrue("range[0].first <= 320", ranges[0].first <= 320)
+        assertTrue("range[0].last >= 339", ranges[0].last >= 339)
+    }
+
+    @Test
+    fun `intuitiveRestRanges는 봉우리와 평평한 수영 구간은 휴식으로 잡지 않는다`() {
+        // 수영 중간만으로 구성된 세션: 골짜기가 없으면 구간 없음을 확인 (봉우리 자동 제외)
+        // 깊은 골짜기가 있는 세션에서도 수영 중간 오프셋(150, 500, 800)은 어떤 구간에도 속하지 않아야 한다
+        val points = twoValleySession()
+        val (ranges, _) = intuitiveRestRanges(points, dropDelta = 24.0, minRestSec = 25)
+        // 구간이 1개이고 수영 중간 오프셋이 그 구간 밖이어야 한다
+        assertEquals(1, ranges.size)
+        val r = ranges[0]
+        // sec=150 (첫 수영 구간 중간) — 깊은 골짜기 이전이므로 휴식 구간 밖
+        assertTrue("sec=150은 구간 밖: ${r.first}~${r.last}", 150 < r.first || 150 > r.last)
+        // sec=500 (두 번째 수영 구간) — 깊은 골짜기와 짧은 골짜기 사이
+        assertTrue("sec=500은 구간 밖: ${r.first}~${r.last}", 500 < r.first || 500 > r.last)
+        // sec=800 (세 번째 수영 구간)
+        assertTrue("sec=800은 구간 밖: ${r.first}~${r.last}", 800 < r.first || 800 > r.last)
+    }
+
+    @Test
+    fun `intuitiveRestRanges는 minRest가 작을수록 구간 수가 많거나 같다`() {
+        // 단조성: minRestSec 작을수록 짧은 골짜기도 잡혀 구간 수 증가
+        val points = twoValleySession()
+        val (rangesSmall, _) = intuitiveRestRanges(points, dropDelta = 24.0, minRestSec = 5)
+        val (rangesLarge, _) = intuitiveRestRanges(points, dropDelta = 24.0, minRestSec = 25)
         assertTrue(
-            "largeRest=$largeRest >= smallRest=$smallRest",
-            largeRest >= smallRest,
+            "minRest=5 구간 수(${rangesSmall.size}) >= minRest=25 구간 수(${rangesLarge.size})",
+            rangesSmall.size >= rangesLarge.size,
         )
     }
 
     @Test
-    fun `adaptiveRestRanges는 골짜기 하나인 세션에서 합리적 휴식초를 반환한다`() {
-        // 골짜기 하나 세션에서 목표 100초 → 실제 restSec은 목표 대비 합리적 범위
-        val points = valleySession()
-        val (ranges, restSec) = adaptiveRestRanges(points, targetRestSec = 100)
-        // 골짜기가 있으므로 구간 1개, 휴식이 잡혀야 한다
-        assertTrue("ranges.size=${ranges.size}", ranges.isNotEmpty())
-        // 목표(100)에 근접하거나 골짜기 한계로 초과 가능 — 최소 50초 이상은 잡혀야 함
-        assertTrue("restSec=$restSec", restSec >= 50)
+    fun `intuitiveRestRanges는 연속 수영 세션에서 휴식이 없다`() {
+        // 골짜기 없음 → 모든 점에서 level ≈ sm → level-sm < drop → 휴식 구간 없음
+        val points = (0 until 600).map { it to (150 + 12 * kotlin.math.sin(2 * Math.PI * it / 60)).toInt() }
+        val (ranges, restSec) = intuitiveRestRanges(points, dropDelta = 24.0, minRestSec = 25)
+        assertTrue("연속 수영에서 휴식 구간 없음: ranges=${ranges.size}", ranges.isEmpty())
+        assertEquals("restSec=0", 0, restSec)
     }
 
     // ── 휴식 마스크 ──────────────────────────────────────────────
