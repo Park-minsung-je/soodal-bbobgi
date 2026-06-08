@@ -190,8 +190,10 @@ internal fun estimateActive(
     } else {
         tv.toDouble()
     }
-    act = act.coerceIn(tv * 0.7, tv * 1.3)        // 보정량 ±30% 제한 (외삽 폭주 방지)
-    act = act.coerceAtLeast(distanceM * 0.8)      // 페이스 하한 1'20"/100m
+    // 보정량을 직관 Tv의 0.5~1.6배로만 제한 — 고강도 날(거의 안 쉼)은 보정이 크게 당겨야
+    // 실측에 맞지만(6/7), 적합 범위 밖 극단치는 막는다.
+    act = act.coerceIn(tv * 0.5, tv * 1.6)
+    act = act.coerceAtLeast(distanceM * 0.7)      // 페이스 하한 1'10"/100m
     act = act.coerceAtMost(recorded.toDouble())
     return HrEstimate(Math.round(act).toInt(), restRanges)
 }
