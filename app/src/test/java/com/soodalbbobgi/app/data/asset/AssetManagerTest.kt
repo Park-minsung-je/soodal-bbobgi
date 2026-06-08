@@ -228,10 +228,74 @@ class AssetManagerTest {
         assertThat(manager.progress.value).isInstanceOf(AssetSyncProgress.Error::class.java)
     }
 
-    // ─── 다운로드 중 HTTP 에러 ────────────────────────────────────
+    // ─── 다운로드 중 HTTP 4xx (유령 파일 건너뜀) ─────────────────────
 
     @Test
-    fun `download HTTP error returns failure and does not update local manifest`() = runTest {
+    fun `404 on single file skips it and sync succeeds with manifest excluding skipped`() = runTest {
+        val helloBytes = "hello".toByteArray()
+        val helloHash = sha256("hello")
+        val serverManifest = AssetManifestData(
+            "1.0.0", 100L,
+            listOf(ServerAssetFile("char/ghost.png", helloHash, helloBytes.size.toLong())),
+        )
+        coEvery { api.getAssetManifest() } returns ApiResponse(true, serverManifest, null)
+        val errorBody = "Not Found".toResponseBody("text/plain".toMediaTypeOrNull())
+        coEvery { api.downloadAssetFile("char/ghost.png") } returns Response.error(404, errorBody)
+
+        val result = manager.sync()
+
+        // 404는 건너뜀 — sync는 성공.
+        assertThat(result.isSuccess).isTrue()
+        assertThat(store.exists("char/ghost.png")).isFalse()
+        // 건너뛴 파일은 로컬 매니페스트에 포함되지 않아야 한다.
+        val savedManifest = store.loadLocalManifest()
+        assertThat(savedManifest).isNotNull()
+        assertThat(savedManifest!!.files.map { it.path }).doesNotContain("char/ghost.png")
+        assertThat(manager.progress.value).isInstanceOf(AssetSyncProgress.Done::class.java)
+    }
+
+    @Test
+    fun `404 on one file skips it while other files are downloaded and sync succeeds`() = runTest {
+        val aBytes = "alpha".toByteArray()
+        val bBytes = "bravo".toByteArray()
+        val aHash = sha256("alpha")
+        val bHash = sha256("bravo")
+
+        val serverManifest = AssetManifestData(
+            version = "1.0.0",
+            updatedAt = 100L,
+            files = listOf(
+                ServerAssetFile("dir/a.png", aHash, aBytes.size.toLong()),
+                ServerAssetFile("dir/ghost.png", bHash, bBytes.size.toLong()),
+            ),
+        )
+        coEvery { api.getAssetManifest() } returns ApiResponse(true, serverManifest, null)
+        coEvery { api.downloadAssetFile("dir/a.png") } returns successBody(aBytes)
+        val errorBody = "Not Found".toResponseBody("text/plain".toMediaTypeOrNull())
+        coEvery { api.downloadAssetFile("dir/ghost.png") } returns Response.error(404, errorBody)
+
+        val result = manager.sync()
+
+        // sync는 성공.
+        assertThat(result.isSuccess).isTrue()
+        // 성공한 파일은 디스크에 있어야 한다.
+        assertThat(store.exists("dir/a.png")).isTrue()
+        assertThat(store.fileFor("dir/a.png").readBytes()).isEqualTo(aBytes)
+        // 404 파일은 디스크에 없어야 한다.
+        assertThat(store.exists("dir/ghost.png")).isFalse()
+        // 로컬 매니페스트에는 성공한 파일만 포함되어야 한다.
+        val savedFiles = store.loadLocalManifest()?.files?.map { it.path }
+        assertThat(savedFiles).containsExactly("dir/a.png")
+        assertThat(savedFiles).doesNotContain("dir/ghost.png")
+        // Done progress — downloaded는 성공한 수만 반영.
+        val progress = manager.progress.value as AssetSyncProgress.Done
+        assertThat(progress.downloaded).isEqualTo(1)
+    }
+
+    // ─── 다운로드 중 5xx / 네트워크 오류 (전체 실패) ─────────────────
+
+    @Test
+    fun `5xx on download returns failure and does not update local manifest`() = runTest {
         val helloBytes = "hello".toByteArray()
         val helloHash = sha256("hello")
         val serverManifest = AssetManifestData(
@@ -239,32 +303,48 @@ class AssetManagerTest {
             listOf(ServerAssetFile("char/c1.png", helloHash, helloBytes.size.toLong())),
         )
         coEvery { api.getAssetManifest() } returns ApiResponse(true, serverManifest, null)
-        val errorBody = "Not Found".toResponseBody("text/plain".toMediaTypeOrNull())
-        coEvery { api.downloadAssetFile("char/c1.png") } returns Response.error(404, errorBody)
+        val errorBody = "Internal Server Error".toResponseBody("text/plain".toMediaTypeOrNull())
+        coEvery { api.downloadAssetFile("char/c1.png") } returns Response.error(500, errorBody)
 
         val result = manager.sync()
 
+        // 5xx는 재시도 여지가 있으므로 전체 실패.
         assertThat(result.isFailure).isTrue()
-        // 로컬 매니페스트는 갱신되지 않아야 한다.
         assertThat(store.loadLocalManifest()).isNull()
         assertThat(manager.progress.value).isInstanceOf(AssetSyncProgress.Error::class.java)
-        // 부분 파일이 디스크에 남을 수도/안 남을 수도 있다 (네트워크 호출 자체가 실패했으므로 여기서는 안 남음).
-        // 부분 성공 시 디스크/매니페스트 상태는 별도 테스트로 pinning되어 있다 →
-        // `partial success keeps downloaded files but does not update local manifest`.
     }
 
-    // ─── 부분 성공 pinning ────────────────────────────────────────
+    @Test
+    fun `network exception on download returns failure and does not update local manifest`() = runTest {
+        val helloBytes = "hello".toByteArray()
+        val helloHash = sha256("hello")
+        val serverManifest = AssetManifestData(
+            "1.0.0", 100L,
+            listOf(ServerAssetFile("char/c1.png", helloHash, helloBytes.size.toLong())),
+        )
+        coEvery { api.getAssetManifest() } returns ApiResponse(true, serverManifest, null)
+        coEvery { api.downloadAssetFile("char/c1.png") } throws java.io.IOException("connection reset")
+
+        val result = manager.sync()
+
+        // 네트워크 예외는 재시도 여지가 있으므로 전체 실패.
+        assertThat(result.isFailure).isTrue()
+        assertThat(store.loadLocalManifest()).isNull()
+        assertThat(manager.progress.value).isInstanceOf(AssetSyncProgress.Error::class.java)
+    }
+
+    // ─── 부분 성공 pinning (5xx 시나리오) ────────────────────────────
 
     /**
-     * 파일 A는 성공적으로 다운로드되고, 파일 B에서 HTTP 실패가 발생하는 시나리오.
+     * 파일 A는 성공적으로 다운로드되고, 파일 B에서 5xx 실패가 발생하는 시나리오.
      *
      * 보장:
      * - A는 디스크에 남는다 (이미 atomic-write 완료됨, 재시도 시 hash 비교로 스킵 가능)
-     * - 로컬 매니페스트는 *갱신되지 않는다* — 다음 sync에서 A는 hash match로 건너뛰고
+     * - 로컬 매니페스트는 갱신되지 않는다 — 다음 sync에서 A는 hash match로 건너뛰고
      *   B만 재시도되도록 하는 핵심 invariant
      */
     @Test
-    fun `partial success keeps downloaded files but does not update local manifest`() = runTest {
+    fun `5xx partial success keeps downloaded files but does not update local manifest`() = runTest {
         val aBytes = "alpha".toByteArray()
         val bBytes = "bravo".toByteArray()
         val aHash = sha256("alpha")
@@ -280,8 +360,8 @@ class AssetManagerTest {
         )
         coEvery { api.getAssetManifest() } returns ApiResponse(true, serverManifest, null)
         coEvery { api.downloadAssetFile("dir/a.png") } returns successBody(aBytes)
-        val errorBody = "Not Found".toResponseBody("text/plain".toMediaTypeOrNull())
-        coEvery { api.downloadAssetFile("dir/b.png") } returns Response.error(404, errorBody)
+        val errorBody = "Service Unavailable".toResponseBody("text/plain".toMediaTypeOrNull())
+        coEvery { api.downloadAssetFile("dir/b.png") } returns Response.error(503, errorBody)
 
         val result = manager.sync()
 
@@ -289,9 +369,9 @@ class AssetManagerTest {
         // A는 디스크에 남는다 (성공한 다운로드는 보존).
         assertThat(store.exists("dir/a.png")).isTrue()
         assertThat(store.fileFor("dir/a.png").readBytes()).isEqualTo(aBytes)
-        // B는 남지 않는다 (다운로드 자체가 실패).
+        // B는 남지 않는다.
         assertThat(store.exists("dir/b.png")).isFalse()
-        // 로컬 매니페스트는 절대 갱신되면 안 된다 — 다음 sync 재시도의 기준.
+        // 로컬 매니페스트는 갱신되지 않아야 한다.
         assertThat(store.loadLocalManifest()).isNull()
         assertThat(manager.progress.value).isInstanceOf(AssetSyncProgress.Error::class.java)
     }
