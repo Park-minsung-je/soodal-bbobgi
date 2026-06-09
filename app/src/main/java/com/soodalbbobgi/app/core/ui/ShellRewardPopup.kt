@@ -65,6 +65,7 @@ fun ShellRewardPopup(
     shellCount: Int,
     distanceM: Int? = null,
     durationMin: Int? = null,
+    onEditStrokes: (() -> Unit)? = null,
     onDismiss: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
@@ -179,6 +180,24 @@ fun ShellRewardPopup(
                 }
             }
 
+            if (onEditStrokes != null) {
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier
+                        .background(colors.accentBlue.copy(alpha = 0.14f), RoundedCornerShape(10.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onEditStrokes,
+                        )
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
+                ) {
+                    SoodalIcon(icon = SoodalIcons.Edit, tint = colors.accentBlue, size = 14.dp)
+                    Text("영법 수정", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
+                }
+            }
             Spacer(Modifier.height(14.dp))
             Text("탭하면 닫혀요", fontSize = 11.sp, color = colors.textTertiary, letterSpacing = 0.3.sp)
         }

@@ -30,7 +30,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +44,8 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,6 +59,8 @@ import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.motion.Motion
+import com.soodalbbobgi.app.presentation.calendar.StrokeEditSheet
+import com.soodalbbobgi.app.presentation.calendar.SwimSessionData
 import com.soodalbbobgi.app.presentation.common.SectionLabel
 import com.soodalbbobgi.app.presentation.common.TrendBadge
 import com.soodalbbobgi.app.presentation.common.WeeklyActivityCard
@@ -85,6 +91,9 @@ fun HomeScreen(
 
     val editorVm: ProfileEditorViewModel = hiltViewModel()
     val editorState by editorVm.uiState.collectAsState()
+
+    // 오늘 기록 영법 수정 시트 대상 세션 (null이면 닫힘).
+    var editToday by remember { mutableStateOf<SwimSessionData?>(null) }
 
     // 카드 아래 지점(dp) 계산: 위패딩16 + 헤더52 + 간격16 = 84, + 카드 높이, + 카드-시트 간격 8.
     val config = LocalConfiguration.current
@@ -320,52 +329,38 @@ fun HomeScreen(
                 }
 
                 // ── 오늘 ────────────────────────────────────────────
-                SectionLabel(
-                    text = "오늘",
-                    action = if (state.todayHasRecord) {
-                        { Text("기록 완료 ✓", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue) }
-                    } else {
-                        null
-                    },
-                )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(spacing.s3))
                 TodayCard(
                     hasRecord = state.todayHasRecord,
                     distanceM = state.todayDistanceM,
                     durationMin = state.todayDurationMin,
                     kcal = state.todayKcal,
+                    maxHr = state.todayMaxHr,
+                    minHr = state.todayMinHr,
+                    avgHr = state.todayAvgHr,
                     syncing = state.syncing,
+                    canEdit = state.todaySessions.isNotEmpty(),
                     onSync = { viewModel.onSync() },
+                    onEditStrokes = { editToday = state.todaySessions.lastOrNull() },
                 )
 
-                // ── 이번 주 활동 ─────────────────────────────────────
-                SectionLabel(
-                    text = "이번 주 활동",
-                    action = { TrendBadge(state.weekly.trendPercent) },
-                )
-                Spacer(Modifier.height(12.dp))
+                // ── 최근 7일 활동 ─────────────────────────────────────
+                Spacer(Modifier.height(spacing.s4))
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                    TrendBadge(state.weekly.trendPercent)
+                }
+                Spacer(Modifier.height(8.dp))
                 WeeklyActivityCard(state.weekly, onTap = { onNavigateToTab("calendar") })
 
-                // ── 이번 달 수영 ─────────────────────────────────────
-                SectionLabel(text = "이번 달 수영")
-                Spacer(Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                ) {
-                    StatCard(modifier = Modifier.weight(1f), label = "누적거리",
-                        value = state.totalDistance.formatNumber(), unit = "m",
-                        valueColor = colors.accentBlue,
-                        onClick = { onNavigateToTab("calendar") })
-                    StatCard(modifier = Modifier.weight(1f), label = "수영 횟수",
-                        value = "${state.swimSessions}", unit = "회",
-                        valueColor = colors.textPrimary,
-                        onClick = { onNavigateToTab("calendar") })
-                    StatCard(modifier = Modifier.weight(1f), label = "칼로리",
-                        value = state.totalKcal.formatNumber(), unit = "kcal",
-                        valueColor = colors.success,
-                        onClick = { onNavigateToTab("calendar") })
-                }
+                // ── 이번 달 수영 (문장형) ─────────────────────────────
+                Spacer(Modifier.height(spacing.s4))
+                MonthSummaryCard(
+                    distanceM = state.totalDistance,
+                    sessions = state.swimSessions,
+                    kcal = state.totalKcal,
+                    lastMonthSessions = state.lastMonthSessions,
+                    onClick = { onNavigateToTab("calendar") },
+                )
 
                 Spacer(Modifier.height(spacing.s4))
         }
@@ -390,7 +385,23 @@ fun HomeScreen(
             shellCount = shellReward,
             distanceM = state.todayDistanceM.takeIf { it > 0 },
             durationMin = state.todayDurationMin.takeIf { it > 0 },
+            onEditStrokes = state.todaySessions.lastOrNull()?.let { s ->
+                { viewModel.clearShellReward(); editToday = s }
+            },
             onDismiss = { viewModel.clearShellReward() },
+        )
+    }
+
+    // ── 오늘 기록 영법 수정 시트 ─────────────────────────────
+    editToday?.let { session ->
+        StrokeEditSheet(
+            dateLabel = "오늘",
+            data = session,
+            onDismiss = { editToday = null },
+            onSave = { free, breast, back, fly, kick, mixed ->
+                viewModel.saveStrokes(session.logId, free, breast, back, fly, kick, mixed)
+                editToday = null
+            },
         )
     }
 
@@ -484,7 +495,7 @@ private fun StatCard(
 }
 
 /**
- * 오늘 수영 카드 — 기록이 있으면 거리/시간/칼로리 요약, 없으면 차분한 빈 상태 + 동기화 버튼.
+ * 오늘 수영 카드 — 기록 있으면 거리/시간/칼로리 + 심박 + 영법수정/동기화, 없으면 빈 상태 + 동기화.
  * (수동 입력은 v1 비활성 — DECISIONS 참조)
  */
 @Composable
@@ -493,16 +504,34 @@ private fun TodayCard(
     distanceM: Int,
     durationMin: Int,
     kcal: Int,
+    maxHr: Int?,
+    minHr: Int?,
+    avgHr: Int?,
     syncing: Boolean,
+    canEdit: Boolean,
     onSync: () -> Unit,
+    onEditStrokes: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
     SoodalCard(modifier = Modifier.fillMaxWidth()) {
         if (hasRecord) {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                TodayMetric(Modifier.weight(1f), "거리", distanceM.formatNumber(), "m", colors.accentBlue)
-                TodayMetric(Modifier.weight(1f), "시간", "$durationMin", "분", colors.textPrimary)
-                TodayMetric(Modifier.weight(1f), "칼로리", kcal.formatNumber(), "kcal", colors.success)
+            Column(Modifier.fillMaxWidth()) {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    TodayMetric(Modifier.weight(1f), "거리", distanceM.formatNumber(), "m", colors.accentBlue)
+                    TodayMetric(Modifier.weight(1f), "시간", "$durationMin", "분", colors.textPrimary)
+                    TodayMetric(Modifier.weight(1f), "칼로리", kcal.formatNumber(), "kcal", colors.success)
+                }
+                if (maxHr != null && minHr != null) {
+                    Spacer(Modifier.height(12.dp))
+                    TodayHrRow(maxHr = maxHr, minHr = minHr, avgHr = avgHr)
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (canEdit) {
+                        TodayActionButton("영법 수정", SoodalIcons.Edit, Modifier.weight(1f), enabled = true, onClick = onEditStrokes)
+                    }
+                    TodayActionButton(if (syncing) "동기화 중…" else "동기화", SoodalIcons.Sync, Modifier.weight(1f), enabled = !syncing, onClick = onSync)
+                }
             }
         } else {
             Row(
@@ -529,26 +558,137 @@ private fun TodayCard(
                         color = colors.textSecondary,
                     )
                 }
-                Row(
-                    modifier = Modifier
-                        .height(34.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(colors.accentBlue.copy(alpha = 0.10f))
-                        .border(1.dp, colors.accentBlue.copy(alpha = 0.30f), RoundedCornerShape(10.dp))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            enabled = !syncing,
-                            onClick = onSync,
-                        )
-                        .padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    SoodalIcon(icon = SoodalIcons.Sync, tint = colors.accentBlue, size = 15.dp)
-                    Text("동기화", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
-                }
+                TodayActionButton("동기화", SoodalIcons.Sync, Modifier, enabled = !syncing, onClick = onSync)
             }
+        }
+    }
+}
+
+/** 오늘 카드 액션 버튼 — 블루 soft 칩. */
+@Composable
+private fun TodayActionButton(
+    label: String,
+    icon: SoodalIcons,
+    modifier: Modifier = Modifier,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = SoodalDesign.colors
+    Row(
+        modifier = modifier
+            .height(36.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(colors.accentBlue.copy(alpha = if (enabled) 0.10f else 0.05f))
+            .border(1.dp, colors.accentBlue.copy(alpha = 0.30f), RoundedCornerShape(10.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                enabled = enabled,
+                onClick = onClick,
+            )
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+    ) {
+        SoodalIcon(icon = icon, tint = colors.accentBlue, size = 15.dp)
+        Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
+    }
+}
+
+/** 오늘 심박 행 — 최대/최소/평균 (로즈 톤). */
+@Composable
+private fun TodayHrRow(maxHr: Int, minHr: Int, avgHr: Int?) {
+    val colors = SoodalDesign.colors
+    val rose = Color(0xFFF43F5E)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(rose.copy(alpha = 0.06f))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SoodalIcon(icon = SoodalIcons.Heart, tint = rose, size = 15.dp)
+        Spacer(Modifier.width(8.dp))
+        HrStat("최대", "$maxHr", rose)
+        HrDivider()
+        HrStat("최소", "$minHr", colors.textPrimary)
+        if (avgHr != null) {
+            HrDivider()
+            HrStat("평균", "$avgHr", colors.textPrimary)
+        }
+        Spacer(Modifier.weight(1f))
+        Text("bpm", fontSize = 10.sp, color = colors.textTertiary, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun HrStat(label: String, value: String, valueColor: Color) {
+    val colors = SoodalDesign.colors
+    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, fontSize = 10.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
+        Text(value, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = valueColor)
+    }
+}
+
+@Composable
+private fun HrDivider() {
+    val colors = SoodalDesign.colors
+    Spacer(Modifier.width(8.dp))
+    Box(Modifier.width(1.dp).height(14.dp).background(colors.glassBorder))
+    Spacer(Modifier.width(8.dp))
+}
+
+/** 이번 달 수영 요약 — 문장형 + 지난달 비교. 수치는 색 강조. */
+@Composable
+private fun MonthSummaryCard(
+    distanceM: Int,
+    sessions: Int,
+    kcal: Int,
+    lastMonthSessions: Int,
+    onClick: () -> Unit,
+) {
+    val colors = SoodalDesign.colors
+    SoodalCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+    ) {
+        Column {
+            Text("이번 달", fontSize = 10.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold, letterSpacing = 0.4.sp)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = buildAnnotatedString {
+                    append("이번 달엔 ")
+                    pushStyle(SpanStyle(color = colors.accentBlue, fontWeight = FontWeight.ExtraBold))
+                    append("${sessions}회")
+                    pop()
+                    append(" 수영해서 ")
+                    pushStyle(SpanStyle(color = colors.accentBlue, fontWeight = FontWeight.ExtraBold))
+                    append("${distanceM.formatNumber()}m")
+                    pop()
+                    append("를 헤엄치고 ")
+                    pushStyle(SpanStyle(color = colors.success, fontWeight = FontWeight.ExtraBold))
+                    append("${kcal.formatNumber()}kcal")
+                    pop()
+                    append("를 태웠어요.")
+                },
+                fontSize = 15.sp, color = colors.textPrimary, lineHeight = 22.sp,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = buildAnnotatedString {
+                    pushStyle(SpanStyle(color = colors.accentPurple, fontWeight = FontWeight.ExtraBold))
+                    append(countDeltaPhrase(sessions - lastMonthSessions))
+                    pop()
+                    append(" 했어요.")
+                },
+                fontSize = 13.sp, color = colors.textSecondary,
+            )
         }
     }
 }
