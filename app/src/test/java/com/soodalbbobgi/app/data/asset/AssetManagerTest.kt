@@ -252,6 +252,9 @@ class AssetManagerTest {
         assertThat(savedManifest).isNotNull()
         assertThat(savedManifest!!.files.map { it.path }).doesNotContain("char/ghost.png")
         assertThat(manager.progress.value).isInstanceOf(AssetSyncProgress.Done::class.java)
+        // Done.skipped는 건너뛴 파일 수(1)를 반영해야 한다.
+        val progress = manager.progress.value as AssetSyncProgress.Done
+        assertThat(progress.skipped).isEqualTo(1)
     }
 
     @Test
@@ -287,9 +290,30 @@ class AssetManagerTest {
         val savedFiles = store.loadLocalManifest()?.files?.map { it.path }
         assertThat(savedFiles).containsExactly("dir/a.png")
         assertThat(savedFiles).doesNotContain("dir/ghost.png")
-        // Done progress — downloaded는 성공한 수만 반영.
+        // Done progress — downloaded는 성공한 수만, skipped는 건너뛴 수만 반영.
         val progress = manager.progress.value as AssetSyncProgress.Done
         assertThat(progress.downloaded).isEqualTo(1)
+        assertThat(progress.skipped).isEqualTo(1)
+    }
+
+    @Test
+    fun `no skipped files results in Done skipped equals zero`() = runTest {
+        val aBytes = "alpha".toByteArray()
+        val aHash = sha256("alpha")
+        val serverManifest = AssetManifestData(
+            version = "1.0.0",
+            updatedAt = 100L,
+            files = listOf(ServerAssetFile("dir/a.png", aHash, aBytes.size.toLong())),
+        )
+        coEvery { api.getAssetManifest() } returns ApiResponse(true, serverManifest, null)
+        coEvery { api.downloadAssetFile("dir/a.png") } returns successBody(aBytes)
+
+        val result = manager.sync()
+
+        assertThat(result.isSuccess).isTrue()
+        // 모든 파일이 정상 다운로드되면 skipped는 0이어야 한다.
+        val progress = manager.progress.value as AssetSyncProgress.Done
+        assertThat(progress.skipped).isEqualTo(0)
     }
 
     // ─── 다운로드 중 5xx / 네트워크 오류 (전체 실패) ─────────────────

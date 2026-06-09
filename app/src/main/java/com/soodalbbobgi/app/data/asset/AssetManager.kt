@@ -150,6 +150,7 @@ class AssetManager @Inject constructor(
                 version = serverManifest.version,
                 downloaded = downloadedCount,
                 removed = toDelete.size,
+                skipped = skippedPaths.size,
             )
             Result.success(Unit)
         }

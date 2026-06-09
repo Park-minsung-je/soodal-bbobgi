@@ -133,13 +133,14 @@ private fun assetProgressValue(state: AssetSyncProgress, lastNonError: Float): F
 /**
  * [AssetSyncProgress]를 사용자에게 보여줄 한국어 라벨로 매핑한다.
  *
- * Idle/Done은 별도 라벨이 없고(공간 절약), 진행 중에만 안내한다.
+ * Idle/Done(누락 없음)은 별도 라벨이 없고(공간 절약), 진행 중에만 안내한다.
+ * Done에 누락 파일이 있으면 정보성 경고 문구를 표시한다 — 전체 진행은 차단하지 않는다.
  * Error는 부드럽게 안내하되 화면 진입은 막지 않는다 — 네트워크 폴백으로 동작 가능.
  */
 private fun assetProgressLabel(state: AssetSyncProgress): String? = when (state) {
     AssetSyncProgress.Idle -> null
     AssetSyncProgress.FetchingManifest -> "에셋 매니페스트 확인 중…"
     is AssetSyncProgress.Downloading -> "에셋 동기화 중… ${state.completed}/${state.total}"
-    is AssetSyncProgress.Done -> "준비 완료"
+    is AssetSyncProgress.Done -> if (state.skipped > 0) "준비 완료 (이미지 ${state.skipped}개 누락)" else null
     is AssetSyncProgress.Error -> "에셋 업데이트에 실패했어요"
 }

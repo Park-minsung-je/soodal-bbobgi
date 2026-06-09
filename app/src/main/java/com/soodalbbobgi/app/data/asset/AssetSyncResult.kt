@@ -26,8 +26,14 @@ sealed interface AssetSyncProgress {
      * @param version 새로 적용된 매니페스트 버전
      * @param downloaded 이번 동기화로 새로 다운받은 파일 수
      * @param removed 이번 동기화로 삭제된 로컬 orphan 파일 수
+     * @param skipped HTTP 4xx 응답으로 건너뛴 파일 수 (서버에 없는 파일)
      */
-    data class Done(val version: String, val downloaded: Int, val removed: Int) : AssetSyncProgress
+    data class Done(
+        val version: String,
+        val downloaded: Int,
+        val removed: Int,
+        val skipped: Int = 0,
+    ) : AssetSyncProgress
 
     /**
      * 실패. 사용자에게 보여줄 메시지(가능하면)와 원본 예외를 포함한다.
