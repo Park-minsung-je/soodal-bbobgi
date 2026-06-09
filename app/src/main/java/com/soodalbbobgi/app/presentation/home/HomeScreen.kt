@@ -173,7 +173,15 @@ fun HomeScreen(
                     Text("설정", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
                 }
             }
+        }
 
+        // 하단 스크롤: 프로필 카드 + 통화 + 오늘 + 최근 7일 + 이번 달
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = spacing.s4),
+        ) {
             Spacer(Modifier.height(spacing.s4))
 
             // ── Profile Card ────────────────────────────────────
@@ -294,15 +302,7 @@ fun HomeScreen(
                         Text("프로필 편집", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
                     }
                 }
-        }
 
-        // 하단 스크롤: 통화 + 오늘 + 최근 7일 + 이번 달
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = spacing.s4),
-        ) {
                 Spacer(Modifier.height(spacing.s3))
 
                 // ── Currency Row ────────────────────────────────────

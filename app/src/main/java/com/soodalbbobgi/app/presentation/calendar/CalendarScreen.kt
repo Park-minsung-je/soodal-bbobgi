@@ -119,13 +119,11 @@ fun CalendarScreen(
     LaunchedEffect(state.selectedDay) { editTarget = null }
 
     Box(modifier = Modifier.fillMaxSize().background(colors.bgDeep)) {
-        Column(modifier = Modifier.fillMaxSize()) {
-        // 상단 고정: 헤더 + 요일 + 달력 그리드 (스크롤 안 됨)
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = spacing.s4)
-                .padding(top = spacing.s4),
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = spacing.s4, vertical = spacing.s4),
         ) {
             // ── 헤더: 제목 + 이번 달 인라인 통계 ──────────────
             CalendarHeader(
@@ -180,15 +178,7 @@ fun CalendarScreen(
                     )
                 }
             }
-        }
 
-        // 하단 스크롤: 범례 + 선택한 날 상세 + 활동
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = spacing.s4),
-        ) {
             // ── 영법 범례 ──────────────────────────────────
             Spacer(Modifier.height(12.dp))
             StrokeLegend()
@@ -220,7 +210,6 @@ fun CalendarScreen(
             MonthSwimStats(state.swimData)
 
             Spacer(Modifier.height(12.dp))
-        }
         }
 
         // ── 기록 수정 바텀시트 (세션 단위) ──────────────────
