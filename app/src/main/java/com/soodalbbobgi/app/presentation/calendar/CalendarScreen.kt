@@ -515,7 +515,7 @@ private fun DayDetailCard(
                     Spacer(Modifier.height(16.dp))
                 }
                 if (data.sessions.size > 1) {
-                    SessionTimeLabel(index = index, startEpochSec = session.startEpochSec)
+                    SessionTimeLabel(index = index)
                     Spacer(Modifier.height(10.dp))
                 }
                 SessionDetail(
@@ -544,25 +544,29 @@ private fun DayDetailCard(
     }
 }
 
-/** "1회차 · 오전 11:02" 라벨 — 같은 날 여러 세션 구분용. */
+/** "1회차" 라벨 — 같은 날 여러 세션 구분용. 시각은 SessionDetail의 시작~끝 줄에서 표시한다. */
 @Composable
-private fun SessionTimeLabel(index: Int, startEpochSec: Long?) {
+private fun SessionTimeLabel(index: Int) {
     val colors = SoodalDesign.colors
-    val time = startEpochSec?.let {
-        val t = java.time.Instant.ofEpochSecond(it).atZone(java.time.ZoneId.systemDefault()).toLocalTime()
-        "%s %d:%02d".format(
-            if (t.hour < 12) "오전" else "오후",
-            if (t.hour % 12 == 0) 12 else t.hour % 12,
-            t.minute,
-        )
-    }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Box(Modifier.size(6.dp).clip(RoundedCornerShape(3.dp)).background(colors.accentBlue))
         Text("${index + 1}회차", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
-        if (time != null) {
-            Text(time, fontSize = 11.sp, color = colors.textTertiary, fontFamily = JetBrainsMonoFamily)
-        }
     }
+}
+
+/** "오전 6:00 ~ 6:45" — 세션 시작~끝 시각. 시작·끝의 오전/오후가 다르면 끝에도 표기한다. */
+private fun formatSessionTimeRange(startEpochSec: Long, durationSec: Int): String {
+    val zone = java.time.ZoneId.systemDefault()
+    fun label(epoch: Long): Pair<String, String> {
+        val t = java.time.Instant.ofEpochSecond(epoch).atZone(zone).toLocalTime()
+        val ampm = if (t.hour < 12) "오전" else "오후"
+        val hm = "%d:%02d".format(if (t.hour % 12 == 0) 12 else t.hour % 12, t.minute)
+        return ampm to hm
+    }
+    val (sAmpm, sHm) = label(startEpochSec)
+    val (eAmpm, eHm) = label(startEpochSec + durationSec)
+    val end = if (sAmpm == eAmpm) eHm else "$eAmpm $eHm"
+    return "$sAmpm $sHm ~ $end"
 }
 
 /** 한 세션의 상세 블록 — 거리/시간/칼로리 + 심박/페이스 + 심박 곡선 + 영법 비율. */
@@ -575,18 +579,22 @@ private fun SessionDetail(
 ) {
     val colors = SoodalDesign.colors
     Column(modifier = Modifier.fillMaxWidth()) {
+        // 운동한 시각 — 세션 시작~끝 (HC 세션만; 서버산은 startEpochSec=null이라 미표시)
+        session.startEpochSec?.let { startSec ->
+            Text(
+                formatSessionTimeRange(startSec, session.durationSec),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textSecondary,
+                fontFamily = JetBrainsMonoFamily,
+            )
+            Spacer(Modifier.height(12.dp))
+        }
         // 거리 / 시간 / 칼로리
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             MetricCol("거리", formatNumber(session.distanceM), "m", colors.accentBlue)
             MetricCol("시간", session.durationMin.toString(), "분", colors.textPrimary)
             MetricCol("칼로리", session.kcal.toString(), "kcal", colors.success)
-            // 활동시간(운동시간) — HC 심박 기반 추정. 사용자 선택으로 표시(페이스와 같은 보류 추정값).
-            MetricCol(
-                "활동",
-                session.activeSec?.let { Math.round(it / 60f).toString() } ?: "—",
-                if (session.activeSec != null) "분" else "",
-                colors.accentPurple,
-            )
         }
 
         // 최대·최소·평균 심박(HC 심박 기록이 있을 때) + 심박 그래프 펼치기.
