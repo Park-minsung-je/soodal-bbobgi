@@ -17,8 +17,8 @@ android {
         versionCode = 1
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "BASE_URL", "\"https://soodal.bbobgi.ilf.kr/v1/\"")
-        buildConfigField("String", "ASSET_BASE_URL", "\"https://soodal.bbobgi.ilf.kr\"")
+        buildConfigField("String", "BASE_URL", "\"https://bbobgi.soodal.ilf.kr/v1/\"")
+        buildConfigField("String", "ASSET_BASE_URL", "\"https://bbobgi.soodal.ilf.kr\"")
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"ff9ecdb8cae1ebf2c9541f3aee571cca\"")
         manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = "ff9ecdb8cae1ebf2c9541f3aee571cca"
         // Google Sign-In: idToken의 audience(aud) 클레임이 이 값으로 박힌다.
@@ -28,8 +28,8 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "BASE_URL", "\"https://soodal.bbobgi.ilf.kr/v1/\"")
-            buildConfigField("String", "ASSET_BASE_URL", "\"https://soodal.bbobgi.ilf.kr\"")
+            buildConfigField("String", "BASE_URL", "\"https://bbobgi.soodal.ilf.kr/v1/\"")
+            buildConfigField("String", "ASSET_BASE_URL", "\"https://bbobgi.soodal.ilf.kr\"")
         }
         release {
             isMinifyEnabled = true

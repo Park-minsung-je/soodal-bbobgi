@@ -15,7 +15,7 @@ import retrofit2.http.Streaming
 
 /**
  * 수달 뽑기 서버 REST API 인터페이스.
- * Base URL: https://soodal.bbobgi.ilf.kr/v1/
+ * Base URL: https://bbobgi.soodal.ilf.kr/v1/
  */
 interface SoodalApi {
 
