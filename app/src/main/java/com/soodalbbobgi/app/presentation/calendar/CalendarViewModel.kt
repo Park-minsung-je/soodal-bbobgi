@@ -195,6 +195,9 @@ private fun SwimLog.toSessionData(): SwimSessionData = SwimSessionData(
     hrRestRanges = decodeHrRestRanges(hrSeries),
 )
 
+/** 홈/공용에서 SwimLog를 세션 표시 데이터로 변환한다 (영법 수정 시트 입력용). */
+fun SwimLog.toHomeSessionData(): SwimSessionData = toSessionData()
+
 /** 같은 날짜의 로그 목록 → 하루치 표시 데이터 (합계 + 세션 목록). */
 private fun List<SwimLog>.toDayData(): SwimDayData = SwimDayData(
     sessions = sortedWith(compareBy(nullsLast()) { it.startEpochSec }).map { it.toSessionData() },

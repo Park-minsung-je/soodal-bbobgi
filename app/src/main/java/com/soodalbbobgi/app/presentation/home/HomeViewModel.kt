@@ -7,8 +7,12 @@ import com.soodalbbobgi.app.core.state.AppState
 import com.soodalbbobgi.app.core.state.AppStateLoader
 import com.soodalbbobgi.app.data.health.HcSwimSyncer
 import com.soodalbbobgi.app.data.health.HealthConnectManager
+import com.soodalbbobgi.app.core.util.averageHr
+import com.soodalbbobgi.app.core.util.decodeHrSeries
 import com.soodalbbobgi.app.domain.model.SwimLog
 import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
+import com.soodalbbobgi.app.presentation.calendar.SwimSessionData
+import com.soodalbbobgi.app.presentation.calendar.toHomeSessionData
 import com.soodalbbobgi.app.presentation.common.WeeklyActivity
 import com.soodalbbobgi.app.presentation.common.buildWeeklyActivity
 import com.soodalbbobgi.app.presentation.common.swimStreak
@@ -36,6 +40,16 @@ data class HomeUiState(
     val todayDistanceM: Int = 0,
     val todayDurationMin: Int = 0,
     val todayKcal: Int = 0,
+    /** 오늘 심박 (HC 기록 있을 때). */
+    val todayMaxHr: Int? = null,
+    val todayMinHr: Int? = null,
+    val todayAvgHr: Int? = null,
+    /** 지난달 통계 (이번달 비교용). */
+    val lastMonthDistance: Int = 0,
+    val lastMonthSessions: Int = 0,
+    val lastMonthKcal: Int = 0,
+    /** 오늘 세션 목록 (영법 수정용; 시작 시각 순). */
+    val todaySessions: List<SwimSessionData> = emptyList(),
     /** 연속 수영 일수 (오늘 미기록 시 어제까지 기준). */
     val streak: Int = 0,
     /** 최근 7일 활동 + 지난주 대비 추세. */
@@ -134,6 +148,13 @@ class HomeViewModel @Inject constructor(
         val todayDate = LocalDate.now()
         // 하루 여러 세션 가능 — 오늘 요약은 세션 합계로 표시
         val todayLogs = recentLogs.filter { it.date == todayDate.toString() }
+        val lastMonth = swimLogUseCase.getMonthStats(lastMonthStart(), lastMonthEnd())
+        val todayMax = todayLogs.mapNotNull { it.maxHr }.maxOrNull()
+        val todayMin = todayLogs.mapNotNull { it.minHr }.minOrNull()
+        val todayAvg = averageHr(todayLogs.flatMap { decodeHrSeries(it.hrSeries) })
+        val todaySessionData = todayLogs
+            .sortedWith(compareBy(nullsLast()) { it.startEpochSec })
+            .map { it.toHomeSessionData() }
         val weekly = buildWeeklyActivity(
             recentLogs.filter { it.date >= todayDate.minusDays(13).toString() },
             todayDate,
@@ -157,6 +178,13 @@ class HomeViewModel @Inject constructor(
             todayDistanceM = todayLogs.sumOf { it.distanceMeters },
             todayDurationMin = todayLogs.sumOf { it.durationSeconds } / 60,
             todayKcal = todayLogs.sumOf { it.calories },
+            todayMaxHr = todayMax,
+            todayMinHr = todayMin,
+            todayAvgHr = todayAvg,
+            lastMonthDistance = lastMonth.totalDistanceMeters,
+            lastMonthSessions = lastMonth.swimCount,
+            lastMonthKcal = lastMonth.totalCalories,
+            todaySessions = todaySessionData,
             streak = streak,
             weekly = weekly,
             syncing = syncing,
@@ -234,4 +262,13 @@ class HomeViewModel @Inject constructor(
 
     private fun monthStart(): String = YearMonth.now().atDay(1).toString()
     private fun monthEnd(): String = YearMonth.now().atEndOfMonth().toString()
+    private fun lastMonthStart(): String = YearMonth.now().minusMonths(1).atDay(1).toString()
+    private fun lastMonthEnd(): String = YearMonth.now().minusMonths(1).atEndOfMonth().toString()
+
+    /** 오늘 세션의 영법 분배를 로컬에 저장한다. */
+    fun saveStrokes(logId: Long, free: Int, breast: Int, back: Int, fly: Int, kick: Int, mixed: Int) {
+        viewModelScope.launch {
+            swimLogUseCase.updateStrokes(logId, free, breast, back, fly, mixed, kick)
+        }
+    }
 }
