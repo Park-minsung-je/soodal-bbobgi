@@ -504,7 +504,6 @@ private fun DayDetailCard(
                         formatSessionTimeRange(singleStart, single.durationSec),
                         fontSize = 11.sp,
                         color = colors.textTertiary,
-                        fontFamily = JetBrainsMonoFamily,
                         modifier = Modifier.alignByBaseline(),
                     )
                 }
@@ -571,7 +570,6 @@ private fun SessionTimeLabel(index: Int, startEpochSec: Long?, durationSec: Int)
                 formatSessionTimeRange(startEpochSec, durationSec),
                 fontSize = 11.sp,
                 color = colors.textTertiary,
-                fontFamily = JetBrainsMonoFamily,
             )
         }
     }
