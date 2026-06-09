@@ -87,7 +87,7 @@ fun WeeklyActivityCard(weekly: WeeklyActivity, onTap: (() -> Unit)? = null) {
                     Text(formatMeters(weekly.totalMeters), fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue)
                     Text("m", fontSize = 11.sp, color = colors.textSecondary, modifier = Modifier.padding(start = 3.dp, bottom = 2.dp))
                 }
-                Text("${weekly.activeDays}일 운동 · 주간", fontSize = 11.sp, color = colors.textSecondary)
+                Text("${weekly.activeDays}일 운동 · 최근 7일", fontSize = 11.sp, color = colors.textSecondary)
             }
             Spacer(Modifier.height(14.dp))
             Row(
