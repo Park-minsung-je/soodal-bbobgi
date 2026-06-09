@@ -489,11 +489,26 @@ private fun DayDetailCard(
     // 기록 있는 날 ↔ 없는 날을 오갈 때 카드 높이가 탁 바뀌지 않고 부드럽게 변한다.
     SoodalCard(modifier = Modifier.fillMaxWidth().animateContentSize(tween(220))) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = if (day != null) "${year}년 ${monthNames[month - 1]} ${day}일" else "날짜를 선택해 주세요",
-                fontSize = 14.sp,
-                color = colors.textSecondary,
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = if (day != null) "${year}년 ${monthNames[month - 1]} ${day}일" else "날짜를 선택해 주세요",
+                    fontSize = 14.sp,
+                    color = colors.textSecondary,
+                    modifier = Modifier.alignByBaseline(),
+                )
+                // 세션이 하나면 날짜 옆에 운동 시각을 작게 — 여러 세션은 각 회차 라벨에 표시
+                val single = data?.sessions?.singleOrNull()
+                val singleStart = single?.startEpochSec
+                if (single != null && singleStart != null) {
+                    Text(
+                        formatSessionTimeRange(singleStart, single.durationSec),
+                        fontSize = 11.sp,
+                        color = colors.textTertiary,
+                        fontFamily = JetBrainsMonoFamily,
+                        modifier = Modifier.alignByBaseline(),
+                    )
+                }
+            }
             Spacer(Modifier.height(12.dp))
 
             if (data == null) {
@@ -515,7 +530,7 @@ private fun DayDetailCard(
                     Spacer(Modifier.height(16.dp))
                 }
                 if (data.sessions.size > 1) {
-                    SessionTimeLabel(index = index)
+                    SessionTimeLabel(index = index, startEpochSec = session.startEpochSec, durationSec = session.durationSec)
                     Spacer(Modifier.height(10.dp))
                 }
                 SessionDetail(
@@ -544,13 +559,21 @@ private fun DayDetailCard(
     }
 }
 
-/** "1회차" 라벨 — 같은 날 여러 세션 구분용. 시각은 SessionDetail의 시작~끝 줄에서 표시한다. */
+/** "1회차 · 오전 6:00 ~ 6:45" 라벨 — 같은 날 여러 세션 구분 + 운동 시각. */
 @Composable
-private fun SessionTimeLabel(index: Int) {
+private fun SessionTimeLabel(index: Int, startEpochSec: Long?, durationSec: Int) {
     val colors = SoodalDesign.colors
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Box(Modifier.size(6.dp).clip(RoundedCornerShape(3.dp)).background(colors.accentBlue))
         Text("${index + 1}회차", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
+        if (startEpochSec != null) {
+            Text(
+                formatSessionTimeRange(startEpochSec, durationSec),
+                fontSize = 11.sp,
+                color = colors.textTertiary,
+                fontFamily = JetBrainsMonoFamily,
+            )
+        }
     }
 }
 
@@ -579,17 +602,6 @@ private fun SessionDetail(
 ) {
     val colors = SoodalDesign.colors
     Column(modifier = Modifier.fillMaxWidth()) {
-        // 운동한 시각 — 세션 시작~끝 (HC 세션만; 서버산은 startEpochSec=null이라 미표시)
-        session.startEpochSec?.let { startSec ->
-            Text(
-                formatSessionTimeRange(startSec, session.durationSec),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = colors.textSecondary,
-                fontFamily = JetBrainsMonoFamily,
-            )
-            Spacer(Modifier.height(12.dp))
-        }
         // 거리 / 시간 / 칼로리
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             MetricCol("거리", formatNumber(session.distanceM), "m", colors.accentBlue)
