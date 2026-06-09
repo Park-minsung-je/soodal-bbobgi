@@ -580,6 +580,13 @@ private fun SessionDetail(
             MetricCol("거리", formatNumber(session.distanceM), "m", colors.accentBlue)
             MetricCol("시간", session.durationMin.toString(), "분", colors.textPrimary)
             MetricCol("칼로리", session.kcal.toString(), "kcal", colors.success)
+            // 활동시간(운동시간) — HC 심박 기반 추정. 사용자 선택으로 표시(페이스와 같은 보류 추정값).
+            MetricCol(
+                "활동",
+                session.activeSec?.let { Math.round(it / 60f).toString() } ?: "—",
+                if (session.activeSec != null) "분" else "",
+                colors.accentPurple,
+            )
         }
 
         // 최대·최소·평균 심박(HC 심박 기록이 있을 때) + 심박 그래프 펼치기.
