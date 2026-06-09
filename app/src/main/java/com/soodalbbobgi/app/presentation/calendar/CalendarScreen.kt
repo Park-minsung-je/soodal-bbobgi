@@ -113,6 +113,8 @@ fun CalendarScreen(
 
     // 영법 비율 수정 시트 — 어느 날의 어느 세션을 수정 중인지.
     var editTarget by remember { mutableStateOf<Pair<Int, SwimSessionData>?>(null) }
+    // 심박 그래프 펼침 상태 — 세션/날짜 간 공유(한 번 열면 다른 기록으로 넘어가도 유지).
+    var hrChartExpanded by remember { mutableStateOf(false) }
     // 선택한 날이 바뀌면 열린 수정 시트는 닫는다.
     LaunchedEffect(state.selectedDay) { editTarget = null }
 
@@ -190,6 +192,8 @@ fun CalendarScreen(
                 day = state.selectedDay,
                 data = state.selectedDay?.let { state.swimData[it] },
                 onEdit = { session -> state.selectedDay?.let { editTarget = it to session } },
+                chartExpanded = hrChartExpanded,
+                onToggleChart = { hrChartExpanded = !hrChartExpanded },
             )
 
             // ── 이번 주 활동 ────────────────────────────────
@@ -477,6 +481,8 @@ private fun DayDetailCard(
     day: Int?,
     data: SwimDayData?,
     onEdit: (SwimSessionData) -> Unit,
+    chartExpanded: Boolean,
+    onToggleChart: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
 
@@ -512,7 +518,12 @@ private fun DayDetailCard(
                     SessionTimeLabel(index = index, startEpochSec = session.startEpochSec)
                     Spacer(Modifier.height(10.dp))
                 }
-                SessionDetail(session = session, onEdit = { onEdit(session) })
+                SessionDetail(
+                    session = session,
+                    onEdit = { onEdit(session) },
+                    chartExpanded = chartExpanded,
+                    onToggleChart = onToggleChart,
+                )
             }
 
             // 조개 획득 (일 단위 지급)
@@ -556,7 +567,12 @@ private fun SessionTimeLabel(index: Int, startEpochSec: Long?) {
 
 /** 한 세션의 상세 블록 — 거리/시간/칼로리 + 심박/페이스 + 심박 곡선 + 영법 비율. */
 @Composable
-private fun SessionDetail(session: SwimSessionData, onEdit: () -> Unit) {
+private fun SessionDetail(
+    session: SwimSessionData,
+    onEdit: () -> Unit,
+    chartExpanded: Boolean,
+    onToggleChart: () -> Unit,
+) {
     val colors = SoodalDesign.colors
     Column(modifier = Modifier.fillMaxWidth()) {
         // 거리 / 시간 / 칼로리
@@ -572,7 +588,6 @@ private fun SessionDetail(session: SwimSessionData, onEdit: () -> Unit) {
         val avgHr = averageHr(session.hrSeries)
         val hasHr = session.maxHr != null && session.minHr != null
         val hasChart = session.hrSeries.size >= 2
-        var chartExpanded by remember(session.logId) { mutableStateOf(false) }
         if (hasHr || avgHr != null) {
             Spacer(Modifier.height(14.dp))
             VitalsRow(
@@ -580,7 +595,7 @@ private fun SessionDetail(session: SwimSessionData, onEdit: () -> Unit) {
                 minHr = session.minHr,
                 avgHr = avgHr,
                 chartExpanded = chartExpanded,
-                onToggleChart = if (hasChart) ({ chartExpanded = !chartExpanded }) else null,
+                onToggleChart = if (hasChart) onToggleChart else null,
             )
         }
 
