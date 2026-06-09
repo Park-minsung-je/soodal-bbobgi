@@ -32,7 +32,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -156,12 +155,7 @@ private fun ResultSingle(
             Modifier.padding(horizontal = 28.dp).fillMaxWidth()
                 .shadow(16.dp, RoundedCornerShape(24.dp), ambientColor = glow, spotColor = glow)
                 .clip(RoundedCornerShape(24.dp))
-                .drawBehind {
-                    drawRect(Brush.linearGradient(
-                        listOf(Color(0xFF1A2235), Color(0xFF131A2C)),
-                        start = Offset.Zero, end = Offset(size.width, size.height),
-                    ))
-                }
+                .drawBehind { drawRect(colors.gradCard) }
                 .border(1.5.dp, gc, RoundedCornerShape(24.dp))
                 .padding(28.dp, 24.dp),
         ) {
@@ -171,7 +165,7 @@ private fun ResultSingle(
                         "${index + 1} / ${results.size}",
                         fontSize = 11.sp, color = colors.textSecondary, fontFamily = JetBrainsMonoFamily,
                         modifier = Modifier.align(Alignment.End)
-                            .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(999.dp))
+                            .background((if (colors.isDark) Color.White else Color.Black).copy(alpha = 0.06f), RoundedCornerShape(999.dp))
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                     )
                 }
@@ -195,7 +189,7 @@ private fun ResultSingle(
                 }
 
                 Spacer(Modifier.height(16.dp))
-                Text(item.name, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                Text(item.name, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
                 Spacer(Modifier.height(6.dp))
 
                 if (item.isNew) {
@@ -252,17 +246,12 @@ private fun ResultGrid(
     Column(
         Modifier.padding(horizontal = 24.dp).fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
-            .drawBehind {
-                drawRect(Brush.linearGradient(
-                    listOf(Color(0xFF1A2235), Color(0xFF131A2C)),
-                    start = Offset.Zero, end = Offset(size.width, size.height),
-                ))
-            }
+            .drawBehind { drawRect(colors.gradCard) }
             .border(1.5.dp, colors.accentBlue.copy(alpha = 0.4f), RoundedCornerShape(24.dp))
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("전체 결과 (${results.size}개)", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+        Text("전체 결과 (${results.size}개)", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
         Spacer(Modifier.height(14.dp))
 
         Column(
@@ -292,7 +281,7 @@ private fun ResultGridCell(item: GachaResultItem, modifier: Modifier = Modifier)
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(Color.White.copy(alpha = 0.05f))
+            .background((if (colors.isDark) Color.White else Color.Black).copy(alpha = 0.05f))
             .border(1.dp, gc.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -316,7 +305,7 @@ private fun ResultGridCell(item: GachaResultItem, modifier: Modifier = Modifier)
             Text(
                 item.name,
                 fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-                color = Color.White, maxLines = 1,
+                color = colors.textPrimary, maxLines = 1,
             )
             if (item.isNew) {
                 Text("NEW", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = gc)

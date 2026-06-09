@@ -43,26 +43,18 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
+import com.soodalbbobgi.app.core.theme.SoodalDesign
 import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
-
-// 축하 모달은 테마와 무관한 다크 카드 — 디자인 고정값.
-private val CardTop = Color(0xFF1F2A44)
-private val CardBottom = Color(0xFF131A2C)
-private val PopupTxt1 = Color(0xFFE8EAF6)
-private val PopupTxt2 = Color(0xFF8892A4)
-private val PopupTxt3 = Color(0xFF6B7689)
-private val PopupBlue = Color(0xFF5AC8FF)
-private val PopupGold = Color(0xFFFFD60A)
 
 // 디자인의 shell-fly 이징 — 살짝 튕기는 오버슈트.
 private val ShellFlyEasing = CubicBezierEasing(0.34f, 1.56f, 0.64f, 1f)
 
 /**
  * 조개 보상 팝업 (디자인 확정) — Health Connect 동기화로 받은 조개를 축하 연출과 함께 보여준다.
- * 2.6초 후 자동 닫힘, 탭하면 즉시 닫힘.
+ * 2.6초 후 자동 닫힘, 탭하면 즉시 닫힘. 색은 테마 토큰을 따라 라이트/다크 자동 전환된다.
  *
  * @param shellCount 획득한 조개 수
  * @param distanceM 기록 요약에 보여줄 거리(m). null이면 요약 줄 생략
@@ -75,6 +67,7 @@ fun ShellRewardPopup(
     durationMin: Int? = null,
     onDismiss: () -> Unit,
 ) {
+    val colors = SoodalDesign.colors
     var visible by remember { mutableStateOf(true) }
 
     val scale by animateFloatAsState(
@@ -118,11 +111,11 @@ fun ShellRewardPopup(
                 .shadow(
                     elevation = 24.dp,
                     shape = RoundedCornerShape(24.dp),
-                    ambientColor = PopupGold.copy(alpha = 0.45f),
-                    spotColor = PopupGold.copy(alpha = 0.45f),
+                    ambientColor = colors.accentGold.copy(alpha = 0.45f),
+                    spotColor = colors.accentGold.copy(alpha = 0.45f),
                 )
                 .background(
-                    Brush.linearGradient(listOf(CardTop, CardBottom)),
+                    colors.gradCard,
                     RoundedCornerShape(24.dp),
                 )
                 .padding(start = 22.dp, end = 22.dp, top = 26.dp, bottom = 22.dp),
@@ -131,17 +124,17 @@ fun ShellRewardPopup(
             // 출처 칩
             Row(
                 modifier = Modifier
-                    .background(PopupBlue.copy(alpha = 0.16f), RoundedCornerShape(999.dp))
+                    .background(colors.accentBlue.copy(alpha = 0.16f), RoundedCornerShape(999.dp))
                     .padding(horizontal = 12.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                SoodalIcon(icon = SoodalIcons.Sync, tint = PopupBlue, size = 13.dp)
+                SoodalIcon(icon = SoodalIcons.Sync, tint = colors.accentBlue, size = 13.dp)
                 Spacer(Modifier.size(6.dp))
-                Text("Health Connect 동기화", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PopupBlue, letterSpacing = 0.3.sp)
+                Text("Health Connect 동기화", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue, letterSpacing = 0.3.sp)
             }
 
             Spacer(Modifier.height(16.dp))
-            Text("수영 기록 도착!", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = PopupTxt1, letterSpacing = (-0.1).sp)
+            Text("수영 기록 도착!", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary, letterSpacing = (-0.1).sp)
 
             // 조개 버스트
             Spacer(Modifier.height(18.dp))
@@ -154,14 +147,14 @@ fun ShellRewardPopup(
                     text = "+$shellCount",
                     fontSize = 42.sp,
                     fontWeight = FontWeight.Black,
-                    color = PopupGold,
+                    color = colors.accentGold,
                     letterSpacing = (-0.8).sp,
                 )
                 Text(
                     text = "조개",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = PopupTxt2,
+                    color = colors.textSecondary,
                     modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
                 )
             }
@@ -171,23 +164,23 @@ fun ShellRewardPopup(
                 Spacer(Modifier.height(14.dp))
                 Row(
                     modifier = Modifier
-                        .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(12.dp))
+                        .background((if (colors.isDark) Color.White else Color.Black).copy(alpha = 0.04f), RoundedCornerShape(12.dp))
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                     horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(18.dp),
                 ) {
                     Row {
-                        Text(String.format("%,d", distanceM), fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = PopupBlue, fontFamily = JetBrainsMonoFamily)
-                        Text(" m", fontSize = 12.sp, color = PopupTxt2, fontFamily = JetBrainsMonoFamily)
+                        Text(String.format("%,d", distanceM), fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue, fontFamily = JetBrainsMonoFamily)
+                        Text(" m", fontSize = 12.sp, color = colors.textSecondary, fontFamily = JetBrainsMonoFamily)
                     }
                     Row {
-                        Text("$durationMin", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = PopupBlue, fontFamily = JetBrainsMonoFamily)
-                        Text(" 분", fontSize = 12.sp, color = PopupTxt2, fontFamily = JetBrainsMonoFamily)
+                        Text("$durationMin", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue, fontFamily = JetBrainsMonoFamily)
+                        Text(" 분", fontSize = 12.sp, color = colors.textSecondary, fontFamily = JetBrainsMonoFamily)
                     }
                 }
             }
 
             Spacer(Modifier.height(14.dp))
-            Text("탭하면 닫혀요", fontSize = 11.sp, color = PopupTxt3, letterSpacing = 0.3.sp)
+            Text("탭하면 닫혀요", fontSize = 11.sp, color = colors.textTertiary, letterSpacing = 0.3.sp)
         }
     }
 }
@@ -195,6 +188,7 @@ fun ShellRewardPopup(
 /** 가운데 큰 조개 + 방사형으로 날아가는 작은 조개들 + 골드 글로우 펄스. */
 @Composable
 private fun ShellBurst(shellCount: Int) {
+    val gold = SoodalDesign.colors.accentGold
     // 1개여도 여러 개가 흩어지는 느낌이 나도록 최소 3개 버스트.
     val bursts = shellCount.coerceAtLeast(3)
 
@@ -211,7 +205,7 @@ private fun ShellBurst(shellCount: Int) {
                 .size(140.dp)
                 .scale(pulse)
                 .background(
-                    Brush.radialGradient(listOf(PopupGold.copy(alpha = 0.30f), Color.Transparent)),
+                    Brush.radialGradient(listOf(gold.copy(alpha = 0.30f), Color.Transparent)),
                     RoundedCornerShape(999.dp),
                 ),
         )
@@ -232,7 +226,7 @@ private fun ShellBurst(shellCount: Int) {
                         .offset { IntOffset((xDp * progress.value).roundToPx(), (yDp * progress.value).roundToPx()) }
                         .alpha(progress.value.coerceIn(0f, 1f)),
                 ) {
-                    SoodalIcon(icon = SoodalIcons.Shell, tint = PopupGold, size = 20.dp)
+                    SoodalIcon(icon = SoodalIcons.Shell, tint = gold, size = 20.dp)
                 }
             }
         }
@@ -244,7 +238,7 @@ private fun ShellBurst(shellCount: Int) {
             centerScale.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 380f))
         }
         Box(modifier = Modifier.scale(centerScale.value)) {
-            SoodalIcon(icon = SoodalIcons.Shell, tint = PopupGold, size = 68.dp)
+            SoodalIcon(icon = SoodalIcons.Shell, tint = gold, size = 68.dp)
         }
     }
 }
