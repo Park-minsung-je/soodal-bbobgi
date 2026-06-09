@@ -746,7 +746,7 @@ private fun formatChartTime(sec: Int): String =
     else "%d:%02d".format(sec / 60, sec % 60)
 
 /**
- * 세션 심박 곡선 — 운동 구간은 로즈, 휴식으로 계산된 구간은 회색(+옅은 밴드)으로 구분해 그린다.
+ * 세션 심박 곡선 — 단일 로즈 라인. (휴식 구간 색 구분 표시는 보류 — 주석 처리)
  * 일시정지(샘플 공백)는 x축에서 제거하고 세그먼트 사이 작은 틈으로만 표시한다.
  * 꾹 눌러 끌면 해당 지점의 경과 시간·심박을 보여준다.
  */
@@ -754,7 +754,7 @@ private fun formatChartTime(sec: Int): String =
 private fun HrChart(points: List<Pair<Int, Int>>, restRanges: List<IntRange>) {
     val rose = Color(0xFFF43F5E)
     val colors = SoodalDesign.colors
-    val restColor = colors.textTertiary
+    // val restColor = colors.textTertiary // 휴식 밴드 색 — 보류
     val layout = remember(points) { buildHrChartLayout(points) }
     var scrubFrac by remember(points) { mutableStateOf<Float?>(null) }
     val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
@@ -784,42 +784,24 @@ private fun HrChart(points: List<Pair<Int, Int>>, restRanges: List<IntRange>) {
 
         layout.segs.forEachIndexed { si, seg ->
             fun px(p: Pair<Int, Int>) = pxUnit(layout.unitOf(si, p))
-            // 동기화 때 원본 해상도로 분류돼 저장된 휴식 구간 — 실운동시간 계산과 항상 일치한다
-            fun isRest(p: Pair<Int, Int>) = restRanges.any { p.first in it }
 
-            // 같은 분류(운동/휴식)가 이어지는 서브런 단위로 색을 나눠 그린다.
-            var runStart = 0
-            for (i in 1 until seg.size) {
-                val clsPrev = isRest(seg[i - 1])
-                val boundary = i == seg.size - 1 || isRest(seg[i]) != clsPrev
-                if (!boundary) continue
+            // 휴식 구간 색 구분 표시는 보류 — 세그먼트를 단일 로즈 라인+그라디언트로 그린다.
+            // (복구 시 restRanges 기반 isRest 서브런 분할 + 회색 밴드 로직 부활)
+            // fun isRest(p: Pair<Int, Int>) = restRanges.any { p.first in it }
 
-                val run = seg.subList(runStart, i + 1)
-                val line = Path().apply {
-                    run.forEachIndexed { ri, p ->
-                        if (ri == 0) moveTo(px(p), py(p.second)) else lineTo(px(p), py(p.second))
-                    }
+            val line = Path().apply {
+                seg.forEachIndexed { ri, p ->
+                    if (ri == 0) moveTo(px(p), py(p.second)) else lineTo(px(p), py(p.second))
                 }
-                if (clsPrev) {
-                    // 휴식으로 계산된 구간 — 회색 라인 + 옅은 배경 밴드
-                    drawRect(
-                        color = restColor.copy(alpha = 0.10f),
-                        topLeft = androidx.compose.ui.geometry.Offset(px(run.first()), 0f),
-                        size = androidx.compose.ui.geometry.Size(px(run.last()) - px(run.first()), size.height),
-                    )
-                    drawPath(line, restColor.copy(alpha = 0.75f), style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-                } else {
-                    val area = Path().apply {
-                        addPath(line)
-                        lineTo(px(run.last()), size.height)
-                        lineTo(px(run.first()), size.height)
-                        close()
-                    }
-                    drawPath(area, Brush.verticalGradient(listOf(rose.copy(alpha = 0.22f), rose.copy(alpha = 0f))))
-                    drawPath(line, rose, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-                }
-                runStart = i
             }
+            val area = Path().apply {
+                addPath(line)
+                lineTo(px(seg.last()), size.height)
+                lineTo(px(seg.first()), size.height)
+                close()
+            }
+            drawPath(area, Brush.verticalGradient(listOf(rose.copy(alpha = 0.22f), rose.copy(alpha = 0f))))
+            drawPath(line, rose, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
         }
 
         // 스크럽 오버레이 — 꾹 누른 지점의 시간·심박
