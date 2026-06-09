@@ -129,11 +129,12 @@ fun HomeScreen(
             .fillMaxSize()
             .background(colors.bgDeep),
     ) {
+        // 상단 고정: 헤더 + 프로필 카드 (스크롤 안 됨)
         Column(
             modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = spacing.s4, vertical = spacing.s4),
+                .fillMaxWidth()
+                .padding(horizontal = spacing.s4)
+                .padding(top = spacing.s4),
         ) {
             // ── Header ──────────────────────────────────────────
             // 프로필편집 화면 헤더와 같은 고정 높이(52dp) — 두 화면의 카드 세로 위치를 일치시켜
@@ -293,7 +294,15 @@ fun HomeScreen(
                         Text("프로필 편집", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
                     }
                 }
+        }
 
+        // 하단 스크롤: 통화 + 오늘 + 최근 7일 + 이번 달
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = spacing.s4),
+        ) {
                 Spacer(Modifier.height(spacing.s3))
 
                 // ── Currency Row ────────────────────────────────────
