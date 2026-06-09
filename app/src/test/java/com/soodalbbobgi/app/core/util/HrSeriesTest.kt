@@ -1,6 +1,7 @@
 package com.soodalbbobgi.app.core.util
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -231,5 +232,17 @@ class HrSeriesTest {
         assertEquals(1, ranges.size)
         assertTrue("start=${ranges[0].first}", ranges[0].first in 540..645)
         assertTrue("end=${ranges[0].last}", ranges[0].last in 755..800)
+    }
+
+    @Test
+    fun `평균 심박은 전체 bpm 평균을 반올림한다`() {
+        assertEquals(120, averageHr(listOf(0 to 100, 30 to 120, 60 to 140)))
+        // 367 / 3 = 122.33 → 122
+        assertEquals(122, averageHr(listOf(0 to 120, 30 to 123, 60 to 124)))
+    }
+
+    @Test
+    fun `평균 심박은 빈 목록이면 null이다`() {
+        assertNull(averageHr(emptyList()))
     }
 }

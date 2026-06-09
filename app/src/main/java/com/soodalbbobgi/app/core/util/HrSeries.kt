@@ -280,3 +280,13 @@ fun decodeHrRestRanges(raw: String?): List<IntRange> {
         start..end
     }
 }
+
+/**
+ * 심박 시계열의 전체 평균 심박(bpm) — 반올림 정수. 비어 있으면 null.
+ * 다운샘플된 포인트 기준 표시용 근사값(휴식 포함 전체 평균).
+ *
+ * @param points (오프셋초, bpm) 목록
+ */
+fun averageHr(points: List<Pair<Int, Int>>): Int? =
+    if (points.isEmpty()) null
+    else Math.round(points.sumOf { it.second }.toFloat() / points.size)
