@@ -48,6 +48,8 @@ data class HomeUiState(
     val lastMonthDistance: Int = 0,
     val lastMonthSessions: Int = 0,
     val lastMonthKcal: Int = 0,
+    /** 이번 달 주력 영법 (가장 많이 한 영법; 없으면 null). */
+    val topStroke: String? = null,
     /** 오늘 세션 목록 (영법 수정용; 시작 시각 순). */
     val todaySessions: List<SwimSessionData> = emptyList(),
     /** 연속 수영 일수 (오늘 미기록 시 어제까지 기준). */
@@ -149,6 +151,13 @@ class HomeViewModel @Inject constructor(
         // 하루 여러 세션 가능 — 오늘 요약은 세션 합계로 표시
         val todayLogs = recentLogs.filter { it.date == todayDate.toString() }
         val lastMonth = swimLogUseCase.getMonthStats(lastMonthStart(), lastMonthEnd())
+        val monthLogs = recentLogs.filter { it.date >= monthStart() && it.date <= monthEnd() }
+        val topStroke = listOf(
+            "자유형" to monthLogs.sumOf { it.strokeFreestyleM },
+            "평영" to monthLogs.sumOf { it.strokeBreastM },
+            "배영" to monthLogs.sumOf { it.strokeBackM },
+            "접영" to monthLogs.sumOf { it.strokeFlyM },
+        ).filter { it.second > 0 }.maxByOrNull { it.second }?.first
         val todayMax = todayLogs.mapNotNull { it.maxHr }.maxOrNull()
         val todayMin = todayLogs.mapNotNull { it.minHr }.minOrNull()
         val todayAvg = averageHr(todayLogs.flatMap { decodeHrSeries(it.hrSeries) })
@@ -184,6 +193,7 @@ class HomeViewModel @Inject constructor(
             lastMonthDistance = lastMonth.totalDistanceMeters,
             lastMonthSessions = lastMonth.swimCount,
             lastMonthKcal = lastMonth.totalCalories,
+            topStroke = topStroke,
             todaySessions = todaySessionData,
             streak = streak,
             weekly = weekly,

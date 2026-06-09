@@ -367,7 +367,9 @@ fun HomeScreen(
                     distanceM = state.totalDistance,
                     sessions = state.swimSessions,
                     kcal = state.totalKcal,
+                    lastMonthDistance = state.lastMonthDistance,
                     lastMonthSessions = state.lastMonthSessions,
+                    topStroke = state.topStroke,
                     onClick = { onNavigateToTab("calendar") },
                 )
 
@@ -522,27 +524,34 @@ private fun TodayCard(
     onEditStrokes: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
-    SoodalCard(modifier = Modifier.fillMaxWidth()) {
-        if (hasRecord) {
-            Column(Modifier.fillMaxWidth()) {
-                Row(modifier = Modifier.fillMaxWidth()) {
+    if (hasRecord) {
+        Column(Modifier.fillMaxWidth()) {
+            // 카드 위 텍스트 액션 — 동기화 / 수정 (우측 정렬)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 3.dp, end = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TodayTextAction(if (syncing) "동기화 중…" else "동기화", colors.accentBlue, enabled = !syncing, onClick = onSync)
+                if (canEdit) {
+                    TodayTextAction("수정", colors.textSecondary, enabled = true, onClick = onEditStrokes)
+                }
+            }
+            SoodalCard(modifier = Modifier.fillMaxWidth()) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     TodayMetric(Modifier.weight(1f), "거리", distanceM.formatNumber(), "m", colors.accentBlue)
                     TodayMetric(Modifier.weight(1f), "시간", "$durationMin", "분", colors.textPrimary)
                     TodayMetric(Modifier.weight(1f), "칼로리", kcal.formatNumber(), "kcal", colors.success)
-                }
-                if (maxHr != null && minHr != null) {
-                    Spacer(Modifier.height(12.dp))
-                    TodayHrRow(maxHr = maxHr, minHr = minHr, avgHr = avgHr)
-                }
-                Spacer(Modifier.height(12.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (canEdit) {
-                        TodayActionButton("영법 수정", SoodalIcons.Edit, Modifier.weight(1f), enabled = true, onClick = onEditStrokes)
+                    if (avgHr != null) {
+                        TodayMetric(Modifier.weight(1f), "평균 심박", "$avgHr", "bpm", Color(0xFFF43F5E))
                     }
-                    TodayActionButton(if (syncing) "동기화 중…" else "동기화", SoodalIcons.Sync, Modifier.weight(1f), enabled = !syncing, onClick = onSync)
                 }
             }
-        } else {
+        }
+    } else {
+        SoodalCard(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -604,60 +613,41 @@ private fun TodayActionButton(
     }
 }
 
-/** 오늘 심박 행 — 최대/최소/평균 (로즈 톤). */
+/** 카드 위 작은 텍스트 액션 (동기화/수정). */
 @Composable
-private fun TodayHrRow(maxHr: Int, minHr: Int, avgHr: Int?) {
-    val colors = SoodalDesign.colors
-    val rose = Color(0xFFF43F5E)
-    Row(
+private fun TodayTextAction(label: String, color: Color, enabled: Boolean, onClick: () -> Unit) {
+    Text(
+        label,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
+        color = if (enabled) color else color.copy(alpha = 0.5f),
         modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(rose.copy(alpha = 0.06f))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        SoodalIcon(icon = SoodalIcons.Heart, tint = rose, size = 15.dp)
-        Spacer(Modifier.width(8.dp))
-        HrStat("최대", "$maxHr", rose)
-        HrDivider()
-        HrStat("최소", "$minHr", colors.textPrimary)
-        if (avgHr != null) {
-            HrDivider()
-            HrStat("평균", "$avgHr", colors.textPrimary)
-        }
-        Spacer(Modifier.weight(1f))
-        Text("bpm", fontSize = 10.sp, color = colors.textTertiary, fontWeight = FontWeight.SemiBold)
-    }
+            .clip(RoundedCornerShape(6.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                enabled = enabled,
+                onClick = onClick,
+            )
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+    )
 }
 
-@Composable
-private fun HrStat(label: String, value: String, valueColor: Color) {
-    val colors = SoodalDesign.colors
-    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, fontSize = 10.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
-        Text(value, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = valueColor)
-    }
-}
-
-@Composable
-private fun HrDivider() {
-    val colors = SoodalDesign.colors
-    Spacer(Modifier.width(8.dp))
-    Box(Modifier.width(1.dp).height(14.dp).background(colors.glassBorder))
-    Spacer(Modifier.width(8.dp))
-}
-
-/** 이번 달 수영 요약 — 문장형 + 지난달 비교. 수치는 색 강조. */
+/** 이번 달 수영 요약 — 월/델타% 헤더 + 문장(주력 영법 포함) + 지난달 2줄 비교. */
 @Composable
 private fun MonthSummaryCard(
     distanceM: Int,
     sessions: Int,
     kcal: Int,
+    lastMonthDistance: Int,
     lastMonthSessions: Int,
+    topStroke: String?,
     onClick: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
+    val distanceDelta = distanceM - lastMonthDistance
+    val countDelta = sessions - lastMonthSessions
+    val pct = if (lastMonthDistance > 0) Math.round(distanceDelta.toFloat() / lastMonthDistance * 100) else 0
     SoodalCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -668,11 +658,26 @@ private fun MonthSummaryCard(
             ),
     ) {
         Column {
-            Text("이번 달", fontSize = 10.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold, letterSpacing = 0.4.sp)
-            Spacer(Modifier.height(8.dp))
+            // 헤더: 이번 달 + 지난달 대비 거리 %
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("${java.time.YearMonth.now().monthValue}월", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+                if (lastMonthDistance > 0) {
+                    Text(
+                        "${if (pct >= 0) "+" else ""}$pct% ${if (pct >= 0) "↑" else "↓"}",
+                        fontSize = 13.sp, fontWeight = FontWeight.ExtraBold,
+                        color = if (pct >= 0) colors.success else colors.textSecondary,
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            // 문장 (수치 색 강조 + 주력 영법)
             Text(
                 text = buildAnnotatedString {
-                    append("이번 달엔 ")
+                    append("이번 달은 ")
                     pushStyle(SpanStyle(color = colors.accentBlue, fontWeight = FontWeight.ExtraBold))
                     append("${sessions}회")
                     pop()
@@ -680,23 +685,45 @@ private fun MonthSummaryCard(
                     pushStyle(SpanStyle(color = colors.accentBlue, fontWeight = FontWeight.ExtraBold))
                     append("${distanceM.formatNumber()}m")
                     pop()
-                    append("를 헤엄치고 ")
+                    append(" 헤엄치고, ")
                     pushStyle(SpanStyle(color = colors.success, fontWeight = FontWeight.ExtraBold))
                     append("${kcal.formatNumber()}kcal")
                     pop()
                     append("를 태웠어요.")
+                    if (topStroke != null) {
+                        append(" ")
+                        pushStyle(SpanStyle(color = colors.accentPurple, fontWeight = FontWeight.ExtraBold))
+                        append(topStroke)
+                        pop()
+                        append("을 가장 많이 했어요.")
+                    }
                 },
-                fontSize = 15.sp, color = colors.textPrimary, lineHeight = 22.sp,
+                fontSize = 15.sp, color = colors.textPrimary, lineHeight = 24.sp,
             )
-            Spacer(Modifier.height(8.dp))
+            // 지난달 비교 — 상단 구분선 + 2줄
+            Spacer(Modifier.height(14.dp))
+            Box(Modifier.fillMaxWidth().height(1.dp).background(colors.glassBorder))
+            Spacer(Modifier.height(12.dp))
+            Text("지난달보다", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
+            Spacer(Modifier.height(6.dp))
             Text(
                 text = buildAnnotatedString {
-                    pushStyle(SpanStyle(color = colors.accentPurple, fontWeight = FontWeight.ExtraBold))
-                    append(countDeltaPhrase(sessions - lastMonthSessions))
+                    pushStyle(SpanStyle(color = colors.accentBlue, fontWeight = FontWeight.ExtraBold))
+                    append("${Math.abs(countDelta)}회")
                     pop()
-                    append(" 했어요.")
+                    append(if (countDelta >= 0) " 더 했어요." else " 덜 했어요.")
                 },
-                fontSize = 13.sp, color = colors.textSecondary,
+                fontSize = 13.sp, color = colors.textPrimary,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = buildAnnotatedString {
+                    pushStyle(SpanStyle(color = colors.accentBlue, fontWeight = FontWeight.ExtraBold))
+                    append("${Math.abs(distanceDelta).formatNumber()}m")
+                    pop()
+                    append(if (distanceDelta >= 0) " 더 헤엄쳤어요." else " 덜 헤엄쳤어요.")
+                },
+                fontSize = 13.sp, color = colors.textPrimary,
             )
         }
     }
