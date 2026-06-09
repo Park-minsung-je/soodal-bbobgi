@@ -1,7 +1,9 @@
 package com.soodalbbobgi.app.presentation.calendar
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -43,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -63,6 +66,7 @@ import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
+import com.soodalbbobgi.app.core.util.averageHr
 import com.soodalbbobgi.app.core.theme.StrokePalette
 import com.soodalbbobgi.app.presentation.common.SectionLabel
 import com.soodalbbobgi.app.presentation.common.TrendBadge
@@ -562,18 +566,32 @@ private fun SessionDetail(session: SwimSessionData, onEdit: () -> Unit) {
             MetricCol("칼로리", session.kcal.toString(), "kcal", colors.success)
         }
 
-        // 최대·최소 심박(HC 심박 기록이 있을 때) + 평균 페이스.
-        // 페이스는 실운동시간이 있을 때만 — 경과시간(휴식 포함) 기반 페이스는 오해를 줘서 표시하지 않는다.
-        val pace = session.activeSec?.let { paceSecPer100m(session.distanceM, it) }
-        if ((session.maxHr != null && session.minHr != null) || pace != null) {
+        // 최대·최소·평균 심박(HC 심박 기록이 있을 때) + 심박 그래프 펼치기.
+        // 페이스 표시는 보류 — 실운동시간 기반 페이스(칼로리 보정)의 신뢰도 확보 전까지 비활성.
+        // val pace = session.activeSec?.let { paceSecPer100m(session.distanceM, it) }
+        val avgHr = averageHr(session.hrSeries)
+        val hasHr = session.maxHr != null && session.minHr != null
+        val hasChart = session.hrSeries.size >= 2
+        var chartExpanded by remember(session.logId) { mutableStateOf(false) }
+        if (hasHr || avgHr != null) {
             Spacer(Modifier.height(14.dp))
-            VitalsRow(maxHr = session.maxHr, minHr = session.minHr, paceSec = pace)
+            VitalsRow(
+                maxHr = session.maxHr,
+                minHr = session.minHr,
+                avgHr = avgHr,
+                chartExpanded = chartExpanded,
+                onToggleChart = if (hasChart) ({ chartExpanded = !chartExpanded }) else null,
+            )
         }
 
-        // 세션 심박 곡선
-        if (session.hrSeries.size >= 2) {
-            Spacer(Modifier.height(8.dp))
-            HrChart(points = session.hrSeries, restRanges = session.hrRestRanges)
+        // 세션 심박 곡선 — 화살표로 펼쳤을 때만
+        if (hasChart) {
+            AnimatedVisibility(visible = chartExpanded) {
+                Column {
+                    Spacer(Modifier.height(8.dp))
+                    HrChart(points = session.hrSeries, restRanges = session.hrRestRanges)
+                }
+            }
         }
 
         Spacer(Modifier.height(16.dp))
@@ -854,14 +872,23 @@ private fun HrChart(points: List<Pair<Int, Int>>, restRanges: List<IntRange>) {
 }
 
 /**
- * 심박(최대/최소) + 평균 페이스 행.
- * 라벨(11sp)과 수치(17sp 모노)는 폰트 패딩 차이로 높이가 어긋나서 베이스라인으로 정렬한다.
+ * 심박(최대/최소/평균) + 심박 그래프 펼치기 토글 행.
+ * 라벨(11sp)과 수치(17sp 모노)는 폰트 패딩 차이로 베이스라인 정렬한다.
+ * 페이스 표시는 보류 — 칼로리 보정 신뢰도 확보 전까지 주석 처리(아래 참조).
  */
 @Composable
-private fun VitalsRow(maxHr: Int?, minHr: Int?, paceSec: Int?) {
+private fun VitalsRow(
+    maxHr: Int?,
+    minHr: Int?,
+    avgHr: Int?,
+    chartExpanded: Boolean,
+    onToggleChart: (() -> Unit)?,
+) {
     val colors = SoodalDesign.colors
     val rose = Color(0xFFF43F5E)
     val hasHr = maxHr != null && minHr != null
+    val accent = if (hasHr) rose else colors.accentBlue
+    val arrowRotation by animateFloatAsState(if (chartExpanded) 90f else 0f, label = "hrChartArrow")
 
     Row(
         modifier = Modifier
@@ -873,7 +900,7 @@ private fun VitalsRow(maxHr: Int?, minHr: Int?, paceSec: Int?) {
     ) {
         SoodalIcon(
             icon = if (hasHr) SoodalIcons.Heart else SoodalIcons.Swimmer,
-            tint = if (hasHr) rose else colors.accentBlue,
+            tint = accent,
             size = 16.dp,
         )
         Spacer(Modifier.width(8.dp))
@@ -888,16 +915,45 @@ private fun VitalsRow(maxHr: Int?, minHr: Int?, paceSec: Int?) {
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text("최소", fontSize = 11.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold, modifier = Modifier.alignByBaseline())
                 Text("$minHr", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary, fontFamily = JetBrainsMonoFamily, modifier = Modifier.alignByBaseline())
+            }
+        }
+        // 평균 심박 — 휴식 포함 전체 평균
+        if (avgHr != null) {
+            if (hasHr) {
+                Spacer(Modifier.width(8.dp))
+                Box(Modifier.width(1.dp).height(16.dp).background(colors.glassBorder))
+                Spacer(Modifier.width(8.dp))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text("평균", fontSize = 11.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold, modifier = Modifier.alignByBaseline())
+                Text("$avgHr", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary, fontFamily = JetBrainsMonoFamily, modifier = Modifier.alignByBaseline())
                 Text("bpm", fontSize = 10.sp, color = colors.textTertiary, fontWeight = FontWeight.SemiBold, modifier = Modifier.alignByBaseline())
             }
         }
         Spacer(Modifier.weight(1f))
-        if (paceSec != null) {
-            // 평균 페이스 (100m 기준)
-            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text("페이스", fontSize = 11.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold, modifier = Modifier.alignByBaseline())
-                Text(formatPace(paceSec), fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary, fontFamily = JetBrainsMonoFamily, modifier = Modifier.alignByBaseline())
-            }
+        // 페이스 표시 보류 — 신뢰도 확보 전까지 비활성. 복구 시 paceSec 파라미터 + 아래 블록 부활.
+        // if (paceSec != null) {
+        //     Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        //         Text("페이스", fontSize = 11.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold, modifier = Modifier.alignByBaseline())
+        //         Text(formatPace(paceSec), fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary, fontFamily = JetBrainsMonoFamily, modifier = Modifier.alignByBaseline())
+        //     }
+        // }
+        // 심박 그래프 펼치기/접기 화살표 — 그래프가 있을 때만
+        if (onToggleChart != null) {
+            SoodalIcon(
+                icon = SoodalIcons.ArrowRight,
+                tint = accent,
+                size = 18.dp,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onToggleChart,
+                    )
+                    .padding(4.dp)
+                    .rotate(arrowRotation),
+            )
         }
     }
 }
