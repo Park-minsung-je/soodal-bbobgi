@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,15 +78,16 @@ fun SoodalTabBar(
             // 좌우 16dp — 화면 콘텐츠의 가로 패딩(spacing.s4)과 폭을 맞춘다
             .padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
             .height(62.dp)
-            // 카드 위를 지나갈 때도 층이 구분되도록 카드(8dp)보다 또렷한 그림자
-            .shadow(18.dp, shape, ambientColor = colors.cardShadow.copy(alpha = 0.45f), spotColor = colors.cardShadow.copy(alpha = 0.35f))
+            // 카드 위를 지나갈 때도 층이 구분되도록 — 검정 계열 고알파 그림자.
+            // (네이비 틴트 그림자는 흰 카드 위에서 거의 안 보였음)
+            .shadow(24.dp, shape, ambientColor = Color.Black.copy(alpha = 0.45f), spotColor = Color.Black.copy(alpha = 0.35f))
             .clip(shape)
             // 불투명 서피스 — 뒤 콘텐츠가 비치지 않는다
             .background(colors.cardBg)
             .padding(6.dp),
     ) {
         val tabWidth = maxWidth / tabs.size
-        // 필은 바 내부 높이에 꽉 차는 정원 — 활성 탭 칸 가운데에 위치
+        // 필은 바 내부 높이에 꽉 차는 라운드 정사각형 — 활성 탭 칸 가운데에 위치
         val pillSize = 50.dp
 
         // 활성 탭 뒤를 따라다니는 필 하이라이트
@@ -94,7 +95,7 @@ fun SoodalTabBar(
             modifier = Modifier
                 .offset(x = tabWidth * pillIndex + (tabWidth - pillSize) / 2)
                 .size(pillSize)
-                .clip(CircleShape)
+                .clip(RoundedCornerShape(16.dp))
                 .background(
                     Brush.linearGradient(
                         listOf(colors.accentBlue.copy(alpha = 0.16f), colors.accentBlue.copy(alpha = 0.09f)),
