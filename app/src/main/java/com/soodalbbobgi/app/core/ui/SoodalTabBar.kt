@@ -1,22 +1,37 @@
 package com.soodalbbobgi.app.core.ui
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material3.Text
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 
 data class TabItem(
@@ -32,6 +47,10 @@ val MainTabs = listOf(
     TabItem("shop", SoodalIcons.Shop, "상점"),
 )
 
+/**
+ * 하단 탭바 — 화면 가장자리에서 띄운 둥근 글래스 바 (디자인 확정).
+ * 활성 탭 뒤에는 부드러운 스프링으로 미끄러지는 필(pill) 하이라이트가 따라다닌다.
+ */
 @Composable
 fun SoodalTabBar(
     activeTab: String,
@@ -40,39 +59,70 @@ fun SoodalTabBar(
     tabs: List<TabItem> = MainTabs,
 ) {
     val colors = SoodalDesign.colors
-    Row(
+    val shape = RoundedCornerShape(22.dp)
+    val activeIndex = tabs.indexOfFirst { it.key == activeTab }.coerceAtLeast(0)
+    // 디자인의 오버슈트 이징(cubic-bezier 0.34,1.4,0.5,1)에 가까운 스프링
+    val pillIndex by animateFloatAsState(
+        targetValue = activeIndex.toFloat(),
+        animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow),
+        label = "tabPill",
+    )
+
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .height(64.dp)
+            .padding(start = 14.dp, end = 14.dp, bottom = 14.dp)
+            .height(62.dp)
+            .shadow(14.dp, shape, ambientColor = colors.cardShadow.copy(alpha = 0.16f), spotColor = colors.cardShadow.copy(alpha = 0.12f))
+            .clip(shape)
             .background(colors.tabbarBg)
-            .border(width = 1.dp, color = colors.tabbarBorder),
+            .border(1.dp, colors.tabbarBorder, shape)
+            .padding(6.dp),
     ) {
-        tabs.forEach { tab ->
-            val isActive = tab.key == activeTab
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(64.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { onTabSelected(tab.key) },
+        val tabWidth = maxWidth / tabs.size
+
+        // 활성 탭 뒤를 따라다니는 필 하이라이트
+        Box(
+            modifier = Modifier
+                .offset(x = tabWidth * pillIndex)
+                .width(tabWidth)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(16.dp))
+                .background(
+                    Brush.linearGradient(
+                        listOf(colors.accentBlue.copy(alpha = 0.16f), colors.accentBlue.copy(alpha = 0.09f)),
                     ),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                SoodalIcon(
-                    icon = tab.icon,
-                    tint = if (isActive) colors.accentBlue else colors.textTertiary,
-                    size = 22.dp,
-                )
-                Text(
-                    text = tab.label,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.4.sp,
-                    color = if (isActive) colors.accentBlue else colors.textTertiary,
-                )
+                ),
+        )
+
+        Row(Modifier.fillMaxSize()) {
+            tabs.forEach { tab ->
+                val isActive = tab.key == activeTab
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { onTabSelected(tab.key) },
+                        ),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    SoodalIcon(
+                        icon = tab.icon,
+                        tint = if (isActive) colors.accentBlue else colors.textTertiary,
+                        size = 23.dp,
+                    )
+                    Text(
+                        text = tab.label,
+                        fontSize = 10.sp,
+                        fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
+                        letterSpacing = 0.4.sp,
+                        color = if (isActive) colors.accentBlue else colors.textTertiary,
+                    )
+                }
             }
         }
     }
