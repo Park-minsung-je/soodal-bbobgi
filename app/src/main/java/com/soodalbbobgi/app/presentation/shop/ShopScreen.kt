@@ -234,25 +234,21 @@ private fun BoxGridItem(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            val (boxBg, boxTint) = when (item.icon) {
-                SoodalIcons.Gift -> colors.accentGoldSoft to colors.accentGold
-                SoodalIcons.Aurora -> colors.accentBlueSoft to colors.accentBlue
-                SoodalIcons.Otter -> colors.accentGoldSoft to colors.accentGold
-                SoodalIcons.Frame -> colors.accentPurpleSoft to colors.accentPurple
-                else -> colors.surface2 to colors.textTertiary
+            val boxTint = when (item.icon) {
+                SoodalIcons.Aurora -> colors.accentBlue
+                SoodalIcons.Frame -> colors.accentPurple
+                else -> colors.accentGold
             }
+            // 상자는 배경 없이 일러스트만 (아이템과 달리 티어 배경 미적용)
             Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(SoodalShape.md)
-                    .background(boxBg),
+                modifier = Modifier.size(48.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 if (!item.imageAsset.isNullOrBlank()) {
                     AssetImage(
                         imageAsset = item.imageAsset,
                         contentDescription = item.name,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxSize(),
                     )
                 } else {
                     SoodalIcon(icon = item.icon, tint = boxTint, size = 28.dp)

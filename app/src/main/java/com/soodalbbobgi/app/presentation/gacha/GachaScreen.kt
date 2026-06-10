@@ -178,39 +178,21 @@ fun GachaScreen(
 
 @Composable
 private fun GachaBoxCard(box: BoxInfo, itemScale: Float = 1f) {
-    val shape = RoundedCornerShape(18.dp)
+    // 카드 장식 없이 상자 일러스트만 크게 — 룰렛에서 일러스트 자체가 카드 역할을 한다.
     Box(
         modifier = Modifier
             .size(128.dp, 140.dp)
-            .scale(itemScale)
-            .clip(shape)
-            .drawBehind {
-                drawRect(Brush.linearGradient(
-                    listOf(box.color.copy(alpha = 0.13f), box.color.copy(alpha = 0.03f)),
-                    start = androidx.compose.ui.geometry.Offset.Zero,
-                    end = androidx.compose.ui.geometry.Offset(size.width, size.height),
-                ))
-            }
-            .border(1.5.dp, box.color.copy(alpha = 0.4f), shape),
+            .scale(itemScale),
         contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            // 관리자 등록 상자 일러스트 — 없으면 카테고리 아이콘 폴백
-            Box(Modifier.size(width = 80.dp, height = 74.dp), contentAlignment = Alignment.Center) {
-                if (!box.iconAsset.isNullOrBlank()) {
-                    AssetImage(
-                        imageAsset = box.iconAsset,
-                        contentDescription = box.label,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    SoodalIcon(icon = box.icon, tint = box.color, size = 48.dp)
-                }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                SoodalIcon(icon = box.icon, tint = box.color, size = 13.dp)
-                Text(box.label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = box.color)
-            }
+        if (!box.iconAsset.isNullOrBlank()) {
+            AssetImage(
+                imageAsset = box.iconAsset,
+                contentDescription = box.label,
+                modifier = Modifier.fillMaxSize().padding(4.dp),
+            )
+        } else {
+            SoodalIcon(icon = box.icon, tint = box.color, size = 64.dp)
         }
     }
 }

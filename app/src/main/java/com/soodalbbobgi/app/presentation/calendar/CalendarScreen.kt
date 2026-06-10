@@ -202,7 +202,7 @@ fun CalendarScreen(
             )
 
             // ── 최근 7일 활동 (홈과 동일 — 트렌드 내장 자체 라벨 카드) ──
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(14.dp))
             WeeklyActivityCard(weekly, trendPercent = weekly.trendPercent)
 
             // ── 선택한 달 영법별 기록 (도넛 차트) ──────────────────
