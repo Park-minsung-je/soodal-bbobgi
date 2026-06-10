@@ -64,6 +64,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -199,23 +200,36 @@ fun CalendarScreen(
                 .statusBarsPadding()
                 .nestedScroll(nestedConnection),
         ) {
-            // ── 고정: 헤더 + 요일 + 달력 (스크롤 오프셋에 따라 접힘) ──
-            // 달력↔범례 사이 12dp를 반씩 분담: 고정부 하단 6dp + 범례 위 6dp(스크롤 쪽).
+            // ── 고정: 제목 헤더 ─────────────────────────────
             Column(
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = spacing.s4)
-                    .padding(top = spacing.s4, bottom = 6.dp),
+                    .padding(top = spacing.s4),
             ) {
-            // ── 헤더: 제목 + 이번 달 인라인 통계 ──────────────
-            CalendarHeader(
-                year = state.year,
-                month = state.month,
-                swimData = state.swimData,
-            )
+                CalendarHeader(
+                    year = state.year,
+                    month = state.month,
+                    swimData = state.swimData,
+                )
+                Spacer(Modifier.height(18.dp))
+            }
 
-            Spacer(Modifier.height(18.dp))
+            // ── 달력(플로팅 오버레이) + 그 뒤로 지나가는 스크롤 콘텐츠 ──
+            Box(Modifier.weight(1f)) {
+            // 달력 블록 높이 — 콘텐츠는 이만큼 아래에서 시작하고, 스크롤하면
+            // 하단 탭바처럼 카드 뒤로 지나간다.
+            val gridHeight = cellHeight * weeks + 4.dp * (weeks - 1) + 8.dp
+            val calendarBlockHeight = 24.dp * (1f - collapseFraction) + gridHeight
 
+            // 달력 오버레이 (요일 + 그리드 카드) — 콘텐츠 위 레이어
+            Column(
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.s4)
+                    .zIndex(1f),
+            ) {
             // ── 요일 헤더 (일요일 시작) — 접히면서 높이·투명도 함께 사라진다 ──
             Box(
                 Modifier
@@ -282,15 +296,15 @@ fun CalendarScreen(
             }
             }
 
-            // ── 스크롤: 범례 + 선택한 날 + 주간 + 월간 ─────────────
+            // ── 스크롤 콘텐츠 — 달력 카드 높이만큼 아래서 시작, 카드 뒤로 지나간다 ──
             Column(
                 modifier = Modifier
-                    .weight(1f)
+                    .fillMaxSize()
                     .verticalScroll(contentScroll)
                     .padding(horizontal = spacing.s4),
             ) {
-            // ── 영법 범례 (위 12dp 중 나머지 절반) ──────────────────
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(calendarBlockHeight + 12.dp))
+            // ── 영법 범례 ──────────────────────────────────
             StrokeLegend()
 
             // ── 선택한 날 상세 (소제목 없이 카드 자체로 구분) ──────
@@ -328,6 +342,7 @@ fun CalendarScreen(
             )
 
             Spacer(Modifier.height(TabBarClearance))
+            }
             }
         }
 
