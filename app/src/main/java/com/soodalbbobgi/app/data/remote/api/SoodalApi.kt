@@ -33,6 +33,10 @@ interface SoodalApi {
     @POST("auth/refresh")
     suspend fun refreshToken(@Body request: RefreshRequest): ApiResponse<TokenData>
 
+    /** 리프레시 토큰 무효화 (로그아웃) */
+    @POST("auth/logout")
+    suspend fun logout(@Body request: RefreshRequest): ApiResponse<Unit>
+
     // ── User ──
 
     /** 현재 사용자 정보 조회 */
@@ -42,6 +46,10 @@ interface SoodalApi {
     /** 사용자 정보 수정 (닉네임, 성별, 연령대) */
     @PATCH("users/me")
     suspend fun updateMe(@Body request: UpdateUserRequest): ApiResponse<UserData>
+
+    /** 계정 삭제 — 서버의 모든 데이터가 영구 삭제된다 */
+    @DELETE("users/me")
+    suspend fun deleteMe(): ApiResponse<Unit>
 
     // ── Gacha ──
 
