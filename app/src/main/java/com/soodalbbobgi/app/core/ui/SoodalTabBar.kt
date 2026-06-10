@@ -93,8 +93,8 @@ fun SoodalTabBar(
                 val paint = androidx.compose.ui.graphics.Paint().asFrameworkPaint().apply {
                     color = android.graphics.Color.TRANSPARENT
                     setShadowLayer(
-                        10.dp.toPx(), 0f, 4.dp.toPx(),
-                        android.graphics.Color.argb(55, 10, 20, 40),
+                        8.dp.toPx(), 0f, 3.dp.toPx(),
+                        android.graphics.Color.argb(44, 10, 20, 40),
                     )
                 }
                 drawIntoCanvas { canvas ->
