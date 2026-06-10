@@ -580,9 +580,9 @@ private fun TodayCard(
             SoodalCard(modifier = Modifier.fillMaxWidth()) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     TodayMetric(Modifier.weight(1f), "거리", distanceM.formatNumber(), "m", colors.accentBlue)
-                    TodayMetric(Modifier.weight(1f), "시간", "$durationMin", "분", colors.textPrimary)
                     TodayMetric(Modifier.weight(1f), "칼로리", kcal.formatNumber(), "kcal", colors.success)
                     TodayMetric(Modifier.weight(1f), "평균 심박", avgHr?.toString() ?: "—", if (avgHr != null) "bpm" else "", Color(0xFFF43F5E))
+                    TodayMetric(Modifier.weight(1f), "시간", "$durationMin", "분", colors.textPrimary)
                 }
             }
         }

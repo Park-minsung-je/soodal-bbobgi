@@ -119,7 +119,7 @@ fun ShellRewardPopup(
                     colors.gradCard,
                     RoundedCornerShape(24.dp),
                 )
-                .padding(start = 22.dp, end = 22.dp, top = 26.dp, bottom = 22.dp),
+                .padding(start = 22.dp, end = 22.dp, top = 20.dp, bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // 출처 칩
@@ -134,13 +134,13 @@ fun ShellRewardPopup(
                 Text("Health Connect 동기화", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue, letterSpacing = 0.3.sp)
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
             Text("수영 기록 도착!", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary, letterSpacing = (-0.1).sp)
 
             // 조개 버스트
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(8.dp))
             ShellBurst(shellCount)
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(6.dp))
 
             // 획득량
             Row(verticalAlignment = Alignment.Bottom) {
@@ -162,7 +162,7 @@ fun ShellRewardPopup(
 
             // 기록 요약
             if (distanceM != null && durationMin != null) {
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(10.dp))
                 Row(
                     modifier = Modifier
                         .background((if (colors.isDark) Color.White else Color.Black).copy(alpha = 0.04f), RoundedCornerShape(12.dp))
@@ -198,7 +198,7 @@ fun ShellRewardPopup(
                     Text("영법 수정", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
                 }
             }
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(10.dp))
             Text("탭하면 닫혀요", fontSize = 11.sp, color = colors.textTertiary, letterSpacing = 0.3.sp)
         }
     }
@@ -211,7 +211,7 @@ private fun ShellBurst(shellCount: Int) {
     // 1개여도 여러 개가 흩어지는 느낌이 나도록 최소 3개 버스트.
     val bursts = shellCount.coerceAtLeast(3)
 
-    Box(modifier = Modifier.size(140.dp), contentAlignment = Alignment.Center) {
+    Box(modifier = Modifier.size(112.dp), contentAlignment = Alignment.Center) {
         // 글로우 펄스
         val pulse by rememberInfiniteTransition(label = "glow").animateFloat(
             initialValue = 0.85f,
@@ -221,7 +221,7 @@ private fun ShellBurst(shellCount: Int) {
         )
         Box(
             modifier = Modifier
-                .size(140.dp)
+                .size(112.dp)
                 .scale(pulse)
                 .background(
                     Brush.radialGradient(listOf(gold.copy(alpha = 0.30f), Color.Transparent)),
@@ -238,8 +238,8 @@ private fun ShellBurst(shellCount: Int) {
                     progress.animateTo(1f, tween(durationMillis = 500, easing = ShellFlyEasing))
                 }
                 val angle = (i.toFloat() / bursts) * 2f * PI.toFloat() - PI.toFloat() / 2f
-                val xDp = 56.dp * cos(angle)
-                val yDp = 56.dp * sin(angle)
+                val xDp = 44.dp * cos(angle)
+                val yDp = 44.dp * sin(angle)
                 Box(
                     modifier = Modifier
                         .offset { IntOffset((xDp * progress.value).roundToPx(), (yDp * progress.value).roundToPx()) }
@@ -257,7 +257,7 @@ private fun ShellBurst(shellCount: Int) {
             centerScale.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 380f))
         }
         Box(modifier = Modifier.scale(centerScale.value)) {
-            SoodalIcon(icon = SoodalIcons.Shell, tint = gold, size = 68.dp)
+            SoodalIcon(icon = SoodalIcons.Shell, tint = gold, size = 56.dp)
         }
     }
 }
