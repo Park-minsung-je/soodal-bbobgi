@@ -33,10 +33,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.soodalbbobgi.app.BuildConfig
 import com.soodalbbobgi.app.core.theme.SoodalDesign
+import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
+import com.soodalbbobgi.app.domain.model.Grade
+import com.soodalbbobgi.app.presentation.gacha.GachaResultItem
+import com.soodalbbobgi.app.presentation.gacha.GachaResultOverlay
 
 @Composable
 fun SettingsScreen(
@@ -48,6 +53,10 @@ fun SettingsScreen(
     var swimReminder by remember { mutableStateOf(true) }
     var shellNotification by remember { mutableStateOf(false) }
 
+    // 디버그 전용 개발자 모드 — 미리보기로 띄울 팝업 ("shell" | "gacha1" | "gacha10")
+    var devPopup by remember { mutableStateOf<String?>(null) }
+
+    Box(Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -219,6 +228,22 @@ fun SettingsScreen(
                 }
             }
 
+            // -- 개발자 Section (디버그 빌드 전용) --
+            if (BuildConfig.DEBUG) {
+                Spacer(Modifier.height(spacing.s5))
+                SectionLabel(text = "개발자 (디버그 전용)")
+                Spacer(Modifier.height(spacing.s2))
+                SoodalCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        SettingsRow(label = "조개 지급 팝업 미리보기", trailing = "→", onClick = { devPopup = "shell" })
+                        SettingsDivider()
+                        SettingsRow(label = "뽑기 결과 팝업 (1개)", trailing = "→", onClick = { devPopup = "gacha1" })
+                        SettingsDivider()
+                        SettingsRow(label = "뽑기 결과 팝업 (10연)", trailing = "→", onClick = { devPopup = "gacha10" })
+                    }
+                }
+            }
+
             Spacer(Modifier.height(spacing.s6))
 
             // -- Footer --
@@ -235,6 +260,32 @@ fun SettingsScreen(
             Spacer(Modifier.height(spacing.s4))
         }
     }
+
+    // -- 개발자 팝업 미리보기 오버레이 (디버그 전용) --
+    when (devPopup) {
+        "shell" -> ShellRewardPopup(
+            shellCount = 3,
+            distanceM = 1250,
+            durationMin = 42,
+            onEditStrokes = { devPopup = null },
+            onDismiss = { devPopup = null },
+        )
+        "gacha1" -> GachaResultOverlay(results = devGachaResults(1), onClose = { devPopup = null })
+        "gacha10" -> GachaResultOverlay(results = devGachaResults(10), onClose = { devPopup = null })
+    }
+    }
+}
+
+/** 개발자 모드 미리보기용 샘플 뽑기 결과 — 등급/신규/중복(진주) 케이스를 섞어 돌려준다. */
+private fun devGachaResults(count: Int): List<GachaResultItem> {
+    val samples = listOf(
+        GachaResultItem("황금 수달", Grade.SSR, "char", isNew = true, pearlsEarned = 0),
+        GachaResultItem("오로라", Grade.SR, "bg", isNew = true, pearlsEarned = 0),
+        GachaResultItem("바다 수달", Grade.R, "char", isNew = false, pearlsEarned = 3),
+        GachaResultItem("시안 라인", Grade.R, "frame", isNew = true, pearlsEarned = 0),
+        GachaResultItem("수달이", Grade.N, "char", isNew = false, pearlsEarned = 1),
+    )
+    return List(count) { samples[it % samples.size] }
 }
 
 @Composable
