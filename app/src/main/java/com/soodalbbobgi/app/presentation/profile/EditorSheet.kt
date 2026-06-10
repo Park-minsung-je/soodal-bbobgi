@@ -397,12 +397,12 @@ fun EditorSheet(
                 )
             }
         } else {
-            // 저장 — 기록 수정 시트의 저장 버튼과 동일한 스타일 (높이 52, 곡률 14, 스카이→블루)
+            // 저장 — 기록 수정 시트의 저장 버튼과 동일한 스타일/여백 (높이 52, 곡률 14, 좌우·하단 18dp)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = spacing.s4)
-                    .padding(top = 10.dp, bottom = spacing.s3)
+                    .padding(horizontal = 18.dp)
+                    .padding(top = 10.dp, bottom = 18.dp)
                     .height(52.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .background(Brush.linearGradient(listOf(Color(0xFF38BDF8), Color(0xFF2563EB))))
