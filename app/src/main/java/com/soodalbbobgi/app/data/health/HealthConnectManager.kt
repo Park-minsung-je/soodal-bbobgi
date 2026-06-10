@@ -536,5 +536,19 @@ class HealthConnectManager @Inject constructor(
         fun isAvailable(context: Context): Boolean {
             return getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
         }
+
+        /** 권한 요청 다이얼로그에 띄울 전체 권한(읽기+쓰기) — 온보딩·설정 공용. */
+        val requestPermissions: Set<String> = setOf(
+            HealthPermission.getReadPermission(ExerciseSessionRecord::class),
+            HealthPermission.getWritePermission(ExerciseSessionRecord::class),
+            HealthPermission.getReadPermission(DistanceRecord::class),
+            HealthPermission.getWritePermission(DistanceRecord::class),
+            HealthPermission.getReadPermission(HeartRateRecord::class),
+            HealthPermission.getWritePermission(HeartRateRecord::class),
+            HealthPermission.getReadPermission(SpeedRecord::class),
+            HealthPermission.getWritePermission(SpeedRecord::class),
+            HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
+            HealthPermission.getWritePermission(TotalCaloriesBurnedRecord::class),
+        )
     }
 }

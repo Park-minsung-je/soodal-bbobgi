@@ -65,41 +65,8 @@ fun OnboardingPermissionScreen(
     var permissionRequested by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Health Connect 권한 요청 런처
-    val healthPermissions = remember {
-        setOf(
-            androidx.health.connect.client.permission.HealthPermission.getReadPermission(
-                androidx.health.connect.client.records.ExerciseSessionRecord::class
-            ),
-            androidx.health.connect.client.permission.HealthPermission.getWritePermission(
-                androidx.health.connect.client.records.ExerciseSessionRecord::class
-            ),
-            androidx.health.connect.client.permission.HealthPermission.getReadPermission(
-                androidx.health.connect.client.records.DistanceRecord::class
-            ),
-            androidx.health.connect.client.permission.HealthPermission.getWritePermission(
-                androidx.health.connect.client.records.DistanceRecord::class
-            ),
-            androidx.health.connect.client.permission.HealthPermission.getReadPermission(
-                androidx.health.connect.client.records.HeartRateRecord::class
-            ),
-            androidx.health.connect.client.permission.HealthPermission.getWritePermission(
-                androidx.health.connect.client.records.HeartRateRecord::class
-            ),
-            androidx.health.connect.client.permission.HealthPermission.getReadPermission(
-                androidx.health.connect.client.records.SpeedRecord::class
-            ),
-            androidx.health.connect.client.permission.HealthPermission.getWritePermission(
-                androidx.health.connect.client.records.SpeedRecord::class
-            ),
-            androidx.health.connect.client.permission.HealthPermission.getReadPermission(
-                androidx.health.connect.client.records.TotalCaloriesBurnedRecord::class
-            ),
-            androidx.health.connect.client.permission.HealthPermission.getWritePermission(
-                androidx.health.connect.client.records.TotalCaloriesBurnedRecord::class
-            ),
-        )
-    }
+    // Health Connect 권한 요청 런처 — 권한 셋은 설정 화면과 공용
+    val healthPermissions = HealthConnectManager.requestPermissions
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
