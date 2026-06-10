@@ -43,6 +43,7 @@ import com.soodalbbobgi.app.presentation.home.HomeScreen
 import com.soodalbbobgi.app.presentation.onboarding.OnboardingNicknameScreen
 import com.soodalbbobgi.app.presentation.onboarding.OnboardingPermissionScreen
 import com.soodalbbobgi.app.presentation.profile.ProfileFullscreenOverlay
+import com.soodalbbobgi.app.presentation.settings.LicensesScreen
 import com.soodalbbobgi.app.presentation.settings.SettingsScreen
 import com.soodalbbobgi.app.presentation.shop.ShopScreen
 import com.soodalbbobgi.app.presentation.splash.SplashDestination
@@ -154,8 +155,11 @@ fun AppNavHost(navController: NavHostController) {
                                     popUpTo(0) { inclusive = true }
                                 }
                             },
-                            onOpenLicenses = {}, // Task 8에서 Screen.Licenses 라우트로 연결
+                            onOpenLicenses = { navController.navigate(Screen.Licenses.route) },
                         )
+                    }
+                    composable(Screen.Licenses.route) {
+                        LicensesScreen(onBack = { navController.popBackStack() })
                     }
                 }
             }

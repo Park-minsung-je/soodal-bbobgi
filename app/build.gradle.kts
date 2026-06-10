@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.aboutlibraries)
 }
 
 android {
@@ -91,6 +92,7 @@ dependencies {
     implementation(libs.coroutines.android)
     implementation(libs.coil)
     implementation(libs.coil.compose)
+    implementation(libs.aboutlibraries.core)
 
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
