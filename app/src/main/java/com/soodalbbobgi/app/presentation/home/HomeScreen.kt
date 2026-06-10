@@ -54,7 +54,6 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.theme.StrokePalette
 import com.soodalbbobgi.app.core.ui.ChipColor
-import com.soodalbbobgi.app.core.ui.GlassPanel
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.SoodalIcon
@@ -306,7 +305,8 @@ fun HomeScreen(
 
                 // ── Currency Row ────────────────────────────────────
                 // 동일 너비 3칩: 조개/진주/연속 (뽑기 진입은 하단 탭바 — 디자인 확정).
-                GlassPanel(modifier = Modifier.fillMaxWidth()) {
+                // 테두리 없는 SoodalCard — 다른 카드와 동일한 그림자 표면.
+                SoodalCard(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
