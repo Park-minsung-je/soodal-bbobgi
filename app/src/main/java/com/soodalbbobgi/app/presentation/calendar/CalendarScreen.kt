@@ -47,6 +47,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -214,19 +216,36 @@ fun CalendarScreen(
 
             Spacer(Modifier.height(18.dp))
 
-            // ── 요일 헤더 (일요일 시작) ─────────────────────
-            DayHeaderRow()
-
-            Spacer(Modifier.height(6.dp))
+            // ── 요일 헤더 (일요일 시작) — 접히면서 높이·투명도 함께 사라진다 ──
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(24.dp * (1f - collapseFraction))
+                    .alpha(1f - collapseFraction)
+                    .clipToBounds(),
+            ) {
+                DayHeaderRow()
+            }
 
             // ── 그리드 (좌우 스와이프로 월 이동, 방향에 맞춰 슬라이드) ─────
+            // 접힐수록 떠 있는 카드로 — 그림자·서피스·라운드가 진행도에 따라 서서히 생긴다.
             val currentYm = YearMonth.of(state.year, state.month)
             // 나가는 달의 그리드가 자기 달 데이터로 그려지도록 월별 데이터를 보관한다.
             val gridData = remember { HashMap<YearMonth, Map<Int, SwimDayData>>() }
             gridData[currentYm] = state.swimData
+            val floatShape = RoundedCornerShape(16.dp)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .shadow(
+                        elevation = 12.dp * collapseFraction,
+                        shape = floatShape,
+                        ambientColor = Color.Black.copy(alpha = 0.30f),
+                        spotColor = Color.Black.copy(alpha = 0.25f),
+                    )
+                    .clip(floatShape)
+                    .background(colors.surface1.copy(alpha = collapseFraction))
+                    .padding(4.dp * collapseFraction)
                     .pointerInput(Unit) {
                         var dragTotal = 0f
                         detectHorizontalDragGestures(
