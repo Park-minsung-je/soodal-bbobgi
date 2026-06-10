@@ -152,11 +152,8 @@ fun CalendarScreen(
     val nestedConnection = remember(maxCollapsePx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                // 가속도(플링) 미적용 정책 — 손가락 드래그만 달력 접힘에 반영한다.
-                // 플링 델타가 들어오면 스냅 직후 헤더가 다시 움직이며 흔들리는 원인이 된다.
-                if (source != NestedScrollSource.Drag) return Offset.Zero
                 val dy = available.y
-                // 위로 스크롤: 콘텐츠보다 달력을 먼저 접는다
+                // 위로 스크롤(드래그·플링 모두): 콘텐츠보다 달력을 먼저 접는다
                 if (dy < 0 && collapsePx < maxCollapsePx) {
                     val consumed = minOf(maxCollapsePx - collapsePx, -dy)
                     collapsePx += consumed
@@ -166,9 +163,7 @@ fun CalendarScreen(
             }
 
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (source != NestedScrollSource.Drag) return Offset.Zero
                 // 아래로 스크롤: 콘텐츠가 맨 위에 닿아 다 못 쓴 잔여 델타로 달력을 펼친다.
-                // 같은 드래그 안에서 "콘텐츠 끝까지 → 이어서 달력 펼침"이 끊기지 않는다.
                 val dy = available.y
                 if (dy > 0 && collapsePx > 0f) {
                     val used = minOf(collapsePx, dy)
@@ -178,14 +173,12 @@ fun CalendarScreen(
                 return Offset.Zero
             }
 
-            override suspend fun onPreFling(available: Velocity): Velocity {
-                // 임계는 무조건 거리(절반) 기준 — 속도는 보지 않고 한쪽 크기로 스냅
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                // 플링이 모두 끝난 뒤 중간 크기로 멈춰 있으면 거리(절반) 임계로 스냅 —
+                // 표준 collapsing header 방식 (스냅과 플링이 싸우지 않는다).
                 if (collapsePx > 0f && collapsePx < maxCollapsePx) {
                     val target = if (collapsePx > maxCollapsePx / 2f) maxCollapsePx else 0f
-                    val expanding = target == 0f
                     animate(collapsePx, target, animationSpec = tween(200)) { v, _ -> collapsePx = v }
-                    // 펼침 스냅이면 남은 플링을 먹어 콘텐츠가 더 튀지 않게 한다
-                    if (expanding) return available
                 }
                 return Velocity.Zero
             }
@@ -501,7 +494,8 @@ private fun DayCell(
     // 선택은 배경을 바꾸지 않고 테두리만 강조한다 (디자인 확정).
     // 빈 칸 배경은 더 연하게, 이전/다음 달 칸은 배경 없이 (칙칙함 피드백 반영).
     val bg = when {
-        data != null -> colors.surface1
+        // 카드 서피스(cardBg) 위에서도 기록 있는 날이 또렷하게 구분되는 한 단계 진한 서피스
+        data != null -> colors.surface3
         isToday -> colors.accentBlue.copy(alpha = 0.08f)
         inMonth -> if (colors.isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.02f)
         else -> Color.Transparent
