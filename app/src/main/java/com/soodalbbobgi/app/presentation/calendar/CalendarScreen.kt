@@ -71,7 +71,6 @@ import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.util.averageHr
 import com.soodalbbobgi.app.core.theme.StrokePalette
-import com.soodalbbobgi.app.presentation.common.MonthSummaryCard
 import com.soodalbbobgi.app.presentation.common.SectionLabel
 import com.soodalbbobgi.app.presentation.common.WeeklyActivityCard
 import java.time.LocalDate
@@ -206,23 +205,22 @@ fun CalendarScreen(
             Spacer(Modifier.height(22.dp))
             WeeklyActivityCard(weekly, trendPercent = weekly.trendPercent)
 
-            // ── 선택한 달 수영 요약 (홈과 동일 문장형) ──────────────
+            // ── 선택한 달 영법별 기록 (도넛 차트) ──────────────────
             Spacer(Modifier.height(14.dp))
             val isCurrentMonth = YearMonth.of(state.year, state.month) == YearMonth.now()
-            MonthSummaryCard(
+            MonthStrokeDonutCard(
                 monthLabel = "${state.month}월",
                 subjectLabel = if (isCurrentMonth) "이번 달" else "${state.month}월",
-                distanceM = state.swimData.values.sumOf { it.distanceM },
+                strokeMeters = listOf(
+                    Triple("자유형", state.swimData.values.sumOf { it.freeM }, StrokePalette.Free),
+                    Triple("평영", state.swimData.values.sumOf { it.breastM }, StrokePalette.Breast),
+                    Triple("배영", state.swimData.values.sumOf { it.backM }, StrokePalette.Back),
+                    Triple("접영", state.swimData.values.sumOf { it.flyM }, StrokePalette.Fly),
+                    Triple("킥판", state.swimData.values.sumOf { it.kickM }, StrokePalette.Kick),
+                    Triple("혼영", state.swimData.values.sumOf { it.mixedM }, StrokePalette.Medley),
+                ),
+                totalDistanceM = state.swimData.values.sumOf { it.distanceM },
                 sessions = state.swimData.values.sumOf { it.sessions.size },
-                kcal = state.swimData.values.sumOf { it.kcal },
-                lastMonthDistance = state.lastMonthDistance,
-                lastMonthSessions = state.lastMonthSessions,
-                topStroke = listOf(
-                    "자유형" to state.swimData.values.sumOf { it.freeM },
-                    "평영" to state.swimData.values.sumOf { it.breastM },
-                    "배영" to state.swimData.values.sumOf { it.backM },
-                    "접영" to state.swimData.values.sumOf { it.flyM },
-                ).filter { it.second > 0 }.maxByOrNull { it.second }?.first,
             )
 
             Spacer(Modifier.height(12.dp))
