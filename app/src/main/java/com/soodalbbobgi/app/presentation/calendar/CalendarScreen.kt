@@ -228,7 +228,8 @@ fun CalendarScreen(
             }
 
             // ── 그리드 (좌우 스와이프로 월 이동, 방향에 맞춰 슬라이드) ─────
-            // 접힐수록 떠 있는 카드로 — 그림자·서피스·라운드가 진행도에 따라 서서히 생긴다.
+            // 기본부터 흰 서피스 카드 — 접힐 때는 셀 축소 + 그림자만 점진적으로 생겨
+            // 떠오르는 느낌을 만든다 (중간 전환에서 배경이 변하지 않아 깔끔).
             val currentYm = YearMonth.of(state.year, state.month)
             // 나가는 달의 그리드가 자기 달 데이터로 그려지도록 월별 데이터를 보관한다.
             val gridData = remember { HashMap<YearMonth, Map<Int, SwimDayData>>() }
@@ -244,8 +245,8 @@ fun CalendarScreen(
                         spotColor = Color.Black.copy(alpha = 0.25f),
                     )
                     .clip(floatShape)
-                    .background(colors.surface1.copy(alpha = collapseFraction))
-                    .padding(4.dp * collapseFraction)
+                    .background(colors.surface1)
+                    .padding(4.dp)
                     .pointerInput(Unit) {
                         var dragTotal = 0f
                         detectHorizontalDragGestures(
