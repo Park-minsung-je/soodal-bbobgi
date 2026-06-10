@@ -33,6 +33,8 @@ import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.StrokePalette
 import com.soodalbbobgi.app.core.ui.SoodalCard
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * 월간 영법별 기록 카드 — 좌측 도넛(작은 구멍) + 우측 범례 리스트(거리 내림차순) +
@@ -92,23 +94,41 @@ fun MonthStrokeDonutCard(
                 Spacer(Modifier.height(16.dp))
 
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    // 좌측 도넛 — 구멍이 작은 파이 형태, 세그먼트 사이 살짝 띄움
+                    // 좌측 도넛 — 구멍이 작은 파이 형태.
+                    // 세그먼트는 꽉 채워 그리고, 경계를 카드 배경색 직선으로 갈라
+                    // 갭이 부채꼴이 아닌 일정한 폭(평행)으로 보이게 한다.
+                    val cardBg = colors.cardBg
                     Canvas(modifier = Modifier.size(132.dp)) {
                         val outerR = size.minDimension / 2f
                         val holeR = outerR * 0.26f
                         val thickness = outerR - holeR
                         val midR = holeR + thickness / 2f
-                        val gapDeg = if (segs.size > 1) 1.8f else 0f
                         segs.forEach { s ->
                             drawArc(
                                 color = colorOf[s.label] ?: StrokePalette.Free,
-                                startAngle = s.startAngle - 90f + gapDeg / 2f,
-                                sweepAngle = (s.sweepAngle - gapDeg).coerceAtLeast(0.5f),
+                                startAngle = s.startAngle - 90f,
+                                sweepAngle = s.sweepAngle,
                                 useCenter = false,
                                 topLeft = Offset(center.x - midR, center.y - midR),
                                 size = Size(midR * 2, midR * 2),
                                 style = Stroke(width = thickness, cap = StrokeCap.Butt),
                             )
+                        }
+                        // 경계 분리선 — 중심→바깥 방향 직선이라 갭 폭이 어디서나 같다
+                        if (segs.size > 1) {
+                            fun pointAt(radius: Float, angleDeg: Float): Offset {
+                                val rad = Math.toRadians(angleDeg.toDouble() - 90.0)
+                                return Offset(center.x + radius * cos(rad).toFloat(), center.y + radius * sin(rad).toFloat())
+                            }
+                            segs.forEach { s ->
+                                drawLine(
+                                    color = cardBg,
+                                    start = pointAt(holeR - 1.dp.toPx(), s.startAngle),
+                                    end = pointAt(outerR + 1.dp.toPx(), s.startAngle),
+                                    strokeWidth = 2.5.dp.toPx(),
+                                    cap = StrokeCap.Butt,
+                                )
+                            }
                         }
                     }
 
