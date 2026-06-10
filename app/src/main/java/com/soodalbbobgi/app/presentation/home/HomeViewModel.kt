@@ -20,6 +20,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -247,6 +248,8 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _shellReward.value = 0
             _syncing.value = true
+            // 동기화가 순식간에 끝나도 로딩 표시는 최소 1초 유지 — 깜빡임 방지.
+            val startedAt = System.currentTimeMillis()
             try {
                 if (!healthConnectManager.hasAllPermissions()) {
                     Timber.w("Health Connect 권한이 없어 동기화를 건너뜀")
@@ -263,12 +266,19 @@ class HomeViewModel @Inject constructor(
                     else -> "동기화에 실패했어요. 다시 시도해주세요."
                 }
             } finally {
+                val elapsed = System.currentTimeMillis() - startedAt
+                if (elapsed < MIN_SYNC_INDICATOR_MS) delay(MIN_SYNC_INDICATOR_MS - elapsed)
                 _syncing.value = false
             }
         }
     }
 
     fun clearShellReward() { _shellReward.value = 0 }
+
+    companion object {
+        /** 동기화 로딩 표시 최소 유지 시간(ms). */
+        private const val MIN_SYNC_INDICATOR_MS = 1000L
+    }
 
     private fun monthStart(): String = YearMonth.now().atDay(1).toString()
     private fun monthEnd(): String = YearMonth.now().atEndOfMonth().toString()
