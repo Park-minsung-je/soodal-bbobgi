@@ -27,9 +27,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,9 +79,23 @@ fun SoodalTabBar(
             // 좌우 16dp — 화면 콘텐츠의 가로 패딩(spacing.s4)과 폭을 맞춘다
             .padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
             .height(62.dp)
-            // 카드 위를 지나갈 때도 층이 구분되도록 — 검정 계열 고알파 그림자.
-            // (네이비 틴트 그림자는 흰 카드 위에서 거의 안 보였음)
-            .shadow(24.dp, shape, ambientColor = Color.Black.copy(alpha = 0.45f), spotColor = Color.Black.copy(alpha = 0.35f))
+            // 커스텀 그림자 — Compose shadow()는 시스템이 알파를 추가로 깎아 흐릿해서,
+            // 네이티브 shadowLayer로 진하기를 직접 제어한다 (카드 위에서도 층 구분).
+            .drawBehind {
+                val paint = androidx.compose.ui.graphics.Paint().asFrameworkPaint().apply {
+                    color = android.graphics.Color.TRANSPARENT
+                    setShadowLayer(
+                        16.dp.toPx(), 0f, 5.dp.toPx(),
+                        android.graphics.Color.argb(80, 10, 20, 40),
+                    )
+                }
+                drawIntoCanvas { canvas ->
+                    canvas.nativeCanvas.drawRoundRect(
+                        0f, 0f, size.width, size.height,
+                        22.dp.toPx(), 22.dp.toPx(), paint,
+                    )
+                }
+            }
             .clip(shape)
             // 불투명 서피스 — 뒤 콘텐츠가 비치지 않는다
             .background(colors.cardBg)
