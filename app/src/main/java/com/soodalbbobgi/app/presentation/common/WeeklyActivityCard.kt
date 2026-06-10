@@ -94,8 +94,8 @@ fun WeeklyActivityCard(weekly: WeeklyActivity, trendPercent: Int? = null, onTap:
                         val up = trendPercent >= 0
                         Text(
                             text = "${if (up) "+" else ""}$trendPercent% ${if (up) "↑" else "↓"}",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
                             color = if (up) colors.success else Color(0xFFF43F5E),
                         )
                         Spacer(Modifier.height(3.dp))

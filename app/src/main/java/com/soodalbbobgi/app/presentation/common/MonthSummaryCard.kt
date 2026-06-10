@@ -79,7 +79,7 @@ fun MonthSummaryCard(
                 if (lastMonthDistance > 0) {
                     Text(
                         "${if (pct >= 0) "+" else ""}$pct% ${if (pct >= 0) "↑" else "↓"}",
-                        fontSize = 13.sp, fontWeight = FontWeight.ExtraBold,
+                        fontSize = 11.sp, fontWeight = FontWeight.Bold,
                         color = if (pct >= 0) colors.success else colors.textSecondary,
                     )
                 }
