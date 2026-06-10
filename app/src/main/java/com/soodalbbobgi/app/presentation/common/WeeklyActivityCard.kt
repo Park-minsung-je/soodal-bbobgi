@@ -56,12 +56,14 @@ fun TrendBadge(trendPercent: Int?) {
 }
 
 /**
- * 이번 주 활동 카드 — 총 거리 + 요일별 영법 스택 막대 (오늘 강조).
+ * 최근 7일 활동 카드 — 총 거리 + 요일별 영법 스택 막대 (오늘 강조).
+ * 트렌드 %는 카드 내부 우측 상단에 표시한다 (소제목 제거 디자인 — 카드가 자체 라벨을 가짐).
  *
+ * @param trendPercent 지난주 대비 추세 %. null이면 미표시.
  * @param onTap 카드 탭 동작 (홈→캘린더 이동 등). null이면 탭 비활성.
  */
 @Composable
-fun WeeklyActivityCard(weekly: WeeklyActivity, onTap: (() -> Unit)? = null) {
+fun WeeklyActivityCard(weekly: WeeklyActivity, trendPercent: Int? = null, onTap: (() -> Unit)? = null) {
     val colors = SoodalDesign.colors
     val maxV = (weekly.days.maxOfOrNull { it.distanceM } ?: 0).coerceAtLeast(1)
     val chartHeight = 84.dp
@@ -81,13 +83,25 @@ fun WeeklyActivityCard(weekly: WeeklyActivity, onTap: (() -> Unit)? = null) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom,
+                verticalAlignment = Alignment.Top,
             ) {
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(formatMeters(weekly.totalMeters), fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue)
                     Text("m", fontSize = 11.sp, color = colors.textSecondary, modifier = Modifier.padding(start = 3.dp, bottom = 2.dp))
                 }
-                Text("${weekly.activeDays}일 운동 · 최근 7일", fontSize = 11.sp, color = colors.textSecondary)
+                Column(horizontalAlignment = Alignment.End) {
+                    if (trendPercent != null) {
+                        val up = trendPercent >= 0
+                        Text(
+                            text = "${if (up) "+" else ""}$trendPercent% ${if (up) "↑" else "↓"}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (up) colors.success else Color(0xFFF43F5E),
+                        )
+                        Spacer(Modifier.height(3.dp))
+                    }
+                    Text("최근 7일 · ${weekly.activeDays}일 운동", fontSize = 11.sp, color = colors.textSecondary)
+                }
             }
             Spacer(Modifier.height(14.dp))
             Row(

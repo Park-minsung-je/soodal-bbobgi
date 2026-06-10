@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
+import com.soodalbbobgi.app.core.theme.StrokePalette
 import com.soodalbbobgi.app.core.ui.ChipColor
 import com.soodalbbobgi.app.core.ui.GlassPanel
 import com.soodalbbobgi.app.core.ui.SoodalCard
@@ -61,8 +62,6 @@ import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.motion.Motion
 import com.soodalbbobgi.app.presentation.calendar.StrokeEditSheet
 import com.soodalbbobgi.app.presentation.calendar.SwimSessionData
-import com.soodalbbobgi.app.presentation.common.SectionLabel
-import com.soodalbbobgi.app.presentation.common.TrendBadge
 import com.soodalbbobgi.app.presentation.common.WeeklyActivityCard
 import com.soodalbbobgi.app.presentation.profile.CardLayers
 import com.soodalbbobgi.app.presentation.profile.EditorSheet
@@ -355,11 +354,7 @@ fun HomeScreen(
 
                 // ── 최근 7일 활동 ─────────────────────────────────────
                 Spacer(Modifier.height(spacing.s4))
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                    TrendBadge(state.weekly.trendPercent)
-                }
-                Spacer(Modifier.height(8.dp))
-                WeeklyActivityCard(state.weekly, onTap = { onNavigateToTab("calendar") })
+                WeeklyActivityCard(state.weekly, trendPercent = state.weekly.trendPercent, onTap = { onNavigateToTab("calendar") })
 
                 // ── 이번 달 수영 (문장형) ─────────────────────────────
                 Spacer(Modifier.height(spacing.s4))
@@ -544,9 +539,7 @@ private fun TodayCard(
                     TodayMetric(Modifier.weight(1f), "거리", distanceM.formatNumber(), "m", colors.accentBlue)
                     TodayMetric(Modifier.weight(1f), "시간", "$durationMin", "분", colors.textPrimary)
                     TodayMetric(Modifier.weight(1f), "칼로리", kcal.formatNumber(), "kcal", colors.success)
-                    if (avgHr != null) {
-                        TodayMetric(Modifier.weight(1f), "평균 심박", "$avgHr", "bpm", Color(0xFFF43F5E))
-                    }
+                    TodayMetric(Modifier.weight(1f), "평균 심박", avgHr?.toString() ?: "—", if (avgHr != null) "bpm" else "", Color(0xFFF43F5E))
                 }
             }
         }
@@ -633,6 +626,15 @@ private fun TodayTextAction(label: String, color: Color, enabled: Boolean, onCli
     )
 }
 
+/** 영법 이름 → 영법 고유 파스텔 색. 모르는 이름은 자유형 색 폴백. */
+private fun strokeColorOf(name: String): Color = when (name) {
+    "자유형" -> StrokePalette.Free
+    "평영" -> StrokePalette.Breast
+    "배영" -> StrokePalette.Back
+    "접영" -> StrokePalette.Fly
+    else -> StrokePalette.Free
+}
+
 /** 이번 달 수영 요약 — 월/델타% 헤더 + 문장(주력 영법 포함) + 지난달 2줄 비교. */
 @Composable
 private fun MonthSummaryCard(
@@ -674,11 +676,11 @@ private fun MonthSummaryCard(
                 }
             }
             Spacer(Modifier.height(12.dp))
-            // 문장 (수치 색 강조 + 주력 영법)
+            // 문장 (수치 색 강조 + 주력 영법은 영법 고유색)
             Text(
                 text = buildAnnotatedString {
                     append("이번 달은 ")
-                    pushStyle(SpanStyle(color = colors.accentBlue, fontWeight = FontWeight.ExtraBold))
+                    pushStyle(SpanStyle(color = colors.accentPurple, fontWeight = FontWeight.ExtraBold))
                     append("${sessions}회")
                     pop()
                     append(" 수영해서 ")
@@ -692,7 +694,7 @@ private fun MonthSummaryCard(
                     append("를 태웠어요.")
                     if (topStroke != null) {
                         append(" ")
-                        pushStyle(SpanStyle(color = colors.accentPurple, fontWeight = FontWeight.ExtraBold))
+                        pushStyle(SpanStyle(color = strokeColorOf(topStroke), fontWeight = FontWeight.ExtraBold))
                         append(topStroke)
                         pop()
                         append("을 가장 많이 했어요.")
@@ -708,7 +710,7 @@ private fun MonthSummaryCard(
             Spacer(Modifier.height(6.dp))
             Text(
                 text = buildAnnotatedString {
-                    pushStyle(SpanStyle(color = colors.accentBlue, fontWeight = FontWeight.ExtraBold))
+                    pushStyle(SpanStyle(color = colors.accentPurple, fontWeight = FontWeight.ExtraBold))
                     append("${Math.abs(countDelta)}회")
                     pop()
                     append(if (countDelta >= 0) " 더 했어요." else " 덜 했어요.")
