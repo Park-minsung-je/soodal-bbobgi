@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -76,23 +78,23 @@ fun SoodalTabBar(
             // 좌우 16dp — 화면 콘텐츠의 가로 패딩(spacing.s4)과 폭을 맞춘다
             .padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
             .height(62.dp)
-            .shadow(14.dp, shape, ambientColor = colors.cardShadow.copy(alpha = 0.16f), spotColor = colors.cardShadow.copy(alpha = 0.12f))
+            // 카드 위를 지나갈 때도 층이 구분되도록 카드(8dp)보다 또렷한 그림자
+            .shadow(18.dp, shape, ambientColor = colors.cardShadow.copy(alpha = 0.45f), spotColor = colors.cardShadow.copy(alpha = 0.35f))
             .clip(shape)
             // 불투명 서피스 — 뒤 콘텐츠가 비치지 않는다
             .background(colors.cardBg)
             .padding(6.dp),
     ) {
         val tabWidth = maxWidth / tabs.size
-        // 필은 탭 칸보다 좌우로 살짝 좁게
-        val pillInset = 7.dp
+        // 필은 바 내부 높이에 꽉 차는 정원 — 활성 탭 칸 가운데에 위치
+        val pillSize = 50.dp
 
         // 활성 탭 뒤를 따라다니는 필 하이라이트
         Box(
             modifier = Modifier
-                .offset(x = tabWidth * pillIndex + pillInset)
-                .width(tabWidth - pillInset * 2)
-                .fillMaxHeight()
-                .clip(RoundedCornerShape(16.dp))
+                .offset(x = tabWidth * pillIndex + (tabWidth - pillSize) / 2)
+                .size(pillSize)
+                .clip(CircleShape)
                 .background(
                     Brush.linearGradient(
                         listOf(colors.accentBlue.copy(alpha = 0.16f), colors.accentBlue.copy(alpha = 0.09f)),
