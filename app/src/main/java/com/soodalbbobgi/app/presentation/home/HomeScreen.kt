@@ -92,10 +92,10 @@ fun HomeScreen(
     // 오늘 기록 영법 수정 시트 대상 세션 (null이면 닫힘).
     var editToday by remember { mutableStateOf<SwimSessionData?>(null) }
 
-    // 카드 아래 지점(dp) 계산: 위패딩16 + 헤더52 + 간격16 = 84, + 카드 높이, + 카드-시트 간격 8.
+    // 카드 아래 지점(dp) 계산: 위패딩16 + 헤더46 + 간격16 = 78, + 카드 높이, + 카드-시트 간격 8.
     val config = LocalConfiguration.current
     val cardHeightDp = (config.screenWidthDp - 32f) * 704f / 1472f
-    val sheetTopDp = 84f + cardHeightDp + 8f
+    val sheetTopDp = 78f + cardHeightDp + 8f
 
     // 시스템 뒤로가기 → 시트 닫기(취소): 미저장 변경 폐기.
     BackHandler(enabled = editorOpen) {
@@ -135,10 +135,10 @@ fun HomeScreen(
                 .padding(top = spacing.s4),
         ) {
             // ── Header ──────────────────────────────────────────
-            // 프로필편집 화면 헤더와 같은 고정 높이(52dp) — 두 화면의 카드 세로 위치를 일치시켜
-            // 홈↔편집 전환 시 카드가 제자리에 머무는 것처럼 보이게 한다.
+            // 헤더 높이 46dp — 인사말 텍스트에 딱 맞게 줄여 헤더 아래 빈 여백을 최소화한다.
+            // (스크롤 콘텐츠 페이드가 헤더 텍스트 바로 아래에서 시작되게.)
             Row(
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier.fillMaxWidth().height(46.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top,
             ) {

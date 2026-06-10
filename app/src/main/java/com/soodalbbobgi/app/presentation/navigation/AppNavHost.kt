@@ -172,8 +172,8 @@ fun AppNavHost(navController: NavHostController) {
         val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         val scrim = SoodalDesign.colors.bgDeep
         val scrimHeight = statusBarHeight + 20.dp
-        // 페이드 시작점 = 상태바 높이의 70% 지점 (전체 스크림 높이 기준 비율로 환산)
-        val solidEnd = (statusBarHeight.value * 0.7f) / scrimHeight.value
+        // 페이드 시작점 = 상태바 높이의 65% 지점 (전체 스크림 높이 기준 비율로 환산)
+        val solidEnd = (statusBarHeight.value * 0.65f) / scrimHeight.value
         fun fadeStop(t: Float, alpha: Float) = (solidEnd + (1f - solidEnd) * t) to scrim.copy(alpha = alpha)
         Box(
             modifier = Modifier
