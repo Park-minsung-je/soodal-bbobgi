@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -73,11 +76,16 @@ fun SoodalTabBar(
         label = "tabPill",
     )
 
+    // 하단 총 여백(내비게이션 인셋 포함)이 좌우 여백(16dp)과 같아지도록 보정 —
+    // 바의 라운드가 디스플레이 모서리 곡률과 동심원으로 맞는다.
+    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val bottomPad = (16.dp - navBottom).coerceAtLeast(0.dp)
+
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             // 좌우 16dp — 화면 콘텐츠의 가로 패딩(spacing.s4)과 폭을 맞춘다
-            .padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
+            .padding(start = 16.dp, end = 16.dp, bottom = bottomPad)
             .height(62.dp)
             // 커스텀 그림자 — Compose shadow()는 시스템이 알파를 추가로 깎아 흐릿해서,
             // 네이티브 shadowLayer로 진하기를 직접 제어한다 (카드 위에서도 층 구분).
