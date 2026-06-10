@@ -373,15 +373,20 @@ fun HomeScreen(
         }
 
         // 헤더 경계 페이드 — 위로 스크롤한 콘텐츠가 고정 헤더 아래에서 딱 잘리지 않고
-        // bgDeep으로 녹아들며 사라지게 한다.
+        // bgDeep으로 녹아들며 사라지게 한다 (smoothstep S-커브로 완만하게).
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .height(14.dp)
+                .height(18.dp)
                 .background(
                     androidx.compose.ui.graphics.Brush.verticalGradient(
-                        listOf(colors.bgDeep, colors.bgDeep.copy(alpha = 0f)),
+                        0f to colors.bgDeep,
+                        0.2f to colors.bgDeep.copy(alpha = 0.9f),
+                        0.4f to colors.bgDeep.copy(alpha = 0.65f),
+                        0.6f to colors.bgDeep.copy(alpha = 0.35f),
+                        0.8f to colors.bgDeep.copy(alpha = 0.1f),
+                        1f to colors.bgDeep.copy(alpha = 0f),
                     ),
                 ),
         )

@@ -180,17 +180,23 @@ fun AppNavHost(navController: NavHostController) {
 
         // 상태바 페이드 스크림 — 상태바 상단은 불투명(아이콘 가독), 상태바 하단부터
         // 경계 아래 살짝까지 투명으로 풀려 스크롤 콘텐츠가 상태바 밑에서 자연스럽게 사라진다.
+        // 불투명→투명 전환은 직선이 아닌 smoothstep S-커브로 완만하게 꺾는다.
         val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val scrim = SoodalDesign.colors.bgDeep
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .height(statusBarHeight + 12.dp)
+                .height(statusBarHeight + 20.dp)
                 .background(
                     Brush.verticalGradient(
-                        0f to SoodalDesign.colors.bgDeep,
-                        0.45f to SoodalDesign.colors.bgDeep,
-                        1f to SoodalDesign.colors.bgDeep.copy(alpha = 0f),
+                        0f to scrim,
+                        0.3f to scrim,
+                        0.44f to scrim.copy(alpha = 0.9f),
+                        0.58f to scrim.copy(alpha = 0.65f),
+                        0.72f to scrim.copy(alpha = 0.35f),
+                        0.86f to scrim.copy(alpha = 0.1f),
+                        1f to scrim.copy(alpha = 0f),
                     ),
                 ),
         )
