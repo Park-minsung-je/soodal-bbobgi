@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -66,6 +67,9 @@ fun ShopScreen(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
+                    // 상태바 인셋을 스크롤되는 콘텐츠 패딩으로 — 전역 페이드 스크림과 함께
+                    // 콘텐츠가 상태바 밑으로 자연스럽게 사라진다.
+                    .statusBarsPadding()
                     .padding(horizontal = spacing.s4, vertical = spacing.s4),
             ) {
                 // -- Header --

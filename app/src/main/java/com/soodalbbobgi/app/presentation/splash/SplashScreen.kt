@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -74,7 +75,7 @@ fun SplashScreen(
         onNavigate(destination)
     }
 
-    Box(Modifier.fillMaxSize().background(colors.bgDeep), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(colors.bgDeep).statusBarsPadding(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Image(
                 painter = painterResource(R.drawable.otter_swim),

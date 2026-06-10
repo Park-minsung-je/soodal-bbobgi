@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.draw.clipToBounds
@@ -56,7 +57,8 @@ fun GachaScreen(
     val colors = SoodalDesign.colors
 
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().background(colors.bgDeep)) {
+        // 헤더가 고정인 화면 — 루트에서 상태바 인셋 처리.
+        Column(Modifier.fillMaxSize().background(colors.bgDeep).statusBarsPadding()) {
             Column(
                 Modifier.weight(1f).padding(top = 12.dp),
             ) {
