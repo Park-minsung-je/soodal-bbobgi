@@ -89,14 +89,18 @@ fun SplashScreen(
             Box(Modifier.width(160.dp).height(4.dp).clip(RoundedCornerShape(999.dp)).background(colors.surface2)) {
                 Box(Modifier.fillMaxHeight().fillMaxWidth(animatedProgress).clip(RoundedCornerShape(999.dp)).background(colors.gradBlue))
             }
-            val label = assetProgressLabel(assetProgress)
-            if (label != null) {
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    text = label,
-                    fontSize = 11.sp,
-                    color = if (assetProgress is AssetSyncProgress.Error) colors.warn else colors.textTertiary,
-                )
+            // 라벨이 비는 순간에도 같은 공간을 차지해 가운데 정렬이 출렁이지 않게
+            // 고정 높이 슬롯으로 항상 렌더링한다.
+            Spacer(Modifier.height(10.dp))
+            Box(Modifier.height(16.dp), contentAlignment = Alignment.Center) {
+                val label = assetProgressLabel(assetProgress)
+                if (label != null) {
+                    Text(
+                        text = label,
+                        fontSize = 11.sp,
+                        color = if (assetProgress is AssetSyncProgress.Error) colors.warn else colors.textTertiary,
+                    )
+                }
             }
             if (syncError != null) {
                 Spacer(Modifier.height(16.dp))
