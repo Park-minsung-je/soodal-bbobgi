@@ -147,7 +147,15 @@ fun AppNavHost(navController: NavHostController) {
                         ShopScreen()
                     }
                     composable(Screen.Settings.route) {
-                        SettingsScreen(onBack = { navController.popBackStack() })
+                        SettingsScreen(
+                            onBack = { navController.popBackStack() },
+                            onSignedOut = {
+                                navController.navigate(Screen.Auth.route) {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            },
+                            onOpenLicenses = {}, // Task 8에서 Screen.Licenses 라우트로 연결
+                        )
                     }
                 }
             }

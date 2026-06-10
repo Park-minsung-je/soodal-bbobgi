@@ -21,8 +21,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,8 +35,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.health.connect.client.PermissionController
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soodalbbobgi.app.BuildConfig
 import com.soodalbbobgi.app.core.theme.SoodalDesign
+import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalIcon
@@ -46,6 +52,9 @@ import com.soodalbbobgi.app.presentation.gacha.GachaResultOverlay
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onSignedOut: () -> Unit,
+    onOpenLicenses: () -> Unit,
+    viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
@@ -55,6 +64,33 @@ fun SettingsScreen(
 
     // 디버그 전용 개발자 모드 — 미리보기로 띄울 팝업 ("shell" | "gacha1" | "gacha10")
     var devPopup by remember { mutableStateOf<String?>(null) }
+
+    val profile by viewModel.profile.collectAsStateWithLifecycle()
+    val hcConnected by viewModel.hcConnected.collectAsStateWithLifecycle()
+    val nicknameState by viewModel.nicknameState.collectAsStateWithLifecycle()
+    val accountAction by viewModel.accountAction.collectAsStateWithLifecycle()
+    val signedOut by viewModel.signedOut.collectAsStateWithLifecycle()
+
+    // 열려 있는 계정 다이얼로그: "nickname" | "logout" | "delete" | null
+    var dialog by remember { mutableStateOf<String?>(null) }
+
+    // 로그아웃/탈퇴 완료 → Auth로
+    LaunchedEffect(signedOut) { if (signedOut) onSignedOut() }
+
+    // 닉네임 저장 성공 → 다이얼로그 닫기
+    LaunchedEffect(nicknameState) {
+        if (nicknameState is NicknameSaveState.Success) {
+            dialog = null
+            viewModel.resetNicknameState()
+        }
+    }
+
+    // Health Connect 권한 요청 런처 — 온보딩과 같은 권한 셋
+    val hcPermissionLauncher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract(),
+    ) { granted ->
+        if (granted.isNotEmpty()) viewModel.onHcPermissionGranted() else viewModel.refreshHcStatus()
+    }
 
     Box(Modifier.fillMaxSize()) {
     Column(
@@ -110,23 +146,46 @@ fun SettingsScreen(
             Spacer(Modifier.height(spacing.s2))
             SoodalCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.fillMaxWidth()) {
+                    // 로그인 정보 (읽기 전용)
                     SettingsRow(
-                        label = "닉네임 변경",
+                        label = "로그인 정보",
                         trailing = null,
                         onClick = {},
                     ) {
+                        Text(
+                            text = when (profile?.authProvider) {
+                                "google" -> "Google 계정"
+                                "kakao" -> "Kakao 계정"
+                                else -> "—"
+                            },
+                            fontSize = 13.sp,
+                            color = colors.textTertiary,
+                        )
+                    }
+                    SettingsDivider()
+                    SettingsRow(
+                        label = "닉네임 변경",
+                        trailing = null,
+                        onClick = { dialog = "nickname" },
+                    ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Soodal", fontSize = 13.sp, color = colors.textTertiary)
+                            Text(profile?.nickname ?: "—", fontSize = 13.sp, color = colors.textTertiary)
                             Spacer(Modifier.width(4.dp))
                             Text("›", fontSize = 14.sp, color = colors.textTertiary)
                         }
                     }
                     SettingsDivider()
                     SettingsRow(
-                        label = "데이터 초기화",
+                        label = "로그아웃",
+                        trailing = "→",
+                        onClick = { dialog = "logout" },
+                    )
+                    SettingsDivider()
+                    SettingsRow(
+                        label = "계정 탈퇴",
                         trailing = "→",
                         labelColor = colors.warn,
-                        onClick = {},
+                        onClick = { dialog = "delete" },
                     )
                 }
             }
@@ -141,14 +200,17 @@ fun SettingsScreen(
                     SettingsRow(
                         label = "Health Connect",
                         trailing = null,
-                        onClick = {},
+                        onClick = {
+                            if (hcConnected == false) {
+                                hcPermissionLauncher.launch(HealthConnectManager.requestPermissions)
+                            }
+                        },
                     ) {
-                        Text(
-                            text = "연결됨",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = colors.success,
-                        )
+                        when (hcConnected) {
+                            true -> Text("연결됨", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.success)
+                            false -> Text("연결 안 됨 · 탭하여 연결", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.warn)
+                            null -> Text("확인 중…", fontSize = 12.sp, color = colors.textTertiary)
+                        }
                     }
                     SettingsDivider()
                     SettingsRow(
@@ -214,7 +276,7 @@ fun SettingsScreen(
                         onClick = {},
                     ) {
                         Text(
-                            text = "1.0.0",
+                            text = BuildConfig.VERSION_NAME,
                             fontSize = 13.sp,
                             color = colors.textTertiary,
                         )
@@ -224,7 +286,7 @@ fun SettingsScreen(
                     SettingsDivider()
                     SettingsRow(label = "개인정보처리방침", trailing = "→", onClick = {})
                     SettingsDivider()
-                    SettingsRow(label = "오픈소스 라이선스", trailing = "→", onClick = {})
+                    SettingsRow(label = "오픈소스 라이선스", trailing = "→", onClick = onOpenLicenses)
                 }
             }
 
@@ -254,11 +316,39 @@ fun SettingsScreen(
             ) {
                 Text("Made with ", fontSize = 11.sp, color = colors.textTertiary)
                 SoodalIcon(icon = SoodalIcons.Otter, size = 12.dp)
-                Text(" · 수달 뽑기 v1.0.0", fontSize = 11.sp, color = colors.textTertiary)
+                Text(" · 수달 뽑기 v${BuildConfig.VERSION_NAME}", fontSize = 11.sp, color = colors.textTertiary)
             }
 
             Spacer(Modifier.height(spacing.s4))
         }
+    }
+
+    // -- 계정 다이얼로그 오버레이 --
+    when (dialog) {
+        "nickname" -> NicknameEditDialog(
+            initial = profile?.nickname ?: "",
+            state = nicknameState,
+            onSave = { viewModel.saveNickname(it) },
+            onDismiss = { dialog = null; viewModel.resetNicknameState() },
+        )
+        "logout" -> ConfirmActionDialog(
+            title = "로그아웃",
+            message = "로그아웃하면 이 기기의 수영 기록이 지워져요. 다시 로그인하면 Health Connect에서 다시 가져올 수 있어요.",
+            confirmText = "로그아웃",
+            working = accountAction is AccountActionState.Working,
+            errorMessage = (accountAction as? AccountActionState.Error)?.message,
+            onConfirm = { viewModel.logout() },
+            onDismiss = { dialog = null; viewModel.resetAccountAction() },
+        )
+        "delete" -> ConfirmActionDialog(
+            title = "계정 탈퇴",
+            message = "계정과 모든 데이터(수영 기록, 수달, 재화)가 영구 삭제되며 되돌릴 수 없어요. 정말 탈퇴할까요?",
+            confirmText = "탈퇴하기",
+            working = accountAction is AccountActionState.Working,
+            errorMessage = (accountAction as? AccountActionState.Error)?.message,
+            onConfirm = { viewModel.deleteAccount() },
+            onDismiss = { dialog = null; viewModel.resetAccountAction() },
+        )
     }
 
     // -- 개발자 팝업 미리보기 오버레이 (디버그 전용) --
