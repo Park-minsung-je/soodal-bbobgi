@@ -71,7 +71,6 @@ import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.util.averageHr
 import com.soodalbbobgi.app.core.theme.StrokePalette
-import com.soodalbbobgi.app.presentation.common.SectionLabel
 import com.soodalbbobgi.app.presentation.common.WeeklyActivityCard
 import java.time.LocalDate
 import java.time.YearMonth
@@ -188,9 +187,8 @@ fun CalendarScreen(
             Spacer(Modifier.height(12.dp))
             StrokeLegend()
 
-            // ── 선택한 날 상세 ──────────────────────────────
-            SectionLabel(text = "선택한 날")
-            Spacer(Modifier.height(12.dp))
+            // ── 선택한 날 상세 (소제목 없이 카드 자체로 구분) ──────
+            Spacer(Modifier.height(14.dp))
             DayDetailCard(
                 year = state.year,
                 month = state.month,
@@ -679,16 +677,22 @@ private fun SessionDetail(
         StrokeRatioBar(meters = barMeters(session))
         Spacer(Modifier.height(10.dp))
 
-        // 영법별 % 그리드 — 수치는 접/배/평/자 4개만, 비율은 전체(6영법 합) 기준.
+        // 영법별 % 그리드 — 거리 상위 4개만, 동률은 자>평>배>접>혼>킥 우선 (DECISIONS 2026-06-10).
+        // 비율은 전체(6영법 합) 기준.
         val totalMeters = barMeters(session).sum().coerceAtLeast(1)
-        val entries = listOf(
-            Triple("자유형", session.freeM, StrokePalette.Free),
-            Triple("평영", session.breastM, StrokePalette.Breast),
-            Triple("배영", session.backM, StrokePalette.Back),
-            Triple("접영", session.flyM, StrokePalette.Fly),
+        val entries = topStrokes(
+            listOf(
+                ("자유형" to StrokePalette.Free) to session.freeM,
+                ("평영" to StrokePalette.Breast) to session.breastM,
+                ("배영" to StrokePalette.Back) to session.backM,
+                ("접영" to StrokePalette.Fly) to session.flyM,
+                ("혼영" to StrokePalette.Medley) to session.mixedM,
+                ("킥판" to StrokePalette.Kick) to session.kickM,
+            ),
         )
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            entries.forEach { (label, meters, color) ->
+            entries.forEach { (labelColor, meters) ->
+                val (label, color) = labelColor
                 val pct = strokePercent(meters, totalMeters)
                 Column(
                     modifier = Modifier

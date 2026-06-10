@@ -12,6 +12,26 @@ import org.junit.Test
 class CalendarLogicTest {
 
     @Test
+    fun `영법 그리드는 거리 상위 4개만 보여준다`() {
+        // 입력은 우선순위 순서(자평배접혼킥)로 들어온다
+        val entries = listOf("자유형" to 100, "평영" to 500, "배영" to 200, "접영" to 50, "혼영" to 300, "킥판" to 400)
+        assertEquals(listOf("평영", "킥판", "혼영", "배영"), topStrokes(entries).map { it.first })
+    }
+
+    @Test
+    fun `동률이면 자평배접혼킥 우선순위를 따른다`() {
+        val entries = listOf("자유형" to 100, "평영" to 300, "배영" to 300, "접영" to 100, "혼영" to 300, "킥판" to 100)
+        // 300 동률: 평>배>혼, 100 동률에서 남은 1자리: 자유형
+        assertEquals(listOf("평영", "배영", "혼영", "자유형"), topStrokes(entries).map { it.first })
+    }
+
+    @Test
+    fun `기록이 적어도 항상 4개를 채운다`() {
+        val entries = listOf("자유형" to 500, "평영" to 0, "배영" to 0, "접영" to 0, "혼영" to 0, "킥판" to 0)
+        assertEquals(listOf("자유형", "평영", "배영", "접영"), topStrokes(entries).map { it.first })
+    }
+
+    @Test
     fun `5월 2026 그리드는 금요일 자리에서 1일이 시작된다`() {
         val cells = buildMonthCells(2026, 5)
         assertEquals(42, cells.size)

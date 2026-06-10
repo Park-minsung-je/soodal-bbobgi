@@ -57,6 +57,16 @@ fun paceSecPer100m(distanceM: Int, durationSec: Int): Int? =
 fun formatPace(sec: Int): String = "${sec / 60}'${"%02d".format(sec % 60)}\""
 
 /**
+ * 영법 그리드 표시 정책 — 거리 상위 [count]개만 보여준다.
+ * 동률이면 입력 순서를 유지한다 (호출자가 자유형>평영>배영>접영>혼영>킥판 우선순위로 전달).
+ * 기록이 적어도 항상 [count]개를 채운다 (0m 영법도 우선순위 순으로 포함).
+ *
+ * @param entriesInPriorityOrder (영법, 거리m) — 우선순위 순서로 정렬된 입력
+ */
+fun <T> topStrokes(entriesInPriorityOrder: List<Pair<T, Int>>, count: Int = 4): List<Pair<T, Int>> =
+    entriesInPriorityOrder.sortedByDescending { it.second }.take(count)
+
+/**
  * 영법 슬라이더 입력값을 기록된 거리 안으로 제한한다.
  * 수정은 입력된 기록(총 거리)의 재분배만 허용 — 다른 영법 합계를 뺀 잔여까지만 늘릴 수 있다.
  *
