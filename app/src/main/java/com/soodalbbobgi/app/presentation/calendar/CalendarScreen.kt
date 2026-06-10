@@ -159,11 +159,18 @@ fun CalendarScreen(
                     collapsePx += consumed
                     return Offset(0f, -consumed)
                 }
-                // 아래로 스크롤: 콘텐츠가 맨 위일 때 달력을 펼친다
-                if (dy > 0 && contentScroll.value == 0 && collapsePx > 0f) {
-                    val consumed = minOf(collapsePx, dy)
-                    collapsePx -= consumed
-                    return Offset(0f, consumed)
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.Drag) return Offset.Zero
+                // 아래로 스크롤: 콘텐츠가 맨 위에 닿아 다 못 쓴 잔여 델타로 달력을 펼친다.
+                // 같은 드래그 안에서 "콘텐츠 끝까지 → 이어서 달력 펼침"이 끊기지 않는다.
+                val dy = available.y
+                if (dy > 0 && collapsePx > 0f) {
+                    val used = minOf(collapsePx, dy)
+                    collapsePx -= used
+                    return Offset(0f, used)
                 }
                 return Offset.Zero
             }
