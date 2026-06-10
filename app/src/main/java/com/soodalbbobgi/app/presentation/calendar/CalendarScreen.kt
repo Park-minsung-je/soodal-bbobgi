@@ -43,6 +43,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +57,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -121,11 +123,26 @@ fun CalendarScreen(
     // 선택한 날이 바뀌면 열린 수정 시트는 닫는다.
     LaunchedEffect(state.selectedDay) { editTarget = null }
 
+    // 스크롤 임계 기반 달력 간단 모드 — 충분히 내리면(enter) 셀이 날짜+그래프만 남고 얇아져
+    // 아래 데이터를 더 보여주고, 위로 거의 돌아오면(exit) 원래 셀로 복귀한다.
+    // enter/exit을 다르게(히스테리시스) 둬서 임계 근처에서 떨리지 않는다.
+    val calendarScroll = rememberScrollState()
+    val density = LocalDensity.current
+    var compactCalendar by remember { mutableStateOf(false) }
+    LaunchedEffect(calendarScroll) {
+        val enterPx = with(density) { 120.dp.toPx() }
+        val exitPx = with(density) { 36.dp.toPx() }
+        snapshotFlow { calendarScroll.value }.collect { v ->
+            if (!compactCalendar && v > enterPx) compactCalendar = true
+            else if (compactCalendar && v < exitPx) compactCalendar = false
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(colors.bgDeep)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(calendarScroll)
                 // 상태바 인셋을 스크롤되는 콘텐츠 패딩으로 — 위로 스크롤하면 콘텐츠가
                 // 상태바 밑으로 들어가며 전역 페이드 스크림으로 자연스럽게 사라진다.
                 // 하단 여백은 TabBarClearance가 담당하므로 위쪽만 패딩.
@@ -182,6 +199,7 @@ fun CalendarScreen(
                         month = ym.monthValue,
                         selectedDay = if (ym == currentYm) state.selectedDay else null,
                         swimData = gridData[ym] ?: emptyMap(),
+                        compact = compactCalendar,
                         onSelect = viewModel::selectDay,
                     )
                 }
@@ -329,6 +347,7 @@ private fun CalendarGrid(
     month: Int,
     selectedDay: Int?,
     swimData: Map<Int, SwimDayData>,
+    compact: Boolean,
     onSelect: (Int) -> Unit,
 ) {
     val cells = remember(year, month) { buildMonthCells(year, month) }
@@ -356,6 +375,7 @@ private fun CalendarGrid(
                             isSelected = cell.inMonth && cell.day == selectedDay,
                             isToday = cell.inMonth && isCurrentMonth && cell.day == today.dayOfMonth,
                             dow = dow,
+                            compact = compact,
                             onClick = { if (cell.inMonth) onSelect(cell.day) },
                         )
                     }
@@ -373,6 +393,7 @@ private fun DayCell(
     isSelected: Boolean,
     isToday: Boolean,
     dow: Int,
+    compact: Boolean,
     onClick: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
@@ -399,7 +420,9 @@ private fun DayCell(
 
     Column(
         modifier = Modifier
-            .aspectRatio(1f)
+            // 간단 모드: 정사각형 대신 날짜+그래프만 들어가는 얇은 셀 (높이 전환 애니메이션)
+            .then(if (compact) Modifier.height(32.dp) else Modifier.aspectRatio(1f))
+            .animateContentSize(tween(180))
             .alpha(if (inMonth) 1f else 0.55f)
             .clip(shape)
             .background(bg)
@@ -422,18 +445,22 @@ private fun DayCell(
             lineHeight = 11.sp,
         )
         if (data != null) {
-            Spacer(Modifier.height(3.dp))
-            Text(
-                text = "${formatNumber(data.distanceM)}m",
-                fontSize = 8.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isSelected) colors.accentBlue else colors.textSecondary,
-                fontFamily = JetBrainsMonoFamily,
-                letterSpacing = (-0.2).sp,
-                lineHeight = 8.sp,
-            )
-            // 6dp — 그래프를 2dp 내려 하단 남는 여백을 그만큼 줄인다
-            Spacer(Modifier.height(6.dp))
+            if (!compact) {
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    text = "${formatNumber(data.distanceM)}m",
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isSelected) colors.accentBlue else colors.textSecondary,
+                    fontFamily = JetBrainsMonoFamily,
+                    letterSpacing = (-0.2).sp,
+                    lineHeight = 8.sp,
+                )
+                // 6dp — 그래프를 2dp 내려 하단 남는 여백을 그만큼 줄인다
+                Spacer(Modifier.height(6.dp))
+            } else {
+                Spacer(Modifier.height(3.dp))
+            }
             Box(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
                 StrokeRatioBar(meters = barMeters(data), barHeight = 7.dp, compact = true)
             }
