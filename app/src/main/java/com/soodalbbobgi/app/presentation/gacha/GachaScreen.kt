@@ -48,6 +48,7 @@ import com.soodalbbobgi.app.core.ui.ChipColor
 import com.soodalbbobgi.app.core.ui.SoodalChip
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
+import com.soodalbbobgi.app.core.ui.TabBarClearance
 import kotlin.math.roundToInt
 
 @Composable
@@ -162,7 +163,7 @@ fun GachaScreen(
                     textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 )
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(TabBarClearance))
             }
         }
 

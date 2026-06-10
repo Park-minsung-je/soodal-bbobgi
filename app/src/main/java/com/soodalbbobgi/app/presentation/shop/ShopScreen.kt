@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +46,7 @@ import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalChip
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
+import com.soodalbbobgi.app.core.ui.TabBarClearance
 import com.soodalbbobgi.app.core.ui.motion.rememberPopupEnter
 import com.soodalbbobgi.app.domain.model.Grade
 import com.soodalbbobgi.app.presentation.gacha.GachaResultOverlay
@@ -61,42 +63,46 @@ fun ShopScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(colors.bgDeep),
+                .background(colors.bgDeep)
+                // 헤더가 고정인 화면 — 루트에서 상태바 인셋 처리.
+                .statusBarsPadding(),
         ) {
-            Column(
+            // -- 고정 헤더: 상점 타이틀 + 진주 보유량 --
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    // 상태바 인셋을 스크롤되는 콘텐츠 패딩으로 — 전역 페이드 스크림과 함께
-                    // 콘텐츠가 상태바 밑으로 자연스럽게 사라진다.
-                    .statusBarsPadding()
-                    .padding(horizontal = spacing.s4, vertical = spacing.s4),
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.s4)
+                    .padding(top = spacing.s4),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                // -- Header --
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        SoodalIcon(icon = SoodalIcons.Shop, size = 22.dp)
-                        Text(
-                            text = "상점",
-                            style = SoodalDesign.typography.lg,
-                            color = colors.textPrimary,
-                        )
-                    }
-                    SoodalChip(
-                        text = state.pearls.toString(),
-                        color = ChipColor.Purple,
-                        iconType = SoodalIcons.Pearl,
-                        label = "진주",
+                    SoodalIcon(icon = SoodalIcons.Shop, size = 22.dp)
+                    Text(
+                        text = "상점",
+                        style = SoodalDesign.typography.lg,
+                        color = colors.textPrimary,
                     )
                 }
+                SoodalChip(
+                    text = state.pearls.toString(),
+                    color = ChipColor.Purple,
+                    iconType = SoodalIcons.Pearl,
+                    label = "진주",
+                )
+            }
 
+            // 하단 스크롤 + 헤더 경계 페이드
+            Box(Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = spacing.s4),
+            ) {
                 Spacer(Modifier.height(spacing.s4))
 
                 val boxListings = state.listings.filter { it.productType == "box" }
@@ -169,8 +175,27 @@ fun ShopScreen(
                         }
                         if (rowIndex < itemRows.size - 1) Spacer(Modifier.height(spacing.s3))
                     }
-                    Spacer(Modifier.height(spacing.s5))
                 }
+                Spacer(Modifier.height(TabBarClearance))
+            }
+
+            // 헤더 경계 페이드 — 위로 스크롤한 콘텐츠가 고정 헤더 아래에서 녹아 사라진다.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .height(12.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            0f to colors.bgDeep,
+                            0.2f to colors.bgDeep.copy(alpha = 0.9f),
+                            0.4f to colors.bgDeep.copy(alpha = 0.65f),
+                            0.6f to colors.bgDeep.copy(alpha = 0.35f),
+                            0.8f to colors.bgDeep.copy(alpha = 0.1f),
+                            1f to colors.bgDeep.copy(alpha = 0f),
+                        ),
+                    ),
+            )
             }
         }
 

@@ -54,6 +54,7 @@ import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.ChipColor
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
+import com.soodalbbobgi.app.core.ui.TabBarClearance
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.motion.Motion
@@ -371,7 +372,7 @@ fun HomeScreen(
                     onClick = { onNavigateToTab("calendar") },
                 )
 
-                Spacer(Modifier.height(spacing.s4))
+                Spacer(Modifier.height(TabBarClearance))
         }
 
         // 헤더 경계 페이드 — 위로 스크롤한 콘텐츠가 고정 헤더 아래에서 딱 잘리지 않고

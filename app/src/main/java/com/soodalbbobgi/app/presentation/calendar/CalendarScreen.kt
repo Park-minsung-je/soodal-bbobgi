@@ -68,6 +68,7 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalIcon
+import com.soodalbbobgi.app.core.ui.TabBarClearance
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.util.averageHr
 import com.soodalbbobgi.app.core.theme.StrokePalette
@@ -221,7 +222,7 @@ fun CalendarScreen(
                 sessions = state.swimData.values.sumOf { it.sessions.size },
             )
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(TabBarClearance))
         }
 
         // ── 기록 수정 바텀시트 (세션 단위) ──────────────────

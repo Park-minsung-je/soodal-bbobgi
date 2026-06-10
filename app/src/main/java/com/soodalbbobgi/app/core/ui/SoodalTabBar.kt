@@ -4,7 +4,6 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -47,6 +46,9 @@ val MainTabs = listOf(
     TabItem("shop", SoodalIcons.Shop, "상점"),
 )
 
+/** 플로팅 탭바가 덮는 하단 영역(바 62 + 마진 14 + 숨통 16) — 탭 화면 콘텐츠 끝에 이만큼 여백을 둔다. */
+val TabBarClearance = 92.dp
+
 /**
  * 하단 탭바 — 화면 가장자리에서 띄운 둥근 글래스 바 (디자인 확정).
  * 활성 탭 뒤에는 부드러운 스프링으로 미끄러지는 필(pill) 하이라이트가 따라다닌다.
@@ -76,7 +78,6 @@ fun SoodalTabBar(
             .shadow(14.dp, shape, ambientColor = colors.cardShadow.copy(alpha = 0.16f), spotColor = colors.cardShadow.copy(alpha = 0.12f))
             .clip(shape)
             .background(colors.tabbarBg)
-            .border(1.dp, colors.tabbarBorder, shape)
             .padding(6.dp),
     ) {
         val tabWidth = maxWidth / tabs.size

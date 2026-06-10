@@ -1,8 +1,6 @@
 package com.soodalbbobgi.app.presentation.navigation
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -80,9 +78,10 @@ fun AppNavHost(navController: NavHostController) {
         .background(SoodalDesign.colors.bgDeep)
         .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // 콘텐츠 영역: 화면 전환 슬라이드가 이 Box 안에서만 일어난다(탭바는 제외).
-            Box(modifier = Modifier.weight(1f)) {
+        // 콘텐츠는 화면 전체를 쓰고 탭바는 그 위에 떠 있는 오버레이 —
+        // 콘텐츠가 플로팅 바 뒤로 스크롤되고, 바 주변은 투명하게 비친다.
+        // 탭 화면들은 스크롤 끝에 TabBarClearance 여백을 둬 마지막 콘텐츠가 가려지지 않게 한다.
+            Box(modifier = Modifier.fillMaxSize()) {
                 NavHost(
                     navController = navController,
                     startDestination = Screen.Splash.route,
@@ -153,18 +152,18 @@ fun AppNavHost(navController: NavHostController) {
                 }
             }
 
-            // 하단 탭바: 화면 바깥에 고정. 탭 화면에서만 보이며, 진입/이탈 시 아래로 슬라이드.
+            // 하단 플로팅 탭바: 탭 화면에서만 보이며, 진입/이탈 시 아래로 슬라이드.
             AnimatedVisibility(
                 visible = showTabBar,
-                enter = slideInVertically { it } + expandVertically(),
-                exit = slideOutVertically { it } + shrinkVertically(),
+                modifier = Modifier.align(Alignment.BottomCenter),
+                enter = slideInVertically { it },
+                exit = slideOutVertically { it },
             ) {
                 SoodalTabBar(
                     activeTab = currentRoute ?: Screen.Home.route,
                     onTabSelected = onSelectTab,
                 )
             }
-        }
 
         // 상태바 페이드 스크림 — 상태바 상단 70%는 불투명(아이콘 가독) 유지,
         // 하단 30% 지점부터 경계 아래까지 smoothstep S-커브로 완만하게 풀려
