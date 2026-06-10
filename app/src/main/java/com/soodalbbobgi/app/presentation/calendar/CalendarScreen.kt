@@ -430,9 +430,9 @@ private fun DayCell(
                 letterSpacing = (-0.2).sp,
                 lineHeight = 8.sp,
             )
-            // 그래프를 셀 하단에 고정해 하단 갭 = 셀 패딩(4dp), 좌우도 3+1=4dp로 사방 균등
-            Spacer(Modifier.weight(1f))
-            Box(Modifier.fillMaxWidth().padding(horizontal = 1.dp)) {
+            Spacer(Modifier.height(4.dp))
+            // 원래 레이아웃(자연스러운 하단 여백)에 좌우 여백만 2dp 더 (2→4dp)
+            Box(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
                 StrokeRatioBar(meters = barMeters(data), barHeight = 7.dp, compact = true)
             }
         }
