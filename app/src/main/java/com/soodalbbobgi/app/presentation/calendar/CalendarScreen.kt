@@ -430,8 +430,8 @@ private fun DayCell(
                 letterSpacing = (-0.2).sp,
                 lineHeight = 8.sp,
             )
-            Spacer(Modifier.height(4.dp))
-            // 원래 레이아웃(자연스러운 하단 여백)에 좌우 여백만 2dp 더 (2→4dp)
+            // 6dp — 그래프를 2dp 내려 하단 남는 여백을 그만큼 줄인다
+            Spacer(Modifier.height(6.dp))
             Box(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
                 StrokeRatioBar(meters = barMeters(data), barHeight = 7.dp, compact = true)
             }
