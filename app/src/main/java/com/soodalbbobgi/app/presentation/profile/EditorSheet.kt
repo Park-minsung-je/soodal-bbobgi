@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -396,15 +397,24 @@ fun EditorSheet(
                 )
             }
         } else {
-            SoodalButton(
-                text = "적용",
-                onClick = onApply,
-                style = ButtonStyle.Primary,
+            // 저장 — 기록 수정 시트의 저장 버튼과 동일한 스타일 (높이 52, 곡률 14, 스카이→블루)
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = spacing.s4, vertical = spacing.s3),
-                heightOverride = 52.dp,
-            )
+                    .padding(horizontal = spacing.s4)
+                    .padding(top = 10.dp, bottom = spacing.s3)
+                    .height(52.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Brush.linearGradient(listOf(Color(0xFF38BDF8), Color(0xFF2563EB))))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onApply,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("저장", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, letterSpacing = 0.3.sp)
+            }
         }
     }
 }

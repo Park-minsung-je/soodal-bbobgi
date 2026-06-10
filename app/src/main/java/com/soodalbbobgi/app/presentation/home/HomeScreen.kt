@@ -93,6 +93,12 @@ fun HomeScreen(
     // 오늘 기록 영법 수정 시트 대상 세션 (null이면 닫힘).
     var editToday by remember { mutableStateOf<SwimSessionData?>(null) }
 
+    // 홈 스크롤 상태 — 편집 시트가 열리면 최상단(카드 위치)으로 올린다.
+    val homeScrollState = rememberScrollState()
+    LaunchedEffect(editorOpen) {
+        if (editorOpen) homeScrollState.animateScrollTo(0)
+    }
+
     // 카드 아래 지점(dp) 계산: 위패딩16 + 헤더46 + 간격16 = 78, + 카드 높이, + 카드-시트 간격 8.
     val config = LocalConfiguration.current
     val cardHeightDp = (config.screenWidthDp - 32f) * 704f / 1472f
@@ -179,7 +185,7 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(homeScrollState)
                 .padding(horizontal = spacing.s4),
         ) {
             Spacer(Modifier.height(spacing.s4))
@@ -270,7 +276,7 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "전체화면 보기 ↗",
+                        text = "크게 보기 ↗",
                         fontSize = 11.sp,
                         color = colors.textTertiary,
                         modifier = Modifier
@@ -339,7 +345,7 @@ fun HomeScreen(
                 }
 
                 // ── 오늘 ────────────────────────────────────────────
-                Spacer(Modifier.height(spacing.s3))
+                Spacer(Modifier.height(spacing.s4))
                 TodayCard(
                     hasRecord = state.todayHasRecord,
                     distanceM = state.todayDistanceM,
@@ -432,6 +438,19 @@ fun HomeScreen(
                 viewModel.saveStrokes(session.logId, free, breast, back, fly, kick, mixed)
                 editToday = null
             },
+        )
+    }
+
+    // -- 편집 중 시트 밖 영역 터치 차단 (딤 없는 투명 차단막) --
+    if (editorOpen) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {},
+                ),
         )
     }
 
