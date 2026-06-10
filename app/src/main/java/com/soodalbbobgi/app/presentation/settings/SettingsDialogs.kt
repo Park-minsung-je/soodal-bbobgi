@@ -1,0 +1,180 @@
+package com.soodalbbobgi.app.presentation.settings
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.soodalbbobgi.app.core.theme.SoodalDesign
+import com.soodalbbobgi.app.core.ui.ButtonStyle
+import com.soodalbbobgi.app.core.ui.SoodalButton
+import com.soodalbbobgi.app.core.ui.SoodalTextField
+
+/**
+ * 닉네임 변경 다이얼로그 — 입력 + 검증/서버 에러 인라인 표시.
+ *
+ * @param initial 현재 닉네임 (입력 초기값)
+ * @param state 저장 진행 상태 (Saving 중엔 버튼 비활성)
+ * @param onSave 저장 버튼 콜백 (입력값 전달)
+ * @param onDismiss 닫기 (바깥 탭/취소)
+ */
+@Composable
+fun NicknameEditDialog(
+    initial: String,
+    state: NicknameSaveState,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = SoodalDesign.colors
+    var input by remember { mutableStateOf(initial) }
+    val saving = state is NicknameSaveState.Saving
+    val errorMessage = (state as? NicknameSaveState.Error)?.message
+
+    DialogScrim(onDismiss = { if (!saving) onDismiss() }) {
+        Text("닉네임 변경", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+        Spacer(Modifier.height(16.dp))
+        SoodalTextField(
+            value = input,
+            onValueChange = { input = it },
+            placeholder = "닉네임 입력 (최대 10자)",
+            maxLength = 10,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+            if (errorMessage != null) {
+                Text(errorMessage, fontSize = 12.sp, color = colors.warn, modifier = Modifier.weight(1f))
+            } else {
+                Spacer(Modifier.weight(1f))
+            }
+            Text("${input.length}/10", fontSize = 11.sp, color = colors.textTertiary)
+        }
+        Spacer(Modifier.height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            SoodalButton(
+                text = "취소",
+                onClick = onDismiss,
+                style = ButtonStyle.Ghost,
+                enabled = !saving,
+                heightOverride = 48.dp,
+                modifier = Modifier.weight(1f),
+            )
+            SoodalButton(
+                text = if (saving) "저장 중…" else "저장",
+                onClick = { onSave(input) },
+                enabled = !saving && input.isNotBlank(),
+                heightOverride = 48.dp,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+/**
+ * 위험 동작 확인 다이얼로그 (로그아웃/계정 탈퇴 공용).
+ *
+ * @param title 제목
+ * @param message 안내 문구
+ * @param confirmText 확인 버튼 라벨
+ * @param working 진행 중 여부 (버튼 비활성)
+ * @param errorMessage 실패 시 표시할 에러 (null이면 미표시)
+ * @param onConfirm 확인 콜백
+ * @param onDismiss 닫기 콜백
+ */
+@Composable
+fun ConfirmActionDialog(
+    title: String,
+    message: String,
+    confirmText: String,
+    working: Boolean,
+    errorMessage: String?,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = SoodalDesign.colors
+
+    DialogScrim(onDismiss = { if (!working) onDismiss() }) {
+        Text(title, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+        Spacer(Modifier.height(10.dp))
+        Text(message, fontSize = 13.sp, color = colors.textSecondary, lineHeight = 20.sp)
+        if (errorMessage != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(errorMessage, fontSize = 12.sp, color = colors.warn)
+        }
+        Spacer(Modifier.height(18.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            SoodalButton(
+                text = "취소",
+                onClick = onDismiss,
+                style = ButtonStyle.Ghost,
+                enabled = !working,
+                heightOverride = 48.dp,
+                modifier = Modifier.weight(1f),
+            )
+            SoodalButton(
+                text = if (working) "처리 중…" else confirmText,
+                onClick = onConfirm,
+                style = ButtonStyle.Warn,
+                enabled = !working,
+                heightOverride = 48.dp,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+/** 풀스크린 스크림 + 가운데 카드 — 설정 다이얼로그 공통 셸. 카드 탭은 닫힘으로 전파되지 않는다. */
+@Composable
+private fun DialogScrim(
+    onDismiss: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val colors = SoodalDesign.colors
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.55f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss,
+            )
+            .padding(28.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 340.dp)
+                .fillMaxWidth()
+                .background(colors.gradCard, RoundedCornerShape(20.dp))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {}, // 카드 내부 탭이 스크림 닫기로 전파되는 것 차단
+                )
+                .padding(22.dp),
+        ) {
+            content()
+        }
+    }
+}

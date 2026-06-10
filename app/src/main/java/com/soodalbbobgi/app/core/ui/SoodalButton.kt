@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -22,7 +23,7 @@ import androidx.compose.material3.Text
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 
-enum class ButtonStyle { Primary, Gold, Purple, Secondary, Ghost }
+enum class ButtonStyle { Primary, Gold, Purple, Secondary, Ghost, Warn }
 
 /**
  * 공용 버튼 컴포저블.
@@ -45,12 +46,14 @@ fun SoodalButton(
         ButtonStyle.Primary -> colors.gradBlue
         ButtonStyle.Gold -> colors.gradGold
         ButtonStyle.Purple -> colors.gradPurple
+        ButtonStyle.Warn -> SolidColor(colors.warn)
         else -> null
     }
     val textColor = when (style) {
         ButtonStyle.Primary -> colors.btnPrimaryText
         ButtonStyle.Gold -> colors.btnGoldText
         ButtonStyle.Purple -> colors.btnPurpleText
+        ButtonStyle.Warn -> colors.btnPrimaryText
         ButtonStyle.Secondary -> colors.textPrimary
         ButtonStyle.Ghost -> colors.textSecondary
     }
