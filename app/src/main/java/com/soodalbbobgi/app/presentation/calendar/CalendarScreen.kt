@@ -222,28 +222,8 @@ fun CalendarScreen(
             val gridHeight = cellHeight * weeks + 4.dp * (weeks - 1) + 8.dp
             val calendarBlockHeight = 24.dp * (1f - collapseFraction) + gridHeight
 
-            // 달력 오버레이 (요일 + 그리드 카드) — 콘텐츠 위 레이어
-            Column(
-                Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.s4)
-                    .zIndex(1f),
-            ) {
-            // ── 요일 헤더 (일요일 시작) — 접히면서 높이·투명도 함께 사라진다 ──
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(24.dp * (1f - collapseFraction))
-                    .alpha(1f - collapseFraction)
-                    .clipToBounds(),
-            ) {
-                DayHeaderRow()
-            }
-
-            // ── 그리드 (좌우 스와이프로 월 이동, 방향에 맞춰 슬라이드) ─────
-            // 기본부터 흰 서피스 카드 — 접힐 때는 셀 축소 + 그림자만 점진적으로 생겨
-            // 떠오르는 느낌을 만든다 (중간 전환에서 배경이 변하지 않아 깔끔).
+            // 달력 오버레이 — 요일 행까지 한 카드 서피스에 담는다 (콘텐츠 위 레이어).
+            // 배경은 다른 카드와 동일한 cardBg, 접힐 때는 셀 축소 + 그림자만 점진 등장.
             val currentYm = YearMonth.of(state.year, state.month)
             // 나가는 달의 그리드가 자기 달 데이터로 그려지도록 월별 데이터를 보관한다.
             val gridData = remember { HashMap<YearMonth, Map<Int, SwimDayData>>() }
@@ -251,7 +231,10 @@ fun CalendarScreen(
             val floatShape = RoundedCornerShape(16.dp)
             Box(
                 modifier = Modifier
+                    .align(Alignment.TopCenter)
                     .fillMaxWidth()
+                    .padding(horizontal = spacing.s4)
+                    .zIndex(1f)
                     .shadow(
                         elevation = 12.dp * collapseFraction,
                         shape = floatShape,
@@ -259,7 +242,7 @@ fun CalendarScreen(
                         spotColor = Color.Black.copy(alpha = 0.25f),
                     )
                     .clip(floatShape)
-                    .background(colors.surface1)
+                    .background(colors.cardBg)
                     .padding(4.dp)
                     .pointerInput(Unit) {
                         var dragTotal = 0f
@@ -273,6 +256,17 @@ fun CalendarScreen(
                         ) { _, dragAmount -> dragTotal += dragAmount }
                     },
             ) {
+                Column {
+                // ── 요일 헤더 — 접히면서 높이·투명도 함께 사라진다 ──
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(24.dp * (1f - collapseFraction))
+                        .alpha(1f - collapseFraction)
+                        .clipToBounds(),
+                ) {
+                    DayHeaderRow()
+                }
                 AnimatedContent(
                     targetState = currentYm,
                     transitionSpec = {
