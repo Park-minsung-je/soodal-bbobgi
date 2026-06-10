@@ -198,12 +198,12 @@ fun CalendarScreen(
                 .nestedScroll(nestedConnection),
         ) {
             // ── 고정: 헤더 + 요일 + 달력 (스크롤 오프셋에 따라 접힘) ──
-            // 하단 12dp — 스크롤된 콘텐츠가 달력에 바로 붙지 않게 고정 여백.
+            // 달력↔범례 사이 12dp를 반씩 분담: 고정부 하단 6dp + 범례 위 6dp(스크롤 쪽).
             Column(
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = spacing.s4)
-                    .padding(top = spacing.s4, bottom = 12.dp),
+                    .padding(top = spacing.s4, bottom = 6.dp),
             ) {
             // ── 헤더: 제목 + 이번 달 인라인 통계 ──────────────
             CalendarHeader(
@@ -269,7 +269,8 @@ fun CalendarScreen(
                     .verticalScroll(contentScroll)
                     .padding(horizontal = spacing.s4),
             ) {
-            // ── 영법 범례 (위 여백은 고정부 하단 패딩이 담당) ────────
+            // ── 영법 범례 (위 12dp 중 나머지 절반) ──────────────────
+            Spacer(Modifier.height(6.dp))
             StrokeLegend()
 
             // ── 선택한 날 상세 (소제목 없이 카드 자체로 구분) ──────
