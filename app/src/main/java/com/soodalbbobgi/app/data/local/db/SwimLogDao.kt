@@ -91,6 +91,10 @@ interface SwimLogDao {
     @Query("DELETE FROM swim_logs WHERE hcRecordId = :hcRecordId")
     suspend fun deleteByHcRecordId(hcRecordId: String)
 
+    /** 모든 수영 기록 삭제 — 로그아웃/계정 탈퇴 시 로컬 정리용. */
+    @Query("DELETE FROM swim_logs")
+    suspend fun deleteAll()
+
     @Query("SELECT COALESCE(SUM(distanceMeters), 0) FROM swim_logs WHERE date BETWEEN :startDate AND :endDate")
     suspend fun getTotalDistance(startDate: String, endDate: String): Int
 

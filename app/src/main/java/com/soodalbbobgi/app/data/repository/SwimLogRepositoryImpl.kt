@@ -46,6 +46,7 @@ class SwimLogRepositoryImpl @Inject constructor(
         )
     override suspend fun deleteByDate(date: String) = dao.deleteByDate(date)
     override suspend fun deleteByHcRecordId(hcRecordId: String) = dao.deleteByHcRecordId(hcRecordId)
+    override suspend fun deleteAll() = dao.deleteAll()
     override suspend fun getStats(startDate: String, endDate: String) = SwimStats(
         totalDistanceMeters = dao.getTotalDistance(startDate, endDate),
         swimCount = dao.getSwimCount(startDate, endDate),

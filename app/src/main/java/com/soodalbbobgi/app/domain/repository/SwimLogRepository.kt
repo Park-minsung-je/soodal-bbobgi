@@ -25,6 +25,8 @@ interface SwimLogRepository {
     suspend fun getUnsyncedDates(): List<String>
     suspend fun deleteByDate(date: String)
     suspend fun deleteByHcRecordId(hcRecordId: String)
+    /** 모든 수영 기록 삭제 — 로그아웃/계정 탈퇴 시 로컬 정리용. */
+    suspend fun deleteAll()
     suspend fun getStats(startDate: String, endDate: String): SwimStats
     suspend fun getLatest(): SwimLog?
 }
