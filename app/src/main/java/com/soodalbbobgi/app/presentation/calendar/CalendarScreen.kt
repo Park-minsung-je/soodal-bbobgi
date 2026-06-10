@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -20,10 +19,13 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,7 +41,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,8 +48,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -56,15 +55,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Velocity
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -130,116 +121,40 @@ fun CalendarScreen(
     // 선택한 날이 바뀌면 열린 수정 시트는 닫는다.
     LaunchedEffect(state.selectedDay) { editTarget = null }
 
-    // ── 접히는 달력 (collapsing header + nested scroll) ─────────────
-    // 달력은 상단 고정이고 아래 콘텐츠만 스크롤된다. 스크롤 오프셋을 달력이 1:1로 받아
-    // 셀이 실시간으로 얇아지며(0=정사각 셀 → 1=날짜+그래프 간단 셀), 손을 떼면
-    // 절반 임계 기준으로 어느 한쪽 크기로 스냅한다. 맨 위로 돌아오면 다시 펼쳐진다.
-    val density = LocalDensity.current
-    val contentScroll = rememberScrollState()
-    val compactCellPx = with(density) { 32.dp.toPx() }
-    // 셀 풀 높이(=셀 너비): (화면폭 - 좌우 패딩 - 셀 간격 4dp×6) / 7
-    val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
-    val fullCellPx = with(density) { ((screenWidthDp - spacing.s4 * 2 - 4.dp * 6) / 7f).toPx() }
-    val weeks = remember(state.year, state.month) {
-        buildMonthCells(state.year, state.month).chunked(7).count { w -> w.any { it.inMonth } }
-    }
-    // 월 전환으로 주 수(5↔6)가 바뀔 때 — 달력 카드는 AnimatedContent가 크기를
-    // 부드럽게 바꾸므로, 아래 콘텐츠 시작 높이도 같은 호흡으로 따라가게 한다.
-    val weeksAnimated by animateFloatAsState(weeks.toFloat(), tween(220), label = "calendarWeeks")
-    val maxCollapsePx = ((fullCellPx - compactCellPx) * weeks).coerceAtLeast(1f)
-    var collapsePx by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(maxCollapsePx) { collapsePx = collapsePx.coerceIn(0f, maxCollapsePx) }
-    val collapseFraction = (collapsePx / maxCollapsePx).coerceIn(0f, 1f)
-    val cellHeight = with(density) { (fullCellPx - (maxCollapsePx / weeks) * collapseFraction).toDp() }
-
-    val nestedConnection = remember(maxCollapsePx) {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                val dy = available.y
-                // 위로 스크롤(드래그·플링 모두): 콘텐츠보다 달력을 먼저 접는다
-                if (dy < 0 && collapsePx < maxCollapsePx) {
-                    val consumed = minOf(maxCollapsePx - collapsePx, -dy)
-                    collapsePx += consumed
-                    return Offset(0f, -consumed)
-                }
-                return Offset.Zero
-            }
-
-            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                // 아래로 스크롤: 콘텐츠가 맨 위에 닿아 다 못 쓴 잔여 델타로 달력을 펼친다.
-                val dy = available.y
-                if (dy > 0 && collapsePx > 0f) {
-                    val used = minOf(collapsePx, dy)
-                    collapsePx -= used
-                    return Offset(0f, used)
-                }
-                return Offset.Zero
-            }
-
-            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                // 플링이 모두 끝난 뒤 중간 크기로 멈춰 있으면 거리(절반) 임계로 스냅 —
-                // 표준 collapsing header 방식 (스냅과 플링이 싸우지 않는다).
-                if (collapsePx > 0f && collapsePx < maxCollapsePx) {
-                    val target = if (collapsePx > maxCollapsePx / 2f) maxCollapsePx else 0f
-                    animate(collapsePx, target, animationSpec = tween(200)) { v, _ -> collapsePx = v }
-                }
-                return Velocity.Zero
-            }
-        }
-    }
-
     Box(modifier = Modifier.fillMaxSize().background(colors.bgDeep)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                // 헤더·달력이 고정인 화면 — 루트에서 상태바 인셋 처리.
-                .statusBarsPadding()
-                .nestedScroll(nestedConnection),
+                .verticalScroll(rememberScrollState())
+                // 상태바 인셋을 스크롤되는 콘텐츠 패딩으로 — 위로 스크롤하면 콘텐츠가
+                // 상태바 밑으로 들어가며 전역 페이드 스크림으로 자연스럽게 사라진다.
+                // 하단 여백은 TabBarClearance가 담당하므로 위쪽만 패딩.
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(horizontal = spacing.s4)
+                .padding(top = spacing.s4),
         ) {
-            // ── 고정: 제목 헤더 ─────────────────────────────
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.s4)
-                    .padding(top = spacing.s4),
-            ) {
-                CalendarHeader(
-                    year = state.year,
-                    month = state.month,
-                    swimData = state.swimData,
-                )
-                Spacer(Modifier.height(18.dp))
-            }
+            // ── 헤더: 제목 + 이번 달 인라인 통계 ──────────────
+            CalendarHeader(
+                year = state.year,
+                month = state.month,
+                swimData = state.swimData,
+            )
 
-            // ── 달력(플로팅 오버레이) + 그 뒤로 지나가는 스크롤 콘텐츠 ──
-            Box(Modifier.weight(1f)) {
-            // 달력 블록 높이 — 콘텐츠는 이만큼 아래에서 시작하고, 스크롤하면
-            // 하단 탭바처럼 카드 뒤로 지나간다. 주 수는 애니메이션 값으로 따라간다.
-            val gridHeight = cellHeight * weeksAnimated + 4.dp * (weeksAnimated - 1f) + 8.dp
-            val calendarBlockHeight = 24.dp * (1f - collapseFraction) + gridHeight
+            Spacer(Modifier.height(18.dp))
 
-            // 달력 오버레이 — 요일 행까지 한 카드 서피스에 담는다 (콘텐츠 위 레이어).
-            // 배경은 다른 카드와 동일한 cardBg, 접힐 때는 셀 축소 + 그림자만 점진 등장.
+            // ── 요일 헤더 (일요일 시작) ─────────────────────
+            DayHeaderRow()
+
+            Spacer(Modifier.height(6.dp))
+
+            // ── 그리드 (좌우 스와이프로 월 이동, 방향에 맞춰 슬라이드) ─────
             val currentYm = YearMonth.of(state.year, state.month)
             // 나가는 달의 그리드가 자기 달 데이터로 그려지도록 월별 데이터를 보관한다.
             val gridData = remember { HashMap<YearMonth, Map<Int, SwimDayData>>() }
             gridData[currentYm] = state.swimData
-            val floatShape = RoundedCornerShape(16.dp)
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
                     .fillMaxWidth()
-                    .padding(horizontal = spacing.s4)
-                    .zIndex(1f)
-                    .shadow(
-                        elevation = 12.dp * collapseFraction,
-                        shape = floatShape,
-                        ambientColor = Color.Black.copy(alpha = 0.30f),
-                        spotColor = Color.Black.copy(alpha = 0.25f),
-                    )
-                    .clip(floatShape)
-                    .background(colors.cardBg)
-                    .padding(4.dp)
                     .pointerInput(Unit) {
                         var dragTotal = 0f
                         detectHorizontalDragGestures(
@@ -252,17 +167,6 @@ fun CalendarScreen(
                         ) { _, dragAmount -> dragTotal += dragAmount }
                     },
             ) {
-                Column {
-                // ── 요일 헤더 — 접히면서 높이·투명도 함께 사라진다 ──
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(24.dp * (1f - collapseFraction))
-                        .alpha(1f - collapseFraction)
-                        .clipToBounds(),
-                ) {
-                    DayHeaderRow()
-                }
                 AnimatedContent(
                     targetState = currentYm,
                     transitionSpec = {
@@ -278,23 +182,13 @@ fun CalendarScreen(
                         month = ym.monthValue,
                         selectedDay = if (ym == currentYm) state.selectedDay else null,
                         swimData = gridData[ym] ?: emptyMap(),
-                        cellHeight = cellHeight,
-                        collapseFraction = collapseFraction,
                         onSelect = viewModel::selectDay,
                     )
                 }
             }
-            }
 
-            // ── 스크롤 콘텐츠 — 달력 카드 높이만큼 아래서 시작, 카드 뒤로 지나간다 ──
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(contentScroll)
-                    .padding(horizontal = spacing.s4),
-            ) {
-            Spacer(Modifier.height(calendarBlockHeight + 12.dp))
             // ── 영법 범례 ──────────────────────────────────
+            Spacer(Modifier.height(12.dp))
             StrokeLegend()
 
             // ── 선택한 날 상세 (소제목 없이 카드 자체로 구분) ──────
@@ -332,8 +226,6 @@ fun CalendarScreen(
             )
 
             Spacer(Modifier.height(TabBarClearance))
-            }
-            }
         }
 
         // ── 기록 수정 바텀시트 (세션 단위) ──────────────────
@@ -437,8 +329,6 @@ private fun CalendarGrid(
     month: Int,
     selectedDay: Int?,
     swimData: Map<Int, SwimDayData>,
-    cellHeight: Dp,
-    collapseFraction: Float,
     onSelect: (Int) -> Unit,
 ) {
     val cells = remember(year, month) { buildMonthCells(year, month) }
@@ -466,8 +356,6 @@ private fun CalendarGrid(
                             isSelected = cell.inMonth && cell.day == selectedDay,
                             isToday = cell.inMonth && isCurrentMonth && cell.day == today.dayOfMonth,
                             dow = dow,
-                            cellHeight = cellHeight,
-                            collapseFraction = collapseFraction,
                             onClick = { if (cell.inMonth) onSelect(cell.day) },
                         )
                     }
@@ -485,10 +373,6 @@ private fun DayCell(
     isSelected: Boolean,
     isToday: Boolean,
     dow: Int,
-    /** 접힘에 따라 화면에서 계산된 셀 높이 (풀=정사각, 접힘=32dp). */
-    cellHeight: Dp,
-    /** 접힘 진행도 0(풀)~1(간단) — 거리 텍스트 페이드용. */
-    collapseFraction: Float,
     onClick: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
@@ -497,8 +381,7 @@ private fun DayCell(
     // 선택은 배경을 바꾸지 않고 테두리만 강조한다 (디자인 확정).
     // 빈 칸 배경은 더 연하게, 이전/다음 달 칸은 배경 없이 (칙칙함 피드백 반영).
     val bg = when {
-        // 카드 서피스(cardBg) 위에서도 기록 있는 날이 또렷하게 구분되는 한 단계 진한 서피스
-        data != null -> colors.surface3
+        data != null -> colors.surface1
         isToday -> colors.accentBlue.copy(alpha = 0.08f)
         inMonth -> if (colors.isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.02f)
         else -> Color.Transparent
@@ -516,9 +399,7 @@ private fun DayCell(
 
     Column(
         modifier = Modifier
-            // 접힘 진행도가 만든 높이를 그대로 사용 — 스크롤을 1:1로 따라 얇아진다
-            .fillMaxWidth()
-            .height(cellHeight)
+            .aspectRatio(1f)
             .alpha(if (inMonth) 1f else 0.55f)
             .clip(shape)
             .background(bg)
@@ -541,22 +422,18 @@ private fun DayCell(
             lineHeight = 11.sp,
         )
         if (data != null) {
-            // 가운데 남는 공간에 거리 텍스트 — 접힐수록 페이드아웃, 그래프는 하단 고정
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                if (collapseFraction < 0.65f) {
-                    Text(
-                        text = "${formatNumber(data.distanceM)}m",
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isSelected) colors.accentBlue else colors.textSecondary,
-                        fontFamily = JetBrainsMonoFamily,
-                        letterSpacing = (-0.2).sp,
-                        lineHeight = 8.sp,
-                        maxLines = 1,
-                        modifier = Modifier.alpha(1f - (collapseFraction / 0.65f)),
-                    )
-                }
-            }
+            Spacer(Modifier.height(3.dp))
+            Text(
+                text = "${formatNumber(data.distanceM)}m",
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isSelected) colors.accentBlue else colors.textSecondary,
+                fontFamily = JetBrainsMonoFamily,
+                letterSpacing = (-0.2).sp,
+                lineHeight = 8.sp,
+            )
+            // 6dp — 그래프를 2dp 내려 하단 남는 여백을 그만큼 줄인다
+            Spacer(Modifier.height(6.dp))
             Box(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
                 StrokeRatioBar(meters = barMeters(data), barHeight = 7.dp, compact = true)
             }
