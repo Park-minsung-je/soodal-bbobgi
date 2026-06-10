@@ -128,8 +128,10 @@ fun CalendarScreen(
                 .verticalScroll(rememberScrollState())
                 // 상태바 인셋을 스크롤되는 콘텐츠 패딩으로 — 위로 스크롤하면 콘텐츠가
                 // 상태바 밑으로 들어가며 전역 페이드 스크림으로 자연스럽게 사라진다.
+                // 하단 여백은 TabBarClearance가 담당하므로 위쪽만 패딩.
                 .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(horizontal = spacing.s4, vertical = spacing.s4),
+                .padding(horizontal = spacing.s4)
+                .padding(top = spacing.s4),
         ) {
             // ── 헤더: 제목 + 이번 달 인라인 통계 ──────────────
             CalendarHeader(
