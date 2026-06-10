@@ -143,6 +143,9 @@ fun CalendarScreen(
     val weeks = remember(state.year, state.month) {
         buildMonthCells(state.year, state.month).chunked(7).count { w -> w.any { it.inMonth } }
     }
+    // 월 전환으로 주 수(5↔6)가 바뀔 때 — 달력 카드는 AnimatedContent가 크기를
+    // 부드럽게 바꾸므로, 아래 콘텐츠 시작 높이도 같은 호흡으로 따라가게 한다.
+    val weeksAnimated by animateFloatAsState(weeks.toFloat(), tween(220), label = "calendarWeeks")
     val maxCollapsePx = ((fullCellPx - compactCellPx) * weeks).coerceAtLeast(1f)
     var collapsePx by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(maxCollapsePx) { collapsePx = collapsePx.coerceIn(0f, maxCollapsePx) }
@@ -211,8 +214,8 @@ fun CalendarScreen(
             // ── 달력(플로팅 오버레이) + 그 뒤로 지나가는 스크롤 콘텐츠 ──
             Box(Modifier.weight(1f)) {
             // 달력 블록 높이 — 콘텐츠는 이만큼 아래에서 시작하고, 스크롤하면
-            // 하단 탭바처럼 카드 뒤로 지나간다.
-            val gridHeight = cellHeight * weeks + 4.dp * (weeks - 1) + 8.dp
+            // 하단 탭바처럼 카드 뒤로 지나간다. 주 수는 애니메이션 값으로 따라간다.
+            val gridHeight = cellHeight * weeksAnimated + 4.dp * (weeksAnimated - 1f) + 8.dp
             val calendarBlockHeight = 24.dp * (1f - collapseFraction) + gridHeight
 
             // 달력 오버레이 — 요일 행까지 한 카드 서피스에 담는다 (콘텐츠 위 레이어).
