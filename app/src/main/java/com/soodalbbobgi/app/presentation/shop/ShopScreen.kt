@@ -151,7 +151,7 @@ fun ShopScreen(
                     ) {
                         SoodalIcon(icon = SoodalIcons.Gift, size = 18.dp)
                         Text(
-                            text = "아이템 직접 구매",
+                            text = "아이템",
                             style = SoodalDesign.typography.md,
                             color = colors.textPrimary,
                         )
