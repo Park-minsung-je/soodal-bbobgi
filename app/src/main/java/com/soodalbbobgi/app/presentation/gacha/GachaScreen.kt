@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
+import com.soodalbbobgi.app.core.ui.AssetImage
 import com.soodalbbobgi.app.core.ui.ChipColor
 import com.soodalbbobgi.app.core.ui.SoodalChip
 import com.soodalbbobgi.app.core.ui.SoodalIcon
@@ -103,11 +104,14 @@ fun GachaScreen(
                 val centerX = screenWidth / 2f
                 val visibleSlots = (centerX / slotW).toInt() + 2
 
+                // 서버 박스 목록으로 룰렛을 그린다 — 스핀 정지 인덱스 계산(appState.gachaBoxes)과
+                // 같은 목록·순서를 써야 멈춘 카드와 실제 뽑힌 박스가 일치한다.
+                val boxes by viewModel.boxes.collectAsState()
                 Box(Modifier.fillMaxWidth().height(170.dp).clipToBounds()) {
                     for (di in -visibleSlots..visibleSlots) {
                         val i = ((state.offset / slotW).roundToInt()) + di
-                        val boxIndex = ((i % GACHA_BOXES.size) + GACHA_BOXES.size) % GACHA_BOXES.size
-                        val box = GACHA_BOXES[boxIndex]
+                        val boxIndex = ((i % boxes.size) + boxes.size) % boxes.size
+                        val box = boxes[boxIndex]
                         val x = centerX + (i * slotW - state.offset) - itemW / 2f
                         val fracDist = kotlin.math.abs(i * slotW - state.offset) / slotW
                         val itemScale = (1.12f - fracDist * 0.12f).coerceIn(0.82f, 1.12f)
@@ -190,7 +194,24 @@ private fun GachaBoxCard(box: BoxInfo, itemScale: Float = 1f) {
             .border(1.5.dp, box.color.copy(alpha = 0.4f), shape),
         contentAlignment = Alignment.Center,
     ) {
-        SoodalIcon(icon = box.icon, tint = box.color, size = 48.dp)
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            // 관리자 등록 상자 일러스트 — 없으면 카테고리 아이콘 폴백
+            Box(Modifier.size(width = 80.dp, height = 74.dp), contentAlignment = Alignment.Center) {
+                if (!box.iconAsset.isNullOrBlank()) {
+                    AssetImage(
+                        imageAsset = box.iconAsset,
+                        contentDescription = box.label,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    SoodalIcon(icon = box.icon, tint = box.color, size = 48.dp)
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                SoodalIcon(icon = box.icon, tint = box.color, size = 13.dp)
+                Text(box.label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = box.color)
+            }
+        }
     }
 }
 

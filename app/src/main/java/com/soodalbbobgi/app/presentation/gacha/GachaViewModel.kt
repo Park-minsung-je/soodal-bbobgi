@@ -33,6 +33,8 @@ data class BoxInfo(
     val icon: SoodalIcons,
     val label: String,
     val color: Color,
+    /** 관리자에서 등록한 상자 일러스트 에셋 경로. 없으면 아이콘 폴백. */
+    val iconAsset: String? = null,
 )
 
 data class GachaResultItem(
@@ -107,6 +109,7 @@ class GachaViewModel @Inject constructor(
                 icon = iconFor(box.category),
                 label = box.name,
                 color = colorFor(box.category),
+                iconAsset = box.iconAsset,
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GACHA_BOXES)
@@ -222,10 +225,11 @@ class GachaViewModel @Inject constructor(
         else -> SoodalIcons.Gift
     }
 
+    // 상자 일러스트 톤에 맞춘 카테고리 색 (디자인 확정값)
     private fun colorFor(category: String): Color = when (category) {
-        "char" -> Color(0xFFFFD60A)
-        "bg" -> Color(0xFF00F5FF)
-        "frame" -> Color(0xFFBF5AF2)
-        else -> Color(0xFFE0B0FF)
+        "char" -> Color(0xFFC98A4B)
+        "bg" -> Color(0xFF6FB04A)
+        "frame" -> Color(0xFFE0B24A)
+        else -> Color(0xFF7C5BD0)
     }
 }

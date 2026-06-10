@@ -437,7 +437,16 @@ private fun PurchaseConfirmOverlay(
                         .background(colors.surface2),
                     contentAlignment = Alignment.Center,
                 ) {
-                    SoodalIcon(icon = item.icon, tint = colors.textTertiary, size = 32.dp)
+                    // 목록 셀과 동일하게 에셋 우선, 없으면 아이콘 폴백
+                    if (!item.imageAsset.isNullOrBlank()) {
+                        AssetImage(
+                            imageAsset = item.imageAsset,
+                            contentDescription = item.name,
+                            modifier = Modifier.fillMaxSize().padding(6.dp),
+                        )
+                    } else {
+                        SoodalIcon(icon = item.icon, tint = colors.textTertiary, size = 32.dp)
+                    }
                 }
 
                 Spacer(Modifier.height(spacing.s3))
