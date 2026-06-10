@@ -82,6 +82,9 @@ data class CalendarUiState(
     val month: Int = YearMonth.now().monthValue,
     val selectedDay: Int? = null,
     val swimData: Map<Int, SwimDayData> = emptyMap(),
+    /** 선택한 달의 전월 통계 — 월 요약 카드의 비교용. */
+    val lastMonthDistance: Int = 0,
+    val lastMonthSessions: Int = 0,
 )
 
 /**
@@ -115,11 +118,19 @@ class CalendarViewModel @Inject constructor(
         val swimMap = month.logs
             .groupBy { it.date.substringAfterLast("-").toInt() }
             .mapValues { (_, logs) -> logs.toDayData() }
+        // 선택한 달의 전월 통계 — 월 요약 카드 비교용
+        val prevYm = month.ym.minusMonths(1)
+        val prevStats = swimLogUseCase.getMonthStats(
+            prevYm.atDay(1).toString(),
+            prevYm.atEndOfMonth().toString(),
+        )
         CalendarUiState(
             year = month.ym.year,
             month = month.ym.monthValue,
             selectedDay = selected,
             swimData = swimMap,
+            lastMonthDistance = prevStats.totalDistanceMeters,
+            lastMonthSessions = prevStats.swimCount,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CalendarUiState())
 

@@ -68,8 +68,8 @@ import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.util.averageHr
 import com.soodalbbobgi.app.core.theme.StrokePalette
+import com.soodalbbobgi.app.presentation.common.MonthSummaryCard
 import com.soodalbbobgi.app.presentation.common.SectionLabel
-import com.soodalbbobgi.app.presentation.common.TrendBadge
 import com.soodalbbobgi.app.presentation.common.WeeklyActivityCard
 import java.time.LocalDate
 import java.time.YearMonth
@@ -196,18 +196,28 @@ fun CalendarScreen(
                 onToggleChart = { hrChartExpanded = !hrChartExpanded },
             )
 
-            // ── 이번 주 활동 ────────────────────────────────
-            SectionLabel(
-                text = "이번 주 활동",
-                action = { TrendBadge(weekly.trendPercent) },
-            )
-            Spacer(Modifier.height(12.dp))
-            WeeklyActivityCard(weekly)
+            // ── 최근 7일 활동 (홈과 동일 — 트렌드 내장 자체 라벨 카드) ──
+            Spacer(Modifier.height(22.dp))
+            WeeklyActivityCard(weekly, trendPercent = weekly.trendPercent)
 
-            // ── 이번 달 수영 ────────────────────────────────
-            SectionLabel(text = "이번 달 수영")
-            Spacer(Modifier.height(12.dp))
-            MonthSwimStats(state.swimData)
+            // ── 선택한 달 수영 요약 (홈과 동일 문장형) ──────────────
+            Spacer(Modifier.height(14.dp))
+            val isCurrentMonth = YearMonth.of(state.year, state.month) == YearMonth.now()
+            MonthSummaryCard(
+                monthLabel = "${state.month}월",
+                subjectLabel = if (isCurrentMonth) "이번 달" else "${state.month}월",
+                distanceM = state.swimData.values.sumOf { it.distanceM },
+                sessions = state.swimData.values.sumOf { it.sessions.size },
+                kcal = state.swimData.values.sumOf { it.kcal },
+                lastMonthDistance = state.lastMonthDistance,
+                lastMonthSessions = state.lastMonthSessions,
+                topStroke = listOf(
+                    "자유형" to state.swimData.values.sumOf { it.freeM },
+                    "평영" to state.swimData.values.sumOf { it.breastM },
+                    "배영" to state.swimData.values.sumOf { it.backM },
+                    "접영" to state.swimData.values.sumOf { it.flyM },
+                ).filter { it.second > 0 }.maxByOrNull { it.second }?.first,
+            )
 
             Spacer(Modifier.height(12.dp))
         }
@@ -976,37 +986,6 @@ private fun VitalsRow(
                     .padding(4.dp)
                     .rotate(arrowRotation),
             )
-        }
-    }
-}
-
-// ── 이번 달 수영 통계 ────────────────────────────────────────────
-@Composable
-private fun MonthSwimStats(swimData: Map<Int, SwimDayData>) {
-    val colors = SoodalDesign.colors
-    val totalDistance = swimData.values.sumOf { it.distanceM }
-    val sessions = swimData.size
-    val totalKcal = swimData.values.sumOf { it.kcal }
-
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        CalStatCard(Modifier.weight(1f), "누적거리", formatNumber(totalDistance), "m", colors.accentBlue)
-        CalStatCard(Modifier.weight(1f), "수영 횟수", "$sessions", "회", colors.textPrimary)
-        CalStatCard(Modifier.weight(1f), "칼로리", formatNumber(totalKcal), "kcal", colors.success)
-    }
-}
-
-@Composable
-private fun CalStatCard(modifier: Modifier, label: String, value: String, unit: String, valueColor: Color) {
-    val colors = SoodalDesign.colors
-    SoodalCard(modifier = modifier) {
-        Column {
-            Text(label, fontSize = 10.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold, letterSpacing = 0.4.sp)
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = valueColor)
-                Spacer(Modifier.width(3.dp))
-                Text(unit, fontSize = 10.sp, color = colors.textSecondary)
-            }
         }
     }
 }

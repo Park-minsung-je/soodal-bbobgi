@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
@@ -166,10 +167,12 @@ fun AppNavHost(navController: NavHostController) {
 
         // 상태바 경계 페이드 — 스크롤 콘텐츠가 상태바 라인에서 딱 잘리지 않고
         // bgDeep으로 자연스럽게 사라지게 하는 그라데이션 오버레이 (전 화면 공통).
+        // 위로 절반쯤 올려 페이드가 경계선에 바짝 붙게 한다 (콘텐츠 위 페이드 ≈ 10dp).
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
+                .offset(y = (-10).dp)
                 .height(20.dp)
                 .background(
                     Brush.verticalGradient(

@@ -44,15 +44,12 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
-import com.soodalbbobgi.app.core.theme.StrokePalette
 import com.soodalbbobgi.app.core.ui.ChipColor
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
@@ -61,6 +58,7 @@ import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.motion.Motion
 import com.soodalbbobgi.app.presentation.calendar.StrokeEditSheet
 import com.soodalbbobgi.app.presentation.calendar.SwimSessionData
+import com.soodalbbobgi.app.presentation.common.MonthSummaryCard
 import com.soodalbbobgi.app.presentation.common.WeeklyActivityCard
 import com.soodalbbobgi.app.presentation.profile.CardLayers
 import com.soodalbbobgi.app.presentation.profile.EditorSheet
@@ -359,6 +357,8 @@ fun HomeScreen(
                 // ── 이번 달 수영 (문장형) ─────────────────────────────
                 Spacer(Modifier.height(spacing.s4))
                 MonthSummaryCard(
+                    monthLabel = "${java.time.YearMonth.now().monthValue}월",
+                    subjectLabel = "이번 달",
                     distanceM = state.totalDistance,
                     sessions = state.swimSessions,
                     kcal = state.totalKcal,
@@ -626,110 +626,6 @@ private fun TodayTextAction(label: String, color: Color, enabled: Boolean, onCli
     )
 }
 
-/** 영법 이름 → 영법 고유 파스텔 색. 모르는 이름은 자유형 색 폴백. */
-private fun strokeColorOf(name: String): Color = when (name) {
-    "자유형" -> StrokePalette.Free
-    "평영" -> StrokePalette.Breast
-    "배영" -> StrokePalette.Back
-    "접영" -> StrokePalette.Fly
-    else -> StrokePalette.Free
-}
-
-/** 이번 달 수영 요약 — 월/델타% 헤더 + 문장(주력 영법 포함) + 지난달 2줄 비교. */
-@Composable
-private fun MonthSummaryCard(
-    distanceM: Int,
-    sessions: Int,
-    kcal: Int,
-    lastMonthDistance: Int,
-    lastMonthSessions: Int,
-    topStroke: String?,
-    onClick: () -> Unit,
-) {
-    val colors = SoodalDesign.colors
-    val distanceDelta = distanceM - lastMonthDistance
-    val countDelta = sessions - lastMonthSessions
-    val pct = if (lastMonthDistance > 0) Math.round(distanceDelta.toFloat() / lastMonthDistance * 100) else 0
-    SoodalCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            ),
-    ) {
-        Column {
-            // 헤더: 이번 달 + 지난달 대비 거리 %
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("${java.time.YearMonth.now().monthValue}월", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
-                if (lastMonthDistance > 0) {
-                    Text(
-                        "${if (pct >= 0) "+" else ""}$pct% ${if (pct >= 0) "↑" else "↓"}",
-                        fontSize = 13.sp, fontWeight = FontWeight.ExtraBold,
-                        color = if (pct >= 0) colors.success else colors.textSecondary,
-                    )
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            // 문장 (수치 색 강조 + 주력 영법은 영법 고유색)
-            Text(
-                text = buildAnnotatedString {
-                    append("이번 달은 ")
-                    pushStyle(SpanStyle(color = colors.accentPurple, fontWeight = FontWeight.ExtraBold))
-                    append("${sessions}회")
-                    pop()
-                    append(" 수영해서 ")
-                    pushStyle(SpanStyle(color = colors.accentBlue, fontWeight = FontWeight.ExtraBold))
-                    append("${distanceM.formatNumber()}m")
-                    pop()
-                    append(" 헤엄치고, ")
-                    pushStyle(SpanStyle(color = colors.success, fontWeight = FontWeight.ExtraBold))
-                    append("${kcal.formatNumber()}kcal")
-                    pop()
-                    append("를 태웠어요.")
-                    if (topStroke != null) {
-                        append(" ")
-                        pushStyle(SpanStyle(color = strokeColorOf(topStroke), fontWeight = FontWeight.ExtraBold))
-                        append(topStroke)
-                        pop()
-                        append("을 가장 많이 했어요.")
-                    }
-                },
-                fontSize = 15.sp, color = colors.textPrimary, lineHeight = 24.sp,
-            )
-            // 지난달 비교 — 상단 구분선 + 2줄
-            Spacer(Modifier.height(14.dp))
-            Box(Modifier.fillMaxWidth().height(1.dp).background(colors.glassBorder))
-            Spacer(Modifier.height(12.dp))
-            Text("지난달보다", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = buildAnnotatedString {
-                    pushStyle(SpanStyle(color = colors.accentPurple, fontWeight = FontWeight.ExtraBold))
-                    append("${Math.abs(countDelta)}회")
-                    pop()
-                    append(if (countDelta >= 0) " 더 했어요." else " 덜 했어요.")
-                },
-                fontSize = 13.sp, color = colors.textPrimary,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = buildAnnotatedString {
-                    pushStyle(SpanStyle(color = colors.accentBlue, fontWeight = FontWeight.ExtraBold))
-                    append("${Math.abs(distanceDelta).formatNumber()}m")
-                    pop()
-                    append(if (distanceDelta >= 0) " 더 헤엄쳤어요." else " 덜 헤엄쳤어요.")
-                },
-                fontSize = 13.sp, color = colors.textPrimary,
-            )
-        }
-    }
-}
 
 @Composable
 private fun TodayMetric(modifier: Modifier, label: String, value: String, unit: String, valueColor: Color) {
