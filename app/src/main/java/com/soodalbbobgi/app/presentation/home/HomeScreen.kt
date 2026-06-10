@@ -172,9 +172,10 @@ fun HomeScreen(
         }
 
         // 하단 스크롤: 프로필 카드 + 통화 + 오늘 + 최근 7일 + 이번 달
+        Box(Modifier.weight(1f)) {
         Column(
             modifier = Modifier
-                .weight(1f)
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = spacing.s4),
         ) {
@@ -369,6 +370,21 @@ fun HomeScreen(
                 )
 
                 Spacer(Modifier.height(spacing.s4))
+        }
+
+        // 헤더 경계 페이드 — 위로 스크롤한 콘텐츠가 고정 헤더 아래에서 딱 잘리지 않고
+        // bgDeep으로 녹아들며 사라지게 한다.
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(14.dp)
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        listOf(colors.bgDeep, colors.bgDeep.copy(alpha = 0f)),
+                    ),
+                ),
+        )
         }
     }
 

@@ -19,6 +19,9 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -123,6 +126,9 @@ fun CalendarScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                // 상태바 인셋을 스크롤되는 콘텐츠 패딩으로 — 위로 스크롤하면 콘텐츠가
+                // 상태바 밑으로 들어가며 전역 페이드 스크림으로 자연스럽게 사라진다.
+                .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(horizontal = spacing.s4, vertical = spacing.s4),
         ) {
             // ── 헤더: 제목 + 이번 달 인라인 통계 ──────────────

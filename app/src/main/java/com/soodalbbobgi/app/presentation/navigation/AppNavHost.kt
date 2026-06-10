@@ -9,11 +9,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
@@ -73,10 +73,11 @@ fun AppNavHost(navController: NavHostController) {
         }
     }
 
+    // 상태바 패딩은 루트가 아닌 화면별로 적용한다 — 캘린더처럼 콘텐츠가
+    // 상태바 밑으로 스크롤되며 페이드되는 화면을 허용하기 위함.
     Box(modifier = Modifier
         .fillMaxSize()
         .background(SoodalDesign.colors.bgDeep)
-        .windowInsetsPadding(WindowInsets.statusBars)
         .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -91,6 +92,7 @@ fun AppNavHost(navController: NavHostController) {
                     popExitTransition = { soodalPopExit() },
                 ) {
                     composable(Screen.Splash.route) {
+                        BelowStatusBar {
                         SplashScreen(onNavigate = { dest ->
                             val target = when (dest) {
                                 SplashDestination.Auth -> Screen.Auth.route
@@ -103,8 +105,10 @@ fun AppNavHost(navController: NavHostController) {
                                 popUpTo(Screen.Splash.route) { inclusive = true }
                             }
                         })
+                        }
                     }
                     composable(Screen.Auth.route) {
+                        BelowStatusBar {
                         AuthScreen(
                             onNavigate = { route ->
                                 val target = when (route) {
@@ -117,17 +121,23 @@ fun AppNavHost(navController: NavHostController) {
                                 }
                             },
                         )
+                        }
                     }
                     composable(Screen.OnboardingNickname.route) {
-                        OnboardingNicknameScreen(onNext = { navController.navigate(Screen.OnboardingPermission.route) })
+                        BelowStatusBar {
+                            OnboardingNicknameScreen(onNext = { navController.navigate(Screen.OnboardingPermission.route) })
+                        }
                     }
                     composable(Screen.OnboardingPermission.route) {
-                        OnboardingPermissionScreen(
-                            onConnect = { navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } } },
-                            onSkip = { navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } } },
-                        )
+                        BelowStatusBar {
+                            OnboardingPermissionScreen(
+                                onConnect = { navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } } },
+                                onSkip = { navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } } },
+                            )
+                        }
                     }
                     composable(Screen.Home.route) {
+                        BelowStatusBar {
                         HomeScreen(
                             onNavigateToTab = onSelectTab,
                             onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
@@ -136,18 +146,21 @@ fun AppNavHost(navController: NavHostController) {
                             editorOpen = homeEditorOpen,
                             onEditorOpenChange = { homeEditorOpen = it },
                         )
+                        }
                     }
                     composable(Screen.Calendar.route) {
+                        // 캘린더는 자체적으로 상태바 인셋을 처리한다 — 콘텐츠가
+                        // 상태바 밑으로 스크롤되며 페이드되는 효과를 위해 래핑하지 않음.
                         CalendarScreen()
                     }
                     composable(Screen.Gacha.route) {
-                        GachaScreen()
+                        BelowStatusBar { GachaScreen() }
                     }
                     composable(Screen.Shop.route) {
-                        ShopScreen()
+                        BelowStatusBar { ShopScreen() }
                     }
                     composable(Screen.Settings.route) {
-                        SettingsScreen(onBack = { navController.popBackStack() })
+                        BelowStatusBar { SettingsScreen(onBack = { navController.popBackStack() }) }
                     }
                 }
             }
@@ -165,28 +178,42 @@ fun AppNavHost(navController: NavHostController) {
             }
         }
 
-        // 상태바 경계 페이드 — 스크롤 콘텐츠가 상태바 라인에서 딱 잘리지 않고
-        // bgDeep으로 자연스럽게 사라지게 하는 그라데이션 오버레이 (전 화면 공통).
-        // 위로 절반쯤 올려 페이드가 경계선에 바짝 붙게 한다 (콘텐츠 위 페이드 ≈ 10dp).
+        // 상태바 페이드 스크림 — 상태바 상단은 불투명(아이콘 가독), 상태바 하단부터
+        // 경계 아래 살짝까지 투명으로 풀려 스크롤 콘텐츠가 상태바 밑에서 자연스럽게 사라진다.
+        val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .offset(y = (-10).dp)
-                .height(20.dp)
+                .height(statusBarHeight + 12.dp)
                 .background(
                     Brush.verticalGradient(
-                        listOf(SoodalDesign.colors.bgDeep, SoodalDesign.colors.bgDeep.copy(alpha = 0f)),
+                        0f to SoodalDesign.colors.bgDeep,
+                        0.45f to SoodalDesign.colors.bgDeep,
+                        1f to SoodalDesign.colors.bgDeep.copy(alpha = 0f),
                     ),
                 ),
         )
 
         // 전체보기 오버레이: 탭바/콘텐츠 위(최상위). 닫힘 애니메이션이 끝나면 상태를 되돌린다.
         if (fullscreenOpen) {
-            ProfileFullscreenOverlay(
-                onReady = { cardOverlayReady = true },
-                onClosed = { fullscreenOpen = false; cardOverlayReady = false },
-            )
+            BelowStatusBar {
+                ProfileFullscreenOverlay(
+                    onReady = { cardOverlayReady = true },
+                    onClosed = { fullscreenOpen = false; cardOverlayReady = false },
+                )
+            }
         }
+    }
+}
+
+/**
+ * 화면을 상태바 아래로 내리는 래퍼 — 루트가 상태바 패딩을 걷어낸 대신 화면별로 적용한다.
+ * 콘텐츠가 상태바 밑으로 스크롤되어야 하는 화면(캘린더)은 이 래퍼 없이 직접 인셋을 처리한다.
+ */
+@Composable
+private fun BelowStatusBar(content: @Composable () -> Unit) {
+    Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars)) {
+        content()
     }
 }
