@@ -33,6 +33,7 @@ import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.StrokePalette
 import com.soodalbbobgi.app.core.ui.SoodalCard
+import com.soodalbbobgi.app.presentation.common.strokeTextColorOf
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -100,7 +101,7 @@ fun MonthStrokeDonutCard(
                     val cardBg = colors.cardBg
                     Canvas(modifier = Modifier.size(132.dp)) {
                         val outerR = size.minDimension / 2f
-                        val holeR = outerR * 0.26f
+                        val holeR = outerR * 0.18f
                         val thickness = outerR - holeR
                         val midR = holeR + thickness / 2f
                         segs.forEach { s ->
@@ -151,7 +152,7 @@ fun MonthStrokeDonutCard(
                                 Text(
                                     "${s.pct}%",
                                     fontSize = 12.sp, fontWeight = FontWeight.ExtraBold,
-                                    color = color, fontFamily = JetBrainsMonoFamily,
+                                    color = strokeTextColorOf(s.label), fontFamily = JetBrainsMonoFamily,
                                     textAlign = TextAlign.End,
                                     modifier = Modifier.width(42.dp),
                                 )
@@ -169,7 +170,7 @@ fun MonthStrokeDonutCard(
                     Text(
                         text = buildAnnotatedString {
                             append("$subjectLabel 가장 많이 한 영법은 ")
-                            pushStyle(SpanStyle(color = colorOf[top.label] ?: colors.accentBlue, fontWeight = FontWeight.ExtraBold))
+                            pushStyle(SpanStyle(color = strokeTextColorOf(top.label), fontWeight = FontWeight.ExtraBold))
                             append(top.label)
                             pop()
                             append(", 평균 ")

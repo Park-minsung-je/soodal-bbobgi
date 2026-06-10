@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -93,8 +92,8 @@ fun SoodalTabBar(
                 val paint = androidx.compose.ui.graphics.Paint().asFrameworkPaint().apply {
                     color = android.graphics.Color.TRANSPARENT
                     setShadowLayer(
-                        8.dp.toPx(), 0f, 3.dp.toPx(),
-                        android.graphics.Color.argb(44, 10, 20, 40),
+                        13.dp.toPx(), 0f, 3.dp.toPx(),
+                        android.graphics.Color.argb(34, 10, 20, 40),
                     )
                 }
                 drawIntoCanvas { canvas ->
@@ -110,14 +109,14 @@ fun SoodalTabBar(
             .padding(6.dp),
     ) {
         val tabWidth = maxWidth / tabs.size
-        // 필은 바 내부 높이에 꽉 차는 라운드 정사각형 — 활성 탭 칸 가운데에 위치
-        val pillSize = 50.dp
 
-        // 활성 탭 뒤를 따라다니는 필 하이라이트
+        // 활성 탭 뒤를 따라다니는 필 하이라이트 — 탭 칸 전체 크기,
+        // 바 라운드(22dp)와 동심이 되도록 16dp 라운드(22 − 패딩 6).
         Box(
             modifier = Modifier
-                .offset(x = tabWidth * pillIndex + (tabWidth - pillSize) / 2)
-                .size(pillSize)
+                .offset(x = tabWidth * pillIndex)
+                .width(tabWidth)
+                .fillMaxHeight()
                 .clip(RoundedCornerShape(16.dp))
                 .background(
                     Brush.linearGradient(

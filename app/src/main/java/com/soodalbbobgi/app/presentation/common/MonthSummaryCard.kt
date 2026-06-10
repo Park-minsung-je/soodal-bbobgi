@@ -25,13 +25,26 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.StrokePalette
 import com.soodalbbobgi.app.core.ui.SoodalCard
 
-/** 영법 이름 → 영법 고유 파스텔 색. 모르는 이름은 자유형 색 폴백. */
+/** 영법 이름 → 영법 고유 파스텔 색 (그래프/색칩용). 모르는 이름은 자유형 색 폴백. */
 fun strokeColorOf(name: String): Color = when (name) {
     "자유형" -> StrokePalette.Free
     "평영" -> StrokePalette.Breast
     "배영" -> StrokePalette.Back
     "접영" -> StrokePalette.Fly
+    "혼영" -> StrokePalette.Medley
+    "킥판" -> StrokePalette.Kick
     else -> StrokePalette.Free
+}
+
+/** 영법 이름 → 텍스트용 고채도 색 (%·영법명 등 글자용). */
+fun strokeTextColorOf(name: String): Color = when (name) {
+    "자유형" -> StrokePalette.FreeText
+    "평영" -> StrokePalette.BreastText
+    "배영" -> StrokePalette.BackText
+    "접영" -> StrokePalette.FlyText
+    "혼영" -> StrokePalette.MedleyText
+    "킥판" -> StrokePalette.KickText
+    else -> StrokePalette.FreeText
 }
 
 /**
@@ -103,7 +116,7 @@ fun MonthSummaryCard(
                     append("를 태웠어요.")
                     if (topStroke != null) {
                         append(" ")
-                        pushStyle(SpanStyle(color = strokeColorOf(topStroke), fontWeight = FontWeight.ExtraBold))
+                        pushStyle(SpanStyle(color = strokeTextColorOf(topStroke), fontWeight = FontWeight.ExtraBold))
                         append(topStroke)
                         pop()
                         append("을 가장 많이 했어요.")

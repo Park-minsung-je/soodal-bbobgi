@@ -73,6 +73,7 @@ import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.util.averageHr
 import com.soodalbbobgi.app.core.theme.StrokePalette
 import com.soodalbbobgi.app.presentation.common.WeeklyActivityCard
+import com.soodalbbobgi.app.presentation.common.strokeTextColorOf
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -720,7 +721,8 @@ private fun SessionDetail(
                         text = "$pct%",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = if (pct > 0) color else colors.textTertiary,
+                        // 텍스트는 파스텔 대신 고채도 변형 — 흰 카드 위 가독성
+                        color = if (pct > 0) strokeTextColorOf(label) else colors.textTertiary,
                         fontFamily = JetBrainsMonoFamily,
                     )
                     Spacer(Modifier.height(1.dp))

@@ -15,4 +15,13 @@ object StrokePalette {
 
     /** 주간 차트 스택·수정 시트 순서: 자유형/평영/배영/접영/킥판/혼영. */
     val ordered = listOf(Free, Breast, Back, Fly, Kick, Medley)
+
+    // 텍스트용 고채도 변형 — 파스텔 막대색은 글자로 쓰면 연해서 한 단계 진한 색을 쓴다.
+    // (그래프/색칩은 파스텔 유지, %·영법명 같은 텍스트만 이 변형 사용)
+    val FreeText = Color(0xFF38BDF8)
+    val BreastText = Color(0xFFA78BFA)
+    val BackText = Color(0xFF34BD7C)
+    val FlyText = Color(0xFFFB7185)
+    val KickText = Color(0xFF7C8DA3)
+    val MedleyText = Color(0xFFEAB308)
 }
