@@ -149,6 +149,9 @@ fun CalendarScreen(
     val nestedConnection = remember(maxCollapsePx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                // 가속도(플링) 미적용 정책 — 손가락 드래그만 달력 접힘에 반영한다.
+                // 플링 델타가 들어오면 스냅 직후 헤더가 다시 움직이며 흔들리는 원인이 된다.
+                if (source != NestedScrollSource.Drag) return Offset.Zero
                 val dy = available.y
                 // 위로 스크롤: 콘텐츠보다 달력을 먼저 접는다
                 if (dy < 0 && collapsePx < maxCollapsePx) {
@@ -166,12 +169,12 @@ fun CalendarScreen(
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                // 중간 크기로 멈추지 않게 절반 임계 기준으로 스냅
+                // 임계는 무조건 거리(절반) 기준 — 속도는 보지 않고 한쪽 크기로 스냅
                 if (collapsePx > 0f && collapsePx < maxCollapsePx) {
                     val target = if (collapsePx > maxCollapsePx / 2f) maxCollapsePx else 0f
                     val expanding = target == 0f
                     animate(collapsePx, target, animationSpec = tween(200)) { v, _ -> collapsePx = v }
-                    // 펼침 스냅이면 플링을 먹어 콘텐츠가 더 튀지 않게, 접힘이면 콘텐츠로 흘려보낸다
+                    // 펼침 스냅이면 남은 플링을 먹어 콘텐츠가 더 튀지 않게 한다
                     if (expanding) return available
                 }
                 return Velocity.Zero
@@ -188,11 +191,12 @@ fun CalendarScreen(
                 .nestedScroll(nestedConnection),
         ) {
             // ── 고정: 헤더 + 요일 + 달력 (스크롤 오프셋에 따라 접힘) ──
+            // 하단 12dp — 스크롤된 콘텐츠가 달력에 바로 붙지 않게 고정 여백.
             Column(
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = spacing.s4)
-                    .padding(top = spacing.s4),
+                    .padding(top = spacing.s4, bottom = 12.dp),
             ) {
             // ── 헤더: 제목 + 이번 달 인라인 통계 ──────────────
             CalendarHeader(
@@ -258,8 +262,7 @@ fun CalendarScreen(
                     .verticalScroll(contentScroll)
                     .padding(horizontal = spacing.s4),
             ) {
-            // ── 영법 범례 ──────────────────────────────────
-            Spacer(Modifier.height(12.dp))
+            // ── 영법 범례 (위 여백은 고정부 하단 패딩이 담당) ────────
             StrokeLegend()
 
             // ── 선택한 날 상세 (소제목 없이 카드 자체로 구분) ──────
@@ -480,6 +483,7 @@ private fun DayCell(
     Column(
         modifier = Modifier
             // 접힘 진행도가 만든 높이를 그대로 사용 — 스크롤을 1:1로 따라 얇아진다
+            .fillMaxWidth()
             .height(cellHeight)
             .alpha(if (inMonth) 1f else 0.55f)
             .clip(shape)
