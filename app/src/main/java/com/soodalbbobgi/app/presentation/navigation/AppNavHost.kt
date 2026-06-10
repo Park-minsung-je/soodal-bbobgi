@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -19,7 +21,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -158,6 +163,20 @@ fun AppNavHost(navController: NavHostController) {
                 )
             }
         }
+
+        // 상태바 경계 페이드 — 스크롤 콘텐츠가 상태바 라인에서 딱 잘리지 않고
+        // bgDeep으로 자연스럽게 사라지게 하는 그라데이션 오버레이 (전 화면 공통).
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(20.dp)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(SoodalDesign.colors.bgDeep, SoodalDesign.colors.bgDeep.copy(alpha = 0f)),
+                    ),
+                ),
+        )
 
         // 전체보기 오버레이: 탭바/콘텐츠 위(최상위). 닫힘 애니메이션이 끝나면 상태를 되돌린다.
         if (fullscreenOpen) {
