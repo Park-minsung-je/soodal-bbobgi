@@ -45,22 +45,3 @@ fun donutSegments(entries: List<Pair<String, Int>>): List<DonutSegment> {
     }
 }
 
-/**
- * 같은 쪽 리더선 라벨들의 y좌표를 위에서부터 차례로 최소 간격 이상 벌린다.
- * 입력은 정렬돼 있지 않아도 되며, 원래 순서를 유지한 채 보정값을 돌려준다.
- *
- * @param ys 라벨 y좌표 목록 (위쪽이 작은 값)
- * @param minGap 라벨 간 최소 세로 간격
- */
-fun spreadLabelYs(ys: List<Float>, minGap: Float): List<Float> {
-    if (ys.isEmpty()) return emptyList()
-    val indexed = ys.withIndex().sortedBy { it.value }.toMutableList()
-    for (i in 1 until indexed.size) {
-        if (indexed[i].value - indexed[i - 1].value < minGap) {
-            indexed[i] = IndexedValue(indexed[i].index, indexed[i - 1].value + minGap)
-        }
-    }
-    val out = FloatArray(ys.size)
-    indexed.forEach { (i, v) -> out[i] = v }
-    return out.toList()
-}

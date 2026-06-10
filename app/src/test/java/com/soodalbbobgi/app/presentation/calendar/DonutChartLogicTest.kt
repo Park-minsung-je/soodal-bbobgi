@@ -41,14 +41,7 @@ class DonutChartLogicTest {
     }
 
     @Test
-    fun `같은 쪽 라벨은 최소 간격으로 벌린다`() {
-        val ys = spreadLabelYs(listOf(10f, 20f, 100f), minGap = 30f)
-        assertEquals(listOf(10f, 40f, 100f), ys)
-    }
-
-    @Test
     fun `빈 목록이면 빈 결과`() {
         assertTrue(donutSegments(emptyList()).isEmpty())
-        assertTrue(spreadLabelYs(emptyList(), 30f).isEmpty())
     }
 }
