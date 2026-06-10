@@ -125,7 +125,7 @@ fun MonthStrokeDonutCard(
                                     color = cardBg,
                                     start = pointAt(holeR - 1.dp.toPx(), s.startAngle),
                                     end = pointAt(outerR + 1.dp.toPx(), s.startAngle),
-                                    strokeWidth = 2.5.dp.toPx(),
+                                    strokeWidth = 1.dp.toPx(),
                                     cap = StrokeCap.Butt,
                                 )
                             }

@@ -73,20 +73,24 @@ fun SoodalTabBar(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 14.dp, end = 14.dp, bottom = 14.dp)
+            // 좌우 16dp — 화면 콘텐츠의 가로 패딩(spacing.s4)과 폭을 맞춘다
+            .padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
             .height(62.dp)
             .shadow(14.dp, shape, ambientColor = colors.cardShadow.copy(alpha = 0.16f), spotColor = colors.cardShadow.copy(alpha = 0.12f))
             .clip(shape)
-            .background(colors.tabbarBg)
+            // 불투명 서피스 — 뒤 콘텐츠가 비치지 않는다
+            .background(colors.cardBg)
             .padding(6.dp),
     ) {
         val tabWidth = maxWidth / tabs.size
+        // 필은 탭 칸보다 좌우로 살짝 좁게
+        val pillInset = 7.dp
 
         // 활성 탭 뒤를 따라다니는 필 하이라이트
         Box(
             modifier = Modifier
-                .offset(x = tabWidth * pillIndex)
-                .width(tabWidth)
+                .offset(x = tabWidth * pillIndex + pillInset)
+                .width(tabWidth - pillInset * 2)
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(16.dp))
                 .background(
