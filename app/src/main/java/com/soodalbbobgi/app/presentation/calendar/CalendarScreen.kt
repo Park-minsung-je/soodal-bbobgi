@@ -430,7 +430,8 @@ private fun DayCell(
                 lineHeight = 8.sp,
             )
             Spacer(Modifier.height(4.dp))
-            Box(Modifier.fillMaxWidth().padding(horizontal = 2.dp)) {
+            // 좌우 여백을 셀 패딩(3dp)만 남겨 상하 여백(4dp)과 균형을 맞춘다
+            Box(Modifier.fillMaxWidth()) {
                 StrokeRatioBar(meters = barMeters(data), barHeight = 7.dp, compact = true)
             }
         }
