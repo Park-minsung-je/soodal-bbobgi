@@ -645,12 +645,15 @@ private fun SalvageScene(
         val otterLine = when (phase) {
             GachaPhase.Reeling -> "올라온다…!"
             GachaPhase.Spinning -> "영차… 영차…!"
+            // 인양 완료 — 무슨 상자를 건졌는지 자랑한다 (결과 팝업 닫기 전까지 유지)
+            GachaPhase.Result ->
+                risingBox?.let { "우와! ${it.label} 건졌다!" } ?: "우와! 보물 건졌다!"
             else -> "조개 주면 보물 하나 건져 올게!"
         }
         Box(
             Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 14.dp, end = 16.dp)
+                .padding(top = 14.dp, end = 10.dp)
                 // 고정 폭 — 문구 길이가 바뀌어도 말풍선(과 꼬리) 위치가 흔들리지 않게
                 .width(150.dp)
                 .drawBehind {
