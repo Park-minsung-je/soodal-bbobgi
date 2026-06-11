@@ -10,13 +10,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 
+/**
+ * 그림자 + 라운드 배경의 공용 카드 컨테이너.
+ *
+ * @param contentPadding 카드 내부 패딩. 이미지가 주인공인 셀처럼 공간 활용이
+ *   중요한 곳에서만 기본값(16dp)보다 줄여서 사용한다.
+ */
 @Composable
 fun SoodalCard(
     modifier: Modifier = Modifier,
+    contentPadding: Dp = 16.dp,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val colors = SoodalDesign.colors
@@ -26,7 +34,7 @@ fun SoodalCard(
             .shadow(2.dp, SoodalShape.lg, ambientColor = colors.cardShadow.copy(alpha = 0.06f), spotColor = colors.cardShadow.copy(alpha = 0.04f))
             .clip(SoodalShape.lg)
             .background(colors.cardBg)
-            .padding(16.dp),
+            .padding(contentPadding),
         content = content,
     )
 }

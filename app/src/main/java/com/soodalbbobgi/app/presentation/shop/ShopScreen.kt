@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -254,6 +255,7 @@ private fun BoxGridItem(
                 indication = null,
                 onClick = onClick,
             ),
+        contentPadding = 10.dp,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -266,7 +268,9 @@ private fun BoxGridItem(
             }
             // 상자는 배경 없이 일러스트만 (아이템과 달리 티어 배경 미적용)
             Box(
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f),
                 contentAlignment = Alignment.Center,
             ) {
                 if (!item.imageAsset.isNullOrBlank()) {
@@ -276,21 +280,15 @@ private fun BoxGridItem(
                         modifier = Modifier.fillMaxSize(),
                     )
                 } else {
-                    SoodalIcon(icon = item.icon, tint = boxTint, size = 28.dp)
+                    SoodalIcon(icon = item.icon, tint = boxTint, size = 48.dp)
                 }
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(6.dp))
             Text(
                 text = item.name,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = colors.textPrimary,
-                textAlign = TextAlign.Center,
-            )
-            Text(
-                text = item.description,
-                fontSize = 10.sp,
-                color = colors.textTertiary,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(4.dp))
@@ -333,6 +331,7 @@ private fun DirectItemCard(
                 onClick = onClick,
                 enabled = item.canBuy,
             ),
+        contentPadding = 10.dp,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -346,7 +345,8 @@ private fun DirectItemCard(
             }
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
                     .clip(SoodalShape.md)
                     .background(itemBg),
                 contentAlignment = Alignment.Center,
@@ -355,13 +355,13 @@ private fun DirectItemCard(
                     AssetImage(
                         imageAsset = item.imageAsset,
                         contentDescription = item.name,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxSize(),
                     )
                 } else {
-                    SoodalIcon(icon = item.icon, tint = itemTint.copy(alpha = bgAlpha), size = 24.dp)
+                    SoodalIcon(icon = item.icon, tint = itemTint.copy(alpha = bgAlpha), size = 40.dp)
                 }
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(6.dp))
             if (item.grade != null) {
                 GradeBadge(grade = item.grade)
                 Spacer(Modifier.height(2.dp))
