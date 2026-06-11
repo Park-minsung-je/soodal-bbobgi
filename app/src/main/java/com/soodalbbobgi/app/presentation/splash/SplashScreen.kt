@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -34,6 +35,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soodalbbobgi.app.R
 import com.soodalbbobgi.app.core.theme.SoodalDesign
+import com.soodalbbobgi.app.core.ui.ButtonStyle
+import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.data.asset.AssetSyncProgress
 import kotlinx.coroutines.delay
 
@@ -51,6 +54,7 @@ fun SplashScreen(
     val colors = SoodalDesign.colors
     val destination by viewModel.destination.collectAsStateWithLifecycle()
     val syncError by viewModel.syncError.collectAsStateWithLifecycle()
+    val serverError by viewModel.serverError.collectAsStateWithLifecycle()
     val assetProgress by viewModel.assetSyncProgress.collectAsStateWithLifecycle()
 
     // 실제 에셋 동기화 진행률을 progress bar에 바인딩. Error 상태는 마지막 값을 유지한다
@@ -109,6 +113,29 @@ fun SplashScreen(
                     fontSize = 12.sp,
                     color = colors.warn,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+            }
+
+            // 서버 장애 안내 — 로그인 세션은 살아 있으니 재로그인 대신 재시도를 유도한다.
+            if (serverError) {
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    text = "서버에 일시적인 문제가 있어요",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.warn,
+                )
+                Text(
+                    text = "잠시 후 다시 시도해주세요",
+                    fontSize = 12.sp,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                Spacer(Modifier.height(14.dp))
+                SoodalButton(
+                    text = "다시 시도",
+                    onClick = viewModel::retry,
+                    style = ButtonStyle.Secondary,
                 )
             }
         }
