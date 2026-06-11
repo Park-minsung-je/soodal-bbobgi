@@ -68,6 +68,7 @@ fun ShellRewardPopup(
     onEditStrokes: (() -> Unit)? = null,
     onDismiss: () -> Unit,
 ) {
+    DimTabBarWhileVisible()
     val colors = SoodalDesign.colors
     var visible by remember { mutableStateOf(true) }
 

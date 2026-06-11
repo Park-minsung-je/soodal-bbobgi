@@ -28,6 +28,7 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
  */
 @Composable
 fun SyncLoadingOverlay(message: String = "동기화 중이에요...") {
+    DimTabBarWhileVisible()
     val colors = SoodalDesign.colors
     Box(
         modifier = Modifier
