@@ -3,35 +3,42 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- 보물상자 — 돔 뚜껑 + 자물쇠판 + 열쇠구멍 (인양소 컨셉) -->
-    <path
-        android:pathData="M4.6,11.4v6.1a1.6,1.6 0 0 0 1.6,1.6h11.6a1.6,1.6 0 0 0 1.6,-1.6v-6.1"
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="1.75"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"/>
-    <path
-        android:pathData="M4.6,11.4a7.4,5.4 0 0 1 14.8,0"
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="1.75"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"/>
-    <path
-        android:pathData="M4.6,11.4h6.1 M13.3,11.4h6.1"
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="1.75"
-        android:strokeLineCap="round"/>
-    <path
-        android:pathData="M11.6,9.6h0.8a1,1 0 0 1 1,1v1.7a1,1 0 0 1 -1,1h-0.8a1,1 0 0 1 -1,-1v-1.7a1,1 0 0 1 1,-1 Z"
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="1.75"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"/>
-    <path
-        android:pathData="M11.5,11.2a0.5,0.5 0 1 0 1,0a0.5,0.5 0 1 0 -1,0 Z"
-        android:fillColor="#FF000000"/>
+    <!-- 보물상자 — 돔 뚜껑 + 자물쇠판 + 열쇠구멍 (인양소 컨셉)
+         원본 도형이 다른 탭 아이콘보다 작아 1.15배 확대 (선 굵기는 1.75/1.15로 보정) -->
+    <group
+        android:scaleX="1.15"
+        android:scaleY="1.15"
+        android:pivotX="12"
+        android:pivotY="12.55">
+        <path
+            android:pathData="M4.6,11.4v6.1a1.6,1.6 0 0 0 1.6,1.6h11.6a1.6,1.6 0 0 0 1.6,-1.6v-6.1"
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="#FF000000"
+            android:strokeWidth="1.52"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"/>
+        <path
+            android:pathData="M4.6,11.4a7.4,5.4 0 0 1 14.8,0"
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="#FF000000"
+            android:strokeWidth="1.52"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"/>
+        <path
+            android:pathData="M4.6,11.4h6.1 M13.3,11.4h6.1"
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="#FF000000"
+            android:strokeWidth="1.52"
+            android:strokeLineCap="round"/>
+        <path
+            android:pathData="M11.6,9.6h0.8a1,1 0 0 1 1,1v1.7a1,1 0 0 1 -1,1h-0.8a1,1 0 0 1 -1,-1v-1.7a1,1 0 0 1 1,-1 Z"
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="#FF000000"
+            android:strokeWidth="1.52"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"/>
+        <path
+            android:pathData="M11.5,11.2a0.5,0.5 0 1 0 1,0a0.5,0.5 0 1 0 -1,0 Z"
+            android:fillColor="#FF000000"/>
+    </group>
 </vector>
