@@ -3,8 +3,11 @@ package com.soodalbbobgi.app.presentation.profile
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -60,6 +63,7 @@ import kotlinx.coroutines.launch
  * 홈 카드가 숨겨진 동안, 같은 위치·크기에서 시작한 단일 카드 한 장이 90도 회전하며
  * 화면을 채우도록 확대된다([fullscreenCardTransform]). 진입은 progress 0→1,
  * 닫기는 1→0 후 [onClosed]. 변환 중 화면에 카드는 이 한 장뿐이라 착시가 아니다.
+ * 배경(버튼 제외)을 탭하면 하단 컨트롤이 페이드로 숨고/복귀하며, 숨김 중에도 뒤로가기로 닫힌다.
  *
  * @param onReady 오버레이 카드가 측정되어 홈 카드 자리를 덮을 준비가 됐을 때 호출(홈 카드 숨김 타이밍)
  * @param onClosed 닫힘 애니메이션이 끝난 뒤 호출(홈이 fullscreenOpen=false로 되돌릴 때 사용)
@@ -135,6 +139,10 @@ fun ProfileFullscreenOverlay(
     // 잘못된 위치로 출발하지 않도록.
     val progress = remember { Animatable(0f) }
 
+    // 배경(카드 포함, 버튼 제외) 탭으로 토글되는 크롬(하단 컨트롤) 표시 여부 —
+    // 숨기면 검은 화면에 카드만 남는다. 숨김 중에도 뒤로가기는 닫기로 동작한다.
+    var chromeVisible by remember { mutableStateOf(true) }
+
     val close: () -> Unit = {
         scope.launch {
             progress.animateTo(0f, tween(Motion.DUR_ZOOM, easing = Motion.easeEmphasized))
@@ -186,8 +194,9 @@ fun ProfileFullscreenOverlay(
         modifier = Modifier
             .fillMaxSize()
             // 오버레이가 떠 있는 동안 모든 포인터 입력을 루트에서 가로채
-            // 뒤 화면(홈)으로 탭/스크롤이 전파되지 않게 한다. 버튼 탭은 자식이 우선 처리한다.
-            .pointerInput(Unit) { detectTapGestures { } },
+            // 뒤 화면(홈)으로 탭/스크롤이 전파되지 않게 한다. 버튼 탭은 자식이 우선 처리하고,
+            // 그 외 영역 탭은 크롬 토글로 동작한다.
+            .pointerInput(Unit) { detectTapGestures { chromeVisible = !chromeVisible } },
     ) {
         // 검은 배경: 카드와 분리해 progress로만 페이드 → 카드는 또렷하게 유지.
         Box(
@@ -231,68 +240,75 @@ fun ProfileFullscreenOverlay(
         }
 
         // 하단 컨트롤: 카드와 달리 progress로 함께 페이드.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .graphicsLayer { alpha = progress.value }
-                .padding(horizontal = spacing.s4, vertical = spacing.s5),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+        // 배경 탭으로 숨김/복귀 — 숨김 중엔 컴포지션에서 빠져 버튼이 눌리지 않는다.
+        AnimatedVisibility(
+            visible = chromeVisible,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(200)),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                Row(
-                    modifier = Modifier
-                        .height(44.dp)
-                        .clip(SoodalShape.md)
-                        .background(colors.glassBg, SoodalShape.md)
-                        .border(1.dp, colors.glassBorder, SoodalShape.md)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { viewModel.saveToGallery(bitmap) },
-                        )
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    SoodalIcon(icon = SoodalIcons.Save, tint = colors.textPrimary, size = 14.dp)
-                    Text("저장", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                }
-                Row(
-                    modifier = Modifier
-                        .height(44.dp)
-                        .clip(SoodalShape.md)
-                        .background(colors.glassBg, SoodalShape.md)
-                        .border(1.dp, colors.glassBorder, SoodalShape.md)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { viewModel.share(bitmap) },
-                        )
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    SoodalIcon(icon = SoodalIcons.Share, tint = colors.textPrimary, size = 14.dp)
-                    Text("공유", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                }
-            }
             Row(
                 modifier = Modifier
-                    .height(36.dp)
-                    .clip(SoodalShape.md)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = close,
-                    )
-                    .padding(horizontal = 12.dp),
+                    .fillMaxWidth()
+                    .graphicsLayer { alpha = progress.value }
+                    .padding(horizontal = spacing.s4, vertical = spacing.s5),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                SoodalIcon(icon = SoodalIcons.ArrowLeft, tint = colors.textSecondary, size = 14.dp)
-                Text("돌아가기", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    Row(
+                        modifier = Modifier
+                            .height(44.dp)
+                            .clip(SoodalShape.md)
+                            .background(colors.glassBg, SoodalShape.md)
+                            .border(1.dp, colors.glassBorder, SoodalShape.md)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { viewModel.saveToGallery(bitmap) },
+                            )
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        SoodalIcon(icon = SoodalIcons.Save, tint = colors.textPrimary, size = 14.dp)
+                        Text("저장", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                    }
+                    Row(
+                        modifier = Modifier
+                            .height(44.dp)
+                            .clip(SoodalShape.md)
+                            .background(colors.glassBg, SoodalShape.md)
+                            .border(1.dp, colors.glassBorder, SoodalShape.md)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { viewModel.share(bitmap) },
+                            )
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        SoodalIcon(icon = SoodalIcons.Share, tint = colors.textPrimary, size = 14.dp)
+                        Text("공유", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                    }
+                }
+                Row(
+                    modifier = Modifier
+                        .height(36.dp)
+                        .clip(SoodalShape.md)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = close,
+                        )
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    SoodalIcon(icon = SoodalIcons.ArrowLeft, tint = colors.textSecondary, size = 14.dp)
+                    Text("돌아가기", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
+                }
             }
         }
     }
