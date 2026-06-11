@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,7 +30,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.soodalbbobgi.app.core.theme.SoodalDesign
+import com.soodalbbobgi.app.core.ui.LocalTabBarDim
 import com.soodalbbobgi.app.core.ui.SoodalTabBar
+import com.soodalbbobgi.app.core.ui.TabBarDimLayer
+import com.soodalbbobgi.app.core.ui.TabBarDimState
 import com.soodalbbobgi.app.core.ui.motion.soodalEnter
 import com.soodalbbobgi.app.core.ui.motion.soodalExit
 import com.soodalbbobgi.app.core.ui.motion.soodalPopEnter
@@ -62,6 +66,8 @@ fun AppNavHost(navController: NavHostController) {
     var cardOverlayReady by remember { mutableStateOf(false) }
     // 탭 화면(홈/캘린더/뽑기/상점)에서만 하단 탭바를 노출하되, 편집 시트/전체보기가 열리면 감춘다.
     val showTabBar = tabIndexOf(currentRoute) != null && !homeEditorOpen && !fullscreenOpen
+    // 풀스크린 dim 팝업이 떠 있는 동안 탭바를 함께 dim 처리하기 위한 공유 카운터.
+    val tabBarDim = remember { TabBarDimState() }
 
     // 탭 선택 시 공통 네비게이션: Home을 루트로 두고 상태를 보존/복원한다.
     val onSelectTab: (String) -> Unit = { route ->
@@ -82,6 +88,8 @@ fun AppNavHost(navController: NavHostController) {
         // 콘텐츠는 화면 전체를 쓰고 탭바는 그 위에 떠 있는 오버레이 —
         // 콘텐츠가 플로팅 바 뒤로 스크롤되고, 바 주변은 투명하게 비친다.
         // 탭 화면들은 스크롤 끝에 TabBarClearance 여백을 둬 마지막 콘텐츠가 가려지지 않게 한다.
+        // 화면 안 풀스크린 dim 팝업이 DimTabBarWhileVisible()로 탭바 dim을 켤 수 있게 제공한다.
+        CompositionLocalProvider(LocalTabBarDim provides tabBarDim) {
             Box(modifier = Modifier.fillMaxSize()) {
                 NavHost(
                     navController = navController,
@@ -163,6 +171,7 @@ fun AppNavHost(navController: NavHostController) {
                     }
                 }
             }
+        }
 
             // 하단 플로팅 탭바: 탭 화면에서만 보이며, 진입/이탈 시 아래로 슬라이드.
             AnimatedVisibility(
@@ -171,10 +180,18 @@ fun AppNavHost(navController: NavHostController) {
                 enter = slideInVertically { it },
                 exit = slideOutVertically { it },
             ) {
-                SoodalTabBar(
-                    activeTab = currentRoute ?: Screen.Home.route,
-                    onTabSelected = onSelectTab,
-                )
+                // 화면 안 팝업 스크림은 탭바를 덮지 못하므로(탭바가 위 레이어),
+                // 팝업이 떠 있는 동안 같은 모양의 dim 레이어를 탭바 위에 직접 덮어 비활성화한다.
+                Box {
+                    SoodalTabBar(
+                        activeTab = currentRoute ?: Screen.Home.route,
+                        onTabSelected = onSelectTab,
+                    )
+                    TabBarDimLayer(
+                        dimmed = tabBarDim.dimmed,
+                        modifier = Modifier.matchParentSize(),
+                    )
+                }
             }
 
         // 상태바 페이드 스크림 — 상태바 상단 70%는 불투명(아이콘 가독) 유지,

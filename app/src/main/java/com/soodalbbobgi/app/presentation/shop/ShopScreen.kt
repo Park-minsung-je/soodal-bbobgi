@@ -41,6 +41,7 @@ import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.AssetImage
 import com.soodalbbobgi.app.core.ui.ButtonStyle
 import com.soodalbbobgi.app.core.ui.ChipColor
+import com.soodalbbobgi.app.core.ui.DimTabBarWhileVisible
 import com.soodalbbobgi.app.core.ui.GradeBadge
 import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalCard
@@ -413,6 +414,7 @@ private fun PurchaseConfirmOverlay(
     onCancel: () -> Unit,
     onConfirm: () -> Unit,
 ) {
+    DimTabBarWhileVisible()
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
     val canAfford = pearls >= item.price

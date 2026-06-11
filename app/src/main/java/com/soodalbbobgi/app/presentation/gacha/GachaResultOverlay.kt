@@ -44,6 +44,7 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.ui.AssetImage
 import com.soodalbbobgi.app.core.ui.ButtonStyle
 import com.soodalbbobgi.app.core.ui.ChipColor
+import com.soodalbbobgi.app.core.ui.DimTabBarWhileVisible
 import com.soodalbbobgi.app.core.ui.GradeBadge
 import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalChip
@@ -93,6 +94,7 @@ fun GachaResultOverlay(
     onApplyProfile: (() -> Unit)? = null,
 ) {
     if (results.isEmpty()) return
+    DimTabBarWhileVisible()
     val colors = SoodalDesign.colors
     val p = rememberPopupEnter()
 
