@@ -26,7 +26,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class GachaPhase { Idle, Spinning, Reeling, Result }
+enum class GachaPhase { Idle, Spinning, Reeling, Celebrating, Result }
 
 data class BoxInfo(
     val id: String,
@@ -72,6 +72,9 @@ private const val SPIN_DURATION_MS = 4500L
 
 /** 인양 연출 시간 — 갈고리 내리기 + 상자를 걸어 수면까지 감아올리기. */
 const val REEL_DURATION_MS = 1600L
+
+/** 인양 직후 수달이 "우와! ~상자야!" 외치는 시간 — 이 뒤에 결과 팝업이 뜬다. */
+private const val CELEBRATE_MS = 900L
 
 /**
  * 뽑기 화면 ViewModel.
@@ -207,9 +210,12 @@ class GachaViewModel @Inject constructor(
                 // 서버 응답으로 메모리 즉시 반영 (currency + 신규 인벤토리)
                 appStateLoader.applyGachaResults(response.data.results, response.data.currency)
 
+                // 수달이 건진 상자를 자랑할 시간을 준 뒤 결과 팝업을 띄운다
                 _localState.update {
-                    it.copy(phase = GachaPhase.Result, results = batch)
+                    it.copy(phase = GachaPhase.Celebrating, results = batch)
                 }
+                delay(CELEBRATE_MS)
+                _localState.update { it.copy(phase = GachaPhase.Result) }
             } else {
                 _localState.update { it.copy(phase = GachaPhase.Idle, risingBox = null) }
             }

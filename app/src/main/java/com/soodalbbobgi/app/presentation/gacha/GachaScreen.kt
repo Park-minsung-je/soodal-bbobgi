@@ -319,7 +319,7 @@ private fun SalvageScene(
 
         // ── 심해를 떠다니는 상자 줄 (룰렛) ──
         val stripAlpha by animateFloatAsState(
-            targetValue = if (phase == GachaPhase.Reeling || phase == GachaPhase.Result) 0.32f else 1f,
+            targetValue = if (phase == GachaPhase.Idle || phase == GachaPhase.Spinning) 1f else 0.32f,
             animationSpec = tween(400), label = "strip",
         )
         val bobT by infinite.animateFloat(
@@ -386,12 +386,12 @@ private fun SalvageScene(
                 reel.snapTo(0f)
             }
         }
-        val reeling = (phase == GachaPhase.Reeling || phase == GachaPhase.Result) && risingBox != null
+        val reeling = phase != GachaPhase.Idle && phase != GachaPhase.Spinning && risingBox != null
         // 로프 길이: 평소 대기 길이 → (A) 상자까지 내려감 → (B) 수면까지 감아올림
         val ropeLen = if (!reeling) {
             ROPE_IDLE_LEN
         } else {
-            val p = if (phase == GachaPhase.Result) 1f else reel.value
+            val p = if (phase == GachaPhase.Reeling) reel.value else 1f
             if (p < REEL_DROP_FRAC) {
                 val t = FastOutSlowInEasing.transform(p / REEL_DROP_FRAC)
                 lerp(ROPE_IDLE_LEN, ROPE_ATTACH_LEN, t)
@@ -467,7 +467,7 @@ private fun SalvageScene(
 
         // ── 갈고리에 걸려 올라오는 상자 ──
         if (reeling && risingBox != null) {
-            val p = if (phase == GachaPhase.Result) 1f else reel.value
+            val p = if (phase == GachaPhase.Reeling) reel.value else 1f
             val attachT = ((p - 0.18f) / 0.10f).coerceIn(0f, 1f) // 갈고리가 닿을 즈음 페이드 인
             val liftT = ((p - REEL_DROP_FRAC) / (1f - REEL_DROP_FRAC)).coerceIn(0f, 1f)
             val chestScale = lerp(1f, 1.15f, liftT)
@@ -645,15 +645,15 @@ private fun SalvageScene(
         val otterLine = when (phase) {
             GachaPhase.Reeling -> "올라온다…!"
             GachaPhase.Spinning -> "영차… 영차…!"
-            // 인양 완료 — 무슨 상자를 건졌는지 자랑한다 (결과 팝업 닫기 전까지 유지)
-            GachaPhase.Result ->
-                risingBox?.let { "우와! ${it.label} 건졌다!" } ?: "우와! 보물 건졌다!"
-            else -> "조개 주면 보물 하나 건져 올게!"
+            // 인양 완료 — 무슨 상자를 건졌는지 자랑한다 (잠시 외친 뒤 결과 팝업)
+            GachaPhase.Celebrating, GachaPhase.Result ->
+                risingBox?.let { "우와! ${it.label}야!" } ?: "우와! 보물 상자야!"
+            else -> "조개를 주면 보물을 하나 건져줄게!"
         }
         Box(
             Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 14.dp, end = 10.dp)
+                .padding(top = 14.dp, end = 5.dp)
                 // 고정 폭 — 문구 길이가 바뀌어도 말풍선(과 꼬리) 위치가 흔들리지 않게
                 .width(150.dp)
                 .drawBehind {
