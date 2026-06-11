@@ -48,7 +48,7 @@ data class TabItem(
 val MainTabs = listOf(
     TabItem("home", SoodalIcons.Home, "홈"),
     TabItem("calendar", SoodalIcons.Calendar, "캘린더"),
-    TabItem("gacha", SoodalIcons.Gacha, "뽑기"),
+    TabItem("gacha", SoodalIcons.Gacha, "인양소"),
     TabItem("shop", SoodalIcons.Shop, "상점"),
 )
 
