@@ -17,3 +17,4 @@ local.properties
 *.log
 
 app-debug.zip
+.claude/
