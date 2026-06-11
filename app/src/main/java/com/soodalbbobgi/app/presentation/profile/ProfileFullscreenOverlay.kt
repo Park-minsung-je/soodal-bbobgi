@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
@@ -180,7 +182,13 @@ fun ProfileFullscreenOverlay(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            // 오버레이가 떠 있는 동안 모든 포인터 입력을 루트에서 가로채
+            // 뒤 화면(홈)으로 탭/스크롤이 전파되지 않게 한다. 버튼 탭은 자식이 우선 처리한다.
+            .pointerInput(Unit) { detectTapGestures { } },
+    ) {
         // 검은 배경: 카드와 분리해 progress로만 페이드 → 카드는 또렷하게 유지.
         Box(
             modifier = Modifier
