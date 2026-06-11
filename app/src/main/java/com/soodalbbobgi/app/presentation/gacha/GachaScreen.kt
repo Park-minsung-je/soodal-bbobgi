@@ -2,6 +2,7 @@ package com.soodalbbobgi.app.presentation.gacha
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.StartOffset
@@ -10,6 +11,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -45,6 +47,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -52,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -74,17 +78,24 @@ import com.soodalbbobgi.app.core.ui.TabBarClearance
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-// ── 인양 장면 기하 (디자인 확정값, dp) ──
+// ── 인양 장면 기하 (dp) ──
 private const val SCENE_H = 412f
-private const val SURFACE_Y = 103f      // 수면 y
-private const val CHEST_CY = 261f       // 떠다니는 상자들의 세로 중심
+private const val SURFACE_Y = 103f        // 수면 y
+private const val CHEST_CY = 261f         // 떠다니는 상자들의 세로 중심
 private const val CHEST_W = 92f
-private val REEL_DIST = -(CHEST_CY - SURFACE_Y - 4f) // 상자 → 수면 이동 거리
+private const val RAFT_W = 132f
+private const val RAFT_H = 16f
+private const val ROPE_TOP = SURFACE_Y + 2f                       // 로프가 뗏목 아래에서 시작
+private const val ROPE_IDLE_LEN = CHEST_CY - CHEST_W / 2f - 14f - ROPE_TOP   // 평소: 상자 위에서 대기
+private const val ROPE_ATTACH_LEN = CHEST_CY - 40f - ROPE_TOP                // 갈고리가 상자 뚜껑에 닿는 길이
+private const val ROPE_MIN_LEN = 6f                               // 다 감아올린 길이
+private const val CHEST_HANG = 40f                                // 갈고리 끝 → 매달린 상자 중심
+private const val REEL_DROP_FRAC = 0.22f                          // 인양 타임라인 중 '갈고리 내리기' 구간
 
 /**
  * 보물 인양소 — 조개를 좋아하는 인양꾼 수달이 바닷속 보물상자를 건져 올리는 뽑기 화면.
- * 바다 단면 장면(수면 위 수달 + 로프 + 심해의 상자들) 위에서 스핀이 돌고,
- * 멈춘 상자가 로프를 타고 수면으로 끌려 올라온 뒤 결과가 열린다.
+ * 평소엔 갈고리가 상자들 위에서 대기하다가, 뽑기가 멈추면 로프가 내려가 상자를 걸고
+ * 감아올리는 2단 인양 모션 후 결과가 열린다.
  */
 @Composable
 fun GachaScreen(
@@ -196,10 +207,10 @@ fun GachaScreen(
 }
 
 /**
- * 바다 단면 인양 장면 — 수면 위 뗏목의 수달, 로프, 심해를 떠다니는 보물상자들.
+ * 바다 단면 인양 장면 — 수면 위 뗏목의 수달, 갈고리 로프, 심해를 떠다니는 보물상자들.
  *
  * @param offset 룰렛 오프셋(dp 단위 누적값) — [GachaViewModel]의 스핀 로직과 공유
- * @param risingBox Reeling 단계에서 로프를 타고 올라오는 상자
+ * @param risingBox Reeling 단계에서 갈고리에 걸려 올라오는 상자
  */
 @Composable
 private fun SalvageScene(
@@ -365,79 +376,113 @@ private fun SalvageScene(
                 .background(Brush.horizontalGradient(listOf(Color.Transparent, edgeColor))),
         )
 
-        // ── 인양 로프 + 갈고리 ──
+        // ── 인양 진행률 (갈고리 내리기 → 감아올리기) ──
+        val reel = remember { Animatable(0f) }
+        LaunchedEffect(phase, risingBox) {
+            if (phase == GachaPhase.Reeling && risingBox != null) {
+                reel.snapTo(0f)
+                reel.animateTo(1f, tween(REEL_DURATION_MS.toInt(), easing = LinearEasing))
+            } else if (phase == GachaPhase.Idle) {
+                reel.snapTo(0f)
+            }
+        }
+        val reeling = (phase == GachaPhase.Reeling || phase == GachaPhase.Result) && risingBox != null
+        // 로프 길이: 평소 대기 길이 → (A) 상자까지 내려감 → (B) 수면까지 감아올림
+        val ropeLen = if (!reeling) {
+            ROPE_IDLE_LEN
+        } else {
+            val p = if (phase == GachaPhase.Result) 1f else reel.value
+            if (p < REEL_DROP_FRAC) {
+                val t = FastOutSlowInEasing.transform(p / REEL_DROP_FRAC)
+                lerp(ROPE_IDLE_LEN, ROPE_ATTACH_LEN, t)
+            } else {
+                val t = CubicBezierEasing(0.32f, 0.86f, 0.4f, 1f).transform((p - REEL_DROP_FRAC) / (1f - REEL_DROP_FRAC))
+                lerp(ROPE_ATTACH_LEN, ROPE_MIN_LEN, t)
+            }
+        }
+
+        // ── 로프 + 갈고리 (매듭 링 + J자 훅) ──
         val ropeSway by infinite.animateFloat(
             initialValue = -1.4f, targetValue = 1.4f,
             animationSpec = infiniteRepeatable(tween(1700, easing = LinearEasing), RepeatMode.Reverse),
             label = "rope",
         )
-        val ropeAlpha by animateFloatAsState(
-            targetValue = if (phase == GachaPhase.Result) 0f else 1f,
-            animationSpec = tween(300), label = "ropeAlpha",
-        )
-        val ropeH = CHEST_CY - SURFACE_Y - 6f
-        androidx.compose.foundation.Canvas(
+        val maxRopeCanvasH = ROPE_ATTACH_LEN + 26f
+        Canvas(
             Modifier
-                .offset(x = (centerX - 7).dp, y = (SURFACE_Y - 4).dp)
-                .size(14.dp, (ropeH + 12).dp)
+                .offset(x = (centerX - 10).dp, y = ROPE_TOP.dp)
+                .size(20.dp, maxRopeCanvasH.dp)
                 .graphicsLayer {
-                    rotationZ = ropeSway
+                    // 짐을 매달면 (인양 중) 흔들리지 않고 곧게 당겨진다
+                    rotationZ = if (reeling) 0f else ropeSway
                     transformOrigin = TransformOrigin(0.5f, 0f)
-                    alpha = ropeAlpha
                 },
         ) {
-            // 줄 — 5dp 간격 두 색 줄무늬
+            val cx = size.width / 2f
+            val endY = ropeLen.dp.toPx()
+            // 줄 — 5dp 간격 두 색 꼬임 줄무늬
             val ropeW = 3.dp.toPx()
-            val xLeft = (size.width - ropeW) / 2f
             val seg = 5.dp.toPx()
             var y = 0f
             var dark = false
-            val ropeEnd = ropeH.dp.toPx()
-            while (y < ropeEnd) {
+            while (y < endY) {
                 drawRect(
                     color = if (dark) Color(0xFFB98F56) else Color(0xFFD8B27E),
-                    topLeft = Offset(xLeft, y),
-                    size = Size(ropeW, minOf(seg, ropeEnd - y)),
+                    topLeft = Offset(cx - ropeW / 2f, y),
+                    size = Size(ropeW, minOf(seg, endY - y)),
                 )
                 dark = !dark
                 y += seg
             }
-            // 갈고리 — 줄 끝의 U자 호
-            val hookR = 5.5.dp.toPx()
-            drawArc(
+            // 매듭 링
+            drawCircle(
                 color = Color(0xFFC79A5E),
-                startAngle = 0f, sweepAngle = 180f, useCenter = false,
-                topLeft = Offset(size.width / 2f - hookR, ropeEnd - hookR),
-                size = Size(hookR * 2, hookR * 2),
-                style = Stroke(width = 3.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round),
+                radius = 3.dp.toPx(),
+                center = Offset(cx, endY + 3.dp.toPx()),
+                style = Stroke(width = 2.dp.toPx()),
+            )
+            // J자 훅 — 링 아래로 곡선을 그리며 왼쪽으로 열린 갈고리
+            val hookR = 5.5.dp.toPx()
+            val hookPath = Path().apply {
+                moveTo(cx, endY + 6.dp.toPx())
+                lineTo(cx, endY + 9.dp.toPx())
+                // 오른쪽으로 감았다가 왼쪽 위로 열리는 J 곡선
+                cubicTo(
+                    cx + hookR * 1.2f, endY + 10.dp.toPx(),
+                    cx + hookR * 1.2f, endY + 10.dp.toPx() + hookR * 1.8f,
+                    cx, endY + 10.dp.toPx() + hookR * 1.8f,
+                )
+                cubicTo(
+                    cx - hookR * 1.1f, endY + 10.dp.toPx() + hookR * 1.8f,
+                    cx - hookR * 1.1f, endY + 10.dp.toPx() + hookR * 0.7f,
+                    cx - hookR * 0.45f, endY + 10.dp.toPx() + hookR * 0.45f,
+                )
+            }
+            drawPath(
+                hookPath,
+                color = Color(0xFFC79A5E),
+                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
             )
         }
 
-        // ── 인양되는 상자 (로프를 타고 수면으로) ──
-        if ((phase == GachaPhase.Reeling || phase == GachaPhase.Result) && risingBox != null) {
-            val reel = remember { Animatable(0f) }
-            LaunchedEffect(risingBox) {
-                reel.snapTo(0f)
-                reel.animateTo(
-                    1f,
-                    tween(REEL_DURATION_MS.toInt(), easing = CubicBezierEasing(0.32f, 0.86f, 0.4f, 1f)),
-                )
-            }
-            val p = reel.value
-            val travel = (p / 0.72f).coerceAtMost(1f)
-            val chestScale = if (p < 0.72f) lerp(0.8f, 1.18f, p / 0.72f) else lerp(1.18f, 1.12f, (p - 0.72f) / 0.28f)
-            val chestRot = if (p < 0.72f) lerp(-6f, 4f, p / 0.72f) else lerp(4f, 0f, (p - 0.72f) / 0.28f)
-            val chestAlpha = (p / 0.16f).coerceIn(0f, 1f)
+        // ── 갈고리에 걸려 올라오는 상자 ──
+        if (reeling && risingBox != null) {
+            val p = if (phase == GachaPhase.Result) 1f else reel.value
+            val attachT = ((p - 0.18f) / 0.10f).coerceIn(0f, 1f) // 갈고리가 닿을 즈음 페이드 인
+            val liftT = ((p - REEL_DROP_FRAC) / (1f - REEL_DROP_FRAC)).coerceIn(0f, 1f)
+            val chestScale = lerp(1f, 1.15f, liftT)
+            val wiggle = sin(p * 18f) * (1f - liftT) * 2.2f
+            val chestCenterY = ROPE_TOP + ropeLen + CHEST_HANG
 
             Box(
                 Modifier
-                    .offset(x = (centerX - 50).dp, y = (CHEST_CY - 50 + REEL_DIST * travel).dp)
+                    .offset(x = (centerX - 50).dp, y = (chestCenterY - 50).dp)
                     .size(100.dp)
                     .graphicsLayer {
                         scaleX = chestScale
                         scaleY = chestScale
-                        rotationZ = chestRot
-                        alpha = chestAlpha
+                        rotationZ = wiggle
+                        alpha = attachT
                     },
                 contentAlignment = Alignment.Center,
             ) {
@@ -458,7 +503,7 @@ private fun SalvageScene(
                     val bp by infinite.animateFloat(
                         initialValue = 0f, targetValue = 1f,
                         animationSpec = infiniteRepeatable(
-                            tween(1000 + i * 150, easing = LinearEasing),
+                            tween(900 + i * 150, easing = LinearEasing),
                             RepeatMode.Restart,
                             initialStartOffset = StartOffset(i * 80),
                         ),
@@ -466,7 +511,10 @@ private fun SalvageScene(
                     )
                     Box(
                         Modifier
-                            .offset(x = sceneW * (0.46f + i * 0.03f), y = (CHEST_CY - 110f * bp).dp)
+                            .offset(
+                                x = sceneW * (0.45f + i * 0.033f),
+                                y = (chestCenterY + 30f - 90f * bp).dp,
+                            )
                             .size((5 + (i % 2) * 3).dp)
                             .alpha((1f - bp) * 0.7f)
                             .background(Color(0xFFDCF5FF).copy(alpha = 0.7f), CircleShape),
@@ -497,32 +545,70 @@ private fun SalvageScene(
                 ),
         )
 
-        // ── 뗏목 ──
-        androidx.compose.foundation.Canvas(
+        // ── 뗏목 (통나무 판자 + 밧줄 묶음 + 물그림자) ──
+        Canvas(
             Modifier
-                .offset(x = (centerX - 62).dp, y = (SURFACE_Y - 4).dp)
-                .size(124.dp, 13.dp)
-                .clip(RoundedCornerShape(7.dp)),
+                .offset(x = (centerX - RAFT_W / 2f).dp, y = (SURFACE_Y - 5).dp)
+                .size(RAFT_W.dp, (RAFT_H + 10f).dp),
         ) {
-            // 널빤지 무늬 — 9dp 판자 + 2dp 틈
-            val plank = 9.dp.toPx()
+            val raftH = RAFT_H.dp.toPx()
+            // 물에 잠긴 그림자
+            drawOval(
+                color = Color(0xFF04141F).copy(alpha = 0.4f),
+                topLeft = Offset(size.width * 0.06f, raftH - 2.dp.toPx()),
+                size = Size(size.width * 0.88f, 9.dp.toPx()),
+            )
+            // 판자 6장 — 라운드 + 윗면 하이라이트 + 외곽선
+            val plankCount = 6
             val gapW = 2.dp.toPx()
-            var x = 0f
-            while (x < size.width) {
-                drawRect(Color(0xFFB07F4E), topLeft = Offset(x, 0f), size = Size(minOf(plank, size.width - x), size.height))
-                if (x + plank < size.width) {
-                    drawRect(Color(0xFF9C6D3F), topLeft = Offset(x + plank, 0f), size = Size(minOf(gapW, size.width - x - plank), size.height))
+            val plankW = (size.width - gapW * (plankCount - 1)) / plankCount
+            val corner = CornerRadius(3.dp.toPx(), 3.dp.toPx())
+            repeat(plankCount) { i ->
+                val x = i * (plankW + gapW)
+                drawRoundRect(
+                    color = Color(0xFFB07F4E),
+                    topLeft = Offset(x, 0f),
+                    size = Size(plankW, raftH),
+                    cornerRadius = corner,
+                )
+                drawRoundRect(
+                    color = Color(0xFFCB9660).copy(alpha = 0.85f),
+                    topLeft = Offset(x + 1.dp.toPx(), 1.dp.toPx()),
+                    size = Size(plankW - 2.dp.toPx(), 4.dp.toPx()),
+                    cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx()),
+                )
+                drawRoundRect(
+                    color = Color(0xFF7A5532).copy(alpha = 0.7f),
+                    topLeft = Offset(x, 0f),
+                    size = Size(plankW, raftH),
+                    cornerRadius = corner,
+                    style = Stroke(width = 1.dp.toPx()),
+                )
+            }
+            // 밧줄 묶음 두 줄
+            listOf(0.17f, 0.83f).forEach { fx ->
+                val bx = size.width * fx
+                drawRect(
+                    color = Color(0xFFD8B27E),
+                    topLeft = Offset(bx - 2.5.dp.toPx(), -1.dp.toPx()),
+                    size = Size(5.dp.toPx(), raftH + 2.dp.toPx()),
+                )
+                listOf(0.28f, 0.62f).forEach { fy ->
+                    drawRect(
+                        color = Color(0xFFB98F56),
+                        topLeft = Offset(bx - 2.5.dp.toPx(), raftH * fy),
+                        size = Size(5.dp.toPx(), 1.5.dp.toPx()),
+                    )
                 }
-                x += plank + gapW
             }
         }
 
-        // ── 인양꾼 수달 ──
+        // ── 인양꾼 수달 (여백 트리밍본, 발이 뗏목에 닿게) ──
         val isTugging = phase == GachaPhase.Reeling
         val otterY by infinite.animateFloat(
-            initialValue = 0f, targetValue = if (isTugging) -7f else -3f,
+            initialValue = 0f, targetValue = if (isTugging) -6f else -3f,
             animationSpec = infiniteRepeatable(
-                tween(if (isTugging) 130 else 1900, easing = LinearEasing),
+                tween(if (isTugging) 140 else 1900, easing = LinearEasing),
                 RepeatMode.Reverse,
             ),
             label = "otterY",
@@ -531,23 +617,28 @@ private fun SalvageScene(
             initialValue = if (isTugging) -2f else -1.6f,
             targetValue = if (isTugging) 2f else 1.6f,
             animationSpec = infiniteRepeatable(
-                tween(if (isTugging) 260 else 1900, easing = LinearEasing),
+                tween(if (isTugging) 280 else 1900, easing = LinearEasing),
                 RepeatMode.Reverse,
             ),
             label = "otterRot",
         )
-        val otterBitmap = ImageBitmap.imageResource(R.drawable.otter_swim)
+        val otterBitmap = ImageBitmap.imageResource(R.drawable.otter_salvager)
+        val otterH = 92f
+        val otterW = otterH * otterBitmap.width / otterBitmap.height.toFloat()
         Image(
             bitmap = otterBitmap,
             contentDescription = "인양꾼 수달",
             filterQuality = FilterQuality.None, // 도트가 뭉개지지 않게
             modifier = Modifier
                 .offset(
-                    x = (centerX - 53).dp,
-                    y = (SURFACE_Y - 4 - 104 + otterY).dp,
+                    x = (centerX - otterW / 2f).dp,
+                    y = (SURFACE_Y - 5f - otterH + 3f + otterY).dp,
                 )
-                .size(106.dp)
-                .graphicsLayer { rotationZ = otterRot },
+                .size(otterW.dp, otterH.dp)
+                .graphicsLayer {
+                    rotationZ = otterRot
+                    transformOrigin = TransformOrigin(0.5f, 1f) // 발끝 기준으로 흔들리게
+                },
         )
 
         // ── 수달 말풍선 ──

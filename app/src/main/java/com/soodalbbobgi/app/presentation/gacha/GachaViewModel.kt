@@ -70,8 +70,8 @@ private const val SPIN_ACCEL_PROGRESS = 0.4f
 private const val SPIN_DECEL_POWER = 4
 private const val SPIN_DURATION_MS = 4500L
 
-/** 상자가 로프를 타고 수면까지 올라오는 연출 시간. */
-const val REEL_DURATION_MS = 1100L
+/** 인양 연출 시간 — 갈고리 내리기 + 상자를 걸어 수면까지 감아올리기. */
+const val REEL_DURATION_MS = 1600L
 
 /**
  * 뽑기 화면 ViewModel.
