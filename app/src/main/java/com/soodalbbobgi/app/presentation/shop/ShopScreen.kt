@@ -483,6 +483,16 @@ private fun PurchaseConfirmOverlay(
                     color = colors.textPrimary,
                 )
 
+                if (item.description.isNotBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = item.description,
+                        fontSize = 13.sp,
+                        color = colors.textSecondary,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+
                 Spacer(Modifier.height(spacing.s2))
 
                 Row(
@@ -518,6 +528,8 @@ private fun PurchaseConfirmOverlay(
                         onClick = onCancel,
                         style = ButtonStyle.Secondary,
                         modifier = Modifier.weight(1f),
+                        // 구매 버튼(Purple 기본 52dp)과 시각적 높이를 맞춘다
+                        heightOverride = 52.dp,
                     )
                     SoodalButton(
                         text = "구매",
