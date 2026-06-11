@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.SoodalDesign
@@ -54,6 +55,24 @@ val MainTabs = listOf(
 /** 플로팅 탭바가 덮는 하단 영역(바 62 + 마진 14 + 숨통 16) — 탭 화면 콘텐츠 끝에 이만큼 여백을 둔다. */
 val TabBarClearance = 92.dp
 
+/** 탭바 라운드 모양 — 탭바 위를 덮는 레이어(dim 등)가 같은 모양을 쓰도록 공유한다. */
+internal val TabBarShape = RoundedCornerShape(22.dp)
+
+/** 탭바 좌우/하단 기본 마진 — 화면 콘텐츠의 가로 패딩(spacing.s4)과 폭을 맞춘다. */
+internal val TabBarMargin = 16.dp
+
+/**
+ * 탭바 하단 패딩 — 내비게이션 인셋 포함 총 하단 여백이 [TabBarMargin]이 되도록 보정해
+ * 바의 라운드가 디스플레이 모서리 곡률과 동심원으로 맞는다.
+ *
+ * @return 인셋을 뺀 나머지 하단 패딩(최소 0dp)
+ */
+@Composable
+internal fun tabBarBottomPadding(): Dp {
+    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    return (TabBarMargin - navBottom).coerceAtLeast(0.dp)
+}
+
 /**
  * 하단 탭바 — 화면 가장자리에서 띄운 둥근 글래스 바 (디자인 확정).
  * 활성 탭 뒤에는 부드러운 스프링으로 미끄러지는 필(pill) 하이라이트가 따라다닌다.
@@ -66,7 +85,7 @@ fun SoodalTabBar(
     tabs: List<TabItem> = MainTabs,
 ) {
     val colors = SoodalDesign.colors
-    val shape = RoundedCornerShape(22.dp)
+    val shape = TabBarShape
     val activeIndex = tabs.indexOfFirst { it.key == activeTab }.coerceAtLeast(0)
     // 디자인의 오버슈트 이징(cubic-bezier 0.34,1.4,0.5,1)에 가까운 스프링
     val pillIndex by animateFloatAsState(
@@ -75,16 +94,10 @@ fun SoodalTabBar(
         label = "tabPill",
     )
 
-    // 하단 총 여백(내비게이션 인셋 포함)이 좌우 여백(16dp)과 같아지도록 보정 —
-    // 바의 라운드가 디스플레이 모서리 곡률과 동심원으로 맞는다.
-    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val bottomPad = (16.dp - navBottom).coerceAtLeast(0.dp)
-
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            // 좌우 16dp — 화면 콘텐츠의 가로 패딩(spacing.s4)과 폭을 맞춘다
-            .padding(start = 16.dp, end = 16.dp, bottom = bottomPad)
+            .padding(start = TabBarMargin, end = TabBarMargin, bottom = tabBarBottomPadding())
             .height(62.dp)
             // 커스텀 그림자 — Compose shadow()는 시스템이 알파를 추가로 깎아 흐릿해서,
             // 네이티브 shadowLayer로 진하기를 직접 제어한다 (카드 위에서도 층 구분).
