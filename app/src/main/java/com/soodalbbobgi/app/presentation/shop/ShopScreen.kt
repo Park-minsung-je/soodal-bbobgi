@@ -269,7 +269,7 @@ private fun BoxGridItem(
             // 상자는 배경 없이 일러스트만 (아이템과 달리 티어 배경 미적용)
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxWidth(0.66f)
                     .aspectRatio(1f),
                 contentAlignment = Alignment.Center,
             ) {
@@ -345,7 +345,7 @@ private fun DirectItemCard(
             }
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxWidth(0.66f)
                     .aspectRatio(1f)
                     .clip(SoodalShape.md)
                     .background(itemBg),
