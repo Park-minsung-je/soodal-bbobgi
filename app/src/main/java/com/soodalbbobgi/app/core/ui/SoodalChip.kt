@@ -18,6 +18,11 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 
 enum class ChipColor { Blue, Purple, Gold }
 
+/**
+ * 공용 칩 컴포저블.
+ *
+ * @param large 헤더 재화 표시처럼 강조가 필요할 때 — 아이콘/글자/패딩을 한 단계 키운다
+ */
 @Composable
 fun SoodalChip(
     text: String,
@@ -25,6 +30,7 @@ fun SoodalChip(
     color: ChipColor = ChipColor.Blue,
     iconType: SoodalIcons? = null,
     label: String? = null,
+    large: Boolean = false,
 ) {
     val colors = SoodalDesign.colors
     // borderless 원칙 — 칩은 채움색만으로 구분한다.
@@ -37,16 +43,29 @@ fun SoodalChip(
         modifier = modifier
             .clip(CircleShape)
             .background(bg)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+            .padding(
+                horizontal = if (large) 14.dp else 10.dp,
+                vertical = if (large) 8.dp else 6.dp,
+            ),
+        horizontalArrangement = Arrangement.spacedBy(if (large) 7.dp else 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (iconType != null) {
-            SoodalIcon(icon = iconType, tint = fg, size = 14.dp)
+            SoodalIcon(icon = iconType, tint = fg, size = if (large) 19.dp else 14.dp)
         }
         if (label != null) {
-            Text(text = label, color = fg.copy(alpha = 0.7f), fontSize = 10.sp, fontWeight = FontWeight.Medium)
+            Text(
+                text = label,
+                color = fg.copy(alpha = 0.7f),
+                fontSize = if (large) 12.sp else 10.sp,
+                fontWeight = FontWeight.Medium,
+            )
         }
-        Text(text = text, color = fg, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            text = text,
+            color = fg,
+            fontSize = if (large) 16.sp else 12.sp,
+            fontWeight = if (large) FontWeight.Bold else FontWeight.SemiBold,
+        )
     }
 }
