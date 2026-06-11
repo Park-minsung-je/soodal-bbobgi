@@ -143,6 +143,53 @@ fun ConfirmActionDialog(
     }
 }
 
+/**
+ * 리마인더 시간 선택 다이얼로그 — 24시간제 타임피커.
+ *
+ * @param initialHour 현재 설정된 시 (0~23)
+ * @param initialMinute 현재 설정된 분 (0~59)
+ * @param onSave 저장 콜백 (시, 분)
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun ReminderTimeDialog(
+    initialHour: Int,
+    initialMinute: Int,
+    onSave: (Int, Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = SoodalDesign.colors
+    val timeState = androidx.compose.material3.rememberTimePickerState(
+        initialHour = initialHour,
+        initialMinute = initialMinute,
+        is24Hour = true,
+    )
+
+    DialogScrim(onDismiss = onDismiss) {
+        Text("알림 시간", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+        Spacer(Modifier.height(14.dp))
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            androidx.compose.material3.TimePicker(state = timeState)
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            SoodalButton(
+                text = "취소",
+                onClick = onDismiss,
+                style = ButtonStyle.Ghost,
+                heightOverride = 48.dp,
+                modifier = Modifier.weight(1f),
+            )
+            SoodalButton(
+                text = "저장",
+                onClick = { onSave(timeState.hour, timeState.minute) },
+                heightOverride = 48.dp,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
 /** 풀스크린 스크림 + 가운데 카드 — 설정 다이얼로그 공통 셸. 카드 탭은 닫힘으로 전파되지 않는다. */
 @Composable
 private fun DialogScrim(

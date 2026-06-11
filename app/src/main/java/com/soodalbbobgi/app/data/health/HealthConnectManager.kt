@@ -380,6 +380,39 @@ class HealthConnectManager @Inject constructor(
     }
 
     /**
+     * 저장된 토큰 이후에 수영 세션 변경(추가/수정/삭제)이 있는지만 가볍게 확인한다.
+     *
+     * **토큰을 소비하지 않는다** — 실제 동기화(HcSwimSyncer)가 같은 토큰으로 변경분을
+     * 처리해야 하므로, 여기서는 존재 여부만 보고 저장된 토큰은 건드리지 않는다.
+     * 백그라운드 새 기록 알림 워커 전용.
+     *
+     * @return 수영 변경 있으면 true, 없으면 false, 토큰 만료/판단 불가면 null
+     */
+    suspend fun hasSwimChanges(token: String): Boolean? {
+        return try {
+            var currentToken = token
+            do {
+                val response = healthConnectClient.getChanges(currentToken)
+                if (response.changesTokenExpired) return null
+                for (change in response.changes) {
+                    when (change) {
+                        is UpsertionChange -> {
+                            val record = change.record
+                            if (record is ExerciseSessionRecord && isSwimmingSession(record)) return true
+                        }
+                        is DeletionChange -> return true
+                    }
+                }
+                currentToken = response.nextChangesToken
+            } while (response.hasMore)
+            false
+        } catch (e: Exception) {
+            Timber.w(e, "HC 변경 확인 실패")
+            null
+        }
+    }
+
+    /**
      * 저장된 변경 토큰 이후의 HC 변경분을 읽어온다.
      *
      * 추가/수정된 수영 세션과 삭제된 레코드 UID를 반환한다.

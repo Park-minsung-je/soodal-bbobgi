@@ -49,6 +49,9 @@ import com.soodalbbobgi.app.domain.model.Grade
 import com.soodalbbobgi.app.presentation.gacha.GachaResultItem
 import com.soodalbbobgi.app.presentation.gacha.GachaResultOverlay
 
+/** Health Connect 백그라운드 읽기 권한 — 새 기록 알림 워커용. */
+private const val HC_BG_READ_PERMISSION = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
+
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
@@ -58,9 +61,6 @@ fun SettingsScreen(
 ) {
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
-
-    var swimReminder by remember { mutableStateOf(true) }
-    var shellNotification by remember { mutableStateOf(false) }
 
     // 디버그 전용 개발자 모드 — 미리보기로 띄울 팝업 ("shell" | "gacha1" | "gacha10")
     var devPopup by remember { mutableStateOf<String?>(null) }
@@ -90,6 +90,55 @@ fun SettingsScreen(
         contract = PermissionController.createRequestPermissionResultContract(),
     ) { granted ->
         if (granted.isNotEmpty()) viewModel.onHcPermissionGranted() else viewModel.refreshHcStatus()
+    }
+
+    // ── 알림 설정 상태 + 권한 플로우 ──
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val reminderEnabled by viewModel.reminderEnabled.collectAsStateWithLifecycle()
+    val reminderTime by viewModel.reminderTime.collectAsStateWithLifecycle()
+    val newRecordEnabled by viewModel.newRecordEnabled.collectAsStateWithLifecycle()
+
+    // HC 백그라운드 읽기 권한 — 새 기록 알림용. 거부돼도 토글은 유지 (워커가 조용히 스킵).
+    val hcBgPermissionLauncher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract(),
+    ) { }
+
+    // POST_NOTIFICATIONS(13+) 허용 후 켜려던 토글을 마저 켠다
+    var pendingNotifToggle by remember { mutableStateOf<String?>(null) }
+    val notifPermissionLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        val target = pendingNotifToggle
+        pendingNotifToggle = null
+        if (granted) {
+            when (target) {
+                "reminder" -> viewModel.setReminderEnabled(true)
+                "newRecord" -> {
+                    viewModel.setNewRecordEnabled(true)
+                    hcBgPermissionLauncher.launch(setOf(HC_BG_READ_PERMISSION))
+                }
+            }
+        }
+    }
+
+    // 토글 켜기 — 알림 권한이 없으면 먼저 요청하고, 허용되면 마저 켠다
+    val enableNotifToggle: (String) -> Unit = { target ->
+        val needsPermission = android.os.Build.VERSION.SDK_INT >= 33 &&
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context, android.Manifest.permission.POST_NOTIFICATIONS,
+            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (needsPermission) {
+            pendingNotifToggle = target
+            notifPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            when (target) {
+                "reminder" -> viewModel.setReminderEnabled(true)
+                "newRecord" -> {
+                    viewModel.setNewRecordEnabled(true)
+                    hcBgPermissionLauncher.launch(setOf(HC_BG_READ_PERMISSION))
+                }
+            }
+        }
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -238,23 +287,27 @@ fun SettingsScreen(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     SettingsToggleRow(
                         label = "수영 리마인더",
-                        checked = swimReminder,
-                        onCheckedChange = { swimReminder = it },
+                        checked = reminderEnabled,
+                        onCheckedChange = { on ->
+                            if (on) enableNotifToggle("reminder") else viewModel.setReminderEnabled(false)
+                        },
                     )
                     SettingsDivider()
                     SettingsToggleRow(
                         label = "조개 획득 알림",
-                        checked = shellNotification,
-                        onCheckedChange = { shellNotification = it },
+                        checked = newRecordEnabled,
+                        onCheckedChange = { on ->
+                            if (on) enableNotifToggle("newRecord") else viewModel.setNewRecordEnabled(false)
+                        },
                     )
                     SettingsDivider()
                     SettingsRow(
                         label = "알림 시간",
                         trailing = null,
-                        onClick = {},
+                        onClick = { dialog = "time" },
                     ) {
                         Text(
-                            text = "21:00",
+                            text = String.format("%02d:%02d", reminderTime.first, reminderTime.second),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = colors.accentBlue,
@@ -325,6 +378,15 @@ fun SettingsScreen(
 
     // -- 계정 다이얼로그 오버레이 --
     when (dialog) {
+        "time" -> ReminderTimeDialog(
+            initialHour = reminderTime.first,
+            initialMinute = reminderTime.second,
+            onSave = { h, m ->
+                viewModel.setReminderTime(h, m)
+                dialog = null
+            },
+            onDismiss = { dialog = null },
+        )
         "nickname" -> NicknameEditDialog(
             initial = profile?.nickname ?: "",
             state = nicknameState,

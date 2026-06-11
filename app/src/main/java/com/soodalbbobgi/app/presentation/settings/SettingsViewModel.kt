@@ -9,11 +9,14 @@ import com.soodalbbobgi.app.data.auth.TokenStore
 import com.soodalbbobgi.app.data.health.HcSwimSyncer
 import com.soodalbbobgi.app.data.health.HcSyncPreferences
 import com.soodalbbobgi.app.data.health.HealthConnectManager
+import com.soodalbbobgi.app.data.notify.NotificationPrefs
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.data.remote.dto.RefreshRequest
 import com.soodalbbobgi.app.data.remote.dto.UpdateUserRequest
 import com.soodalbbobgi.app.domain.model.UserProfile
 import com.soodalbbobgi.app.domain.repository.SwimLogRepository
+import com.soodalbbobgi.app.work.HcChangeCheckScheduler
+import com.soodalbbobgi.app.work.ReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +38,9 @@ class SettingsViewModel @Inject constructor(
     private val healthConnectManager: HealthConnectManager,
     private val swimLogRepository: SwimLogRepository,
     private val hcSwimSyncer: HcSwimSyncer,
+    private val notificationPrefs: NotificationPrefs,
+    private val reminderScheduler: ReminderScheduler,
+    private val hcChangeCheckScheduler: HcChangeCheckScheduler,
     @ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -54,6 +60,17 @@ class SettingsViewModel @Inject constructor(
     // 로그아웃/탈퇴 완료 → 화면이 관찰해 Auth로 이동
     private val _signedOut = MutableStateFlow(false)
     val signedOut: StateFlow<Boolean> = _signedOut
+
+    // ── 알림 설정 (영속화) ──
+    private val _reminderEnabled = MutableStateFlow(notificationPrefs.reminderEnabled)
+    val reminderEnabled: StateFlow<Boolean> = _reminderEnabled
+
+    private val _reminderTime = MutableStateFlow(notificationPrefs.reminderHour to notificationPrefs.reminderMinute)
+    /** 리마인더 시각 (시, 분). */
+    val reminderTime: StateFlow<Pair<Int, Int>> = _reminderTime
+
+    private val _newRecordEnabled = MutableStateFlow(notificationPrefs.newRecordEnabled)
+    val newRecordEnabled: StateFlow<Boolean> = _newRecordEnabled
 
     init {
         refreshHcStatus()
@@ -110,6 +127,30 @@ class SettingsViewModel @Inject constructor(
 
     /** 닉네임 다이얼로그를 닫을 때 상태 초기화. */
     fun resetNicknameState() { _nicknameState.value = NicknameSaveState.Idle }
+
+    // ── 알림 설정 액션 ──
+
+    /** 수영 리마인더 on/off — 켜면 다음 발화 시각으로 예약, 끄면 취소. */
+    fun setReminderEnabled(enabled: Boolean) {
+        notificationPrefs.reminderEnabled = enabled
+        _reminderEnabled.value = enabled
+        if (enabled) reminderScheduler.schedule() else reminderScheduler.cancel()
+    }
+
+    /** 리마인더 시각 변경 — 켜져 있으면 새 시각으로 재예약. */
+    fun setReminderTime(hour: Int, minute: Int) {
+        notificationPrefs.reminderHour = hour
+        notificationPrefs.reminderMinute = minute
+        _reminderTime.value = hour to minute
+        if (notificationPrefs.reminderEnabled) reminderScheduler.schedule()
+    }
+
+    /** 새 수영 기록(조개) 알림 on/off — 백그라운드 변경 감지 주기 작업 예약/취소. */
+    fun setNewRecordEnabled(enabled: Boolean) {
+        notificationPrefs.newRecordEnabled = enabled
+        _newRecordEnabled.value = enabled
+        if (enabled) hcChangeCheckScheduler.schedule() else hcChangeCheckScheduler.cancel()
+    }
 
     /**
      * 로그아웃 — 서버 토큰 무효화는 실패해도 진행하고, 로컬 토큰/메모리/Room을 정리한다.
