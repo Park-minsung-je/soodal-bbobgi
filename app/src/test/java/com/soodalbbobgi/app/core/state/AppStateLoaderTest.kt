@@ -121,6 +121,27 @@ class AppStateLoaderTest {
     }
 
     @Test
+    fun `refreshGachaBoxes handles null box category safely`() = runTest {
+        val box = ServerGachaBox(
+            id = 2L, name = "혼합 상자", description = "전체", category = null,
+            iconAsset = null, shellCost = 1, tenPullCost = 9,
+            items = listOf(
+                ServerGachaBoxItem(
+                    id = 201L, itemKey = "key_201", name = "수달", grade = "N",
+                    category = null, weight = 1000, imageAsset = null, isLimited = false,
+                ),
+            ),
+        )
+        coEvery { api.getGachaBoxes() } returns ApiResponse(true, GachaBoxesData(listOf(box)), null)
+
+        loader.refreshGachaBoxes()
+
+        // 박스 category는 null 그대로 유지, 아이템은 폴백까지 없으면 빈 문자열
+        assertThat(state.gachaBoxes.value[0].category).isNull()
+        assertThat(state.items.value[201L]!!.category).isEmpty()
+    }
+
+    @Test
     fun `refreshShop populates listings and merges item products into master`() = runTest {
         val listing = ServerShopListing(
             id = 1L, productType = "item",

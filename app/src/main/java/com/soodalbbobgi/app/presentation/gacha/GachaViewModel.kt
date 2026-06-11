@@ -196,7 +196,7 @@ class GachaViewModel @Inject constructor(
                         name = r.item.name,
                         grade = Grade.fromString(r.item.grade),
                         // 혼합 뽑기: 아이템별 실제 출처 박스 카테고리 사용
-                        kind = r.item.category ?: selectedBox.category,
+                        kind = r.item.category ?: selectedBox.category ?: "",
                         isNew = r.wasNew,
                         pearlsEarned = r.pearlsEarned,
                         imageAsset = r.item.imageAsset,
@@ -218,15 +218,16 @@ class GachaViewModel @Inject constructor(
         _localState.update { it.copy(phase = GachaPhase.Idle, results = emptyList()) }
     }
 
-    private fun iconFor(category: String): SoodalIcons = when (category) {
+    // category가 null이면 (서버에서 필드 제거) else 분기 기본값으로 떨어진다
+    private fun iconFor(category: String?): SoodalIcons = when (category) {
         "char" -> SoodalIcons.Box
         "bg" -> SoodalIcons.Wave
         "frame" -> SoodalIcons.Frame
         else -> SoodalIcons.Gift
     }
 
-    // 상자 일러스트 톤에 맞춘 카테고리 색 (디자인 확정값)
-    private fun colorFor(category: String): Color = when (category) {
+    // 상자 일러스트 톤에 맞춘 카테고리 색 (디자인 확정값), null이면 else 색
+    private fun colorFor(category: String?): Color = when (category) {
         "char" -> Color(0xFFC98A4B)
         "bg" -> Color(0xFF6FB04A)
         "frame" -> Color(0xFFE0B24A)

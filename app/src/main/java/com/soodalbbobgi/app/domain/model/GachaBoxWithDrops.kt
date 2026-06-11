@@ -8,7 +8,8 @@ data class GachaBoxWithDrops(
     val id: Long,
     val name: String,
     val description: String,
-    val category: String,
+    /** 박스 카테고리 (char/bg/frame). 서버에서 제거 예정인 필드라 null 허용. */
+    val category: String?,
     val iconAsset: String?,
     val shellCost: Int,
     val tenPullCost: Int,

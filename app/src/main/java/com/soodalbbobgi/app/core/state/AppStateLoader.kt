@@ -250,7 +250,7 @@ private fun ServerGachaBox.toDomain(): GachaBoxWithDrops {
                 itemKey = boxItem.itemKey,
                 name = boxItem.name,
                 grade = Grade.fromString(boxItem.grade),
-                category = boxItem.category ?: category,
+                category = boxItem.category ?: category ?: "",
                 imageAsset = boxItem.imageAsset,
                 isLimited = boxItem.isLimited == true,
             ),

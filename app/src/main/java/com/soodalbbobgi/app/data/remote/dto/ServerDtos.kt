@@ -99,7 +99,7 @@ data class ServerGachaBox(
     val id: Long,
     val name: String,
     val description: String,
-    val category: String,
+    val category: String? = null,
     val iconAsset: String?,
     val shellCost: Int,
     val tenPullCost: Int,
