@@ -26,7 +26,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class GachaPhase { Idle, Spinning, Result }
+enum class GachaPhase { Idle, Spinning, Reeling, Result }
 
 data class BoxInfo(
     val id: String,
@@ -51,6 +51,8 @@ data class GachaUiState(
     val phase: GachaPhase = GachaPhase.Idle,
     val offset: Float = 0f,
     val results: List<GachaResultItem> = emptyList(),
+    /** Reeling 단계에서 로프를 타고 올라오는 상자 (뽑힌 박스). */
+    val risingBox: BoxInfo? = null,
 )
 
 val GACHA_BOXES = listOf(
@@ -60,13 +62,16 @@ val GACHA_BOXES = listOf(
     BoxInfo("mystery", SoodalIcons.Gift, "랜덤 상자", Color(0xFFE0B0FF)),
 )
 
-const val ITEM_WIDTH_WITH_GAP = 140f
+/** 인양 장면의 상자 슬롯 폭 (상자 92dp + 간격 26dp). */
+const val ITEM_WIDTH_WITH_GAP = 118f
 
 private const val SPIN_ACCEL_PHASE = 0.25f
 private const val SPIN_ACCEL_PROGRESS = 0.4f
 private const val SPIN_DECEL_POWER = 4
 private const val SPIN_DURATION_MS = 4500L
-private const val SPIN_PAUSE_MS = 800L
+
+/** 상자가 로프를 타고 수면까지 올라오는 연출 시간. */
+const val REEL_DURATION_MS = 1100L
 
 /**
  * 뽑기 화면 ViewModel.
@@ -89,6 +94,7 @@ class GachaViewModel @Inject constructor(
         val phase: GachaPhase = GachaPhase.Idle,
         val offset: Float = 0f,
         val results: List<GachaResultItem> = emptyList(),
+        val risingBox: BoxInfo? = null,
     )
 
     val uiState: StateFlow<GachaUiState> = combine(
@@ -99,19 +105,12 @@ class GachaViewModel @Inject constructor(
             phase = local.phase,
             offset = local.offset,
             results = local.results,
+            risingBox = local.risingBox,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GachaUiState())
 
     val boxes: StateFlow<List<BoxInfo>> = appState.gachaBoxes.map { list ->
-        list.map { box ->
-            BoxInfo(
-                id = box.id.toString(),
-                icon = iconFor(box.category),
-                label = box.name,
-                color = colorFor(box.category),
-                iconAsset = box.iconAsset,
-            )
-        }
+        list.map { it.toBoxInfo() }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GACHA_BOXES)
 
     init {
@@ -187,7 +186,10 @@ class GachaViewModel @Inject constructor(
                 delay(16)
             }
             _localState.update { it.copy(offset = targetOffset) }
-            delay(SPIN_PAUSE_MS)
+
+            // 인양 연출 — 멈춘 상자가 로프를 타고 수면으로 끌려 올라간다
+            _localState.update { it.copy(phase = GachaPhase.Reeling, risingBox = selectedBox.toBoxInfo()) }
+            delay(REEL_DURATION_MS)
 
             val response = pullDeferred.await()
             if (response.success && response.data != null) {
@@ -209,14 +211,23 @@ class GachaViewModel @Inject constructor(
                     it.copy(phase = GachaPhase.Result, results = batch)
                 }
             } else {
-                _localState.update { it.copy(phase = GachaPhase.Idle) }
+                _localState.update { it.copy(phase = GachaPhase.Idle, risingBox = null) }
             }
         }
     }
 
     fun closeResults() {
-        _localState.update { it.copy(phase = GachaPhase.Idle, results = emptyList()) }
+        _localState.update { it.copy(phase = GachaPhase.Idle, results = emptyList(), risingBox = null) }
     }
+
+    /** 도메인 박스 → 룰렛/인양 연출용 UI 모델. */
+    private fun GachaBoxWithDrops.toBoxInfo() = BoxInfo(
+        id = id.toString(),
+        icon = iconFor(category),
+        label = name,
+        color = colorFor(category),
+        iconAsset = iconAsset,
+    )
 
     // category가 null이면 (서버에서 필드 제거) else 분기 기본값으로 떨어진다
     private fun iconFor(category: String?): SoodalIcons = when (category) {

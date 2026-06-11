@@ -172,7 +172,7 @@ private fun ResultSingle(
                     )
                 }
 
-                SoodalChip("${kindLabel(item.kind)} 상자", color = ChipColor.Blue, iconType = SoodalIcons.Box)
+                SoodalChip("${kindLabel(item.kind)} 상자 인양 성공!", color = ChipColor.Blue, iconType = SoodalIcons.Box)
                 Spacer(Modifier.height(16.dp))
                 GradeBadge(item.grade)
                 Spacer(Modifier.height(20.dp))
