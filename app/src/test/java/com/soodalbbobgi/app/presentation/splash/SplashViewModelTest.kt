@@ -10,11 +10,13 @@ import com.soodalbbobgi.app.data.auth.TokenStore
 import com.soodalbbobgi.app.data.health.HcSyncPreferences
 import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
+import com.soodalbbobgi.app.domain.model.UserProfile
 import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -23,9 +25,13 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import retrofit2.HttpException
+import retrofit2.Response
+import java.net.ConnectException
 
 /**
  * SplashViewModel의 에셋 동기화 통합에 대한 단위 테스트.
@@ -127,5 +133,99 @@ class SplashViewModelTest {
         assetProgress.value = AssetSyncProgress.Downloading(completed = 2, total = 5)
         assertThat(viewModel.assetSyncProgress.value)
             .isEqualTo(AssetSyncProgress.Downloading(2, 5))
+    }
+
+    // ── 서버 장애 vs 인증 거부 분기 — 장애로는 절대 토큰을 지우지 않는다 ──
+
+    private fun httpException(code: Int) =
+        HttpException(Response.error<Any>(code, "".toResponseBody()))
+
+    @Test
+    fun `서버 연결 불가면 serverError를 올리고 토큰을 지우지 않는다`() = runTest {
+        every { tokenStore.getAccessToken() } returns "access"
+        every { tokenStore.isAccessTokenExpired() } returns false
+        coEvery { appStateLoader.loadAll() } returns Result.failure(ConnectException("refused"))
+
+        val viewModel = vm()
+
+        assertThat(viewModel.serverError.value).isTrue()
+        assertThat(viewModel.destination.value).isEqualTo(SplashDestination.Loading)
+        verify(exactly = 0) { tokenStore.clearTokens() }
+    }
+
+    @Test
+    fun `만료 토큰 갱신 중 네트워크 장애여도 토큰을 보존한다`() = runTest {
+        every { tokenStore.getAccessToken() } returns "access"
+        every { tokenStore.isAccessTokenExpired() } returns true
+        every { tokenStore.getRefreshToken() } returns "refresh"
+        coEvery { soodalApi.refreshToken(any()) } throws ConnectException("refused")
+
+        val viewModel = vm()
+
+        assertThat(viewModel.serverError.value).isTrue()
+        assertThat(viewModel.destination.value).isEqualTo(SplashDestination.Loading)
+        verify(exactly = 0) { tokenStore.clearTokens() }
+    }
+
+    @Test
+    fun `갱신이 401로 거부되면 토큰을 지우고 Auth로 보낸다`() = runTest {
+        every { tokenStore.getAccessToken() } returns "access"
+        every { tokenStore.isAccessTokenExpired() } returns true
+        every { tokenStore.getRefreshToken() } returns "refresh"
+        coEvery { soodalApi.refreshToken(any()) } throws httpException(401)
+
+        val viewModel = vm()
+
+        assertThat(viewModel.destination.value).isEqualTo(SplashDestination.Auth)
+        verify(atLeast = 1) { tokenStore.clearTokens() }
+    }
+
+    @Test
+    fun `로드가 401로 거부되면 토큰을 지우고 Auth로 보낸다`() = runTest {
+        every { tokenStore.getAccessToken() } returns "access"
+        every { tokenStore.isAccessTokenExpired() } returns false
+        coEvery { appStateLoader.loadAll() } returns Result.failure(httpException(401))
+
+        val viewModel = vm()
+
+        assertThat(viewModel.destination.value).isEqualTo(SplashDestination.Auth)
+        verify(atLeast = 1) { tokenStore.clearTokens() }
+    }
+
+    @Test
+    fun `정상 경로면 Home으로 보낸다`() = runTest {
+        every { tokenStore.getAccessToken() } returns "access"
+        every { tokenStore.isAccessTokenExpired() } returns false
+        coEvery { healthConnectManager.hasAllPermissions() } returns true
+        coEvery { appStateLoader.loadAll() } coAnswers {
+            appState.applyProfile(UserProfile("u1", "수달이", null, null, "google"))
+            Result.success(Unit)
+        }
+
+        val viewModel = vm()
+
+        assertThat(viewModel.destination.value).isEqualTo(SplashDestination.Home)
+        assertThat(viewModel.serverError.value).isFalse()
+    }
+
+    @Test
+    fun `재시도로 서버가 복구되면 Home으로 진행한다`() = runTest {
+        every { tokenStore.getAccessToken() } returns "access"
+        every { tokenStore.isAccessTokenExpired() } returns false
+        coEvery { healthConnectManager.hasAllPermissions() } returns true
+        coEvery { appStateLoader.loadAll() } returns Result.failure(ConnectException("refused"))
+
+        val viewModel = vm()
+        assertThat(viewModel.serverError.value).isTrue()
+
+        // 서버 복구 후 재시도
+        coEvery { appStateLoader.loadAll() } coAnswers {
+            appState.applyProfile(UserProfile("u1", "수달이", null, null, "google"))
+            Result.success(Unit)
+        }
+        viewModel.retry()
+
+        assertThat(viewModel.serverError.value).isFalse()
+        assertThat(viewModel.destination.value).isEqualTo(SplashDestination.Home)
     }
 }
