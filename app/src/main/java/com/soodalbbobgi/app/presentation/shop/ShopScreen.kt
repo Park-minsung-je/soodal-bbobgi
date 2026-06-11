@@ -295,7 +295,7 @@ private fun BoxGridItem(
             )
             Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                SoodalIcon(icon = SoodalIcons.Diamond, tint = colors.accentPurple, size = 12.dp)
+                SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 12.dp)
                 Text(
                     text = "${item.price}",
                     fontSize = 12.sp,
@@ -384,7 +384,7 @@ private fun DirectItemCard(
                 )
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                    SoodalIcon(icon = SoodalIcons.Diamond, tint = colors.accentPurple, size = 11.dp)
+                    SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 11.dp)
                     Text(
                         text = "${item.price}",
                         fontSize = 11.sp,
@@ -489,7 +489,7 @@ private fun PurchaseConfirmOverlay(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    SoodalIcon(icon = SoodalIcons.Diamond, tint = colors.accentPurple, size = 16.dp)
+                    SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 16.dp)
                     Text(
                         text = "${item.price} 진주",
                         fontSize = 15.sp,

@@ -15,3 +15,5 @@ local.properties
 *.dex
 *.class
 *.log
+
+app-debug.zip
