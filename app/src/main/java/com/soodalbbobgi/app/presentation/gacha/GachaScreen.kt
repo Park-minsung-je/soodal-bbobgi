@@ -651,19 +651,29 @@ private fun SalvageScene(
             Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 14.dp, end = 16.dp)
-                .widthIn(max = 156.dp)
+                // 고정 폭 — 문구 길이가 바뀌어도 말풍선(과 꼬리) 위치가 흔들리지 않게
+                .width(150.dp)
                 .drawBehind {
-                    // 왼쪽 꼬리 삼각형 — 말풍선 높이에 맞춰 세로 중앙에 붙인다
-                    val midY = size.height / 2f
+                    // 사각형 + 꼬리를 한 패스로 합쳐 그린다 (반투명이 겹치며 생기는 경계선 제거)
+                    val body = Path().apply {
+                        addRoundRect(
+                            androidx.compose.ui.geometry.RoundRect(
+                                0f, 0f, size.width, size.height,
+                                CornerRadius(14.dp.toPx(), 14.dp.toPx()),
+                            ),
+                        )
+                    }
                     val tail = Path().apply {
-                        moveTo(-7.dp.toPx(), midY + 3.dp.toPx())
-                        lineTo(1.dp.toPx(), midY - 6.dp.toPx())
-                        lineTo(1.dp.toPx(), midY + 8.dp.toPx())
+                        moveTo(-7.dp.toPx(), 21.dp.toPx())
+                        lineTo(4.dp.toPx(), 13.dp.toPx())
+                        lineTo(4.dp.toPx(), 27.dp.toPx())
                         close()
                     }
-                    drawPath(tail, Color.White.copy(alpha = 0.95f))
+                    val merged = Path().apply {
+                        op(body, tail, androidx.compose.ui.graphics.PathOperation.Union)
+                    }
+                    drawPath(merged, Color.White.copy(alpha = 0.95f))
                 }
-                .background(Color.White.copy(alpha = 0.95f), RoundedCornerShape(14.dp))
                 .padding(horizontal = 13.dp, vertical = 9.dp),
         ) {
             Text(
