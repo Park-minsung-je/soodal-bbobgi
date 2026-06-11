@@ -41,6 +41,8 @@ data class ShopItem(
     val periodResetAt: Long?,
     val isLimited: Boolean,
     val canBuy: Boolean,
+    /** 인벤토리 보유 여부 — 아이템 상품만 해당, 상자는 항상 false. */
+    val owned: Boolean = false,
 )
 
 data class ShopUiState(
@@ -72,11 +74,13 @@ class ShopViewModel @Inject constructor(
     private val _local = MutableStateFlow(LocalShopState())
 
     val uiState: StateFlow<ShopUiState> = combine(
-        appState.currency, appState.shopListings, _local,
-    ) { currency, listings, local ->
+        appState.currency, appState.shopListings, appState.inventory, _local,
+    ) { currency, listings, inventory, local ->
+        // 보유 판정은 구매 이력이 아니라 인벤토리 기준 — 뽑기/기본 지급으로 얻은 아이템도 "보유 중"이어야 한다
+        val ownedItemIds = inventory.map { it.itemId }.toSet()
         ShopUiState(
             pearls = currency.pearlBalance,
-            listings = listings.map { it.toUi() },
+            listings = listings.map { it.toUi(ownedItemIds) },
             confirmItem = local.confirmItem,
             isLoading = local.isLoading,
             error = local.error,
@@ -97,6 +101,8 @@ class ShopViewModel @Inject constructor(
             try {
                 appStateLoader.refreshCurrency()
                 appStateLoader.refreshShop()
+                // 보유 중 표시용 — 다른 기기에서의 획득도 반영되도록 인벤토리도 갱신
+                appStateLoader.refreshInventory()
             } catch (e: Exception) {
                 Timber.w(e, "상점 새로고침 실패")
                 _local.update { it.copy(error = "상점을 불러오지 못했어요") }
@@ -107,7 +113,7 @@ class ShopViewModel @Inject constructor(
     }
 
     fun selectForPurchase(item: ShopItem) {
-        if (item.canBuy) _local.update { it.copy(confirmItem = item) }
+        if (item.canBuy && !item.owned) _local.update { it.copy(confirmItem = item) }
     }
 
     fun cancelPurchase() { _local.update { it.copy(confirmItem = null) } }
@@ -157,7 +163,12 @@ class ShopViewModel @Inject constructor(
         }
     }
 
-    private fun ShopListingDomain.toUi(): ShopItem {
+    /**
+     * 진열 도메인을 UI 모델로 변환한다.
+     *
+     * @param ownedItemIds 현재 인벤토리의 아이템 ID 집합 — 아이템 상품의 보유 판정에 사용
+     */
+    private fun ShopListingDomain.toUi(ownedItemIds: Set<Long>): ShopItem {
         val category = product.category ?: ""
         val icon = when (category) {
             "char" -> SoodalIcons.Otter
@@ -182,6 +193,7 @@ class ShopViewModel @Inject constructor(
             periodResetAt = periodResetAt,
             isLimited = product.isLimited,
             canBuy = canBuy,
+            owned = productType == "item" && product.id in ownedItemIds,
         )
     }
 }

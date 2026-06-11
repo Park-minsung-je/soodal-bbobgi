@@ -93,6 +93,7 @@ fun ShopScreen(
                     color = ChipColor.Purple,
                     iconType = SoodalIcons.Pearl,
                     label = "진주",
+                    large = true,
                 )
             }
 
@@ -221,7 +222,8 @@ fun ShopScreen(
 }
 
 /**
- * 구매 한도 라벨. 기간 한도가 있으면 "오늘 0/1"처럼, 1인 한도가 있으면 "구매 0/1"처럼 표시.
+ * 구매 한도 라벨 — 산 개수가 아니라 **남은 재고**로 보여준다.
+ * 기간 한도는 "오늘 재고 1개", 1인 한도는 "재고 1개", 소진되면 "품절".
  *
  * @return 표시할 라벨, 한도가 없으면 null
  */
@@ -233,10 +235,12 @@ private fun limitLabel(item: ShopItem): String? {
             "monthly" -> "이번 달"
             else -> "기간"
         }
-        return "$periodName ${item.purchasedThisPeriod}/$max"
+        val remaining = (max - item.purchasedThisPeriod).coerceAtLeast(0)
+        return if (remaining == 0) "$periodName 품절" else "$periodName 재고 ${remaining}개"
     }
     item.maxPerUser?.let { max ->
-        return "구매 ${item.purchasedTotal}/$max"
+        val remaining = (max - item.purchasedTotal).coerceAtLeast(0)
+        return if (remaining == 0) "품절" else "재고 ${remaining}개"
     }
     return null
 }
@@ -321,7 +325,7 @@ private fun DirectItemCard(
     modifier: Modifier = Modifier,
 ) {
     val colors = SoodalDesign.colors
-    val bgAlpha = if (!item.canBuy) 0.5f else 1f
+    val bgAlpha = if (!item.canBuy || item.owned) 0.5f else 1f
 
     SoodalCard(
         modifier = modifier
@@ -329,7 +333,7 @@ private fun DirectItemCard(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,
-                enabled = item.canBuy,
+                enabled = item.canBuy && !item.owned,
             ),
         contentPadding = 10.dp,
     ) {
@@ -375,7 +379,8 @@ private fun DirectItemCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (!item.canBuy) {
+            // 보유 판정은 인벤토리 기준(owned) — 뽑기로 얻은 아이템도 보유 중으로 표시된다
+            if (item.owned) {
                 Text(
                     text = "보유 중",
                     fontSize = 10.sp,

@@ -11,6 +11,7 @@ import com.soodalbbobgi.app.data.remote.dto.ShopPurchaseData
 import com.soodalbbobgi.app.data.remote.dto.ShopPurchaseRequest
 import com.soodalbbobgi.app.domain.model.Currency
 import com.soodalbbobgi.app.domain.model.Grade
+import com.soodalbbobgi.app.domain.model.InventoryItem
 import com.soodalbbobgi.app.domain.model.ShopListingDomain
 import com.soodalbbobgi.app.domain.model.ShopProduct
 import io.mockk.coEvery
@@ -129,6 +130,47 @@ class ShopViewModelTest {
         advanceUntilIdle()
 
         assertThat(appState.currency.value.pearlBalance).isEqualTo(45)
+    }
+
+    @Test
+    fun `인벤토리에 있는 아이템 상품은 owned로 표시된다`() = runTest(testDispatcher) {
+        // sampleListing(id=1)의 product.id = 101
+        appState.applyShopListings(listOf(sampleListing(id = 1, category = "bg")))
+        appState.applyInventory(listOf(
+            InventoryItem(id = 1L, userId = "u", itemId = 101L, grade = Grade.N, category = "bg", acquiredAt = 0L),
+        ))
+        val vm = ShopViewModel(UserSession(), appState, loader, api)
+        startCollect(vm)
+        advanceUntilIdle()
+
+        assertThat(vm.uiState.value.listings[0].owned).isTrue()
+    }
+
+    @Test
+    fun `인벤토리에 없는 아이템 상품은 owned가 아니다`() = runTest(testDispatcher) {
+        appState.applyShopListings(listOf(sampleListing(id = 1, category = "bg")))
+        appState.applyInventory(listOf(
+            InventoryItem(id = 1L, userId = "u", itemId = 999L, grade = Grade.N, category = "bg", acquiredAt = 0L),
+        ))
+        val vm = ShopViewModel(UserSession(), appState, loader, api)
+        startCollect(vm)
+        advanceUntilIdle()
+
+        assertThat(vm.uiState.value.listings[0].owned).isFalse()
+    }
+
+    @Test
+    fun `owned 아이템은 selectForPurchase가 무시된다`() = runTest(testDispatcher) {
+        appState.applyShopListings(listOf(sampleListing(id = 1, category = "bg")))
+        appState.applyInventory(listOf(
+            InventoryItem(id = 1L, userId = "u", itemId = 101L, grade = Grade.N, category = "bg", acquiredAt = 0L),
+        ))
+        val vm = ShopViewModel(UserSession(), appState, loader, api)
+        startCollect(vm)
+        advanceUntilIdle()
+
+        vm.selectForPurchase(vm.uiState.value.listings[0])
+        assertThat(vm.uiState.value.confirmItem).isNull()
     }
 
     private fun sampleListing(id: Long, category: String, price: Int = 5) = ShopListingDomain(
