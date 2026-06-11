@@ -77,7 +77,7 @@ fun GachaScreen(
                         SoodalIcon(icon = SoodalIcons.Gacha, size = 22.dp)
                         Text("뽑기", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
                     }
-                    SoodalChip(state.shells.toString(), color = ChipColor.Gold, iconType = SoodalIcons.Shell, label = "조개")
+                    SoodalChip(state.shells.toString(), color = ChipColor.Gold, iconType = SoodalIcons.Shell, label = "조개", large = true)
                 }
 
                 Spacer(Modifier.weight(1f))
