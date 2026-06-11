@@ -653,11 +653,12 @@ private fun SalvageScene(
                 .padding(top = 14.dp, end = 16.dp)
                 .widthIn(max = 156.dp)
                 .drawBehind {
-                    // 왼쪽 꼬리 삼각형
+                    // 왼쪽 꼬리 삼각형 — 말풍선 높이에 맞춰 세로 중앙에 붙인다
+                    val midY = size.height / 2f
                     val tail = Path().apply {
-                        moveTo(-7.dp.toPx(), 25.dp.toPx())
-                        lineTo(1.dp.toPx(), 18.dp.toPx())
-                        lineTo(1.dp.toPx(), 32.dp.toPx())
+                        moveTo(-7.dp.toPx(), midY + 3.dp.toPx())
+                        lineTo(1.dp.toPx(), midY - 6.dp.toPx())
+                        lineTo(1.dp.toPx(), midY + 8.dp.toPx())
                         close()
                     }
                     drawPath(tail, Color.White.copy(alpha = 0.95f))
@@ -669,6 +670,14 @@ private fun SalvageScene(
                 text = otterLine,
                 fontSize = 12.5.sp, fontWeight = FontWeight.Bold,
                 color = Color(0xFF14324A), lineHeight = 17.sp,
+                // 한국어가 음절 단위로 끊기지 않게 어절 단위 줄바꿈 (테마 폰트는 유지)
+                style = androidx.compose.material3.LocalTextStyle.current.copy(
+                    lineBreak = androidx.compose.ui.text.style.LineBreak(
+                        strategy = androidx.compose.ui.text.style.LineBreak.Strategy.Balanced,
+                        strictness = androidx.compose.ui.text.style.LineBreak.Strictness.Normal,
+                        wordBreak = androidx.compose.ui.text.style.LineBreak.WordBreak.Phrase,
+                    ),
+                ),
             )
         }
     }
