@@ -66,8 +66,8 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalEnter(): EnterTransi
             slideInHorizontally(tween(Motion.DUR_TAB, easing = Motion.easeStandard)) { -it } +
                 fadeIn(tween(Motion.DUR_TAB))
         TransitionKind.PUSH ->
-            slideInHorizontally(tween(Motion.DUR_PUSH, easing = Motion.easeEmphasized)) { it } +
-                fadeIn(tween(Motion.DUR_PUSH))
+            // 설정 등 서브화면 푸시는 페이드 없이 슬라이드만 — 또렷하게 밀고 들어온다
+            slideInHorizontally(tween(Motion.DUR_PUSH, easing = Motion.easeEmphasized)) { it }
         TransitionKind.EDITOR ->
             slideInVertically(tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized)) {
                 (it * Motion.EDITOR_SLIDE_FRACTION).toInt()
@@ -132,8 +132,8 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalPopExit(): ExitTrans
             slideOutHorizontally(tween(Motion.DUR_TAB, easing = Motion.easeStandard)) { -it } +
                 fadeOut(tween(Motion.DUR_TAB))
         TransitionKind.PUSH ->
-            slideOutHorizontally(tween(Motion.DUR_PUSH, easing = Motion.easeEmphasized)) { it } +
-                fadeOut(tween(Motion.DUR_PUSH))
+            // 진입과 대칭 — 뒤로 갈 때도 페이드 없이 슬라이드만
+            slideOutHorizontally(tween(Motion.DUR_PUSH, easing = Motion.easeEmphasized)) { it }
         TransitionKind.EDITOR ->
             slideOutVertically(tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized)) {
                 (it * Motion.EDITOR_SLIDE_FRACTION).toInt()
