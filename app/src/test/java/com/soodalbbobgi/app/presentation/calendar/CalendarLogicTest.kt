@@ -92,6 +92,18 @@ class CalendarLogicTest {
     }
 
     @Test
+    fun `그래프 세그먼트는 거리 내림차순으로 정렬된다`() {
+        val entries = listOf("혼영" to 100, "자유형" to 500, "평영" to 300)
+        assertEquals(listOf("자유형", "평영", "혼영"), sortedStrokeSegments(entries).map { it.first })
+    }
+
+    @Test
+    fun `그래프 세그먼트 동률은 입력 순서를 유지한다`() {
+        val entries = listOf("혼영" to 300, "자유형" to 300, "평영" to 500)
+        assertEquals(listOf("평영", "혼영", "자유형"), sortedStrokeSegments(entries).map { it.first })
+    }
+
+    @Test
     fun `스텝 증가는 다음 배수로 올린다`() {
         assertEquals(75, stepStrokeMeters(50, 25, up = true)) // 정확한 배수 → +step
         assertEquals(50, stepStrokeMeters(37, 25, up = true)) // 배수가 아니면 다음 배수로 스냅

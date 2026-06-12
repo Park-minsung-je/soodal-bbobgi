@@ -246,7 +246,7 @@ private fun ReadonlyField(modifier: Modifier, label: String, value: String, unit
     }
 }
 
-/** 6개 영법 비율 막대 — 합계 기준. */
+/** 6개 영법 비율 막대 — 합계 기준, 많이 한 영법이 왼쪽. */
 @Composable
 private fun EditStrokeBar(values: List<Int>) {
     val total = values.sum().coerceAtLeast(1)
@@ -257,13 +257,13 @@ private fun EditStrokeBar(values: List<Int>) {
             .clip(RoundedCornerShape(999.dp))
             .background(Color(0xFF12263F).copy(alpha = 0.06f)),
     ) {
-        EDIT_STROKES.forEachIndexed { i, spec ->
-            if (values[i] > 0) {
+        sortedStrokeSegments(EDIT_STROKES.map { it.color }.zip(values)).forEach { (color, m) ->
+            if (m > 0) {
                 Box(
                     modifier = Modifier
-                        .weight(values[i].toFloat() / total)
+                        .weight(m.toFloat() / total)
                         .fillMaxHeight()
-                        .background(spec.color),
+                        .background(color),
                 )
             }
         }

@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.StrokePalette
 import com.soodalbbobgi.app.core.ui.SoodalCard
+import com.soodalbbobgi.app.presentation.calendar.sortedStrokeSegments
 
 /** 섹션 제목 — 좌측 라벨 + 우측 액션(선택). 디자인 리듬: 위 22dp. */
 @Composable
@@ -139,13 +140,14 @@ fun WeeklyActivityCard(weekly: WeeklyActivity, trendPercent: Int? = null, onTap:
                                     .alpha(if (bar.isToday) 1f else 0.9f),
                             ) {
                                 if (bar.distanceM > 0 && strokeSum > 0) {
-                                    bar.strokeMeters.forEachIndexed { i, m ->
+                                    // 많이 한 영법이 스택 위쪽에 오도록 거리 내림차순
+                                    sortedStrokeSegments(StrokePalette.ordered.zip(bar.strokeMeters)).forEach { (color, m) ->
                                         if (m > 0) {
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .weight(m.toFloat())
-                                                    .background(StrokePalette.ordered[i]),
+                                                    .background(color),
                                             )
                                         }
                                     }

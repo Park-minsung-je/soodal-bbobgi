@@ -67,6 +67,15 @@ fun <T> topStrokes(entriesInPriorityOrder: List<Pair<T, Int>>, count: Int = 4): 
     entriesInPriorityOrder.sortedByDescending { it.second }.take(count)
 
 /**
+ * 그래프 세그먼트 정렬 — 많이 한 영법이 앞(왼쪽)/위에 오도록 거리 내림차순 (2026-06-12 결정).
+ * 동률은 입력 순서를 유지한다 (호출자가 우선순위 순으로 전달).
+ *
+ * @param entries (세그먼트, 거리m) — 우선순위 순서로 정렬된 입력
+ */
+fun <T> sortedStrokeSegments(entries: List<Pair<T, Int>>): List<Pair<T, Int>> =
+    entries.sortedByDescending { it.second }
+
+/**
  * 영법 슬라이더 입력값을 기록된 거리 안으로 제한한다.
  * 수정은 입력된 기록(총 거리)의 재분배만 허용 — 다른 영법 합계를 뺀 잔여까지만 늘릴 수 있다.
  *

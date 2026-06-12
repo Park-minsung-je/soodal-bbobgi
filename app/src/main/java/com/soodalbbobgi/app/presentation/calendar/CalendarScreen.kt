@@ -91,7 +91,7 @@ private val LEGEND_STROKES = listOf(
     "혼영" to StrokePalette.Medley,
 )
 
-// 막대 그래프 세그먼트 순서 — 디자인 확정: 혼영/자유형/평영/배영/접영/킥판.
+// 막대 그래프 색 매핑 순서 — 표시 정렬은 거리 내림차순이라 이 순서는 동률 우선순위로만 쓰인다.
 private val BAR_COLORS = listOf(
     StrokePalette.Medley, StrokePalette.Free, StrokePalette.Breast,
     StrokePalette.Back, StrokePalette.Fly, StrokePalette.Kick,
@@ -441,7 +441,7 @@ private fun DayCell(
     }
 }
 
-// ── 영법 비율 막대 — 6개 영법 전부 표시 ─────────────────────────
+// ── 영법 비율 막대 — 6개 영법 전부 표시, 많이 한 영법이 왼쪽 ──────
 @Composable
 private fun StrokeRatioBar(meters: List<Int>, barHeight: Dp = 12.dp, compact: Boolean = false) {
     val colors = SoodalDesign.colors
@@ -455,13 +455,13 @@ private fun StrokeRatioBar(meters: List<Int>, barHeight: Dp = 12.dp, compact: Bo
             .clip(RoundedCornerShape(999.dp))
             .background(bgColor),
     ) {
-        meters.forEachIndexed { i, m ->
+        sortedStrokeSegments(BAR_COLORS.zip(meters)).forEach { (color, m) ->
             if (m > 0) {
                 Box(
                     modifier = Modifier
                         .weight(m.toFloat() / total)
                         .fillMaxHeight()
-                        .background(BAR_COLORS[i].copy(alpha = if (compact) 0.95f else 1f)),
+                        .background(color.copy(alpha = if (compact) 0.95f else 1f)),
                 )
             }
         }
