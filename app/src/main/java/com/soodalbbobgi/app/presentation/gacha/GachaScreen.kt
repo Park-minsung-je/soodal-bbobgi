@@ -55,9 +55,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.font.FontWeight
@@ -77,6 +77,8 @@ import com.soodalbbobgi.app.core.ui.SoodalChip
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.TabBarClearance
+import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
@@ -87,17 +89,13 @@ private const val CHEST_CY = 261f         // 떠다니는 상자들의 세로 �
 private const val CHEST_W = 92f
 private const val RAFT_W = 132f
 private const val RAFT_H = 16f
-private const val ROPE_TOP = SURFACE_Y + 2f                       // 로프가 뗏목 아래에서 시작
-private const val ROPE_DX = 4f                                    // 수달이 쥔 줄과 같은 세로선 (몸 중심에서 살짝 왼쪽)
-private const val ROPE_IDLE_LEN = CHEST_CY - CHEST_W / 2f - 33f - ROPE_TOP   // 평소: 닻이 상자 위에서 대기 (스프라이트 높이만큼 여유)
-private const val ROPE_ATTACH_LEN = CHEST_CY - 40f - ROPE_TOP                // 닻이 상자 뚜껑에 닿는 길이
-private const val ROPE_MIN_LEN = 6f                               // 다 감아올린 길이
 private const val CHEST_HANG = 40f                                // 닻 끝 → 매달린 상자 중심
+private const val ANCHOR_RAISED_Y = SURFACE_Y - 8f                // 다 감아올린 닻 위치 (상자가 수면에 반쯤 걸린다)
 private const val REEL_DROP_FRAC = 0.22f                          // 인양 타임라인 중 '닻 내리기' 구간
 
 /**
  * 보물 인양소 — 조개를 좋아하는 인양꾼 수달이 바닷속 보물상자를 건져 올리는 뽑기 화면.
- * 평소엔 닻이 상자들 위에서 대기하다가, 뽑기가 멈추면 로프가 내려가 상자를 걸고
+ * 평소엔 수달이 닻을 손에 들고 있다가, 뽑기가 멈추면 손에서 닻이 내려가 상자를 걸고
  * 감아올리는 2단 인양 모션 후 결과가 열린다.
  */
 @Composable
@@ -390,84 +388,101 @@ private fun SalvageScene(
             }
         }
         val reeling = phase != GachaPhase.Idle && phase != GachaPhase.Spinning && risingBox != null
-        // 로프 길이: 평소 대기 길이 → (A) 상자까지 내려감 → (B) 수면까지 감아올림
-        val ropeLen = if (!reeling) {
-            ROPE_IDLE_LEN
+
+        // ── 수달 배치 기하 — 손 좌표 계산과 아래 수달 그리기가 공유한다 ──
+        val otterH = 92f
+        val otterScale = otterH / 365f          // 원본 px → dp
+        val otterW = 356f * otterScale
+        // 왼손의 닻이 왼쪽으로 튀어나온 에셋이라 몸통 중심은 비트맵 가로 63% 지점
+        val otterX = centerX - otterW * 0.63f
+        val otterTopY = SURFACE_Y - 5f - otterH + 3f
+        // 손에 쥔 로프 매듭이 끝나는 지점 (원본 px 47, 194) — 인양 로프가 여기서 시작한다
+        val handX = otterX + 47f * otterScale
+        val handY = otterTopY + 194f * otterScale
+
+        // ── 닻 위치: 손(대기) → 상자(내리기) → 수면 위(감아올리기) ──
+        // 평소엔 수달이 닻을 들고 있고(이미지에 포함) 물밑엔 아무것도 없다.
+        // 인양이 시작되면 닻 없는 수달로 바꾸고, 손에서 출발한 닻을 합성해 움직인다.
+        val reelP = if (phase == GachaPhase.Reeling) reel.value else 1f
+        val anchorPos = if (!reeling) {
+            Offset(handX, handY)
+        } else if (reelP < REEL_DROP_FRAC) {
+            val t = FastOutSlowInEasing.transform(reelP / REEL_DROP_FRAC)
+            Offset(lerp(handX, centerX, t), lerp(handY, CHEST_CY - CHEST_HANG, t))
         } else {
-            val p = if (phase == GachaPhase.Reeling) reel.value else 1f
-            if (p < REEL_DROP_FRAC) {
-                val t = FastOutSlowInEasing.transform(p / REEL_DROP_FRAC)
-                lerp(ROPE_IDLE_LEN, ROPE_ATTACH_LEN, t)
-            } else {
-                val t = CubicBezierEasing(0.32f, 0.86f, 0.4f, 1f).transform((p - REEL_DROP_FRAC) / (1f - REEL_DROP_FRAC))
-                lerp(ROPE_ATTACH_LEN, ROPE_MIN_LEN, t)
-            }
+            val t = CubicBezierEasing(0.32f, 0.86f, 0.4f, 1f).transform((reelP - REEL_DROP_FRAC) / (1f - REEL_DROP_FRAC))
+            Offset(centerX, lerp(CHEST_CY - CHEST_HANG, ANCHOR_RAISED_Y, t))
         }
 
-        // ── 로프 + 닻 (수달 이미지에서 잘라낸 도트 스프라이트 — 캐릭터가 든 닻이 그대로 내려간다) ──
-        val ropeSway by infinite.animateFloat(
-            initialValue = -1.4f, targetValue = 1.4f,
-            animationSpec = infiniteRepeatable(tween(1700, easing = LinearEasing), RepeatMode.Reverse),
-            label = "rope",
-        )
+        // ── 로프 + 닻 (수달 이미지에서 잘라낸 도트 스프라이트) — 인양 중에만 그린다 ──
         val anchorImg = ImageBitmap.imageResource(R.drawable.salvage_anchor)
         val ropeImg = ImageBitmap.imageResource(R.drawable.salvage_rope)
-        val maxRopeCanvasH = ROPE_ATTACH_LEN + 30f
-        Canvas(
-            Modifier
-                .offset(x = (centerX - ROPE_DX - 14).dp, y = ROPE_TOP.dp)
-                .size(28.dp, maxRopeCanvasH.dp)
-                .graphicsLayer {
-                    // 짐을 매달면 (인양 중) 흔들리지 않고 곧게 당겨진다
-                    rotationZ = if (reeling) 0f else ropeSway
-                    transformOrigin = TransformOrigin(0.5f, 0f)
-                },
-        ) {
-            val cx = size.width / 2f
-            val endY = ropeLen.dp.toPx()
-            // 수달 스프라이트와 같은 도트 배율 (표시 92dp / 원본 365px)
-            val dot = (92f / 365f).dp.toPx()
-            val ropeW = ropeImg.width * dot
-            val tileH = ropeImg.height * dot
-            // 줄 — 수달이 쥔 줄에서 잘라낸 조각을 세로로 이어 그린다
-            var y = 0f
-            while (y < endY) {
-                val drawH = minOf(tileH, endY - y)
-                val srcH = ((drawH / tileH) * ropeImg.height).roundToInt().coerceIn(1, ropeImg.height)
+        if (reeling) {
+            Canvas(Modifier.matchParentSize()) {
+                val dot = otterScale.dp.toPx()  // 수달과 같은 도트 배율 (원본 px → 화면 px)
+                val pPx = Offset(handX.dp.toPx(), handY.dp.toPx())
+                val aPx = Offset(anchorPos.x.dp.toPx(), anchorPos.y.dp.toPx())
+                val ropeW = ropeImg.width * dot
+                val tileH = ropeImg.height * dot
+
+                // 로프 — 손에서 수직으로 출발해 닻 위로 수직 도착하는 곡선 (닻은 늘 똑바로 매달린다)
+                val sag = ((aPx.y - pPx.y) * 0.45f).coerceIn(6.dp.toPx(), 40.dp.toPx())
+                val c1 = Offset(pPx.x, pPx.y + sag)
+                val c2 = Offset(aPx.x, aPx.y - sag)
+                fun bez(t: Float): Offset {
+                    val u = 1f - t
+                    return Offset(
+                        u * u * u * pPx.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * aPx.x,
+                        u * u * u * pPx.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * aPx.y,
+                    )
+                }
+                val span = (aPx.y - pPx.y) + abs(aPx.x - pPx.x)
+                if (span > 1f) {
+                    val steps = (span / tileH).roundToInt().coerceIn(2, 80)
+                    var prev = pPx
+                    for (i in 1..steps) {
+                        val pt = bez(i / steps.toFloat())
+                        val seg = pt - prev
+                        val segLen = seg.getDistance()
+                        if (segLen >= 0.5f) {
+                            // 회전된 좌표계에서 '아래' 방향이 prev→pt 가 되도록 그린다
+                            val deg = Math.toDegrees(atan2(-seg.x.toDouble(), seg.y.toDouble())).toFloat()
+                            withTransform({ rotate(deg, pivot = prev) }) {
+                                drawImage(
+                                    image = ropeImg,
+                                    // 0.54 = 타일 안에서 줄 중심 위치
+                                    dstOffset = IntOffset((prev.x - ropeW * 0.54f).roundToInt(), prev.y.roundToInt()),
+                                    dstSize = IntSize(ropeW.roundToInt(), segLen.roundToInt().coerceAtLeast(1)),
+                                    filterQuality = FilterQuality.None,
+                                )
+                            }
+                        }
+                        prev = pt
+                    }
+                }
+                // 닻 — 스프라이트 위쪽 줄 토막이 로프 끝과 이어진다
+                val aw = anchorImg.width * dot
+                val ah = anchorImg.height * dot
                 drawImage(
-                    image = ropeImg,
-                    srcOffset = IntOffset.Zero,
-                    srcSize = IntSize(ropeImg.width, srcH),
-                    // 0.54 = 타일 안에서 줄 중심 위치 — 닻 자루 중심과 같은 세로선
-                    dstOffset = IntOffset((cx - ropeW * 0.54f).roundToInt(), y.roundToInt()),
-                    dstSize = IntSize(ropeW.roundToInt(), drawH.roundToInt()),
+                    image = anchorImg,
+                    dstOffset = IntOffset((aPx.x - aw * 0.475f).roundToInt(), (aPx.y - tileH).roundToInt()),
+                    dstSize = IntSize(aw.roundToInt(), ah.roundToInt()),
                     filterQuality = FilterQuality.None,
                 )
-                y += tileH
             }
-            // 닻 — 스프라이트 위쪽엔 줄이 한 토막 붙어 있어 타일과 자연스럽게 이어진다
-            val aw = anchorImg.width * dot
-            val ah = anchorImg.height * dot
-            drawImage(
-                image = anchorImg,
-                dstOffset = IntOffset((cx - aw * 0.475f).roundToInt(), (endY - tileH).roundToInt()),
-                dstSize = IntSize(aw.roundToInt(), ah.roundToInt()),
-                filterQuality = FilterQuality.None,
-            )
         }
 
         // ── 닻에 걸려 올라오는 상자 ──
         if (reeling && risingBox != null) {
-            val p = if (phase == GachaPhase.Reeling) reel.value else 1f
-            val attachT = ((p - 0.18f) / 0.10f).coerceIn(0f, 1f) // 닻이 닿을 즈음 페이드 인
-            val liftT = ((p - REEL_DROP_FRAC) / (1f - REEL_DROP_FRAC)).coerceIn(0f, 1f)
+            val attachT = ((reelP - 0.18f) / 0.10f).coerceIn(0f, 1f) // 닻이 닿을 즈음 페이드 인
+            val liftT = ((reelP - REEL_DROP_FRAC) / (1f - REEL_DROP_FRAC)).coerceIn(0f, 1f)
             val chestScale = lerp(1f, 1.15f, liftT)
-            val wiggle = sin(p * 18f) * (1f - liftT) * 2.2f
-            val chestCenterY = ROPE_TOP + ropeLen + CHEST_HANG
+            val wiggle = sin(reelP * 18f) * (1f - liftT) * 2.2f
+            val chestCenterY = anchorPos.y + CHEST_HANG
 
             Box(
                 Modifier
-                    .offset(x = (centerX - ROPE_DX - 50).dp, y = (chestCenterY - 50).dp)
+                    .offset(x = (anchorPos.x - 50).dp, y = (chestCenterY - 50).dp)
                     .size(100.dp)
                     .graphicsLayer {
                         scaleX = chestScale
@@ -595,43 +610,34 @@ private fun SalvageScene(
         }
 
         // ── 인양꾼 수달 (여백 트리밍본, 발이 뗏목에 닿게) ──
-        val isTugging = phase == GachaPhase.Reeling
         val otterY by infinite.animateFloat(
-            initialValue = 0f, targetValue = if (isTugging) -6f else -3f,
-            animationSpec = infiniteRepeatable(
-                tween(if (isTugging) 140 else 1900, easing = LinearEasing),
-                RepeatMode.Reverse,
-            ),
+            initialValue = 0f, targetValue = -3f,
+            animationSpec = infiniteRepeatable(tween(1900, easing = LinearEasing), RepeatMode.Reverse),
             label = "otterY",
         )
         val otterRot by infinite.animateFloat(
-            initialValue = if (isTugging) -2f else -1.6f,
-            targetValue = if (isTugging) 2f else 1.6f,
-            animationSpec = infiniteRepeatable(
-                tween(if (isTugging) 280 else 1900, easing = LinearEasing),
-                RepeatMode.Reverse,
-            ),
+            initialValue = -1.6f, targetValue = 1.6f,
+            animationSpec = infiniteRepeatable(tween(1900, easing = LinearEasing), RepeatMode.Reverse),
             label = "otterRot",
         )
-        val otterBitmap = ImageBitmap.imageResource(R.drawable.otter_salvager)
-        val otterH = 92f
-        val otterW = otterH * otterBitmap.width / otterBitmap.height.toFloat()
-        // 왼손의 닻이 왼쪽으로 튀어나온 에셋이라 몸통 중심은 비트맵 가로 63% 지점 —
-        // 몸통이 뗏목 가운데 오도록 배치하고 회전 피벗도 같은 지점의 발끝으로 잡는다.
-        val otterBodyCenterFrac = 0.63f
+        // 인양 중엔 닻 없는 이미지로 교체하고 움직임을 멈춘다 —
+        // 손에서 출발하는 합성 닻과 어긋나지 않게 (배치 기하는 위 손 좌표 계산과 공유)
+        val otterBitmap = ImageBitmap.imageResource(
+            if (reeling) R.drawable.otter_salvager_empty else R.drawable.otter_salvager,
+        )
         Image(
             bitmap = otterBitmap,
             contentDescription = "인양꾼 수달",
             filterQuality = FilterQuality.None, // 도트가 뭉개지지 않게
             modifier = Modifier
                 .offset(
-                    x = (centerX - otterW * otterBodyCenterFrac).dp,
-                    y = (SURFACE_Y - 5f - otterH + 3f + otterY).dp,
+                    x = otterX.dp,
+                    y = (otterTopY + if (reeling) 0f else otterY).dp,
                 )
                 .size(otterW.dp, otterH.dp)
                 .graphicsLayer {
-                    rotationZ = otterRot
-                    transformOrigin = TransformOrigin(otterBodyCenterFrac, 1f) // 발끝 기준으로 흔들리게
+                    rotationZ = if (reeling) 0f else otterRot
+                    transformOrigin = TransformOrigin(0.63f, 1f) // 몸통 발끝 기준으로 흔들리게
                 },
         )
 
