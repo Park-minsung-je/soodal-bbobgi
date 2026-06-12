@@ -607,7 +607,7 @@ private fun TodayCard(
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = "Health Connect에서 동기화해보세요",
+                        text = "동기화를 눌러 기록을 불러와보세요",
                         fontSize = 11.sp,
                         color = colors.textSecondary,
                     )

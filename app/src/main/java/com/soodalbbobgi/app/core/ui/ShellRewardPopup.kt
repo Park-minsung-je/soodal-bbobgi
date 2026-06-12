@@ -132,7 +132,7 @@ fun ShellRewardPopup(
             ) {
                 SoodalIcon(icon = SoodalIcons.Sync, tint = colors.accentBlue, size = 13.dp)
                 Spacer(Modifier.size(6.dp))
-                Text("Health Connect 동기화", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue, letterSpacing = 0.3.sp)
+                Text("수영 기록 동기화", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue, letterSpacing = 0.3.sp)
             }
 
             Spacer(Modifier.height(12.dp))
