@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -108,7 +109,8 @@ fun ShellRewardPopup(
     ) {
         Column(
             modifier = Modifier
-                .widthIn(max = 320.dp)
+                .widthIn(max = 380.dp)
+                .fillMaxWidth()
                 .scale(scale)
                 .shadow(
                     elevation = 24.dp,
@@ -135,48 +137,51 @@ fun ShellRewardPopup(
                 Text("수영 기록 동기화", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue, letterSpacing = 0.3.sp)
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
             Text("수영 기록 도착!", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary, letterSpacing = (-0.1).sp)
 
-            // 조개 버스트
-            Spacer(Modifier.height(8.dp))
-            ShellBurst(shellCount)
-            Spacer(Modifier.height(6.dp))
-
-            // 획득량
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    text = "+$shellCount",
-                    fontSize = 42.sp,
-                    fontWeight = FontWeight.Black,
-                    color = colors.accentGold,
-                    letterSpacing = (-0.8).sp,
-                )
-                Text(
-                    text = "조개",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textSecondary,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
-                )
-            }
-
-            // 기록 요약
-            if (distanceM != null && durationMin != null) {
-                Spacer(Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier
-                        .background((if (colors.isDark) Color.White else Color.Black).copy(alpha = 0.04f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(18.dp),
-                ) {
-                    Row {
-                        Text(String.format("%,d", distanceM), fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue, fontFamily = JetBrainsMonoFamily)
-                        Text(" m", fontSize = 12.sp, color = colors.textSecondary, fontFamily = JetBrainsMonoFamily)
+            // 버스트(왼쪽) + 획득량/기록 요약(오른쪽) — 세로로 길어지지 않게 가로 배치
+            Spacer(Modifier.height(4.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp),
+            ) {
+                ShellBurst(shellCount)
+                Column {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = "+$shellCount",
+                            fontSize = 42.sp,
+                            fontWeight = FontWeight.Black,
+                            color = colors.accentGold,
+                            letterSpacing = (-0.8).sp,
+                        )
+                        Text(
+                            text = "조개",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textSecondary,
+                            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+                        )
                     }
-                    Row {
-                        Text("$durationMin", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue, fontFamily = JetBrainsMonoFamily)
-                        Text(" 분", fontSize = 12.sp, color = colors.textSecondary, fontFamily = JetBrainsMonoFamily)
+                    // 기록 요약
+                    if (distanceM != null && durationMin != null) {
+                        Spacer(Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier
+                                .background((if (colors.isDark) Color.White else Color.Black).copy(alpha = 0.04f), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(18.dp),
+                        ) {
+                            Row {
+                                Text(String.format("%,d", distanceM), fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue, fontFamily = JetBrainsMonoFamily)
+                                Text(" m", fontSize = 12.sp, color = colors.textSecondary, fontFamily = JetBrainsMonoFamily)
+                            }
+                            Row {
+                                Text("$durationMin", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue, fontFamily = JetBrainsMonoFamily)
+                                Text(" 분", fontSize = 12.sp, color = colors.textSecondary, fontFamily = JetBrainsMonoFamily)
+                            }
+                        }
                     }
                 }
             }
