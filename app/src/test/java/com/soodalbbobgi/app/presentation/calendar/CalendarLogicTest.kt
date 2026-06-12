@@ -90,4 +90,19 @@ class CalendarLogicTest {
         assertEquals(0, clampStrokeMeters(100, 1500, 1500)) // 잔여 없음 → 0
         assertEquals(0, clampStrokeMeters(100, 1600, 1500)) // 이미 초과돼도 음수 한도 없음
     }
+
+    @Test
+    fun `스텝 증가는 다음 배수로 올린다`() {
+        assertEquals(75, stepStrokeMeters(50, 25, up = true)) // 정확한 배수 → +step
+        assertEquals(50, stepStrokeMeters(37, 25, up = true)) // 배수가 아니면 다음 배수로 스냅
+        assertEquals(25, stepStrokeMeters(0, 25, up = true))
+    }
+
+    @Test
+    fun `스텝 감소는 이전 배수로 내린다`() {
+        assertEquals(25, stepStrokeMeters(50, 25, up = false)) // 정확한 배수 → -step
+        assertEquals(25, stepStrokeMeters(37, 25, up = false)) // 배수가 아니면 내림 배수로 스냅
+        assertEquals(0, stepStrokeMeters(10, 25, up = false))
+        assertEquals(0, stepStrokeMeters(0, 25, up = false)) // 0 아래로는 내려가지 않음
+    }
 }

@@ -16,26 +16,41 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,6 +65,9 @@ private val SheetTxt3 = Color(0xFFA7B0BF)
 private val SheetFieldBg = Color(0xFF12263F).copy(alpha = 0.03f)
 private val SheetFieldBorder = Color(0xFF12263F).copy(alpha = 0.08f)
 private val SheetBlue = Color(0xFF2563EB)
+
+// 슬라이더/버튼 조절 단위(m) — 기록에 수영장 길이 정보가 없어 일반적인 25m 고정.
+private const val METER_STEP = 25
 
 /** 수정 시트의 6개 영법 — 표시 라벨/색/기본 여부. */
 private data class StrokeSpec(val label: String, val color: Color, val isDefault: Boolean = false)
@@ -225,8 +243,6 @@ private fun ReadonlyField(modifier: Modifier, label: String, value: String, unit
             Text(value, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = valueColor, fontFamily = JetBrainsMonoFamily)
             Text(unit, fontSize = 11.sp, color = SheetTxt3, modifier = Modifier.padding(start = 3.dp, bottom = 2.dp))
         }
-        Spacer(Modifier.height(4.dp))
-        Text("Health Connect에서 가져옴", fontSize = 10.sp, color = SheetTxt3, letterSpacing = 0.2.sp)
     }
 }
 
@@ -276,21 +292,133 @@ private fun StrokeSliderRow(
                     Text("기본", fontSize = 10.sp, color = SheetTxt3, fontWeight = FontWeight.SemiBold)
                 }
             }
-            Row(verticalAlignment = Alignment.Bottom) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("$pct%", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = spec.color, fontFamily = JetBrainsMonoFamily)
-                Text("${value}m", fontSize = 11.sp, color = SheetTxt3, modifier = Modifier.padding(start = 6.dp, bottom = 1.dp), fontFamily = JetBrainsMonoFamily)
+                Spacer(Modifier.size(6.dp))
+                if (enabled) {
+                    MeterInputChip(value = value, onCommit = onChange)
+                } else {
+                    Text("${value}m", fontSize = 11.sp, color = SheetTxt3, fontFamily = JetBrainsMonoFamily)
+                }
             }
         }
         Spacer(Modifier.height(6.dp))
-        StrokeSlider(value = value, maxMeters = maxMeters, step = 25, color = spec.color, enabled = enabled, onChange = onChange)
+        // 긴 거리에선 슬라이더 정밀 조작이 어려워 ±step 버튼을 함께 둔다.
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StepButton("-$METER_STEP", enabled) {
+                onChange(stepStrokeMeters(value, METER_STEP, up = false))
+            }
+            StrokeSlider(
+                value = value,
+                maxMeters = maxMeters,
+                step = METER_STEP,
+                color = spec.color,
+                enabled = enabled,
+                onChange = onChange,
+                modifier = Modifier.weight(1f),
+            )
+            StepButton("+$METER_STEP", enabled) {
+                onChange(stepStrokeMeters(value, METER_STEP, up = true))
+            }
+        }
+    }
+}
+
+/**
+ * 거리 직접 입력 칩 — 탭하면 숫자 키패드로 m 값을 입력한다.
+ * 빈 입력은 무시하고, 범위 제한은 호출자(onCommit의 clamp)에 맡긴다.
+ */
+@Composable
+private fun MeterInputChip(value: Int, onCommit: (Int) -> Unit) {
+    var editing by remember { mutableStateOf(false) }
+    var text by remember { mutableStateOf("") }
+    var hadFocus by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+
+    fun commit() {
+        text.toIntOrNull()?.let(onCommit)
+        editing = false
+        hadFocus = false
+    }
+
+    val chipShape = RoundedCornerShape(7.dp)
+    Row(
+        modifier = Modifier
+            .clip(chipShape)
+            .background(SheetFieldBg)
+            .border(1.dp, SheetFieldBorder, chipShape)
+            .then(
+                if (editing) Modifier else Modifier.pointerInput(value) {
+                    detectTapGestures {
+                        text = value.toString()
+                        editing = true
+                    }
+                },
+            )
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (editing) {
+            BasicTextField(
+                value = text,
+                onValueChange = { input -> text = input.filter { it.isDigit() }.take(5) },
+                modifier = Modifier
+                    .width(40.dp)
+                    .focusRequester(focusRequester)
+                    .onFocusChanged { state ->
+                        if (state.isFocused) hadFocus = true
+                        else if (hadFocus) commit() // 키보드 닫힘 등 포커스 이탈 시에도 반영
+                    },
+                textStyle = TextStyle(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = SheetTxt1,
+                    fontFamily = JetBrainsMonoFamily,
+                    textAlign = TextAlign.End,
+                ),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { commit() }),
+                singleLine = true,
+                cursorBrush = SolidColor(SheetBlue),
+            )
+            LaunchedEffect(Unit) { focusRequester.requestFocus() }
+        } else {
+            Text("$value", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SheetTxt1, fontFamily = JetBrainsMonoFamily)
+        }
+        Text("m", fontSize = 10.sp, color = SheetTxt3, modifier = Modifier.padding(start = 2.dp))
+    }
+}
+
+/** 슬라이더 양옆 ±step 조절 버튼. enabled=false면 흐리게 표시만 한다. */
+@Composable
+private fun StepButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .alpha(if (enabled) 1f else 0.35f)
+            .size(width = 38.dp, height = 30.dp)
+            .clip(RoundedCornerShape(9.dp))
+            .background(SheetFieldBg)
+            .border(1.dp, SheetFieldBorder, RoundedCornerShape(9.dp))
+            .then(if (enabled) Modifier.pointerInput(Unit) { detectTapGestures { onClick() } } else Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SheetTxt2, fontFamily = JetBrainsMonoFamily)
     }
 }
 
 /** 트랙 + 썸 커스텀 슬라이더. 탭/드래그로 0~max(m) 사이 step 단위 선택. enabled=false면 표시 전용. */
 @Composable
-private fun StrokeSlider(value: Int, maxMeters: Int, step: Int, color: Color, enabled: Boolean = true, onChange: (Int) -> Unit) {
+private fun StrokeSlider(
+    value: Int,
+    maxMeters: Int,
+    step: Int,
+    color: Color,
+    enabled: Boolean = true,
+    onChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     BoxWithConstraints(
-        modifier = Modifier.fillMaxWidth().height(30.dp),
+        modifier = modifier.fillMaxWidth().height(30.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
         val widthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)

@@ -76,3 +76,21 @@ fun <T> topStrokes(entriesInPriorityOrder: List<Pair<T, Int>>, count: Int = 4): 
  */
 fun clampStrokeMeters(desired: Int, othersSum: Int, distanceM: Int): Int =
     desired.coerceIn(0, (distanceM - othersSum).coerceAtLeast(0))
+
+/**
+ * 영법 거리를 step 배수로 한 단계 올리거나 내린다.
+ * 직접 입력 등으로 배수가 아닌 값이면 가장 가까운 다음/이전 배수로 스냅한다.
+ * 하한은 0 — 상한은 호출자가 [clampStrokeMeters]로 잔여 거리에 맞춰 제한한다.
+ *
+ * @param current 현재 값(m)
+ * @param step 조절 단위(m) — 수영장 길이 기본 25
+ * @param up true면 증가, false면 감소
+ */
+fun stepStrokeMeters(current: Int, step: Int, up: Boolean): Int {
+    val stepped = if (up) {
+        (current / step + 1) * step
+    } else {
+        if (current % step == 0) current - step else (current / step) * step
+    }
+    return stepped.coerceAtLeast(0)
+}
