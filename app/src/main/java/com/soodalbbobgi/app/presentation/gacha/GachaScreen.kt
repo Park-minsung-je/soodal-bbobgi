@@ -625,19 +625,22 @@ private fun SalvageScene(
         val otterBitmap = ImageBitmap.imageResource(R.drawable.otter_salvager)
         val otterH = 92f
         val otterW = otterH * otterBitmap.width / otterBitmap.height.toFloat()
+        // 왼손의 닻이 왼쪽으로 튀어나온 에셋이라 몸통 중심은 비트맵 가로 63% 지점 —
+        // 몸통이 뗏목 가운데 오도록 배치하고 회전 피벗도 같은 지점의 발끝으로 잡는다.
+        val otterBodyCenterFrac = 0.63f
         Image(
             bitmap = otterBitmap,
             contentDescription = "인양꾼 수달",
             filterQuality = FilterQuality.None, // 도트가 뭉개지지 않게
             modifier = Modifier
                 .offset(
-                    x = (centerX - otterW / 2f).dp,
+                    x = (centerX - otterW * otterBodyCenterFrac).dp,
                     y = (SURFACE_Y - 5f - otterH + 3f + otterY).dp,
                 )
                 .size(otterW.dp, otterH.dp)
                 .graphicsLayer {
                     rotationZ = otterRot
-                    transformOrigin = TransformOrigin(0.5f, 1f) // 발끝 기준으로 흔들리게
+                    transformOrigin = TransformOrigin(otterBodyCenterFrac, 1f) // 발끝 기준으로 흔들리게
                 },
         )
 
