@@ -62,6 +62,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
@@ -86,7 +88,8 @@ private const val CHEST_W = 92f
 private const val RAFT_W = 132f
 private const val RAFT_H = 16f
 private const val ROPE_TOP = SURFACE_Y + 2f                       // 로프가 뗏목 아래에서 시작
-private const val ROPE_IDLE_LEN = CHEST_CY - CHEST_W / 2f - 14f - ROPE_TOP   // 평소: 상자 위에서 대기
+private const val ROPE_DX = 4f                                    // 수달이 쥔 줄과 같은 세로선 (몸 중심에서 살짝 왼쪽)
+private const val ROPE_IDLE_LEN = CHEST_CY - CHEST_W / 2f - 33f - ROPE_TOP   // 평소: 닻이 상자 위에서 대기 (스프라이트 높이만큼 여유)
 private const val ROPE_ATTACH_LEN = CHEST_CY - 40f - ROPE_TOP                // 닻이 상자 뚜껑에 닿는 길이
 private const val ROPE_MIN_LEN = 6f                               // 다 감아올린 길이
 private const val CHEST_HANG = 40f                                // 닻 끝 → 매달린 상자 중심
@@ -401,17 +404,19 @@ private fun SalvageScene(
             }
         }
 
-        // ── 로프 + 닻 (수달 캐릭터의 닻과 같은 디자인) ──
+        // ── 로프 + 닻 (수달 이미지에서 잘라낸 도트 스프라이트 — 캐릭터가 든 닻이 그대로 내려간다) ──
         val ropeSway by infinite.animateFloat(
             initialValue = -1.4f, targetValue = 1.4f,
             animationSpec = infiniteRepeatable(tween(1700, easing = LinearEasing), RepeatMode.Reverse),
             label = "rope",
         )
-        val maxRopeCanvasH = ROPE_ATTACH_LEN + 26f
+        val anchorImg = ImageBitmap.imageResource(R.drawable.salvage_anchor)
+        val ropeImg = ImageBitmap.imageResource(R.drawable.salvage_rope)
+        val maxRopeCanvasH = ROPE_ATTACH_LEN + 30f
         Canvas(
             Modifier
-                .offset(x = (centerX - 10).dp, y = ROPE_TOP.dp)
-                .size(20.dp, maxRopeCanvasH.dp)
+                .offset(x = (centerX - ROPE_DX - 14).dp, y = ROPE_TOP.dp)
+                .size(28.dp, maxRopeCanvasH.dp)
                 .graphicsLayer {
                     // 짐을 매달면 (인양 중) 흔들리지 않고 곧게 당겨진다
                     rotationZ = if (reeling) 0f else ropeSway
@@ -420,74 +425,35 @@ private fun SalvageScene(
         ) {
             val cx = size.width / 2f
             val endY = ropeLen.dp.toPx()
-            // 줄 — 5dp 간격 두 색 꼬임 줄무늬
-            val ropeW = 3.dp.toPx()
-            val seg = 5.dp.toPx()
+            // 수달 스프라이트와 같은 도트 배율 (표시 92dp / 원본 365px)
+            val dot = (92f / 365f).dp.toPx()
+            val ropeW = ropeImg.width * dot
+            val tileH = ropeImg.height * dot
+            // 줄 — 수달이 쥔 줄에서 잘라낸 조각을 세로로 이어 그린다
             var y = 0f
-            var dark = false
             while (y < endY) {
-                drawRect(
-                    color = if (dark) Color(0xFFB98F56) else Color(0xFFD8B27E),
-                    topLeft = Offset(cx - ropeW / 2f, y),
-                    size = Size(ropeW, minOf(seg, endY - y)),
+                val drawH = minOf(tileH, endY - y)
+                val srcH = ((drawH / tileH) * ropeImg.height).roundToInt().coerceIn(1, ropeImg.height)
+                drawImage(
+                    image = ropeImg,
+                    srcOffset = IntOffset.Zero,
+                    srcSize = IntSize(ropeImg.width, srcH),
+                    // 0.54 = 타일 안에서 줄 중심 위치 — 닻 자루 중심과 같은 세로선
+                    dstOffset = IntOffset((cx - ropeW * 0.54f).roundToInt(), y.roundToInt()),
+                    dstSize = IntSize(ropeW.roundToInt(), drawH.roundToInt()),
+                    filterQuality = FilterQuality.None,
                 )
-                dark = !dark
-                y += seg
+                y += tileH
             }
-            // 닻 — 수달 캐릭터가 든 닻과 같은 메탈 톤 + 진한 외곽선 + 녹 자국
-            val outline = Color(0xFF433A52)
-            val metal = Color(0xFF8F9585)
-            val rust = Color(0xFF8B6B4A)
-
-            // 고리 (로프 매듭)
-            val ringCenter = Offset(cx, endY + 3.dp.toPx())
-            drawCircle(color = outline, radius = 3.dp.toPx(), center = ringCenter, style = Stroke(width = 4.dp.toPx()))
-            drawCircle(color = metal, radius = 3.dp.toPx(), center = ringCenter, style = Stroke(width = 2.dp.toPx()))
-
-            val shankTop = endY + 6.dp.toPx()
-            val crownY = endY + 22.dp.toPx()
-            val stockY = endY + 9.5.dp.toPx()
-            val armSpan = 8.dp.toPx()
-            val flukeY = endY + 15.5.dp.toPx()
-
-            val shank = Path().apply {
-                moveTo(cx, shankTop)
-                lineTo(cx, crownY)
-            }
-            val stock = Path().apply {
-                moveTo(cx - 5.5.dp.toPx(), stockY)
-                lineTo(cx + 5.5.dp.toPx(), stockY)
-            }
-            val arms = Path().apply {
-                moveTo(cx - armSpan, flukeY)
-                cubicTo(cx - armSpan, crownY - 1.dp.toPx(), cx - armSpan * 0.55f, crownY, cx, crownY)
-                cubicTo(cx + armSpan * 0.55f, crownY, cx + armSpan, crownY - 1.dp.toPx(), cx + armSpan, flukeY)
-            }
-            val anchorParts = listOf(shank to 3.dp.toPx(), stock to 2.5.dp.toPx(), arms to 3.dp.toPx())
-            // 외곽선 전체 → 메탈 전체 순서로 겹쳐 그려야 교차부 외곽선이 메탈을 가르지 않는다
-            anchorParts.forEach { (p, w) ->
-                drawPath(p, color = outline, style = Stroke(width = w + 2.5.dp.toPx(), cap = StrokeCap.Round))
-            }
-            anchorParts.forEach { (p, w) ->
-                drawPath(p, color = metal, style = Stroke(width = w, cap = StrokeCap.Round))
-            }
-            // 플루크 (양끝 위로 뾰족한 미늘)
-            val flukeH = 5.dp.toPx()
-            val flukeW = 3.2.dp.toPx()
-            listOf(-1f, 1f).forEach { s ->
-                val tipX = cx + s * armSpan
-                val tri = Path().apply {
-                    moveTo(tipX, flukeY - flukeH)
-                    lineTo(tipX - flukeW, flukeY + 1.dp.toPx())
-                    lineTo(tipX + flukeW, flukeY + 1.dp.toPx())
-                    close()
-                }
-                drawPath(tri, color = outline, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round))
-                drawPath(tri, color = metal)
-            }
-            // 녹 자국
-            drawCircle(rust, 1.1.dp.toPx(), Offset(cx - 0.8.dp.toPx(), endY + 12.dp.toPx()))
-            drawCircle(rust, 0.9.dp.toPx(), Offset(cx + armSpan * 0.55f, crownY - 1.5.dp.toPx()))
+            // 닻 — 스프라이트 위쪽엔 줄이 한 토막 붙어 있어 타일과 자연스럽게 이어진다
+            val aw = anchorImg.width * dot
+            val ah = anchorImg.height * dot
+            drawImage(
+                image = anchorImg,
+                dstOffset = IntOffset((cx - aw * 0.475f).roundToInt(), (endY - tileH).roundToInt()),
+                dstSize = IntSize(aw.roundToInt(), ah.roundToInt()),
+                filterQuality = FilterQuality.None,
+            )
         }
 
         // ── 닻에 걸려 올라오는 상자 ──
@@ -501,7 +467,7 @@ private fun SalvageScene(
 
             Box(
                 Modifier
-                    .offset(x = (centerX - 50).dp, y = (chestCenterY - 50).dp)
+                    .offset(x = (centerX - ROPE_DX - 50).dp, y = (chestCenterY - 50).dp)
                     .size(100.dp)
                     .graphicsLayer {
                         scaleX = chestScale
