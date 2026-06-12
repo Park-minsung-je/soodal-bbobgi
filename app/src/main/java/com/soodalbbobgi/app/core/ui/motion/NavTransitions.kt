@@ -88,9 +88,10 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalExit(): ExitTransiti
             slideOutHorizontally(tween(Motion.DUR_TAB, easing = Motion.easeStandard)) { it } +
                 fadeOut(tween(Motion.DUR_TAB))
         TransitionKind.PUSH ->
+            // 뒤에 깔리는 화면도 페이드 없이 패럴랙스 슬라이드만 — 전환 전체가 순수 슬라이드
             slideOutHorizontally(tween(Motion.DUR_PUSH, easing = Motion.easeEmphasized)) {
                 -(it * Motion.PARALLAX_FRACTION).toInt()
-            } + fadeOut(tween(Motion.DUR_PUSH))
+            }
         TransitionKind.EDITOR ->
             fadeOut(tween(Motion.DUR_EDITOR))
         TransitionKind.FADE ->
@@ -113,7 +114,7 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.soodalPopEnter(): EnterTra
         TransitionKind.PUSH ->
             slideInHorizontally(tween(Motion.DUR_PUSH, easing = Motion.easeEmphasized)) {
                 -(it * Motion.PARALLAX_FRACTION).toInt()
-            } + fadeIn(tween(Motion.DUR_PUSH))
+            }
         TransitionKind.EDITOR ->
             fadeIn(tween(Motion.DUR_EDITOR))
         TransitionKind.FADE ->
