@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.R
 import com.soodalbbobgi.app.core.theme.SoodalDesign
@@ -415,10 +416,11 @@ private fun SalvageScene(
         }
 
         // ── 로프 + 닻 (수달 이미지에서 잘라낸 도트 스프라이트) — 인양 중에만 그린다 ──
+        // zIndex: 끌어올리는 줄/상자가 수달·뗏목에 가려지지 않게 맨 위 레이어에 그린다
         val anchorImg = ImageBitmap.imageResource(R.drawable.salvage_anchor)
         val ropeImg = ImageBitmap.imageResource(R.drawable.salvage_rope)
         if (reeling) {
-            Canvas(Modifier.matchParentSize()) {
+            Canvas(Modifier.matchParentSize().zIndex(1f)) {
                 val dot = otterScale.dp.toPx()  // 수달과 같은 도트 배율 (원본 px → 화면 px)
                 val pPx = Offset(handX.dp.toPx(), handY.dp.toPx())
                 val aPx = Offset(anchorPos.x.dp.toPx(), anchorPos.y.dp.toPx())
@@ -482,6 +484,7 @@ private fun SalvageScene(
 
             Box(
                 Modifier
+                    .zIndex(1f)
                     .offset(x = (anchorPos.x - 50).dp, y = (chestCenterY - 50).dp)
                     .size(100.dp)
                     .graphicsLayer {
