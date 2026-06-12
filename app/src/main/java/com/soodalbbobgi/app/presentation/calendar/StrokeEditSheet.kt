@@ -46,10 +46,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -305,7 +307,7 @@ private fun StrokeSliderRow(
         Spacer(Modifier.height(6.dp))
         // 긴 거리에선 슬라이더 정밀 조작이 어려워 ±step 버튼을 함께 둔다.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StepButton("-$METER_STEP", enabled) {
+            StepButton("−", enabled) {
                 onChange(stepStrokeMeters(value, METER_STEP, up = false))
             }
             StrokeSlider(
@@ -317,7 +319,7 @@ private fun StrokeSliderRow(
                 onChange = onChange,
                 modifier = Modifier.weight(1f),
             )
-            StepButton("+$METER_STEP", enabled) {
+            StepButton("+", enabled) {
                 onChange(stepStrokeMeters(value, METER_STEP, up = true))
             }
         }
@@ -331,12 +333,12 @@ private fun StrokeSliderRow(
 @Composable
 private fun MeterInputChip(value: Int, onCommit: (Int) -> Unit) {
     var editing by remember { mutableStateOf(false) }
-    var text by remember { mutableStateOf("") }
+    var text by remember { mutableStateOf(TextFieldValue("")) }
     var hadFocus by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
 
     fun commit() {
-        text.toIntOrNull()?.let(onCommit)
+        text.text.toIntOrNull()?.let(onCommit)
         editing = false
         hadFocus = false
     }
@@ -350,7 +352,9 @@ private fun MeterInputChip(value: Int, onCommit: (Int) -> Unit) {
             .then(
                 if (editing) Modifier else Modifier.pointerInput(value) {
                     detectTapGestures {
-                        text = value.toString()
+                        // 커서를 맨 뒤에 놓고 시작 — 바로 이어서 지우거나 덧붙일 수 있게
+                        val s = value.toString()
+                        text = TextFieldValue(s, selection = TextRange(s.length))
                         editing = true
                     }
                 },
@@ -361,7 +365,14 @@ private fun MeterInputChip(value: Int, onCommit: (Int) -> Unit) {
         if (editing) {
             BasicTextField(
                 value = text,
-                onValueChange = { input -> text = input.filter { it.isDigit() }.take(5) },
+                onValueChange = { input ->
+                    val filtered = input.text.filter { it.isDigit() }.take(5)
+                    text = if (filtered == input.text) {
+                        input
+                    } else {
+                        TextFieldValue(filtered, selection = TextRange(filtered.length))
+                    }
+                },
                 modifier = Modifier
                     .width(40.dp)
                     .focusRequester(focusRequester)
@@ -389,20 +400,20 @@ private fun MeterInputChip(value: Int, onCommit: (Int) -> Unit) {
     }
 }
 
-/** 슬라이더 양옆 ±step 조절 버튼. enabled=false면 흐리게 표시만 한다. */
+/** 슬라이더 양옆 ± 조절 버튼 — 동그란 칩. enabled=false면 흐리게 표시만 한다. */
 @Composable
-private fun StepButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+private fun StepButton(glyph: String, enabled: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .alpha(if (enabled) 1f else 0.35f)
-            .size(width = 38.dp, height = 30.dp)
-            .clip(RoundedCornerShape(9.dp))
+            .size(26.dp)
+            .clip(RoundedCornerShape(999.dp))
             .background(SheetFieldBg)
-            .border(1.dp, SheetFieldBorder, RoundedCornerShape(9.dp))
+            .border(1.dp, SheetFieldBorder, RoundedCornerShape(999.dp))
             .then(if (enabled) Modifier.pointerInput(Unit) { detectTapGestures { onClick() } } else Modifier),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SheetTxt2, fontFamily = JetBrainsMonoFamily)
+        Text(glyph, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = SheetTxt2, fontFamily = JetBrainsMonoFamily)
     }
 }
 
