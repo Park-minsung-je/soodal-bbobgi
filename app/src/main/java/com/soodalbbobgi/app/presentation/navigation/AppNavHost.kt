@@ -188,7 +188,7 @@ fun AppNavHost(navController: NavHostController) {
                         onTabSelected = onSelectTab,
                     )
                     TabBarDimLayer(
-                        dimmed = tabBarDim.dimmed,
+                        state = tabBarDim,
                         modifier = Modifier.matchParentSize(),
                     )
                 }

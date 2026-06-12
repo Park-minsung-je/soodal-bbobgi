@@ -419,11 +419,12 @@ private fun PurchaseConfirmOverlay(
     onCancel: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    DimTabBarWhileVisible()
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
     val canAfford = pearls >= item.price
     val p = rememberPopupEnter()
+    // 탭바 dim이 이 팝업의 등장 스크림과 같은 박자로 움직이도록 진행도를 그대로 전달
+    DimTabBarWhileVisible(alpha = p)
 
     Box(
         modifier = Modifier

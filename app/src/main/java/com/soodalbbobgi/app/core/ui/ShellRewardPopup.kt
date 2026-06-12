@@ -69,7 +69,6 @@ fun ShellRewardPopup(
     onEditStrokes: (() -> Unit)? = null,
     onDismiss: () -> Unit,
 ) {
-    DimTabBarWhileVisible()
     val colors = SoodalDesign.colors
     var visible by remember { mutableStateOf(true) }
 
@@ -83,6 +82,8 @@ fun ShellRewardPopup(
         animationSpec = tween(300),
         label = "popup-alpha",
     )
+    // 탭바 dim이 이 팝업 스크림과 같은 박자로 페이드 인/아웃하도록 진행도를 그대로 전달
+    DimTabBarWhileVisible(alpha = bgAlpha)
 
     LaunchedEffect(Unit) {
         delay(2600)
