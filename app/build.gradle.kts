@@ -34,7 +34,11 @@ android {
         }
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // 테스트 설치용 디버그 서명 — OAuth(SHA-1/키해시)도 디버그 키 기준 등록이라 그대로 동작.
+            // Play 출시 시 릴리즈 키스토어로 교체.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
