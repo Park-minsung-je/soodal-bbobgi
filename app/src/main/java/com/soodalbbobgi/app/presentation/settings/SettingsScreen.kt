@@ -32,6 +32,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -545,8 +547,9 @@ private fun ToggleSwitch(
                 .offset(x = thumbOffset)
                 .size(20.dp)
                 .align(Alignment.CenterStart)
+                .shadow(2.dp, CircleShape) // 흰 썸이 꺼짐 상태의 밝은 트랙과도 구분되도록
                 .clip(CircleShape)
-                .background(colors.textPrimary),
+                .background(Color.White),
         )
     }
 }
