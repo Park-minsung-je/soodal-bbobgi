@@ -87,14 +87,14 @@ private const val RAFT_W = 132f
 private const val RAFT_H = 16f
 private const val ROPE_TOP = SURFACE_Y + 2f                       // 로프가 뗏목 아래에서 시작
 private const val ROPE_IDLE_LEN = CHEST_CY - CHEST_W / 2f - 14f - ROPE_TOP   // 평소: 상자 위에서 대기
-private const val ROPE_ATTACH_LEN = CHEST_CY - 40f - ROPE_TOP                // 갈고리가 상자 뚜껑에 닿는 길이
+private const val ROPE_ATTACH_LEN = CHEST_CY - 40f - ROPE_TOP                // 닻이 상자 뚜껑에 닿는 길이
 private const val ROPE_MIN_LEN = 6f                               // 다 감아올린 길이
-private const val CHEST_HANG = 40f                                // 갈고리 끝 → 매달린 상자 중심
-private const val REEL_DROP_FRAC = 0.22f                          // 인양 타임라인 중 '갈고리 내리기' 구간
+private const val CHEST_HANG = 40f                                // 닻 끝 → 매달린 상자 중심
+private const val REEL_DROP_FRAC = 0.22f                          // 인양 타임라인 중 '닻 내리기' 구간
 
 /**
  * 보물 인양소 — 조개를 좋아하는 인양꾼 수달이 바닷속 보물상자를 건져 올리는 뽑기 화면.
- * 평소엔 갈고리가 상자들 위에서 대기하다가, 뽑기가 멈추면 로프가 내려가 상자를 걸고
+ * 평소엔 닻이 상자들 위에서 대기하다가, 뽑기가 멈추면 로프가 내려가 상자를 걸고
  * 감아올리는 2단 인양 모션 후 결과가 열린다.
  */
 @Composable
@@ -207,10 +207,10 @@ fun GachaScreen(
 }
 
 /**
- * 바다 단면 인양 장면 — 수면 위 뗏목의 수달, 갈고리 로프, 심해를 떠다니는 보물상자들.
+ * 바다 단면 인양 장면 — 수면 위 뗏목의 수달, 닻 로프, 심해를 떠다니는 보물상자들.
  *
  * @param offset 룰렛 오프셋(dp 단위 누적값) — [GachaViewModel]의 스핀 로직과 공유
- * @param risingBox Reeling 단계에서 갈고리에 걸려 올라오는 상자
+ * @param risingBox Reeling 단계에서 닻에 걸려 올라오는 상자
  */
 @Composable
 private fun SalvageScene(
@@ -376,7 +376,7 @@ private fun SalvageScene(
                 .background(Brush.horizontalGradient(listOf(Color.Transparent, edgeColor))),
         )
 
-        // ── 인양 진행률 (갈고리 내리기 → 감아올리기) ──
+        // ── 인양 진행률 (닻 내리기 → 감아올리기) ──
         val reel = remember { Animatable(0f) }
         LaunchedEffect(phase, risingBox) {
             if (phase == GachaPhase.Reeling && risingBox != null) {
@@ -401,7 +401,7 @@ private fun SalvageScene(
             }
         }
 
-        // ── 로프 + 갈고리 (매듭 링 + J자 훅) ──
+        // ── 로프 + 닻 (수달 캐릭터의 닻과 같은 디자인) ──
         val ropeSway by infinite.animateFloat(
             initialValue = -1.4f, targetValue = 1.4f,
             animationSpec = infiniteRepeatable(tween(1700, easing = LinearEasing), RepeatMode.Reverse),
@@ -434,41 +434,66 @@ private fun SalvageScene(
                 dark = !dark
                 y += seg
             }
-            // 매듭 링
-            drawCircle(
-                color = Color(0xFFC79A5E),
-                radius = 3.dp.toPx(),
-                center = Offset(cx, endY + 3.dp.toPx()),
-                style = Stroke(width = 2.dp.toPx()),
-            )
-            // J자 훅 — 링 아래로 곡선을 그리며 왼쪽으로 열린 갈고리
-            val hookR = 5.5.dp.toPx()
-            val hookPath = Path().apply {
-                moveTo(cx, endY + 6.dp.toPx())
-                lineTo(cx, endY + 9.dp.toPx())
-                // 오른쪽으로 감았다가 왼쪽 위로 열리는 J 곡선
-                cubicTo(
-                    cx + hookR * 1.2f, endY + 10.dp.toPx(),
-                    cx + hookR * 1.2f, endY + 10.dp.toPx() + hookR * 1.8f,
-                    cx, endY + 10.dp.toPx() + hookR * 1.8f,
-                )
-                cubicTo(
-                    cx - hookR * 1.1f, endY + 10.dp.toPx() + hookR * 1.8f,
-                    cx - hookR * 1.1f, endY + 10.dp.toPx() + hookR * 0.7f,
-                    cx - hookR * 0.45f, endY + 10.dp.toPx() + hookR * 0.45f,
-                )
+            // 닻 — 수달 캐릭터가 든 닻과 같은 메탈 톤 + 진한 외곽선 + 녹 자국
+            val outline = Color(0xFF433A52)
+            val metal = Color(0xFF8F9585)
+            val rust = Color(0xFF8B6B4A)
+
+            // 고리 (로프 매듭)
+            val ringCenter = Offset(cx, endY + 3.dp.toPx())
+            drawCircle(color = outline, radius = 3.dp.toPx(), center = ringCenter, style = Stroke(width = 4.dp.toPx()))
+            drawCircle(color = metal, radius = 3.dp.toPx(), center = ringCenter, style = Stroke(width = 2.dp.toPx()))
+
+            val shankTop = endY + 6.dp.toPx()
+            val crownY = endY + 22.dp.toPx()
+            val stockY = endY + 9.5.dp.toPx()
+            val armSpan = 8.dp.toPx()
+            val flukeY = endY + 15.5.dp.toPx()
+
+            val shank = Path().apply {
+                moveTo(cx, shankTop)
+                lineTo(cx, crownY)
             }
-            drawPath(
-                hookPath,
-                color = Color(0xFFC79A5E),
-                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
-            )
+            val stock = Path().apply {
+                moveTo(cx - 5.5.dp.toPx(), stockY)
+                lineTo(cx + 5.5.dp.toPx(), stockY)
+            }
+            val arms = Path().apply {
+                moveTo(cx - armSpan, flukeY)
+                cubicTo(cx - armSpan, crownY - 1.dp.toPx(), cx - armSpan * 0.55f, crownY, cx, crownY)
+                cubicTo(cx + armSpan * 0.55f, crownY, cx + armSpan, crownY - 1.dp.toPx(), cx + armSpan, flukeY)
+            }
+            val anchorParts = listOf(shank to 3.dp.toPx(), stock to 2.5.dp.toPx(), arms to 3.dp.toPx())
+            // 외곽선 전체 → 메탈 전체 순서로 겹쳐 그려야 교차부 외곽선이 메탈을 가르지 않는다
+            anchorParts.forEach { (p, w) ->
+                drawPath(p, color = outline, style = Stroke(width = w + 2.5.dp.toPx(), cap = StrokeCap.Round))
+            }
+            anchorParts.forEach { (p, w) ->
+                drawPath(p, color = metal, style = Stroke(width = w, cap = StrokeCap.Round))
+            }
+            // 플루크 (양끝 위로 뾰족한 미늘)
+            val flukeH = 5.dp.toPx()
+            val flukeW = 3.2.dp.toPx()
+            listOf(-1f, 1f).forEach { s ->
+                val tipX = cx + s * armSpan
+                val tri = Path().apply {
+                    moveTo(tipX, flukeY - flukeH)
+                    lineTo(tipX - flukeW, flukeY + 1.dp.toPx())
+                    lineTo(tipX + flukeW, flukeY + 1.dp.toPx())
+                    close()
+                }
+                drawPath(tri, color = outline, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round))
+                drawPath(tri, color = metal)
+            }
+            // 녹 자국
+            drawCircle(rust, 1.1.dp.toPx(), Offset(cx - 0.8.dp.toPx(), endY + 12.dp.toPx()))
+            drawCircle(rust, 0.9.dp.toPx(), Offset(cx + armSpan * 0.55f, crownY - 1.5.dp.toPx()))
         }
 
-        // ── 갈고리에 걸려 올라오는 상자 ──
+        // ── 닻에 걸려 올라오는 상자 ──
         if (reeling && risingBox != null) {
             val p = if (phase == GachaPhase.Reeling) reel.value else 1f
-            val attachT = ((p - 0.18f) / 0.10f).coerceIn(0f, 1f) // 갈고리가 닿을 즈음 페이드 인
+            val attachT = ((p - 0.18f) / 0.10f).coerceIn(0f, 1f) // 닻이 닿을 즈음 페이드 인
             val liftT = ((p - REEL_DROP_FRAC) / (1f - REEL_DROP_FRAC)).coerceIn(0f, 1f)
             val chestScale = lerp(1f, 1.15f, liftT)
             val wiggle = sin(p * 18f) * (1f - liftT) * 2.2f
