@@ -77,7 +77,7 @@ class SoodalNotifier @Inject constructor(
         notify(
             id = ID_REMINDER, channel = CHANNEL_REMINDER,
             title = "수영하고 조개 받아가세요!",
-            body = "오늘은 아직 수영 전이에요. 수영 기록하고 조개를 받아가세요!",
+            body = "오늘은 아직 수영 기록이 없어요. 수영 기록하고 조개를 받아가세요!",
         )
     }
 
