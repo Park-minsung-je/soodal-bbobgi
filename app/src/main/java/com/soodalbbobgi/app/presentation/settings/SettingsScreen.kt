@@ -357,6 +357,10 @@ fun SettingsScreen(
                         SettingsRow(label = "뽑기 결과 팝업 (1개)", trailing = "→", onClick = { devPopup = "gacha1" })
                         SettingsDivider()
                         SettingsRow(label = "뽑기 결과 팝업 (10연)", trailing = "→", onClick = { devPopup = "gacha10" })
+                        SettingsDivider()
+                        SettingsRow(label = "리마인더 알림 보내기", trailing = "🔔", onClick = { viewModel.sendTestReminder() })
+                        SettingsDivider()
+                        SettingsRow(label = "새 기록 알림 보내기", trailing = "🔔", onClick = { viewModel.sendTestNewRecord() })
                     }
                 }
             }

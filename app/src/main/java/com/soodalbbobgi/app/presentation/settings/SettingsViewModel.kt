@@ -3,6 +3,7 @@ package com.soodalbbobgi.app.presentation.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.di.ApplicationScope
+import com.soodalbbobgi.app.core.notify.SoodalNotifier
 import com.soodalbbobgi.app.core.state.AppState
 import com.soodalbbobgi.app.core.state.AppStateLoader
 import com.soodalbbobgi.app.data.auth.TokenStore
@@ -41,6 +42,7 @@ class SettingsViewModel @Inject constructor(
     private val notificationPrefs: NotificationPrefs,
     private val reminderScheduler: ReminderScheduler,
     private val hcChangeCheckScheduler: HcChangeCheckScheduler,
+    private val notifier: SoodalNotifier,
     @ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -151,6 +153,12 @@ class SettingsViewModel @Inject constructor(
         _newRecordEnabled.value = enabled
         if (enabled) hcChangeCheckScheduler.schedule() else hcChangeCheckScheduler.cancel()
     }
+
+    /** (개발자 전용) 실제 리마인더 알림을 즉시 발송 — 문구/모양 확인용. */
+    fun sendTestReminder() = notifier.showSwimReminder()
+
+    /** (개발자 전용) 실제 새 기록 알림을 즉시 발송 — 문구/모양 확인용. */
+    fun sendTestNewRecord() = notifier.showNewSwimRecord()
 
     /**
      * 로그아웃 — 서버 토큰 무효화는 실패해도 진행하고, 로컬 토큰/메모리/Room을 정리한다.

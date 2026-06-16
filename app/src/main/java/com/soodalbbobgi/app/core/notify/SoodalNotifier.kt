@@ -76,7 +76,7 @@ class SoodalNotifier @Inject constructor(
     fun showSwimReminder() {
         notify(
             id = ID_REMINDER, channel = CHANNEL_REMINDER,
-            title = "오늘 수영 어때요? 🦦",
+            title = "오늘 수영 어때요?",
             body = "수달이가 기다리고 있어요. 수영하고 조개 받아가세요!",
         )
     }
@@ -85,7 +85,7 @@ class SoodalNotifier @Inject constructor(
     fun showNewSwimRecord() {
         notify(
             id = ID_NEW_RECORD, channel = CHANNEL_NEW_RECORD,
-            title = "새 수영 기록 발견! 🐚",
+            title = "새 수영 기록 발견!",
             body = "수달 뽑기를 열면 기록이 등록되고 조개를 받을 수 있어요.",
         )
     }

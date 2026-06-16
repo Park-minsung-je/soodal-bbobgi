@@ -21,8 +21,9 @@ class NotificationPrefs @Inject constructor(
         get() = prefs.getBoolean(KEY_REMINDER_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_REMINDER_ENABLED, value).apply()
 
+    // 기본 18시 — "오늘 수영 어때요?"가 밤늦게 오지 않도록 퇴근 후 운동 갈 만한 저녁 시간으로.
     var reminderHour: Int
-        get() = prefs.getInt(KEY_REMINDER_HOUR, 21)
+        get() = prefs.getInt(KEY_REMINDER_HOUR, 18)
         set(value) = prefs.edit().putInt(KEY_REMINDER_HOUR, value).apply()
 
     var reminderMinute: Int
