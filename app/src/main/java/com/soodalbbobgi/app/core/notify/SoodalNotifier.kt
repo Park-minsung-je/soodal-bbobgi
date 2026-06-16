@@ -76,8 +76,8 @@ class SoodalNotifier @Inject constructor(
     fun showSwimReminder() {
         notify(
             id = ID_REMINDER, channel = CHANNEL_REMINDER,
-            title = "물 들어갈 시간이에요!",
-            body = "오늘은 아직 수영 전이에요. 한 바퀴 돌고 조개를 받아가세요!",
+            title = "수영하고 조개 받아가세요!",
+            body = "오늘은 아직 수영 전이에요. 수영 기록하고 조개를 받아가세요!",
         )
     }
 
