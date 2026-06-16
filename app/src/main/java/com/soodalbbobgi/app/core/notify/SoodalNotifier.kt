@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -57,8 +58,12 @@ class SoodalNotifier @Inject constructor(
             return
         }
         ensureChannels()
+        // 상태바(small)는 안드로이드 정책상 단색 실루엣만 가능 → 킥판 수달 실루엣.
+        // 펼친 알림 우측 large 아이콘에는 컬러 수달을 그대로 보여준다.
+        val largeIcon = BitmapFactory.decodeResource(context.resources, R.drawable.ic_otter_large)
         val notification = NotificationCompat.Builder(context, channel)
-            .setSmallIcon(R.drawable.ic_otter)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setLargeIcon(largeIcon)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
