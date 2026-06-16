@@ -66,6 +66,7 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
 
     implementation(libs.core.ktx)
+    implementation(libs.core.splashscreen)
     implementation(libs.activity.compose)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lifecycle.viewmodel.compose)

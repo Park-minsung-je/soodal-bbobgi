@@ -7,6 +7,14 @@
         <item name="android:windowLightNavigationBar">true</item>
     </style>
 
+    <!-- 앱 시작 테마 — 시스템 스플래시에 킥판 수달 아이콘을 보여주고, 끝나면 본 테마로 전환.
+         아이콘이 커지며 사라지는 연출은 MainActivity의 exit 애니메이션이 담당한다. -->
+    <style name="Theme.SoodalBbobgi.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_otter</item>
+        <item name="postSplashScreenTheme">@style/Theme.SoodalBbobgi</item>
+    </style>
+
     <array name="health_permissions">
         <item>androidx.health.permission.ExerciseSession.READ</item>
         <item>androidx.health.permission.Distance.READ</item>
