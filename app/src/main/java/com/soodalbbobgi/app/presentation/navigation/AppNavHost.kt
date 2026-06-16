@@ -45,6 +45,7 @@ import com.soodalbbobgi.app.presentation.calendar.CalendarScreen
 import com.soodalbbobgi.app.presentation.gacha.GachaScreen
 import com.soodalbbobgi.app.presentation.home.HomeScreen
 import com.soodalbbobgi.app.presentation.onboarding.OnboardingNicknameScreen
+import com.soodalbbobgi.app.presentation.onboarding.OnboardingNotificationScreen
 import com.soodalbbobgi.app.presentation.onboarding.OnboardingPermissionScreen
 import com.soodalbbobgi.app.presentation.profile.ProfileFullscreenOverlay
 import com.soodalbbobgi.app.presentation.settings.LicensesScreen
@@ -131,9 +132,15 @@ fun AppNavHost(navController: NavHostController) {
                         OnboardingNicknameScreen(onNext = { navController.navigate(Screen.OnboardingPermission.route) })
                     }
                     composable(Screen.OnboardingPermission.route) {
+                        // HC 권한 단계 다음은 알림 설정 단계 — 둘 다 알림 단계로 넘긴다.
                         OnboardingPermissionScreen(
-                            onConnect = { navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } } },
-                            onSkip = { navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } } },
+                            onConnect = { navController.navigate(Screen.OnboardingNotification.route) },
+                            onSkip = { navController.navigate(Screen.OnboardingNotification.route) },
+                        )
+                    }
+                    composable(Screen.OnboardingNotification.route) {
+                        OnboardingNotificationScreen(
+                            onDone = { navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } } },
                         )
                     }
                     composable(Screen.Home.route) {

@@ -55,11 +55,15 @@ class NavTransitionsTest {
     fun `entering home from auth or onboarding uses fade`() {
         assertThat(transitionFor("auth", "home")).isEqualTo(TransitionKind.FADE)
         assertThat(transitionFor("onboarding_permission", "home")).isEqualTo(TransitionKind.FADE)
+        assertThat(transitionFor("onboarding_notification", "home")).isEqualTo(TransitionKind.FADE)
     }
 
     @Test
     fun `onboarding step progression still uses push`() {
         assertThat(transitionFor("onboarding_nickname", "onboarding_permission"))
+            .isEqualTo(TransitionKind.PUSH)
+        // 권한 → 알림 단계도 앞으로 미는 슬라이드
+        assertThat(transitionFor("onboarding_permission", "onboarding_notification"))
             .isEqualTo(TransitionKind.PUSH)
     }
 }

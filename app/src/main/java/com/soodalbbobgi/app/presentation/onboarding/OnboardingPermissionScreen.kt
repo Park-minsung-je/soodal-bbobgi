@@ -84,7 +84,7 @@ fun OnboardingPermissionScreen(
     }
 
     Column(Modifier.fillMaxSize().background(colors.bgDeep).statusBarsPadding().padding(24.dp)) {
-        Text("STEP 2 / 2", fontSize = 11.sp, fontWeight = FontWeight.Bold,
+        Text("STEP 2 / 3", fontSize = 11.sp, fontWeight = FontWeight.Bold,
             color = colors.accentBlue, letterSpacing = 1.5.sp)
         Spacer(Modifier.height(16.dp))
         Text("수영 기록을\n자동으로 가져올게요", style = SoodalDesign.typography.xl, color = colors.textPrimary)

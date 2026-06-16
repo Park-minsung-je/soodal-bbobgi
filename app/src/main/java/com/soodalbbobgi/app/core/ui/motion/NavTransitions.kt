@@ -41,7 +41,7 @@ fun tabIndexOf(route: String?): Int? = when (route) {
 fun transitionFor(from: String?, to: String?): TransitionKind {
     // 앱 시작 플로우: 첫 화면 진입은 슬라이드 없이 페이드 (스플래시에서 나가거나 홈 첫 진입).
     if (from == "splash") return TransitionKind.FADE
-    if (to == "home" && (from == "auth" || from == "onboarding_permission")) return TransitionKind.FADE
+    if (to == "home" && (from == "auth" || from == "onboarding_permission" || from == "onboarding_notification")) return TransitionKind.FADE
 
     // profile_fullscreen/profile_editor 화면 제거: 전체보기는 홈 오버레이, 편집은 홈 바텀시트로 이동.
 

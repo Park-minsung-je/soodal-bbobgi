@@ -57,17 +57,19 @@ class HcChangeCheckWorker @AssistedInject constructor(
     }
 }
 
-/** 새 기록 감지 주기 작업 예약 관리 (2시간 간격). */
+/** 새 기록 감지 주기 작업 예약 관리 (30분 간격). */
 @Singleton
 class HcChangeCheckScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
 
+    // 변경 토큰으로 '변경 유무'만 확인하는 가벼운 작업이라 짧은 주기에도 배터리 부담이 작다.
+    // 수영 직후 되도록 빨리 알리려 30분으로 둔다.
     fun schedule() {
-        val request = PeriodicWorkRequestBuilder<HcChangeCheckWorker>(2, TimeUnit.HOURS)
+        val request = PeriodicWorkRequestBuilder<HcChangeCheckWorker>(30, TimeUnit.MINUTES)
             .build()
         WorkManager.getInstance(context)
-            .enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
+            .enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
 
     fun cancel() {

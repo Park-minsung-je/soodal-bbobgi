@@ -64,7 +64,7 @@ fun OnboardingNicknameScreen(
 
     Column(Modifier.fillMaxSize().background(colors.bgDeep).statusBarsPadding().padding(24.dp)) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-            Text("STEP 1 / 2", fontSize = 11.sp, fontWeight = FontWeight.Bold,
+            Text("STEP 1 / 3", fontSize = 11.sp, fontWeight = FontWeight.Bold,
                 color = colors.accentBlue, letterSpacing = 1.5.sp)
             Spacer(Modifier.height(16.dp))
             Text("반가워요!\n닉네임을 알려주세요", style = SoodalDesign.typography.xl, color = colors.textPrimary)
