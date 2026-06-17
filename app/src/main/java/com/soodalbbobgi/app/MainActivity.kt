@@ -28,12 +28,13 @@ class MainActivity : ComponentActivity() {
         val splashScreen = installSplashScreen()
         splashScreen.setOnExitAnimationListener { provider ->
             val icon = provider.iconView
-            val scaleX = ObjectAnimator.ofFloat(icon, android.view.View.SCALE_X, 1f, 2.4f)
-            val scaleY = ObjectAnimator.ofFloat(icon, android.view.View.SCALE_Y, 1f, 2.4f)
+            // 살짝만 커지며 사라진다 — 크게 키우면 화면 밖으로 잘려 보이므로 1.25배까지만.
+            val scaleX = ObjectAnimator.ofFloat(icon, android.view.View.SCALE_X, 1f, 1.25f)
+            val scaleY = ObjectAnimator.ofFloat(icon, android.view.View.SCALE_Y, 1f, 1.25f)
             val fade = ObjectAnimator.ofFloat(icon, android.view.View.ALPHA, 1f, 0f)
             listOf(scaleX, scaleY, fade).forEach {
-                it.interpolator = AnticipateInterpolator(0.6f)
-                it.duration = 420L
+                it.interpolator = AnticipateInterpolator(0.4f)
+                it.duration = 380L
             }
             fade.addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) = provider.remove()
