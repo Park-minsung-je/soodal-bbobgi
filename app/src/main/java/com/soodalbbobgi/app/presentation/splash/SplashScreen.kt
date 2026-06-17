@@ -1,5 +1,6 @@
 package com.soodalbbobgi.app.presentation.splash
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -22,11 +23,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -68,6 +71,16 @@ fun SplashScreen(
         targetValue = targetFraction, animationSpec = tween(200), label = "splash",
     )
 
+    // 시스템 스플래시(킥판 수달 아이콘)에서 자연스럽게 이어지도록 콘텐츠를 페이드인하고
+    // 수달은 살짝 커지며 등장한다 — 같은 배경색이라 끊김 없이 넘어온다.
+    var appeared by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { appeared = true }
+    val enter by animateFloatAsState(
+        targetValue = if (appeared) 1f else 0f,
+        animationSpec = tween(420, easing = FastOutSlowInEasing),
+        label = "splashEnter",
+    )
+
     // destination이 결정되고 + 에셋 동기화가 끝나야(또는 Error여도 graceful degradation) 전환한다.
     LaunchedEffect(destination, assetProgress) {
         if (destination == SplashDestination.Loading) return@LaunchedEffect
@@ -80,11 +93,19 @@ fun SplashScreen(
     }
 
     Box(Modifier.fillMaxSize().background(colors.bgDeep).statusBarsPadding(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.graphicsLayer { alpha = enter },
+        ) {
             Image(
                 painter = painterResource(R.drawable.otter_swim),
                 contentDescription = "수달 뽑기",
-                modifier = Modifier.size(120.dp),
+                modifier = Modifier.size(120.dp).graphicsLayer {
+                    val s = 0.9f + 0.1f * enter
+                    scaleX = s
+                    scaleY = s
+                },
             )
             Spacer(Modifier.height(28.dp))
             Text("수달 뽑기", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue)
