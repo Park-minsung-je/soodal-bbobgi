@@ -43,6 +43,9 @@ import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.data.asset.AssetSyncProgress
 import kotlinx.coroutines.delay
 
+/** 로딩 스플래시 최소 노출 시간(ms) — 자동 로그인이 빨라도 화면이 깜빡 지나가지 않게. */
+private const val MIN_SPLASH_VISIBLE_MS = 1000L
+
 /**
  * 스플래시 화면. 로딩 애니메이션을 보여주면서 자동 로그인을 체크한다.
  * 토큰이 유효하면 Auth 화면을 건너뛰고 바로 Home으로 이동한다.
@@ -81,14 +84,18 @@ fun SplashScreen(
         label = "splashEnter",
     )
 
+    // 스플래시 진입 시각 — 로딩이 순식간에 지나가도 최소 노출 시간을 보장하는 기준.
+    val splashStart = remember { System.currentTimeMillis() }
+
     // destination이 결정되고 + 에셋 동기화가 끝나야(또는 Error여도 graceful degradation) 전환한다.
     LaunchedEffect(destination, assetProgress) {
         if (destination == SplashDestination.Loading) return@LaunchedEffect
         if (assetProgress is AssetSyncProgress.FetchingManifest ||
             assetProgress is AssetSyncProgress.Downloading
         ) return@LaunchedEffect
-        // 사용자가 로딩 상태를 인지할 수 있는 최소 시간 보장
-        delay(300)
+        // 로딩 화면이 최소 1초는 보이게 — 이미 그만큼 지났으면 바로 전환한다.
+        val elapsed = System.currentTimeMillis() - splashStart
+        if (elapsed < MIN_SPLASH_VISIBLE_MS) delay(MIN_SPLASH_VISIBLE_MS - elapsed)
         onNavigate(destination)
     }
 
