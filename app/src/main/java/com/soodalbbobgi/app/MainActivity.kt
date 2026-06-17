@@ -1,8 +1,6 @@
 package com.soodalbbobgi.app
 
-import android.animation.ObjectAnimator
 import android.os.Bundle
-import android.view.animation.AnticipateInterpolator
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -24,23 +22,9 @@ class MainActivity : ComponentActivity() {
 
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
-        // 시스템 스플래시(킥판 수달 아이콘) → 종료 시 아이콘이 커지며 사라져 Compose 스플래시로 이어진다.
-        val splashScreen = installSplashScreen()
-        splashScreen.setOnExitAnimationListener { provider ->
-            val icon = provider.iconView
-            // 살짝만 커지며 사라진다 — 크게 키우면 화면 밖으로 잘려 보이므로 1.25배까지만.
-            val scaleX = ObjectAnimator.ofFloat(icon, android.view.View.SCALE_X, 1f, 1.25f)
-            val scaleY = ObjectAnimator.ofFloat(icon, android.view.View.SCALE_Y, 1f, 1.25f)
-            val fade = ObjectAnimator.ofFloat(icon, android.view.View.ALPHA, 1f, 0f)
-            listOf(scaleX, scaleY, fade).forEach {
-                it.interpolator = AnticipateInterpolator(0.4f)
-                it.duration = 380L
-            }
-            fade.addListener(object : android.animation.AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: android.animation.Animator) = provider.remove()
-            })
-            scaleX.start(); scaleY.start(); fade.start()
-        }
+        // 시스템 스플래시 — 안드로이드 12+가 런처 아이콘 → 스플래시로 확대 전환을 자동으로 해준다.
+        // 커스텀 exit 애니메이션은 그 위에 겹쳐 아이콘이 잘려 보이므로 두지 않고 기본 연출에 맡긴다.
+        installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
