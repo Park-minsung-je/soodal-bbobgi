@@ -39,6 +39,21 @@ enum class EditorCategory(val key: String, val label: String) {
     Text("text", "텍스트"),
 }
 
+// 폰트 스타일을 굵게/이탤릭 독립 토글로 다룬다 — 저장은 기존 textStyle 문자열을 그대로 쓴다.
+/** 굵게·이탤릭 토글 조합 → textStyle 문자열. */
+fun combineTextStyle(bold: Boolean, italic: Boolean): String = when {
+    bold && italic -> "BOLD_ITALIC"
+    bold -> "BOLD"
+    italic -> "ITALIC"
+    else -> "REGULAR"
+}
+
+/** textStyle 문자열에 굵게가 포함됐는지. */
+fun textStyleHasBold(style: String): Boolean = style == "BOLD" || style == "BOLD_ITALIC"
+
+/** textStyle 문자열에 이탤릭이 포함됐는지. */
+fun textStyleHasItalic(style: String): Boolean = style == "ITALIC" || style == "BOLD_ITALIC"
+
 data class ProfileEditorUiState(
     val activeTab: EditorCategory = EditorCategory.Background,
     val bgItems: List<EditorItemUi> = emptyList(),

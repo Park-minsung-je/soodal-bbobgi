@@ -274,6 +274,27 @@ class ProfileEditorViewModelTest {
         assertThat(vm.uiState.value.statsText).isEqualTo("1200m · 3회")
     }
 
+    @Test
+    fun `combineTextStyle maps bold and italic flags to style string`() {
+        assertThat(combineTextStyle(bold = false, italic = false)).isEqualTo("REGULAR")
+        assertThat(combineTextStyle(bold = true, italic = false)).isEqualTo("BOLD")
+        assertThat(combineTextStyle(bold = false, italic = true)).isEqualTo("ITALIC")
+        assertThat(combineTextStyle(bold = true, italic = true)).isEqualTo("BOLD_ITALIC")
+    }
+
+    @Test
+    fun `textStyle flag readers detect bold and italic independently`() {
+        assertThat(textStyleHasBold("BOLD")).isTrue()
+        assertThat(textStyleHasBold("BOLD_ITALIC")).isTrue()
+        assertThat(textStyleHasBold("ITALIC")).isFalse()
+        assertThat(textStyleHasBold("REGULAR")).isFalse()
+
+        assertThat(textStyleHasItalic("ITALIC")).isTrue()
+        assertThat(textStyleHasItalic("BOLD_ITALIC")).isTrue()
+        assertThat(textStyleHasItalic("BOLD")).isFalse()
+        assertThat(textStyleHasItalic("REGULAR")).isFalse()
+    }
+
     private fun inv(id: Long, itemId: Long, category: String) = InventoryItem(
         id = id, userId = "u1", itemId = itemId, grade = Grade.N,
         category = category, isEquippedAs = "NONE", acquiredAt = 0L,

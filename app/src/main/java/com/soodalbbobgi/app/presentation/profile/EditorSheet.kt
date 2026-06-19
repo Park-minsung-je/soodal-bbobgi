@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -347,33 +348,22 @@ fun EditorSheet(
                         color = colors.textSecondary,
                     )
                     Spacer(Modifier.height(spacing.s2))
+                    // 굵게/이탤릭을 각각 켜고 끈다 — 둘 다 켜면 굵은 이탤릭. (둘 다 끄면 기본)
                     Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                        val styles = listOf("REGULAR" to "기본", "ITALIC" to "이탤릭", "BOLD" to "굵게")
-                        styles.forEach { (value, label) ->
-                            val isActive = value == state.textStyle
-                            Box(
-                                modifier = Modifier
-                                    .clip(SoodalShape.md)
-                                    .background(if (isActive) colors.accentBlueSoft else colors.surface2)
-                                    .then(
-                                        if (isActive) Modifier.border(1.dp, colors.accentBlue.copy(alpha = 0.3f), SoodalShape.md)
-                                        else Modifier
-                                    )
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null,
-                                        onClick = { vm.setTextStyle(value) },
-                                    )
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                            ) {
-                                Text(
-                                    text = label,
-                                    fontSize = 13.sp,
-                                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isActive) colors.accentBlue else colors.textTertiary,
-                                )
-                            }
-                        }
+                        val bold = textStyleHasBold(state.textStyle)
+                        val italic = textStyleHasItalic(state.textStyle)
+                        StyleToggleChip(
+                            label = "굵게",
+                            active = bold,
+                            boldText = true,
+                            onClick = { vm.setTextStyle(combineTextStyle(!bold, italic)) },
+                        )
+                        StyleToggleChip(
+                            label = "이탤릭",
+                            active = italic,
+                            italicText = true,
+                            onClick = { vm.setTextStyle(combineTextStyle(bold, !italic)) },
+                        )
                     }
                 }
             }
@@ -666,6 +656,49 @@ private fun SegmentChip(
             fontSize = 13.sp,
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
             color = if (isActive) colors.accentBlue else colors.textTertiary,
+        )
+    }
+}
+
+/**
+ * 폰트 스타일(굵게/이탤릭) 독립 토글 칩. 켜지면 강조 배경/링, 칩 글자에 해당 스타일을 미리 보여준다.
+ *
+ * @param label 칩 라벨
+ * @param active 현재 켜짐 여부
+ * @param boldText 칩 글자를 굵게 미리보기
+ * @param italicText 칩 글자를 이탤릭 미리보기
+ * @param onClick 토글 콜백
+ */
+@Composable
+private fun StyleToggleChip(
+    label: String,
+    active: Boolean,
+    boldText: Boolean = false,
+    italicText: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val colors = SoodalDesign.colors
+    Box(
+        modifier = Modifier
+            .clip(SoodalShape.md)
+            .background(if (active) colors.accentBlueSoft else colors.surface2)
+            .then(
+                if (active) Modifier.border(1.dp, colors.accentBlue.copy(alpha = 0.3f), SoodalShape.md)
+                else Modifier,
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            fontWeight = if (boldText) FontWeight.Bold else FontWeight.Normal,
+            fontStyle = if (italicText) FontStyle.Italic else FontStyle.Normal,
+            color = if (active) colors.accentBlue else colors.textTertiary,
         )
     }
 }

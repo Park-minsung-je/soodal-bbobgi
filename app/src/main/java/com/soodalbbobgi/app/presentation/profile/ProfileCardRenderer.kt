@@ -155,6 +155,7 @@ object ProfileCardRenderer {
         val blockTypeface = when (layers.textStyle) {
             "BOLD" -> Typeface.DEFAULT_BOLD
             "ITALIC" -> Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
+            "BOLD_ITALIC" -> Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC)
             else -> Typeface.DEFAULT
         }
         val textPaint = Paint().apply {
@@ -185,26 +186,29 @@ object ProfileCardRenderer {
         val textX = layers.textX * CARD_WIDTH
         textPaint.textAlign = if (isRight) Paint.Align.RIGHT else Paint.Align.LEFT
 
-        val shadow = android.graphics.Color.argb(128, 0, 0, 0)
-
         // 닉네임
         var baseline = blockTop + nicknameSize
         textPaint.textSize = nicknameSize
-        textPaint.color = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.WHITE)
-        textPaint.setShadowLayer(4f, 2f, 2f, shadow)
+        val nickColor = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.WHITE)
+        textPaint.color = nickColor
+        textPaint.setShadowLayer(6f, 0f, 0f, contrastShadow(nickColor))
         canvas.drawText(layers.nickname, textX, baseline, textPaint)
 
         // 소개
         baseline += gapAfterNickname + taglineSize
         textPaint.textSize = taglineSize
-        textPaint.color = parseColorOrDefault(layers.taglineColor, android.graphics.Color.WHITE)
+        val tagColor = parseColorOrDefault(layers.taglineColor, android.graphics.Color.WHITE)
+        textPaint.color = tagColor
+        textPaint.setShadowLayer(6f, 0f, 0f, contrastShadow(tagColor))
         canvas.drawText(layers.tagline, textX, baseline, textPaint)
 
         // 기록 (표시 옵션 ON일 때만)
         if (layers.showStats) {
             baseline += gapAfterTagline + statsSize
             textPaint.textSize = statsSize
-            textPaint.color = parseColorOrDefault(layers.statsColor, Color(0xFF00F5FF).toArgb())
+            val statsColor = parseColorOrDefault(layers.statsColor, Color(0xFF00F5FF).toArgb())
+            textPaint.color = statsColor
+            textPaint.setShadowLayer(6f, 0f, 0f, contrastShadow(statsColor))
             canvas.drawText(layers.stats, textX, baseline, textPaint)
         }
 
@@ -231,6 +235,24 @@ object ProfileCardRenderer {
         } catch (e: IllegalArgumentException) {
             fallback
         }
+
+    /**
+     * 글자색 밝기에 맞춘 대비 그림자(글로우) 색을 만든다.
+     * 밝은 글자는 어두운 글로우, 어두운 글자는 흰 글로우로 어떤 배경에서도 가독성을 살린다.
+     * (이전엔 검은 그림자 고정이라 어두운 글자에서 그림자가 묻혀 잘 안 보였다)
+     *
+     * @param textColor 글자색 int
+     */
+    private fun contrastShadow(textColor: Int): Int {
+        val lum = 0.299 * android.graphics.Color.red(textColor) +
+            0.587 * android.graphics.Color.green(textColor) +
+            0.114 * android.graphics.Color.blue(textColor)
+        return if (lum >= 140) {
+            android.graphics.Color.argb(150, 0, 0, 0)
+        } else {
+            android.graphics.Color.argb(200, 255, 255, 255)
+        }
+    }
 }
 
 /**
