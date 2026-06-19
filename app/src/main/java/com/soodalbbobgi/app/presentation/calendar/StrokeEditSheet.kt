@@ -2,8 +2,10 @@ package com.soodalbbobgi.app.presentation.calendar
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -194,20 +196,22 @@ fun StrokeEditSheet(
 
             Spacer(Modifier.height(22.dp))
 
-            // 저장
+            // 저장 — clickable로 매 재구성마다 최신 영법 값을 캡처한다.
+            // (pointerInput(Unit)은 첫 컴포지션의 medley를 영구 캡처해 그래프 반영이 어긋났다)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .background(Brush.linearGradient(listOf(Color(0xFF38BDF8), Color(0xFF2563EB))))
-                    .pointerInput(Unit) {
-                        detectTapGestures {
-                            // 저장 시 시트를 먼저 내린 뒤 콜백 (부드러운 닫힘).
-                            scope.launch {
-                                sheetState.hide()
-                                onSave(free, breast, back, fly, kick, medley)
-                            }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
+                        // 저장 시 시트를 먼저 내린 뒤 콜백 (부드러운 닫힘).
+                        scope.launch {
+                            sheetState.hide()
+                            onSave(free, breast, back, fly, kick, medley)
                         }
                     },
                 contentAlignment = Alignment.Center,
@@ -410,7 +414,19 @@ private fun StepButton(glyph: String, enabled: Boolean, onClick: () -> Unit) {
             .clip(RoundedCornerShape(999.dp))
             .background(SheetFieldBg)
             .border(1.dp, SheetFieldBorder, RoundedCornerShape(999.dp))
-            .then(if (enabled) Modifier.pointerInput(Unit) { detectTapGestures { onClick() } } else Modifier),
+            // clickable은 재구성마다 최신 onClick을 쓴다 — pointerInput(Unit)은 첫 value를 영구
+            // 캡처해 버튼이 한 번만 먹히는 버그가 있었다.
+            .then(
+                if (enabled) {
+                    Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onClick,
+                    )
+                } else {
+                    Modifier
+                },
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Text(glyph, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = SheetTxt2, fontFamily = JetBrainsMonoFamily)
