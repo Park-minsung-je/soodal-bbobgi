@@ -213,6 +213,7 @@ fun HomeScreen(
                     nicknameColor = editorState.nicknameColor,
                     taglineColor = editorState.taglineColor,
                     statsColor = editorState.statsColor,
+                    textOutline = editorState.textOutline,
                 )
                 cardBgAsset = editorState.bgItems.firstOrNull { it.isSelected }?.imageAsset
                 cardCharAsset = editorState.charItems.firstOrNull { it.isSelected }?.imageAsset
@@ -234,6 +235,7 @@ fun HomeScreen(
                     nicknameColor = state.cardNicknameColor,
                     taglineColor = state.cardTaglineColor,
                     statsColor = state.cardStatsColor,
+                    textOutline = state.cardTextOutline,
                 )
                 cardBgAsset = state.cardBgAsset
                 cardCharAsset = state.cardCharAsset

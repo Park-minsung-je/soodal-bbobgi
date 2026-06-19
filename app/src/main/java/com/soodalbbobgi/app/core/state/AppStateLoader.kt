@@ -301,4 +301,5 @@ private fun ServerProfileCard.toDomain(userId: String) = ProfileCard(
     nicknameColor = nicknameColor,
     taglineColor = taglineColor,
     statsColor = statsColor,
+    textOutline = textOutline,
 )

@@ -69,6 +69,8 @@ data class CardLayers(
     val taglineColor: String = "#FFFFFF",
     /** 기록 줄 색상 ("#RRGGBB"). */
     val statsColor: String = "#00F5FF",
+    /** 텍스트 외곽선(테두리) 표시 여부. true면 세 줄 모두 글자 둘레에 스트로크를 그린다. */
+    val textOutline: Boolean = false,
 )
 
 /**
@@ -186,33 +188,48 @@ object ProfileCardRenderer {
         val textX = layers.textX * CARD_WIDTH
         textPaint.textAlign = if (isRight) Paint.Align.RIGHT else Paint.Align.LEFT
 
+        // 한 줄을 그린다. 외곽선이 켜져 있으면 STROKE로 테두리를 먼저 깔고 FILL로 글자를 덮어
+        // 어떤 배경에서도 글자 경계가 또렷하게 살아나게 한다. textPaint는 재사용되므로 그릴 때마다
+        // STROKE→FILL을 갖춰 다음 줄/워터마크에 스타일이 새지 않도록 한다.
+        fun drawLine(text: String, baseline: Float, color: Int) {
+            if (layers.textOutline) {
+                // 외곽선: 그림자 없이 불투명 스트로크. strokeWidth는 글자 크기에 비례.
+                textPaint.style = Paint.Style.STROKE
+                textPaint.strokeWidth = textPaint.textSize * 0.09f
+                textPaint.color = outlineColor(color)
+                textPaint.clearShadowLayer()
+                canvas.drawText(text, textX, baseline, textPaint)
+            }
+            // 글자 본체: FILL + 기존 대비 그림자.
+            textPaint.style = Paint.Style.FILL
+            textPaint.color = color
+            textPaint.setShadowLayer(6f, 0f, 0f, contrastShadow(color))
+            canvas.drawText(text, textX, baseline, textPaint)
+        }
+
         // 닉네임
         var baseline = blockTop + nicknameSize
         textPaint.textSize = nicknameSize
         val nickColor = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.WHITE)
-        textPaint.color = nickColor
-        textPaint.setShadowLayer(6f, 0f, 0f, contrastShadow(nickColor))
-        canvas.drawText(layers.nickname, textX, baseline, textPaint)
+        drawLine(layers.nickname, baseline, nickColor)
 
         // 소개
         baseline += gapAfterNickname + taglineSize
         textPaint.textSize = taglineSize
         val tagColor = parseColorOrDefault(layers.taglineColor, android.graphics.Color.WHITE)
-        textPaint.color = tagColor
-        textPaint.setShadowLayer(6f, 0f, 0f, contrastShadow(tagColor))
-        canvas.drawText(layers.tagline, textX, baseline, textPaint)
+        drawLine(layers.tagline, baseline, tagColor)
 
         // 기록 (표시 옵션 ON일 때만)
         if (layers.showStats) {
             baseline += gapAfterTagline + statsSize
             textPaint.textSize = statsSize
             val statsColor = parseColorOrDefault(layers.statsColor, Color(0xFF00F5FF).toArgb())
-            textPaint.color = statsColor
-            textPaint.setShadowLayer(6f, 0f, 0f, contrastShadow(statsColor))
-            canvas.drawText(layers.stats, textX, baseline, textPaint)
+            drawLine(layers.stats, baseline, statsColor)
         }
 
         // 브랜드 워터마크 — 사용자 글꼴 스타일과 무관하게 항상 기본 글꼴로 고정.
+        // 위 외곽선 처리가 남긴 STROKE가 새지 않도록 FILL로 되돌린다.
+        textPaint.style = Paint.Style.FILL
         textPaint.textSize = 20f
         textPaint.typeface = Typeface.DEFAULT
         textPaint.color = Color(0xFF00A8B8).toArgb()
@@ -251,6 +268,24 @@ object ProfileCardRenderer {
             android.graphics.Color.argb(150, 0, 0, 0)
         } else {
             android.graphics.Color.argb(200, 255, 255, 255)
+        }
+    }
+
+    /**
+     * 글자색 밝기에 맞춘 불투명 외곽선(테두리) 색을 만든다.
+     * 밝은 글자는 짙은 남색 테두리, 어두운 글자는 흰 테두리로 글자 경계를 또렷하게 한다.
+     * [contrastShadow]와 동일한 luminance 기준을 쓰되 알파는 항상 불투명(255)이다.
+     *
+     * @param textColor 글자색 int
+     */
+    private fun outlineColor(textColor: Int): Int {
+        val lum = 0.299 * android.graphics.Color.red(textColor) +
+            0.587 * android.graphics.Color.green(textColor) +
+            0.114 * android.graphics.Color.blue(textColor)
+        return if (lum >= 140) {
+            android.graphics.Color.argb(255, 40, 40, 60)
+        } else {
+            android.graphics.Color.argb(255, 255, 255, 255)
         }
     }
 }

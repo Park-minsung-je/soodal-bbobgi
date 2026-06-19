@@ -14,6 +14,7 @@ package com.soodalbbobgi.app.domain.model
  * @param nicknameColor 닉네임 색상 ("#RRGGBB").
  * @param taglineColor 소개 줄 색상 ("#RRGGBB").
  * @param statsColor 기록 줄 색상 ("#RRGGBB").
+ * @param textOutline 텍스트 외곽선(테두리) 표시 여부.
  */
 data class ProfileCard(
     val userId: String,
@@ -33,4 +34,5 @@ data class ProfileCard(
     val nicknameColor: String = "#FFFFFF",
     val taglineColor: String = "#FFFFFF",
     val statsColor: String = "#00F5FF",
+    val textOutline: Boolean = false,
 )

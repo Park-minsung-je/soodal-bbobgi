@@ -67,6 +67,8 @@ data class FullscreenCardState(
     val taglineColor: String = "#FFFFFF",
     /** 기록 줄 색상 ("#RRGGBB"). */
     val statsColor: String = "#00F5FF",
+    /** 텍스트 외곽선(테두리) 표시 여부. */
+    val textOutline: Boolean = false,
 )
 
 /**
@@ -116,6 +118,7 @@ class ProfileFullscreenViewModel @Inject constructor(
             nicknameColor = card?.nicknameColor ?: "#FFFFFF",
             taglineColor = card?.taglineColor ?: "#FFFFFF",
             statsColor = card?.statsColor ?: "#00F5FF",
+            textOutline = card?.textOutline ?: false,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 

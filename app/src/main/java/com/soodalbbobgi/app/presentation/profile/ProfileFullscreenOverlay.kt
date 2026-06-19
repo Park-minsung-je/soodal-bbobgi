@@ -131,6 +131,7 @@ fun ProfileFullscreenOverlay(
         nicknameColor = cardState.nicknameColor,
         taglineColor = cardState.taglineColor,
         statsColor = cardState.statsColor,
+        textOutline = cardState.textOutline,
     )
     val bitmap = remember(layers) { ProfileCardRenderer.renderCached(layers) }
 

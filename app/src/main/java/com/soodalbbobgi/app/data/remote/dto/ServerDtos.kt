@@ -20,6 +20,7 @@ data class ServerProfileCard(
     val nicknameColor: String = "#FFFFFF",
     val taglineColor: String = "#FFFFFF",
     val statsColor: String = "#00F5FF",
+    val textOutline: Boolean = false,
     val lastEditedAt: Long? = null,
 )
 

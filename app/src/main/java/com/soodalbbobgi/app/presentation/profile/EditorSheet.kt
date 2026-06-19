@@ -365,6 +365,25 @@ fun EditorSheet(
                             onClick = { vm.setTextStyle(combineTextStyle(bold, !italic)) },
                         )
                     }
+
+                    // -- 글자 테두리(외곽선) 토글 --
+                    Spacer(Modifier.height(spacing.s3))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("글자 테두리", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+                        Switch(
+                            checked = state.textOutline,
+                            onCheckedChange = { vm.setTextOutline(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = colors.btnPrimaryText,
+                                checkedTrackColor = colors.accentBlue,
+                                uncheckedTrackColor = colors.surface3,
+                            ),
+                        )
+                    }
                 }
             }
 

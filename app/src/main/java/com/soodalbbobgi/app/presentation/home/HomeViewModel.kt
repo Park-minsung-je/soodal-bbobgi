@@ -94,6 +94,8 @@ data class HomeUiState(
     val cardTaglineColor: String = "#FFFFFF",
     /** 기록 줄 색상 ("#RRGGBB"). */
     val cardStatsColor: String = "#00F5FF",
+    /** 텍스트 외곽선(테두리) 표시 여부. */
+    val cardTextOutline: Boolean = false,
 )
 
 /**
@@ -217,6 +219,7 @@ class HomeViewModel @Inject constructor(
             cardNicknameColor = profileCard?.nicknameColor ?: "#FFFFFF",
             cardTaglineColor = profileCard?.taglineColor ?: "#FFFFFF",
             cardStatsColor = profileCard?.statsColor ?: "#00F5FF",
+            cardTextOutline = profileCard?.textOutline ?: false,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 

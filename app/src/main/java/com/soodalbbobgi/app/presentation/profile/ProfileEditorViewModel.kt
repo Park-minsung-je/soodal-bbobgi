@@ -83,6 +83,8 @@ data class ProfileEditorUiState(
     val taglineColor: String = "#FFFFFF",
     /** 기록 줄 색상 ("#RRGGBB"). */
     val statsColor: String = "#00F5FF",
+    /** 텍스트 외곽선(테두리) 표시 여부. */
+    val textOutline: Boolean = false,
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,
     val saveError: String? = null,
@@ -130,6 +132,7 @@ class ProfileEditorViewModel @Inject constructor(
         val nicknameColor: String = "#FFFFFF",
         val taglineColor: String = "#FFFFFF",
         val statsColor: String = "#00F5FF",
+        val textOutline: Boolean = false,
         val isSaving: Boolean = false,
         val saveSuccess: Boolean = false,
         val saveError: String? = null,
@@ -161,6 +164,7 @@ class ProfileEditorViewModel @Inject constructor(
                 nicknameColor = savedCard.nicknameColor,
                 taglineColor = savedCard.taglineColor,
                 statsColor = savedCard.statsColor,
+                textOutline = savedCard.textOutline,
                 initialized = true,
             )
             _editState.value = initialized
@@ -195,6 +199,7 @@ class ProfileEditorViewModel @Inject constructor(
             nicknameColor = state.nicknameColor,
             taglineColor = state.taglineColor,
             statsColor = state.statsColor,
+            textOutline = state.textOutline,
             isSaving = state.isSaving,
             saveSuccess = state.saveSuccess,
             saveError = state.saveError,
@@ -263,6 +268,9 @@ class ProfileEditorViewModel @Inject constructor(
 
     /** 기록 줄 색상 설정 ("#RRGGBB"). */
     fun setStatsColor(v: String) { _editState.value = _editState.value.copy(statsColor = v) }
+
+    /** 텍스트 외곽선(테두리) 표시 여부 설정. */
+    fun setTextOutline(v: Boolean) { _editState.value = _editState.value.copy(textOutline = v) }
     fun clearSaveResult() { _editState.value = _editState.value.copy(saveSuccess = false, saveError = null) }
 
     /**
@@ -296,6 +304,7 @@ class ProfileEditorViewModel @Inject constructor(
                     nicknameColor = s.nicknameColor,
                     taglineColor = s.taglineColor,
                     statsColor = s.statsColor,
+                    textOutline = s.textOutline,
                 )
                 // 메모리 즉시 반영
                 appStateLoader.applyProfileCardSaved(card)
@@ -317,6 +326,7 @@ class ProfileEditorViewModel @Inject constructor(
                     nicknameColor = card.nicknameColor,
                     taglineColor = card.taglineColor,
                     statsColor = card.statsColor,
+                    textOutline = card.textOutline,
                 ))
                 _editState.value = _editState.value.copy(isSaving = false, saveSuccess = true)
             } catch (e: Exception) {
