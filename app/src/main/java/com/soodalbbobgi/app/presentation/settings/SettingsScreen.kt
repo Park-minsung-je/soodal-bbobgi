@@ -1,4 +1,4 @@
-package com.soodalbbobgi.app.presentation.settings
+﻿package com.soodalbbobgi.app.presentation.settings
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -44,6 +44,7 @@ import com.soodalbbobgi.app.BuildConfig
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
+import com.soodalbbobgi.app.core.ui.soodalScreenBackdrop
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
@@ -143,11 +144,10 @@ fun SettingsScreen(
         }
     }
 
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().soodalScreenBackdrop()) {
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .background(colors.bgDeep),
+            .fillMaxSize(),
     ) {
         Column(
             modifier = Modifier
@@ -194,8 +194,8 @@ fun SettingsScreen(
 
             // -- 계정 Section --
             SectionLabel(text = "계정")
-            Spacer(Modifier.height(spacing.s2))
-            SoodalCard(modifier = Modifier.fillMaxWidth()) {
+            Spacer(Modifier.height(12.dp))
+            SoodalCard(modifier = Modifier.fillMaxWidth(), contentPadding = 0.dp) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     // 로그인 정보 (읽기 전용)
                     SettingsRow(
@@ -210,7 +210,7 @@ fun SettingsScreen(
                                 else -> "—"
                             },
                             fontSize = 13.sp,
-                            color = colors.textTertiary,
+                            color = colors.textSecondary,
                         )
                     }
                     SettingsDivider()
@@ -220,7 +220,7 @@ fun SettingsScreen(
                         onClick = { dialog = "nickname" },
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(profile?.nickname ?: "—", fontSize = 13.sp, color = colors.textTertiary)
+                            Text(profile?.nickname ?: "—", fontSize = 13.sp, color = colors.textSecondary)
                             Spacer(Modifier.width(4.dp))
                             Text("›", fontSize = 14.sp, color = colors.textTertiary)
                         }
@@ -245,8 +245,8 @@ fun SettingsScreen(
 
             // -- 연동 Section --
             SectionLabel(text = "연동")
-            Spacer(Modifier.height(spacing.s2))
-            SoodalCard(modifier = Modifier.fillMaxWidth()) {
+            Spacer(Modifier.height(12.dp))
+            SoodalCard(modifier = Modifier.fillMaxWidth(), contentPadding = 0.dp) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     SettingsRow(
                         label = "Health Connect",
@@ -284,8 +284,8 @@ fun SettingsScreen(
 
             // -- 알림 Section --
             SectionLabel(text = "알림")
-            Spacer(Modifier.height(spacing.s2))
-            SoodalCard(modifier = Modifier.fillMaxWidth()) {
+            Spacer(Modifier.height(12.dp))
+            SoodalCard(modifier = Modifier.fillMaxWidth(), contentPadding = 0.dp) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     SettingsToggleRow(
                         label = "수영 리마인더",
@@ -322,8 +322,8 @@ fun SettingsScreen(
 
             // -- 정보 Section --
             SectionLabel(text = "정보")
-            Spacer(Modifier.height(spacing.s2))
-            SoodalCard(modifier = Modifier.fillMaxWidth()) {
+            Spacer(Modifier.height(12.dp))
+            SoodalCard(modifier = Modifier.fillMaxWidth(), contentPadding = 0.dp) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     SettingsRow(
                         label = "앱 버전",
@@ -333,7 +333,7 @@ fun SettingsScreen(
                         Text(
                             text = BuildConfig.VERSION_NAME,
                             fontSize = 13.sp,
-                            color = colors.textTertiary,
+                            color = colors.textSecondary,
                         )
                     }
                     SettingsDivider()
@@ -349,8 +349,8 @@ fun SettingsScreen(
             if (BuildConfig.DEBUG) {
                 Spacer(Modifier.height(spacing.s5))
                 SectionLabel(text = "개발자 (디버그 전용)")
-                Spacer(Modifier.height(spacing.s2))
-                SoodalCard(modifier = Modifier.fillMaxWidth()) {
+                Spacer(Modifier.height(12.dp))
+                SoodalCard(modifier = Modifier.fillMaxWidth(), contentPadding = 0.dp) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         SettingsRow(label = "조개 지급 팝업 미리보기", trailing = "→", onClick = { devPopup = "shell" })
                         SettingsDivider()
@@ -451,10 +451,10 @@ private fun SectionLabel(text: String) {
     val colors = SoodalDesign.colors
     Text(
         text = text,
-        fontSize = 13.sp,
+        fontSize = 12.sp,
         fontWeight = FontWeight.Bold,
         color = colors.textSecondary,
-        letterSpacing = 0.5.sp,
+        letterSpacing = 0.7.sp,
     )
 }
 
@@ -475,13 +475,14 @@ private fun SettingsRow(
                 indication = null,
                 onClick = onClick,
             )
-            .padding(vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = label,
             fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
             color = labelColor,
         )
         if (trailingContent != null) {
@@ -508,13 +509,14 @@ private fun SettingsToggleRow(
                 indication = null,
                 onClick = { onCheckedChange(!checked) },
             )
-            .padding(vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = label,
             fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
             color = colors.textPrimary,
         )
         ToggleSwitch(checked = checked, onCheckedChange = onCheckedChange)
@@ -565,6 +567,7 @@ private fun SettingsDivider() {
         modifier = Modifier
             .fillMaxWidth()
             .height(1.dp)
-            .background(colors.glassBorder),
+            // 밝은 흰 보더(glassBorder) 대신 은은한 잉크 구분선 (디자인 대조).
+            .background(colors.textTertiary.copy(alpha = 0.20f)),
     )
 }

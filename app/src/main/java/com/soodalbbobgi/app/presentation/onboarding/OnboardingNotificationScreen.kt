@@ -1,4 +1,4 @@
-package com.soodalbbobgi.app.presentation.onboarding
+﻿package com.soodalbbobgi.app.presentation.onboarding
 
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -86,7 +86,7 @@ fun OnboardingNotificationScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().background(colors.bgDeep).statusBarsPadding().padding(24.dp)) {
+    Column(Modifier.fillMaxSize().statusBarsPadding().padding(24.dp)) {
         Text("STEP 3 / 3", fontSize = 11.sp, fontWeight = FontWeight.Bold,
             color = colors.accentBlue, letterSpacing = 1.5.sp)
         Spacer(Modifier.height(16.dp))

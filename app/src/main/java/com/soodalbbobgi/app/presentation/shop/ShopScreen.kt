@@ -1,4 +1,4 @@
-package com.soodalbbobgi.app.presentation.shop
+﻿package com.soodalbbobgi.app.presentation.shop
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -65,7 +65,7 @@ fun ShopScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(colors.bgDeep)
+                
                 // 헤더가 고정인 화면 — 루트에서 상태바 인셋 처리.
                 .statusBarsPadding(),
         ) {
@@ -126,7 +126,7 @@ fun ShopScreen(
                     }
                     Spacer(Modifier.height(spacing.s3))
 
-                    val boxRows = boxListings.chunked(2)
+                    val boxRows = boxListings.chunked(3)
                     boxRows.forEachIndexed { rowIndex, rowItems ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -139,7 +139,8 @@ fun ShopScreen(
                                     modifier = Modifier.weight(1f),
                                 )
                             }
-                            if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+                            // 마지막 줄이 3개 미만이면 빈칸으로 채워 셀 폭을 일정하게 유지
+                            repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
                         }
                         if (rowIndex < boxRows.size - 1) Spacer(Modifier.height(spacing.s3))
                     }
@@ -161,7 +162,7 @@ fun ShopScreen(
                     }
                     Spacer(Modifier.height(spacing.s3))
 
-                    val itemRows = itemListings.chunked(2)
+                    val itemRows = itemListings.chunked(3)
                     itemRows.forEachIndexed { rowIndex, rowItems ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -174,7 +175,8 @@ fun ShopScreen(
                                     modifier = Modifier.weight(1f),
                                 )
                             }
-                            if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+                            // 마지막 줄이 3개 미만이면 빈칸으로 채워 셀 폭을 일정하게 유지
+                            repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
                         }
                         if (rowIndex < itemRows.size - 1) Spacer(Modifier.height(spacing.s3))
                     }
@@ -182,23 +184,7 @@ fun ShopScreen(
                 Spacer(Modifier.height(TabBarClearance))
             }
 
-            // 헤더 경계 페이드 — 위로 스크롤한 콘텐츠가 고정 헤더 아래에서 녹아 사라진다.
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .height(12.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            0f to colors.bgDeep,
-                            0.2f to colors.bgDeep.copy(alpha = 0.9f),
-                            0.4f to colors.bgDeep.copy(alpha = 0.65f),
-                            0.6f to colors.bgDeep.copy(alpha = 0.35f),
-                            0.8f to colors.bgDeep.copy(alpha = 0.1f),
-                            1f to colors.bgDeep.copy(alpha = 0f),
-                        ),
-                    ),
-            )
+            // (헤더 경계 페이드 제거 — 이미지 배경 위에서 흰 그림자처럼 떠 보임. 홈과 동일 처리)
             }
         }
 

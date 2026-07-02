@@ -1,4 +1,4 @@
-package com.soodalbbobgi.app.presentation.splash
+﻿package com.soodalbbobgi.app.presentation.splash
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -99,7 +99,7 @@ fun SplashScreen(
         onNavigate(destination)
     }
 
-    Box(Modifier.fillMaxSize().background(colors.bgDeep).statusBarsPadding(), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().statusBarsPadding(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,

@@ -1,4 +1,4 @@
-package com.soodalbbobgi.app.presentation.settings
+﻿package com.soodalbbobgi.app.presentation.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,6 +32,7 @@ import com.mikepenz.aboutlibraries.Libs
 import com.mikepenz.aboutlibraries.entity.Library
 import com.soodalbbobgi.app.R
 import com.soodalbbobgi.app.core.theme.SoodalDesign
+import com.soodalbbobgi.app.core.ui.soodalScreenBackdrop
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
@@ -57,7 +58,7 @@ fun LicensesScreen(onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(colors.bgDeep)
+            .soodalScreenBackdrop()
             .statusBarsPadding(),
     ) {
         // -- Header (SettingsScreen과 동일 패턴) --

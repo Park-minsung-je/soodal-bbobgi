@@ -1,4 +1,4 @@
-package com.soodalbbobgi.app.presentation.gacha
+﻿package com.soodalbbobgi.app.presentation.gacha
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
@@ -109,7 +109,7 @@ fun GachaScreen(
 
     Box(Modifier.fillMaxSize()) {
         // 헤더가 고정인 화면 — 루트에서 상태바 인셋 처리.
-        Column(Modifier.fillMaxSize().background(colors.bgDeep).statusBarsPadding()) {
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
             Column(
                 Modifier
                     .fillMaxSize()
@@ -140,7 +140,8 @@ fun GachaScreen(
                     SoodalChip(state.shells.toString(), color = ChipColor.Gold, iconType = SoodalIcons.Shell, label = "조개", large = true)
                 }
 
-                Spacer(Modifier.height(14.dp))
+                // 인양 씬을 화면 중앙 쪽으로 내린다 (상단에 너무 붙지 않게).
+                Spacer(Modifier.height(52.dp))
 
                 // -- Ocean salvage scene --
                 Box(Modifier.padding(horizontal = 14.dp)) {

@@ -1,4 +1,4 @@
-package com.soodalbbobgi.app.presentation.onboarding
+﻿package com.soodalbbobgi.app.presentation.onboarding
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.background
@@ -83,7 +83,7 @@ fun OnboardingPermissionScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().background(colors.bgDeep).statusBarsPadding().padding(24.dp)) {
+    Column(Modifier.fillMaxSize().statusBarsPadding().padding(24.dp)) {
         Text("STEP 2 / 3", fontSize = 11.sp, fontWeight = FontWeight.Bold,
             color = colors.accentBlue, letterSpacing = 1.5.sp)
         Spacer(Modifier.height(16.dp))

@@ -1,4 +1,4 @@
-package com.soodalbbobgi.app.presentation.auth
+﻿package com.soodalbbobgi.app.presentation.auth
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -68,12 +68,12 @@ fun AuthScreen(
 
     // 자동 로그인 중이면 빈 화면 (깜빡임 방지)
     if (loadingProvider == "auto") {
-        Box(Modifier.fillMaxSize().background(colors.bgDeep))
+        Box(Modifier.fillMaxSize())
         return
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(colors.bgDeep).statusBarsPadding(),
+        modifier = Modifier.fillMaxSize().statusBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(80.dp))
