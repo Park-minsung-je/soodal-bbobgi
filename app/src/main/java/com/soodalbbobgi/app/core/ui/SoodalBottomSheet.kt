@@ -51,16 +51,16 @@ import kotlinx.coroutines.launch
  *
  * ModalBottomSheet의 예측 뒤로가기는 시트가 '축소'되는 M3 내장 애니메이션이라 바꿀 수 없어,
  * 여기서는 제스처 진행도에 맞춰 시트가 아래로 따라 내려가고, 확정 시 그대로 슬라이드-다운으로
- * 닫힌다. 핸들을 아래로 드래그해서 닫을 수도 있다.
+ * 닫힌다. 핸들(과 dragModifier를 단 영역)을 아래로 드래그해서 닫을 수도 있다.
  *
  * @param onDismiss 취소 계열 닫힘(스크림 탭/뒤로가기/드래그) 확정 콜백 — 컴포지션 제거는 호출자 담당
- * @param content 시트 내용. close(after)로 슬라이드-다운 애니메이션 후 after를 실행할 수 있다
- *   (등록/저장처럼 닫힘 애니메이션이 끝난 뒤 상태를 반영해야 할 때 사용)
+ * @param content 시트 내용. close(after)로 슬라이드-다운 애니메이션 후 after를 실행할 수 있고,
+ *   dragModifier를 헤더 등 원하는 영역에 달면 그 영역도 드래그로 닫을 수 있다
  */
 @Composable
 fun SoodalBottomSheet(
     onDismiss: () -> Unit,
-    content: @Composable (close: (after: () -> Unit) -> Unit) -> Unit,
+    content: @Composable (close: (after: () -> Unit) -> Unit, dragModifier: Modifier) -> Unit,
 ) {
     val colors = SoodalDesign.colors
     val scope = rememberCoroutineScope()
@@ -118,6 +118,30 @@ fun SoodalBottomSheet(
         }
     }
 
+    // 아래로 끌어서 닫기 — 핸들 기본 적용 + 콘텐츠가 자기 헤더 영역에도 달 수 있게 전달한다.
+    val dragToDismiss = Modifier.pointerInput(sheetHeight) {
+        detectVerticalDragGestures(
+            onDragEnd = {
+                if (sheetHeight > 0 && offsetY.value > sheetHeight * 0.28f) {
+                    close(onDismiss)
+                } else {
+                    scope.launch {
+                        offsetY.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = 500f))
+                    }
+                }
+            },
+            onDragCancel = {
+                scope.launch {
+                    offsetY.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = 500f))
+                }
+            },
+        ) { change, dy ->
+            change.consume()
+            val target = (offsetY.value + dy).coerceAtLeast(0f)
+            scope.launch { offsetY.snapTo(target) }
+        }
+    }
+
     // 오버레이 레이어는 내비게이션 바 인셋만큼 패딩돼 있어 시트가 화면 바닥까지 못 닿는다 —
     // 자식을 인셋만큼 더 크게 측정해 물리 화면 바닥까지 그린다 (딤도 함께 덮인다).
     val navBottom = WindowInsets.navigationBars.getBottom(LocalDensity.current)
@@ -163,36 +187,20 @@ fun SoodalBottomSheet(
                     alpha = if (entered) 1f else 0f
                 }
                 .glassFrost(colors, sheetShape, LocalHazeContent.current)
-                .border(1.dp, colors.glassBorder, sheetShape),
+                .border(1.dp, colors.glassBorder, sheetShape)
+                // 시트 내부 빈 영역 탭이 뒤의 스크림(닫기)으로 새지 않게 소비한다.
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                ) {},
         ) {
             GlassSheen(sheetShape)
             Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
-                // 핸들 — 이 영역을 아래로 드래그하면 시트가 따라 내려가고, 충분히 내리면 닫힌다.
+                // 핸들 — 아래로 드래그하면 시트가 따라 내려가고, 충분히 내리면 닫힌다.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .pointerInput(sheetHeight) {
-                            detectVerticalDragGestures(
-                                onDragEnd = {
-                                    if (sheetHeight > 0 && offsetY.value > sheetHeight * 0.28f) {
-                                        close(onDismiss)
-                                    } else {
-                                        scope.launch {
-                                            offsetY.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = 500f))
-                                        }
-                                    }
-                                },
-                                onDragCancel = {
-                                    scope.launch {
-                                        offsetY.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = 500f))
-                                    }
-                                },
-                            ) { change, dy ->
-                                change.consume()
-                                val target = (offsetY.value + dy).coerceAtLeast(0f)
-                                scope.launch { offsetY.snapTo(target) }
-                            }
-                        }
+                        .then(dragToDismiss)
                         .padding(top = 10.dp, bottom = 6.dp),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -203,7 +211,7 @@ fun SoodalBottomSheet(
                             .background(Color(0xFF12263F).copy(alpha = 0.28f)),
                     )
                 }
-                content(close)
+                content(close, dragToDismiss)
             }
         }
     }

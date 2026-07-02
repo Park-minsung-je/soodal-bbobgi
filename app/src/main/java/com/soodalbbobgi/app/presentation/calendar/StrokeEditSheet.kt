@@ -126,24 +126,29 @@ fun StrokeEditSheet(
     val values = listOf(medley, free, breast, back, fly, kick)
 
     // 글래스+블러+예측 뒤로가기(슬라이드-다운)는 공용 시트가 담당한다.
-    SoodalBottomSheet(onDismiss = onDismiss) { close ->
+    SoodalBottomSheet(onDismiss = onDismiss) { close, dragModifier ->
         // 콘텐츠가 길어도 화면을 넘지 않게 제한 — 넘치면 내부 스크롤.
         val maxSheetHeight = LocalConfiguration.current.screenHeightDp.dp * 0.85f
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = maxSheetHeight)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp)
-                .padding(bottom = 18.dp),
-        ) {
-            // 헤더
-            Text("기록 수정", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = SheetTxt1)
-            Spacer(Modifier.height(2.dp))
-            Text(dateLabel, fontSize = 11.sp, color = SheetTxt3)
-
-            Spacer(Modifier.height(14.dp))
-
+        Column(Modifier.fillMaxWidth().heightIn(max = maxSheetHeight)) {
+            // 헤더 — 스크롤 밖 고정. 거리/시간 섹션 직전까지 드래그로 닫기 가능.
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(dragModifier)
+                    .padding(horizontal = 18.dp),
+            ) {
+                Text("기록 수정", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = SheetTxt1)
+                Spacer(Modifier.height(2.dp))
+                Text(dateLabel, fontSize = 11.sp, color = SheetTxt3)
+                Spacer(Modifier.height(14.dp))
+            }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 18.dp)
+                    .padding(bottom = 18.dp),
+            ) {
             // 거리 / 시간 — 표시 전용
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 ReadonlyField(Modifier.weight(1f), "거리", formatNumberLocal(data.distanceM), "m", SheetBlue)
@@ -209,6 +214,7 @@ fun StrokeEditSheet(
             ) {
                 Text("저장", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, letterSpacing = 0.3.sp)
             }
+            } // 스크롤 콘텐츠 Column
         }
     }
 }

@@ -24,7 +24,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -50,7 +49,6 @@ import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
 import com.soodalbbobgi.app.core.ui.SoodalBottomSheet
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
-import com.soodalbbobgi.app.core.util.minutesBetween
 import com.soodalbbobgi.app.core.util.parseTimeDigits
 import java.time.LocalTime
 
@@ -72,6 +70,7 @@ data class ManualEntryInput(
     val durationMin: Int,
     val calories: Int?,
     val maxHr: Int?,
+    val avgHr: Int?,
     val minHr: Int?,
     val startTime: LocalTime? = null,
     val freeM: Int = 0,
@@ -98,12 +97,10 @@ fun ManualEntrySheet(
     // 필드 상태는 시트 레벨에 둬 단계를 오가도 입력이 유지된다.
     var distanceText by remember { mutableStateOf("") }
     var durationText by remember { mutableStateOf("") }
-    // 시작/종료를 모두 입력하면 시간이 자동 계산된다 — 사용자가 직접 고치면 자동 갱신을 멈춘다.
-    var durationEdited by remember { mutableStateOf(false) }
     var startText by remember { mutableStateOf("") }
-    var endText by remember { mutableStateOf("") }
     var kcalText by remember { mutableStateOf("") }
     var maxHrText by remember { mutableStateOf("") }
+    var avgHrText by remember { mutableStateOf("") }
     var minHrText by remember { mutableStateOf("") }
     var freeText by remember { mutableStateOf("") }
     var breastText by remember { mutableStateOf("") }
@@ -116,27 +113,18 @@ fun ManualEntrySheet(
     val duration = durationText.toIntOrNull() ?: 0
     val kcal = kcalText.toIntOrNull()
     val maxHr = maxHrText.toIntOrNull()
+    val avgHr = avgHrText.toIntOrNull()
     val minHr = minHrText.toIntOrNull()
     val startTime = parseTimeDigits(startText)
-    val endTime = parseTimeDigits(endText)
 
-    // 시작+종료가 모두 유효하면 경과 분을 시간 칸에 자동 반영 (직접 수정 전까지만).
-    LaunchedEffect(startText, endText) {
-        if (!durationEdited && startTime != null && endTime != null) {
-            minutesBetween(startTime, endTime)?.let { durationText = it.coerceAtMost(600).toString() }
-        }
-    }
-
+    // 심박은 각각 범위 안이어야 하고, 함께 입력되면 최소 ≤ 평균 ≤ 최대 순서를 지켜야 한다.
     val hrValid = (maxHr == null || maxHr in 40..240) &&
+        (avgHr == null || avgHr in 30..230) &&
         (minHr == null || minHr in 30..220) &&
-        (maxHr == null || minHr == null || minHr <= maxHr)
-    // 종료만 입력하거나 순서가 뒤집히면 무효. 시작만 입력은 허용(그 시각으로 기록).
-    val timeValid = when {
-        startText.isEmpty() && endText.isEmpty() -> true
-        startText.isNotEmpty() && endText.isEmpty() -> startTime != null
-        startText.isEmpty() -> false
-        else -> startTime != null && endTime != null && minutesBetween(startTime, endTime) != null
-    }
+        (maxHr == null || minHr == null || minHr <= maxHr) &&
+        (maxHr == null || avgHr == null || avgHr <= maxHr) &&
+        (minHr == null || avgHr == null || minHr <= avgHr)
+    val timeValid = startText.isEmpty() || startTime != null
     val free = freeText.toIntOrNull() ?: 0
     val breast = breastText.toIntOrNull() ?: 0
     val back = backText.toIntOrNull() ?: 0
@@ -148,13 +136,13 @@ fun ManualEntrySheet(
     val valid = distance in 25..30000 && duration in 1..600 &&
         (kcal == null || kcal in 1..5000) && hrValid && timeValid && strokesValid
 
-    SoodalBottomSheet(onDismiss = onDismiss) { close ->
+    SoodalBottomSheet(onDismiss = onDismiss) { close, dragModifier ->
         val submit = {
             close {
                 onSubmit(
                     ManualEntryInput(
                         distanceM = distance, durationMin = duration,
-                        calories = kcal, maxHr = maxHr, minHr = minHr,
+                        calories = kcal, maxHr = maxHr, avgHr = avgHr, minHr = minHr,
                         startTime = startTime,
                         freeM = free, breastM = breast, backM = back, flyM = fly, kickM = kick,
                     ),
@@ -173,23 +161,24 @@ fun ManualEntrySheet(
             Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
                 if (s == 1) {
                     StepBasics(
+                        dragModifier = dragModifier,
                         dateLabel = dateLabel,
                         distanceText = distanceText, onDistance = { distanceText = it },
-                        durationText = durationText,
-                        onDuration = { durationText = it; durationEdited = it.isNotEmpty() },
+                        durationText = durationText, onDuration = { durationText = it },
                         startText = startText, onStart = { startText = it },
-                        endText = endText, onEnd = { endText = it },
-                        startValid = startText.isEmpty() || startTime != null,
-                        endValid = endText.isEmpty() || (endTime != null && timeValid),
+                        startValid = timeValid,
                         kcalText = kcalText, onKcal = { kcalText = it },
                         maxHrText = maxHrText, onMaxHr = { maxHrText = it },
+                        avgHrText = avgHrText, onAvgHr = { avgHrText = it },
                         minHrText = minHrText, onMinHr = { minHrText = it },
+                        hrValid = hrValid,
                         valid = valid,
                         onStrokes = { step = 2 },
                         onRegister = submit,
                     )
                 } else {
                     StepStrokes(
+                        dragModifier = dragModifier,
                         distance = distance,
                         freeText = freeText, onFree = { freeText = it },
                         breastText = breastText, onBreast = { breastText = it },
@@ -207,33 +196,36 @@ fun ManualEntrySheet(
     }
 }
 
-/** 1단계 — 거리/시간(필수), 시작·종료 시각/칼로리/심박(선택). */
+/** 1단계 — 총 거리/운동 시간(필수), 시작 시각/칼로리/최대·평균·최소 심박(선택). */
 @Composable
 private fun StepBasics(
+    dragModifier: Modifier,
     dateLabel: String?,
     distanceText: String, onDistance: (String) -> Unit,
     durationText: String, onDuration: (String) -> Unit,
     startText: String, onStart: (String) -> Unit,
-    endText: String, onEnd: (String) -> Unit,
     startValid: Boolean,
-    endValid: Boolean,
     kcalText: String, onKcal: (String) -> Unit,
     maxHrText: String, onMaxHr: (String) -> Unit,
+    avgHrText: String, onAvgHr: (String) -> Unit,
     minHrText: String, onMinHr: (String) -> Unit,
+    hrValid: Boolean,
     valid: Boolean,
     onStrokes: () -> Unit,
     onRegister: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
-        Spacer(Modifier.height(4.dp))
-        Text("직접 기록", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = FieldTxt1)
-        Spacer(Modifier.height(2.dp))
-        Text("${dateLabel ?: "오늘"} 수영한 기록을 입력해 주세요", fontSize = 11.sp, color = FieldTxt3)
-
-        Spacer(Modifier.height(16.dp))
+        // 헤더 — 첫 입력 섹션 직전까지 드래그로 닫기 가능.
+        Column(Modifier.fillMaxWidth().then(dragModifier)) {
+            Spacer(Modifier.height(4.dp))
+            Text("직접 기록", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = FieldTxt1)
+            Spacer(Modifier.height(2.dp))
+            Text("${dateLabel ?: "오늘"} 수영한 기록을 입력해 주세요", fontSize = 11.sp, color = FieldTxt3)
+            Spacer(Modifier.height(16.dp))
+        }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            NumberField(Modifier.weight(1f), "거리", distanceText, "m", onChange = onDistance)
-            NumberField(Modifier.weight(1f), "시간", durationText, "분", onChange = onDuration)
+            NumberField(Modifier.weight(1f), "총 거리", distanceText, "m", onChange = onDistance)
+            NumberField(Modifier.weight(1f), "운동 시간", durationText, "분", onChange = onDuration)
         }
 
         Spacer(Modifier.height(12.dp))
@@ -241,13 +233,13 @@ private fun StepBasics(
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             TimeField(Modifier.weight(1f), "시작 시각", startText, isError = !startValid, onChange = onStart)
-            TimeField(Modifier.weight(1f), "종료 시각", endText, isError = !endValid, onChange = onEnd)
+            NumberField(Modifier.weight(1f), "칼로리", kcalText, "kcal", onChange = onKcal)
         }
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            NumberField(Modifier.weight(1f), "칼로리", kcalText, "kcal", onChange = onKcal)
-            NumberField(Modifier.weight(1f), "최대 심박", maxHrText, "bpm", onChange = onMaxHr)
-            NumberField(Modifier.weight(1f), "최소 심박", minHrText, "bpm", onChange = onMinHr)
+            NumberField(Modifier.weight(1f), "최대 심박", maxHrText, "bpm", isError = !hrValid && maxHrText.isNotEmpty(), onChange = onMaxHr)
+            NumberField(Modifier.weight(1f), "평균 심박", avgHrText, "bpm", isError = !hrValid && avgHrText.isNotEmpty(), onChange = onAvgHr)
+            NumberField(Modifier.weight(1f), "최소 심박", minHrText, "bpm", isError = !hrValid && minHrText.isNotEmpty(), onChange = onMinHr)
         }
 
         Spacer(Modifier.height(16.dp))
@@ -278,6 +270,7 @@ private fun StepBasics(
 /** 2단계 — 영법별 거리(m). 미입력 잔여분은 혼영으로 자동 배정된다. */
 @Composable
 private fun StepStrokes(
+    dragModifier: Modifier,
     distance: Int,
     freeText: String, onFree: (String) -> Unit,
     breastText: String, onBreast: (String) -> Unit,
@@ -290,29 +283,31 @@ private fun StepStrokes(
     onRegister: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
-        Spacer(Modifier.height(4.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(Color.White)
-                    .border(1.dp, FieldBorder, RoundedCornerShape(9.dp))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onPrev,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                SoodalIcon(icon = SoodalIcons.ArrowLeft, tint = FieldTxt1, size = 13.dp)
+        // 헤더 — 첫 입력 섹션 직전까지 드래그로 닫기 가능 (뒤로 버튼 탭은 그대로 동작).
+        Column(Modifier.fillMaxWidth().then(dragModifier)) {
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(Color.White)
+                        .border(1.dp, FieldBorder, RoundedCornerShape(9.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onPrev,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    SoodalIcon(icon = SoodalIcons.ArrowLeft, tint = FieldTxt1, size = 13.dp)
+                }
+                Text("영법 구성", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = FieldTxt1)
             }
-            Text("영법 구성", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = FieldTxt1)
+            Spacer(Modifier.height(2.dp))
+            Text("입력하지 않은 거리는 혼영으로 등록돼요", fontSize = 11.sp, color = FieldTxt3)
+            Spacer(Modifier.height(16.dp))
         }
-        Spacer(Modifier.height(2.dp))
-        Text("입력하지 않은 거리는 혼영으로 등록돼요", fontSize = 11.sp, color = FieldTxt3)
-
-        Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             NumberField(Modifier.weight(1f), "자유형", freeText, "m", onChange = onFree)
             NumberField(Modifier.weight(1f), "평영", breastText, "m", onChange = onBreast)
