@@ -44,12 +44,15 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.ui.AssetImage
 import com.soodalbbobgi.app.core.ui.ButtonStyle
 import com.soodalbbobgi.app.core.ui.ChipColor
-import com.soodalbbobgi.app.core.ui.DimTabBarWhileVisible
+import com.soodalbbobgi.app.core.ui.GlassSheen
 import com.soodalbbobgi.app.core.ui.GradeBadge
+import com.soodalbbobgi.app.core.ui.LocalHazeContent
 import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalChip
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
+import com.soodalbbobgi.app.core.ui.glassFrost
+import com.soodalbbobgi.app.core.ui.glassShadow
 import com.soodalbbobgi.app.core.ui.motion.rememberPopupEnter
 import com.soodalbbobgi.app.domain.model.Grade
 
@@ -96,15 +99,17 @@ fun GachaResultOverlay(
     if (results.isEmpty()) return
     val colors = SoodalDesign.colors
     val p = rememberPopupEnter()
-    // 탭바 dim이 이 오버레이의 등장 스크림과 같은 박자로 움직이도록 진행도를 그대로 전달
-    DimTabBarWhileVisible(alpha = p)
+    // (탭바 dim 불필요 — 오버레이 레이어로 호이스팅되어 스크림이 탭바까지 직접 덮는다)
+
+    // 백키 = 결과 팝업 닫기 우선.
+    androidx.activity.compose.BackHandler { onClose() }
 
     var index by remember(results) { mutableIntStateOf(0) }
     var showAll by remember(results) { mutableStateOf(false) }
 
     Box(
         Modifier.fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.72f * p))
+            .background(Color.Black.copy(alpha = 0.45f * p))
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}),
         contentAlignment = Alignment.Center,
     ) {
@@ -154,15 +159,16 @@ private fun ResultSingle(
     )
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        // 모달 프레임 — 등급색 링 대신 공통 글래스 테두리(흰 하이라이트). 내부 배경은 화려하게 유지.
+        // 모달 프레임 — 공통 글래스: 뒤 콘텐츠 프로스트(블러) + 흰 하이라이트 보더 + 상단 sheen.
+        val panelShape = RoundedCornerShape(24.dp)
         Box(
             Modifier.padding(horizontal = 28.dp).fillMaxWidth()
-                .shadow(16.dp, RoundedCornerShape(24.dp), ambientColor = glow, spotColor = glow)
-                .clip(RoundedCornerShape(24.dp))
-                .drawBehind { drawRect(colors.gradCard) }
-                .border(1.dp, colors.glassBorder, RoundedCornerShape(24.dp))
-                .padding(28.dp, 24.dp),
+                .glassShadow(24.dp, colors)
+                .glassFrost(colors, panelShape, LocalHazeContent.current)
+                .border(1.dp, colors.glassBorder, panelShape),
         ) {
+            GlassSheen(panelShape)
+            Box(Modifier.padding(28.dp, 24.dp)) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 if (results.size > 1) {
                     Text(
@@ -224,13 +230,15 @@ private fun ResultSingle(
                     if (!isLast && results.size > 1) {
                         SoodalButton("다음 →", onClick = onNext, style = ButtonStyle.Primary, modifier = Modifier.weight(1f))
                     } else {
-                        SoodalButton("계속", onClick = onClose, style = ButtonStyle.Secondary, modifier = Modifier.weight(1f))
+                        // 단발도 10연의 '다음'과 동일한 밝은 Primary — 적용은 퍼플로 구분.
+                        SoodalButton("계속", onClick = onClose, style = ButtonStyle.Primary, modifier = Modifier.weight(1f))
                         if (item.kind == "char" && onApplyProfile != null) {
-                            SoodalButton("프로필 적용", onClick = onApplyProfile, style = ButtonStyle.Primary, modifier = Modifier.weight(1f))
+                            SoodalButton("프로필 적용", onClick = onApplyProfile, style = ButtonStyle.Purple, modifier = Modifier.weight(1f))
                         }
                     }
                 }
             }
+            } // 패널 패딩 Box
         }
 
         if (!isLast && results.size > 1) {
@@ -247,13 +255,17 @@ private fun ResultGrid(
     onClose: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
-    Column(
+    // 단발 보기와 동일한 글래스 프레임 (프로스트 + 보더 + sheen).
+    val panelShape = RoundedCornerShape(24.dp)
+    Box(
         Modifier.padding(horizontal = 24.dp).fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .drawBehind { drawRect(colors.gradCard) }
-            // 공통 글래스 테두리 — 단발 보기와 동일 프레임.
-            .border(1.dp, colors.glassBorder, RoundedCornerShape(24.dp))
-            .padding(20.dp),
+            .glassShadow(24.dp, colors)
+            .glassFrost(colors, panelShape, LocalHazeContent.current)
+            .border(1.dp, colors.glassBorder, panelShape),
+    ) {
+    GlassSheen(panelShape)
+    Column(
+        Modifier.fillMaxWidth().padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text("전체 결과 (${results.size}개)", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
@@ -276,6 +288,7 @@ private fun ResultGrid(
         Spacer(Modifier.height(16.dp))
         SoodalButton("계속", onClick = onClose, style = ButtonStyle.Primary, modifier = Modifier.fillMaxWidth())
     }
+    } // 글래스 프레임 Box
 }
 
 /** 그리드 셀 1개. */

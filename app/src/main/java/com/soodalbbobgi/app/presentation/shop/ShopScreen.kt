@@ -26,10 +26,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -42,10 +42,14 @@ import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.AssetImage
 import com.soodalbbobgi.app.core.ui.ButtonStyle
 import com.soodalbbobgi.app.core.ui.GlassCurrencyChip
-import com.soodalbbobgi.app.core.ui.DimTabBarWhileVisible
+import com.soodalbbobgi.app.core.ui.AppOverlay
 import com.soodalbbobgi.app.core.ui.GradeBadge
 import com.soodalbbobgi.app.core.ui.SoodalButton
+import com.soodalbbobgi.app.core.ui.GlassSheen
+import com.soodalbbobgi.app.core.ui.LocalHazeContent
 import com.soodalbbobgi.app.core.ui.SoodalCard
+import com.soodalbbobgi.app.core.ui.glassFrost
+import com.soodalbbobgi.app.core.ui.glassShadow
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.TabBarClearance
@@ -61,13 +65,10 @@ fun ShopScreen(
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
 
-    // 구매 확인/박스 결과 팝업이 떠 있는 동안 뒤 콘텐츠 블러 (API 31+, 미만은 자동 무시).
-    val popupOpen = state.confirmItem != null || state.boxResults.isNotEmpty()
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (popupOpen) Modifier.blur(18.dp) else Modifier)
                 // 헤더가 고정인 화면 — 루트에서 상태바 인셋 처리.
                 .statusBarsPadding(),
         ) {
@@ -183,22 +184,29 @@ fun ShopScreen(
             }
         }
 
-        // -- Purchase Confirm Modal --
+        // -- Purchase Confirm Modal (오버레이 레이어로 호이스팅) --
+        // 호스트 렌더가 화면 리컴포지션보다 먼저 돌 수 있으므로 !! 금지 — null이면 그리지 않는다.
         if (state.confirmItem != null) {
-            PurchaseConfirmOverlay(
-                item = state.confirmItem!!,
-                pearls = state.pearls,
-                onCancel = { viewModel.cancelPurchase() },
-                onConfirm = { viewModel.confirmPurchase() },
-            )
+            AppOverlay {
+                state.confirmItem?.let { item ->
+                    PurchaseConfirmOverlay(
+                        item = item,
+                        pearls = state.pearls,
+                        onCancel = { viewModel.cancelPurchase() },
+                        onConfirm = { viewModel.confirmPurchase() },
+                    )
+                }
+            }
         }
 
-        // -- Box Purchase Result Overlay (뽑기 결과 모달 재사용) --
+        // -- Box Purchase Result Overlay (뽑기 결과 모달 재사용, 오버레이 레이어) --
         if (state.boxResults.isNotEmpty()) {
-            GachaResultOverlay(
-                results = state.boxResults,
-                onClose = { viewModel.dismissBoxResults() },
-            )
+            AppOverlay {
+                GachaResultOverlay(
+                    results = state.boxResults,
+                    onClose = { viewModel.dismissBoxResults() },
+                )
+            }
         }
     }
 }
@@ -404,13 +412,15 @@ private fun PurchaseConfirmOverlay(
     val spacing = SoodalDesign.spacing
     val canAfford = pearls >= item.price
     val p = rememberPopupEnter()
-    // 탭바 dim이 이 팝업의 등장 스크림과 같은 박자로 움직이도록 진행도를 그대로 전달
-    DimTabBarWhileVisible(alpha = p)
+    // (탭바 dim 불필요 — 오버레이 레이어로 호이스팅되어 스크림이 탭바까지 직접 덮는다)
+
+    // 백키 = 구매 확인 닫기(취소) 우선.
+    androidx.activity.compose.BackHandler { onCancel() }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.7f * p))
+            .background(Color.Black.copy(alpha = 0.45f * p))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -418,7 +428,10 @@ private fun PurchaseConfirmOverlay(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        SoodalCard(
+        // 글래스 패널 — 다른 팝업과 동일: 콘텐츠 프로스트 + 보더 + sheen.
+        // 등장: 뽑기 팝업과 동일 (graphicsLayer scale 0.9→1 + alpha).
+        val panelShape = RoundedCornerShape(24.dp)
+        Box(
             modifier = Modifier
                 .padding(horizontal = 32.dp)
                 .fillMaxWidth()
@@ -426,10 +439,14 @@ private fun PurchaseConfirmOverlay(
                     scaleX = 0.9f + 0.1f * p
                     scaleY = 0.9f + 0.1f * p
                     alpha = p
-                },
+                }
+                .glassShadow(24.dp, colors)
+                .glassFrost(colors, panelShape, LocalHazeContent.current)
+                .border(1.dp, colors.glassBorder, panelShape),
         ) {
+            GlassSheen(panelShape)
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
@@ -516,6 +533,8 @@ private fun PurchaseConfirmOverlay(
                         text = "취소",
                         onClick = onCancel,
                         style = ButtonStyle.Secondary,
+                        // 흰 프로스트 패널 위 대비 — 불투명 흰색 + 잉크 테두리 (뽑기 '계속'과 같은 룩).
+                        backgroundOverride = androidx.compose.ui.graphics.SolidColor(Color.White),
                         modifier = Modifier.weight(1f),
                         // 구매 버튼(Purple 기본 52dp)과 시각적 높이를 맞춘다
                         heightOverride = 52.dp,

@@ -25,13 +25,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.ui.ButtonStyle
+import com.soodalbbobgi.app.core.ui.GlassSheen
+import com.soodalbbobgi.app.core.ui.LocalHazeContent
 import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalTextField
+import com.soodalbbobgi.app.core.ui.glassFrost
 
 /**
  * 닉네임 변경 다이얼로그 — 입력 + 검증/서버 에러 인라인 표시.
@@ -199,10 +203,14 @@ private fun DialogScrim(
     content: @Composable () -> Unit,
 ) {
     val colors = SoodalDesign.colors
+    // 백키 = 다이얼로그 닫기 우선.
+    androidx.activity.compose.BackHandler { onDismiss() }
+    // 뽑기 팝업과 동일한 등장 (스크림 페이드 + 패널 스케일 0.9→1).
+    val p = com.soodalbbobgi.app.core.ui.motion.rememberPopupEnter()
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.55f))
+            .background(Color.Black.copy(alpha = 0.45f * p))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -211,22 +219,29 @@ private fun DialogScrim(
             .padding(28.dp),
         contentAlignment = Alignment.Center,
     ) {
-        // 글래스 패널 — 뒤 콘텐츠 블러 + 반투명 화이트 + 흰 하이라이트 보더 (프로스트 팝업).
-        Column(
+        // 글래스 패널 — 콘텐츠 프로스트(블러) + 흰 하이라이트 보더 + 상단 sheen (프로스트 팝업).
+        val panelShape = RoundedCornerShape(20.dp)
+        Box(
             modifier = Modifier
                 .widthIn(max = 340.dp)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(if (colors.isDark) colors.surface2.copy(alpha = 0.92f) else Color.White.copy(alpha = 0.80f))
-                .border(1.dp, colors.glassBorder, RoundedCornerShape(20.dp))
+                .graphicsLayer {
+                    scaleX = 0.9f + 0.1f * p
+                    scaleY = 0.9f + 0.1f * p
+                    alpha = p
+                }
+                .glassFrost(colors, panelShape, LocalHazeContent.current)
+                .border(1.dp, colors.glassBorder, panelShape)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = {}, // 카드 내부 탭이 스크림 닫기로 전파되는 것 차단
-                )
-                .padding(22.dp),
+                ),
         ) {
-            content()
+            GlassSheen(panelShape)
+            Column(Modifier.padding(22.dp)) {
+                content()
+            }
         }
     }
 }

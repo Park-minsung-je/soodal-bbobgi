@@ -44,7 +44,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
@@ -73,6 +72,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.R
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
+import com.soodalbbobgi.app.core.ui.AppOverlay
 import com.soodalbbobgi.app.core.ui.AssetImage
 import com.soodalbbobgi.app.core.ui.GlassCurrencyChip
 import com.soodalbbobgi.app.core.ui.SoodalIcon
@@ -107,16 +107,9 @@ fun GachaScreen(
     val boxes by viewModel.boxes.collectAsState()
     val colors = SoodalDesign.colors
 
-    // 결과 팝업이 떠 있는 동안 뒤 콘텐츠를 블러 처리 (API 31+, 미만은 자동 무시 — dim만 유지).
-    val resultOpen = state.phase == GachaPhase.Result && state.results.isNotEmpty()
     Box(Modifier.fillMaxSize()) {
         // 헤더가 고정인 화면 — 루트에서 상태바 인셋 처리.
-        Column(
-            Modifier
-                .fillMaxSize()
-                .then(if (resultOpen) Modifier.blur(18.dp) else Modifier)
-                .statusBarsPadding(),
-        ) {
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
             Column(
                 Modifier
                     .fillMaxSize()
@@ -204,12 +197,14 @@ fun GachaScreen(
             }
         }
 
-        // -- Result Modal (공용 오버레이: 인덱스/전체보기 내부 관리) --
+        // -- Result Modal (오버레이 레이어로 호이스팅 — 스크림이 탭바까지 덮는다) --
         if (state.phase == GachaPhase.Result && state.results.isNotEmpty()) {
-            GachaResultOverlay(
-                results = state.results,
-                onClose = { viewModel.closeResults() },
-            )
+            AppOverlay {
+                GachaResultOverlay(
+                    results = state.results,
+                    onClose = { viewModel.closeResults() },
+                )
+            }
         }
     }
 }

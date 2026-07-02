@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -40,9 +41,11 @@ fun SoodalButton(
     style: ButtonStyle = ButtonStyle.Primary,
     enabled: Boolean = true,
     heightOverride: Dp? = null,
+    /** 스타일 기본 배경 대신 쓸 채움 — 흰 패널 위 Secondary처럼 배경 대비가 필요할 때. */
+    backgroundOverride: Brush? = null,
 ) {
     val colors = SoodalDesign.colors
-    val background = when (style) {
+    val background = backgroundOverride ?: when (style) {
         ButtonStyle.Primary -> colors.gradBlue
         ButtonStyle.Gold -> colors.gradGold
         ButtonStyle.Purple -> colors.gradPurple
@@ -75,6 +78,10 @@ fun SoodalButton(
     } else Modifier
 
     val bgModifier = when {
+        // Secondary + 오버라이드: 채움을 바꿔도 테두리는 유지 (흰 패널 위 대비용).
+        background != null && style == ButtonStyle.Secondary -> Modifier
+            .background(background, shape)
+            .border(1.dp, colors.inputBorder, shape)
         background != null -> Modifier.background(background, shape)
         style == ButtonStyle.Secondary -> Modifier
             .background(colors.glassBg, shape)

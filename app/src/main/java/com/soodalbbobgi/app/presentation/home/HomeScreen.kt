@@ -37,7 +37,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -61,6 +60,7 @@ import com.soodalbbobgi.app.core.ui.GlassCurrencyChip
 import com.soodalbbobgi.app.core.ui.GlassSheen
 import com.soodalbbobgi.app.core.ui.glass
 import com.soodalbbobgi.app.core.ui.SoodalCard
+import com.soodalbbobgi.app.core.ui.AppOverlay
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.TabBarClearance
 import com.soodalbbobgi.app.core.ui.SoodalIcon
@@ -137,13 +137,9 @@ fun HomeScreen(
     }
 
     // 헤더가 고정인 화면 — 루트에서 상태바 인셋 처리 (콘텐츠는 헤더 경계에서 페이드).
-    // 조개 보상 팝업이 떠 있는 동안 뒤 콘텐츠 블러 (API 31+, 미만은 자동 무시).
-    val shellPopupOpen = shellReward > 0
     Box(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .then(if (shellPopupOpen) Modifier.blur(18.dp) else Modifier),
+        modifier = Modifier.fillMaxSize(),
     ) {
         // ── 상단 고정 바 ─────────────────────────────────────
         // 통화 칩(조개·진주) + 조건부 연속 스트릭 · 우측 편집/설정 (디자인 v3.0 상단바).
@@ -347,69 +343,77 @@ fun HomeScreen(
         }
     }
 
-    // ── 조개 획득 팝업 ──────────────────────────────────────
+    // ── 조개 획득 팝업 (오버레이 레이어로 호이스팅 — 패널이 뒤 콘텐츠를 진짜 블러) ──
     if (shellReward > 0) {
-        ShellRewardPopup(
-            shellCount = shellReward,
-            distanceM = state.todayDistanceM.takeIf { it > 0 },
-            durationMin = state.todayDurationMin.takeIf { it > 0 },
-            onEditStrokes = state.todaySessions.lastOrNull()?.let { s ->
-                { viewModel.clearShellReward(); editToday = s }
-            },
-            onDismiss = { viewModel.clearShellReward() },
-        )
+        AppOverlay {
+            ShellRewardPopup(
+                shellCount = shellReward,
+                distanceM = state.todayDistanceM.takeIf { it > 0 },
+                durationMin = state.todayDurationMin.takeIf { it > 0 },
+                onEditStrokes = state.todaySessions.lastOrNull()?.let { s ->
+                    { viewModel.clearShellReward(); editToday = s }
+                },
+                onDismiss = { viewModel.clearShellReward() },
+            )
+        }
     }
 
     // ── 오늘 기록 영법 수정 시트 ─────────────────────────────
     editToday?.let { session ->
-        StrokeEditSheet(
-            dateLabel = "오늘",
-            data = session,
-            onDismiss = { editToday = null },
-            onSave = { free, breast, back, fly, kick, mixed ->
-                viewModel.saveStrokes(session.logId, free, breast, back, fly, kick, mixed)
-                editToday = null
-            },
-        )
+        AppOverlay {
+            StrokeEditSheet(
+                dateLabel = "오늘",
+                data = session,
+                onDismiss = { editToday = null },
+                onSave = { free, breast, back, fly, kick, mixed ->
+                    viewModel.saveStrokes(session.logId, free, breast, back, fly, kick, mixed)
+                    editToday = null
+                },
+            )
+        }
     }
 
-    // -- 편집 중 시트 밖 영역 터치 차단 (딤 없는 투명 차단막) --
-    if (editorOpen) {
-        Box(
-            Modifier
+    // -- 프로필 편집 시트 (오버레이 레이어 — 시트 표면이 뒤 홈 콘텐츠를 진짜 블러) --
+    // 차단막과 시트를 한 오버레이로 묶어 차단막이 시트 '아래'에 깔리게 한다 (분리하면 터치를 먹는다).
+    AppOverlay {
+        if (editorOpen) {
+            // 시트 밖 영역 터치 차단 (딤 없는 투명 차단막)
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {},
+                    ),
+            )
+        }
+        AnimatedVisibility(
+            visible = editorOpen,
+            enter = slideInVertically(
+                animationSpec = tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized),
+            ) { it } + fadeIn(),
+            exit = slideOutVertically(
+                animationSpec = tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized),
+            ) { it } + fadeOut(),
+            modifier = Modifier
                 .fillMaxSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {},
-                ),
-        )
-    }
-
-    // -- 프로필 편집 시트 (하단 오버레이) --
-    AnimatedVisibility(
-        visible = editorOpen,
-        enter = slideInVertically(
-            animationSpec = tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized),
-        ) { it } + fadeIn(),
-        exit = slideOutVertically(
-            animationSpec = tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized),
-        ) { it } + fadeOut(),
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(top = sheetTopDp.dp),
-    ) {
-        EditorSheet(
-            state = editorState,
-            vm = editorVm,
-            isOpen = editorOpen,
-            onApply = { editorVm.save() },
-            onDismiss = {
-                editorVm.resetToSaved()
-                onEditorOpenChange(false)
-            },
-            modifier = Modifier.fillMaxSize(),
-        )
+                // 오버레이 레이어엔 상태바 패딩이 없으므로 여기서 직접 적용해 홈 좌표계와 맞춘다.
+                .statusBarsPadding()
+                .padding(top = sheetTopDp.dp),
+        ) {
+            EditorSheet(
+                state = editorState,
+                vm = editorVm,
+                isOpen = editorOpen,
+                onApply = { editorVm.save() },
+                onDismiss = {
+                    editorVm.resetToSaved()
+                    onEditorOpenChange(false)
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
     } // Box
 }

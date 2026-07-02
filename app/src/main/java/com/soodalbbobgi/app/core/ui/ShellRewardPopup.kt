@@ -41,6 +41,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -72,20 +73,24 @@ fun ShellRewardPopup(
     onDismiss: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
-    var visible by remember { mutableStateOf(true) }
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
 
-    val scale by animateFloatAsState(
-        targetValue = if (visible) 1f else 0.3f,
-        animationSpec = spring(dampingRatio = 0.5f, stiffness = 300f),
-        label = "popup-scale",
+    // 뽑기 팝업 계열 등장 — 보상 팝업답게 조금 더 크게 튀어오르는 스프링 (0.82→1, 살짝 오버슈트).
+    val p by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = spring(dampingRatio = 0.62f, stiffness = 380f),
+        label = "popup-enter",
     )
     val bgAlpha by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
         animationSpec = tween(300),
         label = "popup-alpha",
     )
-    // 탭바 dim이 이 팝업 스크림과 같은 박자로 페이드 인/아웃하도록 진행도를 그대로 전달
-    DimTabBarWhileVisible(alpha = bgAlpha)
+    // (탭바 dim 불필요 — 오버레이 레이어로 호이스팅되어 스크림이 탭바까지 직접 덮는다)
+
+    // 백키 = 팝업 닫기 우선 (오버레이가 화면보다 나중에 컴포즈되므로 이 핸들러가 우선한다).
+    androidx.activity.compose.BackHandler { visible = false; onDismiss() }
 
     LaunchedEffect(Unit) {
         delay(2600)
@@ -97,7 +102,7 @@ fun ShellRewardPopup(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.55f * bgAlpha))
+            .background(Color.Black.copy(alpha = 0.45f * bgAlpha))
             .alpha(bgAlpha)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -110,21 +115,26 @@ fun ShellRewardPopup(
             .padding(20.dp),
         contentAlignment = Alignment.Center,
     ) {
-        // 글래스 패널 — 뒤 콘텐츠가 블러된 상태에서 반투명 화이트가 프로스트로 읽힌다.
-        Column(
+        // 글래스 패널 — 뒤 콘텐츠 프로스트(블러) + 흰 하이라이트 보더 + 상단 sheen.
+        // 등장: 뽑기 팝업과 동일 (graphicsLayer scale 0.9→1 + alpha).
+        val panelShape = RoundedCornerShape(24.dp)
+        Box(
             modifier = Modifier
                 .widthIn(max = 380.dp)
                 .fillMaxWidth()
-                .scale(scale)
-                .shadow(
-                    elevation = 24.dp,
-                    shape = RoundedCornerShape(24.dp),
-                    ambientColor = colors.accentGold.copy(alpha = 0.45f),
-                    spotColor = colors.accentGold.copy(alpha = 0.45f),
-                )
-                .clip(RoundedCornerShape(24.dp))
-                .background(if (colors.isDark) colors.surface2.copy(alpha = 0.92f) else Color.White.copy(alpha = 0.80f))
-                .border(1.dp, colors.glassBorder, RoundedCornerShape(24.dp))
+                .graphicsLayer {
+                    scaleX = 0.82f + 0.18f * p
+                    scaleY = 0.82f + 0.18f * p
+                    alpha = p.coerceIn(0f, 1f)
+                }
+                .glassShadow(24.dp, colors)
+                .glassFrost(colors, panelShape, LocalHazeContent.current)
+                .border(1.dp, colors.glassBorder, panelShape),
+        ) {
+        GlassSheen(panelShape)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
                 .padding(start = 22.dp, end = 22.dp, top = 20.dp, bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -210,6 +220,7 @@ fun ShellRewardPopup(
             Spacer(Modifier.height(10.dp))
             Text("탭하면 닫혀요", fontSize = 11.sp, color = colors.textTertiary, letterSpacing = 0.3.sp)
         }
+        } // 글래스 패널 Box
     }
 }
 

@@ -66,6 +66,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
+import com.soodalbbobgi.app.core.ui.AppOverlay
 import com.soodalbbobgi.app.core.ui.GlassBox
 import com.soodalbbobgi.app.core.ui.GlassCorner
 import com.soodalbbobgi.app.core.ui.GlassSheen
@@ -257,19 +258,21 @@ fun CalendarScreen(
             Spacer(Modifier.height(TabBarClearance))
         }
 
-        // ── 기록 수정 바텀시트 (세션 단위) ──────────────────
+        // ── 기록 수정 바텀시트 (세션 단위, 오버레이 레이어로 호이스팅) ──────────────────
         val target = editTarget
         if (target != null) {
             val (day, session) = target
-            StrokeEditSheet(
-                dateLabel = "${state.year}년 ${monthNames[state.month - 1]} ${day}일",
-                data = session,
-                onDismiss = { editTarget = null },
-                onSave = { free, breast, back, fly, kick, mixed ->
-                    viewModel.saveStrokes(day, session.logId, free, breast, back, fly, kick, mixed)
-                    editTarget = null
-                },
-            )
+            AppOverlay {
+                StrokeEditSheet(
+                    dateLabel = "${state.year}년 ${monthNames[state.month - 1]} ${day}일",
+                    data = session,
+                    onDismiss = { editTarget = null },
+                    onSave = { free, breast, back, fly, kick, mixed ->
+                        viewModel.saveStrokes(day, session.logId, free, breast, back, fly, kick, mixed)
+                        editTarget = null
+                    },
+                )
+            }
         }
     }
 }

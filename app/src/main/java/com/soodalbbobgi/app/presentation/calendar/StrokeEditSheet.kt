@@ -59,7 +59,11 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
+import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.StrokePalette
+import com.soodalbbobgi.app.core.ui.GlassSheen
+import com.soodalbbobgi.app.core.ui.LocalHazeContent
+import com.soodalbbobgi.app.core.ui.glassFrost
 import kotlinx.coroutines.launch
 
 // 시트는 항상 화이트(라이트) — 앱 테마와 무관하게 디자인 고정값 사용.
@@ -129,13 +133,25 @@ fun StrokeEditSheet(
     // EDIT_STROKES 순서와 동일: 혼영(잔여)이 맨 앞.
     val values = listOf(medley, free, breast, back, fly, kick)
 
+    // 글래스+블러 시트 — 컨테이너는 투명으로 두고 표면을 직접 프로스트로 그린다.
+    val sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    val glassColors = SoodalDesign.colors
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color.White,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        dragHandle = { SheetHandle() },
+        containerColor = Color.Transparent,
+        shape = sheetShape,
+        dragHandle = null,
     ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .glassFrost(glassColors, sheetShape, LocalHazeContent.current)
+                .border(1.dp, glassColors.glassBorder, sheetShape),
+        ) {
+        GlassSheen(sheetShape)
+        Column(Modifier.fillMaxWidth()) {
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { SheetHandle() }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -219,6 +235,8 @@ fun StrokeEditSheet(
                 Text("저장", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, letterSpacing = 0.3.sp)
             }
         }
+        } // 내부 Column (핸들 + 콘텐츠)
+        } // 글래스 표면 Box
     }
 }
 

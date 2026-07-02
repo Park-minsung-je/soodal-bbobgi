@@ -31,7 +31,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -46,6 +45,7 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.soodalScreenBackdrop
+import com.soodalbbobgi.app.core.ui.AppOverlay
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
@@ -145,13 +145,10 @@ fun SettingsScreen(
         }
     }
 
-    // 다이얼로그/팝업이 떠 있는 동안 뒤 콘텐츠 블러 (API 31+, 미만은 자동 무시).
-    val popupOpen = dialog != null || devPopup != null
     Box(Modifier.fillMaxSize().soodalScreenBackdrop()) {
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .then(if (popupOpen) Modifier.blur(18.dp) else Modifier),
+            .fillMaxSize(),
     ) {
         Column(
             modifier = Modifier
@@ -386,7 +383,9 @@ fun SettingsScreen(
         }
     }
 
-    // -- 계정 다이얼로그 오버레이 --
+    // -- 계정 다이얼로그 오버레이 (오버레이 레이어로 호이스팅 — 패널이 뒤 콘텐츠를 진짜 블러) --
+    if (dialog != null) {
+        AppOverlay {
     when (dialog) {
         "time" -> ReminderTimeDialog(
             initialHour = reminderTime.first,
@@ -422,8 +421,12 @@ fun SettingsScreen(
             onDismiss = { dialog = null; viewModel.resetAccountAction() },
         )
     }
+        }
+    }
 
-    // -- 개발자 팝업 미리보기 오버레이 (디버그 전용) --
+    // -- 개발자 팝업 미리보기 오버레이 (디버그 전용, 오버레이 레이어) --
+    if (devPopup != null) {
+        AppOverlay {
     when (devPopup) {
         "shell" -> ShellRewardPopup(
             shellCount = 3,
@@ -434,6 +437,8 @@ fun SettingsScreen(
         )
         "gacha1" -> GachaResultOverlay(results = devGachaResults(1), onClose = { devPopup = null })
         "gacha10" -> GachaResultOverlay(results = devGachaResults(10), onClose = { devPopup = null })
+    }
+        }
     }
     }
 }
