@@ -1,4 +1,4 @@
-package com.soodalbbobgi.app.presentation.home
+﻿package com.soodalbbobgi.app.presentation.home
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -52,6 +53,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.ChipColor
+import com.soodalbbobgi.app.core.ui.GlassBox
+import com.soodalbbobgi.app.core.ui.GlassCornerSmall
+import com.soodalbbobgi.app.core.ui.ProfileFrameCorner
+import com.soodalbbobgi.app.core.ui.GlassSheen
+import com.soodalbbobgi.app.core.ui.glass
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.TabBarClearance
@@ -101,7 +107,8 @@ fun HomeScreen(
 
     // 카드 아래 지점(dp) 계산: 위패딩16 + 헤더46 + 간격16 = 78, + 카드 높이, + 카드-시트 간격 8.
     val config = LocalConfiguration.current
-    val cardHeightDp = (config.screenWidthDp - 32f) * 704f / 1472f
+    // 카드는 화면폭-32dp(좌우 16 여백)에서 카드 비율(2752×1536)로 높이가 정해진다.
+    val cardHeightDp = (config.screenWidthDp - 32f) * 1536f / 2752f
     val sheetTopDp = 78f + cardHeightDp + 8f
 
     // 시스템 뒤로가기 → 시트 닫기(취소): 미저장 변경 폐기.
@@ -130,53 +137,40 @@ fun HomeScreen(
     // 헤더가 고정인 화면 — 루트에서 상태바 인셋 처리 (콘텐츠는 헤더 경계에서 페이드).
     Box(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.bgDeep),
+        modifier = Modifier.fillMaxSize(),
     ) {
-        // 상단 고정: 헤더 + 프로필 카드 (스크롤 안 됨)
-        Column(
+        // ── 상단 고정 바 ─────────────────────────────────────
+        // 통화 칩(조개·진주) + 조건부 연속 스트릭 · 우측 편집/설정 (디자인 v3.0 상단바).
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = spacing.s4)
-                .padding(top = spacing.s4),
+                .padding(top = spacing.s4)
+                .height(46.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            // ── Header ──────────────────────────────────────────
-            // 헤더 높이 46dp — 인사말 텍스트에 딱 맞게 줄여 헤더 아래 빈 여백을 최소화한다.
-            // (스크롤 콘텐츠 페이드가 헤더 텍스트 바로 아래에서 시작되게.)
             Row(
-                modifier = Modifier.fillMaxWidth().height(46.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column {
-                    Text(
-                        text = "안녕하세요,",
-                        fontSize = 13.sp,
-                        color = colors.textSecondary,
-                    )
-                    Text(
-                        text = "${state.nickname}님",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = colors.textPrimary,
-                    )
-                }
-                Row(
-                    modifier = Modifier
-                        .clip(SoodalShape.md)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onNavigateToSettings,
-                        )
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                TopCurrencyChip(SoodalIcons.Shell, state.shells.formatNumber(), colors.accentGold)
+                TopCurrencyChip(SoodalIcons.Pearl, state.pearls.formatNumber(), colors.accentPurple)
+                // 연속 스트릭: 값이 있을 때만 등장(애니메이션과 함께).
+                AnimatedVisibility(
+                    visible = state.streak > 0,
+                    enter = fadeIn() + slideInVertically { -it / 2 },
+                    exit = fadeOut() + slideOutVertically { -it / 2 },
                 ) {
-                    SoodalIcon(icon = SoodalIcons.Settings, tint = colors.textSecondary, size = 18.dp)
-                    Text("설정", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
+                    TopStreakChip(state.streak)
                 }
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                GlassIconButton(SoodalIcons.Edit, colors.accentBlue) { onEditorOpenChange(true) }
+                GlassIconButton(SoodalIcons.Settings, colors.textSecondary, onNavigateToSettings)
             }
         }
 
@@ -188,7 +182,8 @@ fun HomeScreen(
                 .verticalScroll(homeScrollState)
                 .padding(horizontal = spacing.s4),
         ) {
-            Spacer(Modifier.height(spacing.s4))
+            // 상단바 ~ 프로필 카드 간격 (App Canvas ≈ 10px)
+            Spacer(Modifier.height(10.dp))
 
             // ── Profile Card ────────────────────────────────────
             // 편집 중이면 편집값(미저장)으로, 아니면 저장값으로 카드를 그린다. 카드 위치는 고정.
@@ -242,132 +237,79 @@ fun HomeScreen(
                 cardFrameAsset = state.cardFrameAsset
             }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    // 전체보기 오버레이가 이 카드의 자리·크기에서 시작하도록 화면상 위치/크기를 기록.
-                    .onGloballyPositioned {
-                        val b = it.boundsInWindow()
-                        ProfileCardBounds.homeCardCenter = b.center
-                        ProfileCardBounds.homeCardSize = b.size
-                    }
-                    // 오버레이 카드가 같은 자리를 덮을 준비가 된 뒤에만 홈 카드를 숨긴다(교체 순간 빈 프레임 방지).
-                    .graphicsLayer { alpha = if (hideCard) 0f else 1f }
-                    .shadow(8.dp, RectangleShape)
-                    .clip(RectangleShape)
-                    // 편집 중에는 카드 탭으로 전체화면(저장값) 진입을 막는다 — 미저장 편집값과 어긋나기 때문.
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        enabled = !editorOpen,
-                        onClick = onOpenFullscreen,
-                    ),
+            // 프로필 카드 — 공용 GlassBox 프레임(sheen·코너·그림자 통일). 내부 카드가 실제 아트.
+            GlassBox(
+                modifier = Modifier.fillMaxWidth(),
+                cornerDp = ProfileFrameCorner,
+                contentPadding = 8.dp,
             ) {
-                ProfileCardComposite(
-                    layers = cardLayers,
-                    bgAsset = cardBgAsset,
-                    charAsset = cardCharAsset,
-                    frameAsset = cardFrameAsset,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        // 전체보기 오버레이가 이 카드의 자리·크기에서 시작하도록 화면상 위치/크기를 기록.
+                        .onGloballyPositioned {
+                            val b = it.boundsInWindow()
+                            ProfileCardBounds.homeCardCenter = b.center
+                            ProfileCardBounds.homeCardSize = b.size
+                        }
+                        // 오버레이 카드가 같은 자리를 덮을 준비가 된 뒤에만 홈 카드를 숨긴다(교체 순간 빈 프레임 방지).
+                        .graphicsLayer { alpha = if (hideCard) 0f else 1f }
+                        .clip(RoundedCornerShape(ProfileFrameCorner - 8.dp))
+                        // 편집 중에는 카드 탭으로 전체화면(저장값) 진입을 막는다 — 미저장 편집값과 어긋나기 때문.
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            enabled = !editorOpen,
+                            onClick = onOpenFullscreen,
+                        ),
+                ) {
+                    ProfileCardComposite(
+                        layers = cardLayers,
+                        bgAsset = cardBgAsset,
+                        charAsset = cardCharAsset,
+                        frameAsset = cardFrameAsset,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
 
-            Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp, start = 4.dp, end = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "크게 보기 ↗",
-                        fontSize = 11.sp,
-                        color = colors.textTertiary,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                enabled = !editorOpen,
-                                onClick = onOpenFullscreen,
-                            )
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                    )
-                    // 프로필 편집: 글래스 배경+테두리에 edit 아이콘을 둔 칩 버튼 (디자인 시안 기준).
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(colors.glassBg)
-                            .border(1.dp, colors.glassBorder, RoundedCornerShape(8.dp))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { onEditorOpenChange(true) },
-                            )
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        SoodalIcon(icon = SoodalIcons.Edit, tint = colors.accentBlue, size = 14.dp)
-                        Text("프로필 편집", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
-                    }
-                }
+            // (통화·편집·연속은 상단 고정 바로 이동, 크게 보기는 카드 탭으로 대체됨)
 
-                Spacer(Modifier.height(spacing.s3))
-
-                // ── Currency Row ────────────────────────────────────
-                // 동일 너비 3칩: 조개/진주/연속 (뽑기 진입은 하단 탭바 — 디자인 확정).
-                // 테두리 없는 SoodalCard — 다른 카드와 동일한 그림자 표면.
-                SoodalCard(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        CurrencyChip(
-                            iconType = SoodalIcons.Shell,
-                            label = "조개",
-                            value = state.shells.formatNumber(),
-                            color = ChipColor.Gold,
-                            modifier = Modifier.weight(1f),
-                        )
-                        CurrencyChip(
-                            iconType = SoodalIcons.Pearl,
-                            label = "진주",
-                            value = state.pearls.formatNumber(),
-                            color = ChipColor.Purple,
-                            modifier = Modifier.weight(1f),
-                        )
-                        CurrencyChip(
-                            iconType = SoodalIcons.Fire,
-                            label = "연속",
-                            value = "${state.streak}일",
-                            color = ChipColor.Blue,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
-
-                // ── 오늘 ────────────────────────────────────────────
-                Spacer(Modifier.height(spacing.s4))
-                TodayCard(
-                    hasRecord = state.todayHasRecord,
-                    distanceM = state.todayDistanceM,
-                    durationMin = state.todayDurationMin,
-                    kcal = state.todayKcal,
-                    maxHr = state.todayMaxHr,
-                    minHr = state.todayMinHr,
-                    avgHr = state.todayAvgHr,
-                    syncing = state.syncing,
-                    canEdit = state.todaySessions.isNotEmpty(),
-                    onSync = { viewModel.onSync() },
-                    onEditStrokes = { editToday = state.todaySessions.lastOrNull() },
+                // ── 도감 컬렉션 (카테고리별 보유/전체) — 탭 시 프로필 편집 ──
+                Spacer(Modifier.height(14.dp))
+                DexCollectionCard(
+                    charOwned = state.dexCharOwned, charTotal = state.dexCharTotal,
+                    bgOwned = state.dexBgOwned, bgTotal = state.dexBgTotal,
+                    frameOwned = state.dexFrameOwned, frameTotal = state.dexFrameTotal,
+                    onClick = { onEditorOpenChange(true) },
                 )
 
+                // ── 오늘 (기록 있을 때만 표시) ──
+                // AnimatedVisibility로 감싸면 콘텐츠가 경계로 클립돼 카드 그림자가 잘린다.
+                // 조건부 렌더로만 처리해 그림자가 다른 카드처럼 온전히 번지게 한다.
+                if (state.todayHasRecord) {
+                    Spacer(Modifier.height(14.dp))
+                    TodayCard(
+                        hasRecord = true,
+                        distanceM = state.todayDistanceM,
+                        durationMin = state.todayDurationMin,
+                        kcal = state.todayKcal,
+                        maxHr = state.todayMaxHr,
+                        minHr = state.todayMinHr,
+                        avgHr = state.todayAvgHr,
+                        syncing = state.syncing,
+                        canEdit = state.todaySessions.isNotEmpty(),
+                        onSync = { viewModel.onSync() },
+                        onEditStrokes = { editToday = state.todaySessions.lastOrNull() },
+                    )
+                }
+
                 // ── 최근 7일 활동 ─────────────────────────────────────
-                Spacer(Modifier.height(spacing.s4))
+                Spacer(Modifier.height(14.dp))
                 WeeklyActivityCard(state.weekly, trendPercent = state.weekly.trendPercent, onTap = { onNavigateToTab("calendar") })
 
                 // ── 이번 달 수영 (문장형) ─────────────────────────────
-                Spacer(Modifier.height(spacing.s4))
+                Spacer(Modifier.height(14.dp))
                 MonthSummaryCard(
                     monthLabel = "${java.time.YearMonth.now().monthValue}월",
                     subjectLabel = "이번 달",
@@ -383,24 +325,7 @@ fun HomeScreen(
                 Spacer(Modifier.height(TabBarClearance))
         }
 
-        // 헤더 경계 페이드 — 위로 스크롤한 콘텐츠가 고정 헤더 아래에서 딱 잘리지 않고
-        // bgDeep으로 녹아들며 사라지게 한다 (smoothstep S-커브로 완만하게).
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .height(12.dp)
-                .background(
-                    androidx.compose.ui.graphics.Brush.verticalGradient(
-                        0f to colors.bgDeep,
-                        0.2f to colors.bgDeep.copy(alpha = 0.9f),
-                        0.4f to colors.bgDeep.copy(alpha = 0.65f),
-                        0.6f to colors.bgDeep.copy(alpha = 0.35f),
-                        0.8f to colors.bgDeep.copy(alpha = 0.1f),
-                        1f to colors.bgDeep.copy(alpha = 0f),
-                    ),
-                ),
-        )
+        // (헤더 경계 페이드 제거 — 통일 배경 위 고정 상단바/콘텐츠 경계 이음매 방지)
         }
     }
 
@@ -482,6 +407,137 @@ fun HomeScreen(
         )
     }
     } // Box
+}
+
+/** 상단바 통화 칩 — 공용 글래스(sheen 포함) + 아이콘 + 값. */
+@Composable
+private fun TopCurrencyChip(icon: SoodalIcons, value: String, tint: Color) {
+    val colors = SoodalDesign.colors
+    val shape = RoundedCornerShape(GlassCornerSmall)
+    Box(
+        modifier = Modifier.height(38.dp).glass(colors, GlassCornerSmall, shape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            SoodalIcon(icon = icon, tint = tint, size = 16.dp)
+            Text(value, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = tint)
+        }
+        GlassSheen(shape)
+    }
+}
+
+/** 상단바 연속 스트릭 칩 — 값>0일 때만 조건부 등장. */
+@Composable
+private fun TopStreakChip(streak: Int) {
+    val colors = SoodalDesign.colors
+    Row(
+        modifier = Modifier
+            .height(38.dp)
+            .clip(RoundedCornerShape(13.dp))
+            .background(colors.accentBlueSoft)
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        SoodalIcon(icon = SoodalIcons.Fire, tint = colors.accentBlue, size = 15.dp)
+        Text("${streak}일", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue)
+    }
+}
+
+/** 상단바 글래스 아이콘 버튼 (편집/설정) — 공용 글래스(sheen 포함). */
+@Composable
+private fun GlassIconButton(icon: SoodalIcons, tint: Color, onClick: () -> Unit) {
+    val colors = SoodalDesign.colors
+    val shape = RoundedCornerShape(GlassCornerSmall)
+    Box(
+        modifier = Modifier
+            .size(38.dp)
+            .glass(colors, GlassCornerSmall, shape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        SoodalIcon(icon = icon, tint = tint, size = 18.dp)
+        GlassSheen(shape)
+    }
+}
+
+/** 도감 컬렉션 카드 — 카테고리별(캐릭터/배경/액자) 보유/전체 진행바. 탭 시 프로필 편집. */
+@Composable
+private fun DexCollectionCard(
+    charOwned: Int, charTotal: Int,
+    bgOwned: Int, bgTotal: Int,
+    frameOwned: Int, frameTotal: Int,
+    onClick: () -> Unit,
+) {
+    val colors = SoodalDesign.colors
+    val totalOwned = charOwned + bgOwned + frameOwned
+    val totalAll = charTotal + bgTotal + frameTotal
+    SoodalCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+    ) {
+        Column(Modifier.fillMaxWidth()) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("도감 컬렉션", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text("$totalOwned", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue)
+                    Text(" / $totalAll", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textTertiary)
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            // 바 채움은 밝은 surface 색(App Canvas: --sky/--mint/--sun), 값 텍스트는 진한 ink 색.
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                DexBar(Modifier.weight(1f), "캐릭터", charOwned, charTotal, fill = Color(0xFF6FC0EC), ink = colors.accentBlue)
+                DexBar(Modifier.weight(1f), "배경", bgOwned, bgTotal, fill = Color(0xFF5FD7AE), ink = colors.success)
+                DexBar(Modifier.weight(1f), "액자", frameOwned, frameTotal, fill = Color(0xFFF6C95B), ink = colors.accentGold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DexBar(modifier: Modifier, label: String, owned: Int, total: Int, fill: Color, ink: Color) {
+    val colors = SoodalDesign.colors
+    val frac = if (total > 0) owned.toFloat() / total else 0f
+    Column(modifier) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
+            Text("$owned/$total", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = ink)
+        }
+        Spacer(Modifier.height(4.dp))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(7.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(Color(0xFF273848).copy(alpha = 0.10f)),
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth(frac.coerceIn(0f, 1f))
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(fill),
+            )
+        }
+    }
 }
 
 /**

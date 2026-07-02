@@ -55,6 +55,10 @@ data class HomeUiState(
     val todaySessions: List<SwimSessionData> = emptyList(),
     /** 연속 수영 일수 (오늘 미기록 시 어제까지 기준). */
     val streak: Int = 0,
+    /** 도감 컬렉션 — 카테고리별 보유/전체 수 (bg=배경, char=캐릭터, frame=테두리). */
+    val dexCharOwned: Int = 0, val dexCharTotal: Int = 0,
+    val dexBgOwned: Int = 0, val dexBgTotal: Int = 0,
+    val dexFrameOwned: Int = 0, val dexFrameTotal: Int = 0,
     /** 최근 7일 활동 + 지난주 대비 추세. */
     val weekly: WeeklyActivity = WeeklyActivity(),
     val syncing: Boolean = false,
@@ -179,6 +183,10 @@ class HomeViewModel @Inject constructor(
             ?: "수영을 사랑하는 수달"
         val cardStatsText = "${stats.totalDistanceMeters}m · ${stats.swimCount}회"
 
+        // 도감: 카테고리별 보유(중복 제거) / 전체 카탈로그 수.
+        val ownedByCat = inventory.groupBy { it.category }.mapValues { e -> e.value.map { it.itemId }.toSet().size }
+        val totalByCat = itemsMap.values.groupBy { it.category }.mapValues { it.value.size }
+
         HomeUiState(
             nickname = profile?.nickname ?: "",
             shells = currency.shellBalance,
@@ -199,6 +207,9 @@ class HomeViewModel @Inject constructor(
             topStroke = topStroke,
             todaySessions = todaySessionData,
             streak = streak,
+            dexCharOwned = ownedByCat["char"] ?: 0, dexCharTotal = totalByCat["char"] ?: 0,
+            dexBgOwned = ownedByCat["bg"] ?: 0, dexBgTotal = totalByCat["bg"] ?: 0,
+            dexFrameOwned = ownedByCat["frame"] ?: 0, dexFrameTotal = totalByCat["frame"] ?: 0,
             weekly = weekly,
             syncing = syncing,
             cardNickname = profile?.nickname ?: "",
