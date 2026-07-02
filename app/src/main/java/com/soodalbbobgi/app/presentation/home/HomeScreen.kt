@@ -372,9 +372,9 @@ fun HomeScreen(
         AppOverlay {
             ManualEntrySheet(
                 onDismiss = { manualOpen = false },
-                onSubmit = { distanceM, durationMin ->
+                onSubmit = { distanceM, durationMin, kcal, maxHr, minHr ->
                     manualOpen = false
-                    viewModel.onManualRegister(distanceM, durationMin)
+                    viewModel.onManualRegister(distanceM, durationMin, kcal, maxHr, minHr)
                 },
             )
         }

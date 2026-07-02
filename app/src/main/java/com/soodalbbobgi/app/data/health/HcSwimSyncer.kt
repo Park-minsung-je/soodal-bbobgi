@@ -48,9 +48,18 @@ class HcSwimSyncer @Inject constructor(
      *
      * @param distanceMeters 수영 거리(m)
      * @param durationMin 수영 시간(분)
+     * @param calories 칼로리(kcal) — null이면 거리 기반 추정
+     * @param maxHr 최대 심박(bpm, 선택)
+     * @param minHr 최소 심박(bpm, 선택)
      * @return 서버가 지급한 조개 수 (하루 첫 기록일 때만 > 0)
      */
-    suspend fun registerManual(distanceMeters: Int, durationMin: Int): Int {
+    suspend fun registerManual(
+        distanceMeters: Int,
+        durationMin: Int,
+        calories: Int? = null,
+        maxHr: Int? = null,
+        minHr: Int? = null,
+    ): Int {
         val now = java.time.LocalDateTime.now()
         swimLogUseCase.addManualLog(
             SwimLog(
@@ -59,10 +68,12 @@ class HcSwimSyncer @Inject constructor(
                 startEpochSec = now.atZone(ZoneId.systemDefault()).toEpochSecond(),
                 distanceMeters = distanceMeters,
                 durationSeconds = durationMin * 60,
-                // HC 없이 입력된 기록 — 거리 기반 대략 추정 (자유형 완만 페이스 기준).
-                calories = (distanceMeters * 0.21f).toInt(),
+                // 미입력 시 거리 기반 대략 추정 (자유형 완만 페이스 기준).
+                calories = calories ?: (distanceMeters * 0.21f).toInt(),
                 strokeMixedM = distanceMeters,
                 source = "manual",
+                maxHr = maxHr,
+                minHr = minHr,
             )
         )
         return pushUnsyncedDates()

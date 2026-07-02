@@ -67,11 +67,12 @@ import com.soodalbbobgi.app.core.ui.glassFrost
 import kotlinx.coroutines.launch
 
 // 시트는 항상 화이트(라이트) — 앱 테마와 무관하게 디자인 고정값 사용.
+// 프로스트(블러) 표면 위에서 인풋이 죽어 보이지 않도록 디자인 `.input`처럼 흰 배경 + 또렷한 테두리.
 private val SheetTxt1 = Color(0xFF1A2438)
 private val SheetTxt2 = Color(0xFF5C6B7E)
 private val SheetTxt3 = Color(0xFFA7B0BF)
-private val SheetFieldBg = Color(0xFF12263F).copy(alpha = 0.03f)
-private val SheetFieldBorder = Color(0xFF12263F).copy(alpha = 0.08f)
+private val SheetFieldBg = Color.White
+private val SheetFieldBorder = Color(0xFF1E3C64).copy(alpha = 0.12f)
 private val SheetBlue = Color(0xFF2563EB)
 
 // 슬라이더/버튼 조절 단위(m) — 기록에 수영장 길이 정보가 없어 일반적인 25m 고정.
@@ -247,7 +248,8 @@ private fun SheetHandle() {
             Modifier
                 .size(width = 40.dp, height = 4.dp)
                 .clip(RoundedCornerShape(999.dp))
-                .background(Color(0xFF12263F).copy(alpha = 0.16f)),
+                // 프로스트 위에서도 또렷하게.
+                .background(Color(0xFF12263F).copy(alpha = 0.28f)),
         )
     }
 }

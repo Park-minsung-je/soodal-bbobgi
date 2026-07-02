@@ -41,28 +41,26 @@ import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.ui.GlassSheen
 import com.soodalbbobgi.app.core.ui.LocalHazeContent
-import com.soodalbbobgi.app.core.ui.SoodalIcon
-import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.glassFrost
 import kotlinx.coroutines.launch
 
-// 시트 고정 색 (기록 수정 시트와 동일 계열)
+// 시트 고정 색 — 프로스트 위 입력창은 디자인 `.input`처럼 흰 배경 + 또렷한 잉크 테두리.
 private val FieldTxt1 = Color(0xFF1A2438)
 private val FieldTxt3 = Color(0xFFA7B0BF)
-private val FieldBg = Color(0xFF12263F).copy(alpha = 0.03f)
-private val FieldBorder = Color(0xFF12263F).copy(alpha = 0.08f)
+private val FieldBg = Color.White
+private val FieldBorder = Color(0xFF1E3C64).copy(alpha = 0.12f)
 
 /**
- * 수영 기록 수동 입력 시트 — 거리(m)/시간(분) 입력 후 [인증하고 등록].
+ * 수영 기록 수동 입력 시트 — 거리/시간(필수) + 칼로리/심박(선택) 입력 후 [인증하고 등록].
  * 인증은 v1에서 즉시 통과(사진 인증은 추후) — 버튼을 누르면 바로 등록된다.
  *
- * @param onSubmit 등록 콜백 (거리 m, 시간 분)
+ * @param onSubmit 등록 콜백 (거리 m, 시간 분, 칼로리?, 최대심박?, 최소심박?)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManualEntrySheet(
     onDismiss: () -> Unit,
-    onSubmit: (distanceMeters: Int, durationMin: Int) -> Unit,
+    onSubmit: (distanceMeters: Int, durationMin: Int, calories: Int?, maxHr: Int?, minHr: Int?) -> Unit,
 ) {
     val colors = SoodalDesign.colors
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -70,9 +68,19 @@ fun ManualEntrySheet(
 
     var distanceText by remember { mutableStateOf("") }
     var durationText by remember { mutableStateOf("") }
+    var kcalText by remember { mutableStateOf("") }
+    var maxHrText by remember { mutableStateOf("") }
+    var minHrText by remember { mutableStateOf("") }
     val distance = distanceText.toIntOrNull() ?: 0
     val duration = durationText.toIntOrNull() ?: 0
-    val valid = distance in 25..30000 && duration in 1..600
+    val kcal = kcalText.toIntOrNull()
+    val maxHr = maxHrText.toIntOrNull()
+    val minHr = minHrText.toIntOrNull()
+    val hrValid = (maxHr == null || maxHr in 40..240) &&
+        (minHr == null || minHr in 30..220) &&
+        (maxHr == null || minHr == null || minHr <= maxHr)
+    val valid = distance in 25..30000 && duration in 1..600 &&
+        (kcal == null || kcal in 1..5000) && hrValid
 
     val sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     ModalBottomSheet(
@@ -112,22 +120,13 @@ fun ManualEntrySheet(
                     NumberField(Modifier.weight(1f), "시간", durationText, "분") { durationText = it }
                 }
 
-                Spacer(Modifier.height(14.dp))
-                // 인증 안내 — v1은 즉시 통과.
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(colors.accentBlueSoft)
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    SoodalIcon(icon = SoodalIcons.Camera, tint = colors.accentBlue, size = 16.dp)
-                    Text(
-                        "사진 인증은 준비 중이에요 — 지금은 바로 등록돼요",
-                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.accentBlue,
-                    )
+                Spacer(Modifier.height(12.dp))
+                Text("선택 입력 — 비우면 자동 계산/생략돼요", fontSize = 11.sp, color = FieldTxt3)
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    NumberField(Modifier.weight(1f), "칼로리", kcalText, "kcal") { kcalText = it }
+                    NumberField(Modifier.weight(1f), "최대 심박", maxHrText, "bpm") { maxHrText = it }
+                    NumberField(Modifier.weight(1f), "최소 심박", minHrText, "bpm") { minHrText = it }
                 }
 
                 Spacer(Modifier.height(16.dp))
@@ -146,7 +145,7 @@ fun ManualEntrySheet(
                         ) {
                             scope.launch {
                                 sheetState.hide()
-                                onSubmit(distance, duration)
+                                onSubmit(distance, duration, kcal, maxHr, minHr)
                             }
                         },
                     contentAlignment = Alignment.Center,
