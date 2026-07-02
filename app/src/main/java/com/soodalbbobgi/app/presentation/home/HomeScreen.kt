@@ -243,7 +243,7 @@ fun HomeScreen(
             GlassBox(
                 modifier = Modifier.fillMaxWidth(),
                 cornerDp = ProfileFrameCorner,
-                contentPadding = 8.dp,
+                contentPadding = 6.dp,
             ) {
                 Box(
                     modifier = Modifier
@@ -256,7 +256,7 @@ fun HomeScreen(
                         }
                         // 오버레이 카드가 같은 자리를 덮을 준비가 된 뒤에만 홈 카드를 숨긴다(교체 순간 빈 프레임 방지).
                         .graphicsLayer { alpha = if (hideCard) 0f else 1f }
-                        .clip(RoundedCornerShape(ProfileFrameCorner - 8.dp))
+                        .clip(RoundedCornerShape(ProfileFrameCorner - 6.dp))
                         // 편집 중에는 카드 탭으로 전체화면(저장값) 진입을 막는다 — 미저장 편집값과 어긋나기 때문.
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },

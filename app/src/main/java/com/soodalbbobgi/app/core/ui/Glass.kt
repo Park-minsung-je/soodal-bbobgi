@@ -53,8 +53,8 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 // 칩/아이콘 버튼=14, 탭바=22(SoodalTabBar 자체 shape).
 /** 카드·달력·도감 등 콘텐츠 글래스 컨테이너의 표준 모서리 (App Canvas = 24). */
 val GlassCorner: Dp = 24.dp
-/** 프로필 카드 프레임의 모서리 (App Canvas = 32, 내부 아트 24 = 프레임 − 패딩 8). */
-val ProfileFrameCorner: Dp = 32.dp
+/** 프로필 카드 프레임의 모서리 (App Canvas 개정 = 24, 내부 아트 18 = 프레임 − 패딩 6). */
+val ProfileFrameCorner: Dp = 24.dp
 /** 칩·아이콘 버튼 등 작은 글래스 요소의 모서리 (App Canvas = 14). */
 val GlassCornerSmall: Dp = 14.dp
 
