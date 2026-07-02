@@ -298,11 +298,13 @@ private fun CalNavButton(icon: SoodalIcons, onClick: () -> Unit) {
     }
 }
 
-// ── 이달 통계 카드 내용 — 콤팩트 한 줄 (라벨·값 인라인 + 구분선 + 우측 조개) ──
+// ── 이달 통계 카드 내용 — 콤팩트 한 줄 (거리 · 횟수(세션) · 일수 + 우측 조개) ──
 @Composable
 private fun CalendarStatsRow(swimData: Map<Int, SwimDayData>) {
     val colors = SoodalDesign.colors
     val swimDays = swimData.size
+    // 하루 여러 번 수영한 날을 반영한 실제 세션 횟수.
+    val totalSessions = swimData.values.sumOf { it.sessions.size }
     val totalShells = swimData.values.sumOf { it.shellReward }
     val totalKm = swimData.values.sumOf { it.distanceM } / 1000f
     Row(
@@ -312,7 +314,9 @@ private fun CalendarStatsRow(swimData: Map<Int, SwimDayData>) {
     ) {
         CalStatInline("거리", String.format("%.1f", totalKm), "km", colors.accentBlue)
         Box(Modifier.width(1.dp).height(15.dp).background(Color(0xFF27384B).copy(alpha = 0.12f)))
-        CalStatInline("횟수", "$swimDays", "회", colors.success)
+        CalStatInline("횟수", "$totalSessions", "회", colors.success)
+        Box(Modifier.width(1.dp).height(15.dp).background(Color(0xFF27384B).copy(alpha = 0.12f)))
+        CalStatInline("일수", "$swimDays", "일", colors.accentPurple)
         Spacer(Modifier.weight(1f))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             SoodalIcon(icon = SoodalIcons.Shell, tint = colors.accentGold, size = 15.dp)
