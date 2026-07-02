@@ -74,15 +74,19 @@ data class CardLayers(
 )
 
 /**
- * 1472×704 도트아트 프로필 카드를 Canvas로 합성한다.
+ * 2752×1536 도트아트 프로필 카드를 Canvas로 합성한다.
  * 배경 → 테두리 → 캐릭터 → 텍스트 순서로 4레이어를 그린다.
  */
 object ProfileCardRenderer {
-    const val CARD_WIDTH = 1472
-    const val CARD_HEIGHT = 704
+    const val CARD_WIDTH = 2752
+    const val CARD_HEIGHT = 1536
+
+    // 텍스트·워터마크 px는 원래 1472폭 기준으로 튜닝됐다. 카드 해상도가 바뀌어도
+    // 화면상 크기가 유지되도록 기준폭(1472) 대비 배율(u)로 환산해 그린다.
+    private const val TEXT_REF_WIDTH = 1472f
 
     // 합성 비트맵 캐시 — 같은 입력(CardLayers)이면 재합성 없이 재사용한다.
-    // 홈↔편집↔전체보기 재진입·탭 전환마다 1472×704 비트맵을 다시 그리는 끊김을 막는다.
+    // 홈↔편집↔전체보기 재진입·탭 전환마다 2752×1536 비트맵을 다시 그리는 끊김을 막는다.
     // 편집 라이브 프리뷰와 홈 카드가 같은 입력이면 캐시를 공유하므로, 저장 후 복귀 시에도 재합성이 없다.
     private val cache = LruMemoizer<CardLayers, Bitmap>(maxSize = 4)
 
@@ -165,13 +169,15 @@ object ProfileCardRenderer {
             typeface = blockTypeface
         }
 
+        // 카드 해상도 대비 텍스트 크기 보정 — 기준폭 1472 대비 현재 폭 비율.
+        val u = CARD_WIDTH / TEXT_REF_WIDTH
         // 블록 크기 단계(1~5) → 배율. 3이 기준(1.2).
         val scaleMul = floatArrayOf(0.8f, 1.0f, 1.2f, 1.5f, 1.8f)[
             (layers.textScaleStep - 1).coerceIn(0, 4)
         ]
-        val nicknameSize = 72f * scaleMul
-        val taglineSize = 32f * scaleMul
-        val statsSize = 28f * scaleMul
+        val nicknameSize = 72f * u * scaleMul
+        val taglineSize = 32f * u * scaleMul
+        val statsSize = 28f * u * scaleMul
         // 줄 간 여백 — 각 줄 폰트 크기에 비례한 작은 간격으로 블록을 조밀하게 묶는다.
         val gapAfterNickname = nicknameSize * 0.35f
         val gapAfterTagline = taglineSize * 0.55f
@@ -203,7 +209,7 @@ object ProfileCardRenderer {
             // 글자 본체: FILL + 기존 대비 그림자.
             textPaint.style = Paint.Style.FILL
             textPaint.color = color
-            textPaint.setShadowLayer(6f, 0f, 0f, contrastShadow(color))
+            textPaint.setShadowLayer(6f * u, 0f, 0f, contrastShadow(color))
             canvas.drawText(text, textX, baseline, textPaint)
         }
 
@@ -230,12 +236,12 @@ object ProfileCardRenderer {
         // 브랜드 워터마크 — 사용자 글꼴 스타일과 무관하게 항상 기본 글꼴로 고정.
         // 위 외곽선 처리가 남긴 STROKE가 새지 않도록 FILL로 되돌린다.
         textPaint.style = Paint.Style.FILL
-        textPaint.textSize = 20f
+        textPaint.textSize = 20f * u
         textPaint.typeface = Typeface.DEFAULT
         textPaint.color = Color(0xFF00A8B8).toArgb()
         textPaint.textAlign = Paint.Align.RIGHT
         textPaint.clearShadowLayer()
-        canvas.drawText("SOODAL.CARD", CARD_WIDTH - 40f, 50f, textPaint)
+        canvas.drawText("SOODAL.CARD", CARD_WIDTH - 40f * u, 50f * u, textPaint)
 
         return bitmap
     }
@@ -376,7 +382,7 @@ fun ProfileCardComposite(
 
     val cardModifier = modifier
         .fillMaxWidth()
-        .aspectRatio(1472f / 704f)
+        .aspectRatio(ProfileCardRenderer.CARD_WIDTH.toFloat() / ProfileCardRenderer.CARD_HEIGHT.toFloat())
     val current = bitmap
     if (current != null && hasAnyImage && !assetPending) {
         Image(

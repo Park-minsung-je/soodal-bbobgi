@@ -171,7 +171,7 @@ fun ProfileFullscreenOverlay(
     val cardWidthDp = if (homeSize != null) with(density) { homeSize.width.toDp() }
         else (config.screenWidthDp - 32).dp
     val cardHeightDp = if (homeSize != null) with(density) { homeSize.height.toDp() }
-        else (config.screenWidthDp - 32).dp * 704f / 1472f
+        else (config.screenWidthDp - 32).dp * 1536f / 2752f
 
     val screenWpx = with(density) { config.screenWidthDp.dp.toPx() }
     val screenHpx = with(density) { config.screenHeightDp.dp.toPx() }
