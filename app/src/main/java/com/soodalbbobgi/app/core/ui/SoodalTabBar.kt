@@ -122,20 +122,37 @@ fun SoodalTabBar(
             // + 1px 흰 하이라이트 보더 (카드와 동일한 .glass 처리)
             .background(colors.tabbarBg)
             .border(1.dp, colors.glassBorder, shape)
-            .padding(6.dp),
+            // 내부 패딩 8 — 액티브 pill이 바 가장자리에서 사방 균등하게 8dp 띄워진다.
+            .padding(8.dp),
     ) {
         val tabWidth = maxWidth / tabs.size
 
         // (상단 sheen은 패딩 안쪽 박스 위에 경계선처럼 보여 제거 — 글래스감은 보더+반투명+그림자로 충분)
 
         // 활성 탭 뒤를 따라다니는 라벤더 솔리드 필 (디자인 v3.0 — 보라 채움 + 흰 아이콘/라벨).
-        // 탭 칸 전체 크기, 바 라운드(22)와 동심이 되도록 16dp 라운드(22 − 패딩 6).
+        // 탭 칸 전체 크기, 바 라운드(22)와 동심이 되도록 14dp 라운드(22 − 패딩 8).
+        // 그림자: 디자인 `0 6px 14px -4px rgba(110,85,201,.5)` — pill이 살짝 떠 있는 느낌.
         Box(
             modifier = Modifier
                 .offset(x = tabWidth * pillIndex)
                 .width(tabWidth)
                 .fillMaxHeight()
-                .clip(RoundedCornerShape(16.dp))
+                .drawBehind {
+                    val paint = androidx.compose.ui.graphics.Paint().asFrameworkPaint().apply {
+                        color = android.graphics.Color.TRANSPARENT
+                        setShadowLayer(
+                            10.dp.toPx(), 0f, 6.dp.toPx(),
+                            android.graphics.Color.argb(128, 110, 85, 201),
+                        )
+                    }
+                    drawIntoCanvas { canvas ->
+                        canvas.nativeCanvas.drawRoundRect(
+                            0f, 0f, size.width, size.height,
+                            14.dp.toPx(), 14.dp.toPx(), paint,
+                        )
+                    }
+                }
+                .clip(RoundedCornerShape(14.dp))
                 .background(
                     Brush.verticalGradient(
                         listOf(colors.accentPurple, colors.accentPurple.copy(alpha = 0.90f)),
