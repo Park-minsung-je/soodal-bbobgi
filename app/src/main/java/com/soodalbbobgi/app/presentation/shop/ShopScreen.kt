@@ -26,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -40,12 +41,11 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.AssetImage
 import com.soodalbbobgi.app.core.ui.ButtonStyle
-import com.soodalbbobgi.app.core.ui.ChipColor
+import com.soodalbbobgi.app.core.ui.GlassCurrencyChip
 import com.soodalbbobgi.app.core.ui.DimTabBarWhileVisible
 import com.soodalbbobgi.app.core.ui.GradeBadge
 import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalCard
-import com.soodalbbobgi.app.core.ui.SoodalChip
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.TabBarClearance
@@ -61,11 +61,13 @@ fun ShopScreen(
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
 
+    // 구매 확인/박스 결과 팝업이 떠 있는 동안 뒤 콘텐츠 블러 (API 31+, 미만은 자동 무시).
+    val popupOpen = state.confirmItem != null || state.boxResults.isNotEmpty()
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                
+                .then(if (popupOpen) Modifier.blur(18.dp) else Modifier)
                 // 헤더가 고정인 화면 — 루트에서 상태바 인셋 처리.
                 .statusBarsPadding(),
         ) {
@@ -78,24 +80,17 @@ fun ShopScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    SoodalIcon(icon = SoodalIcons.Shop, size = 22.dp)
-                    Text(
-                        text = "상점",
-                        style = SoodalDesign.typography.lg,
-                        color = colors.textPrimary,
-                    )
-                }
-                SoodalChip(
-                    text = state.pearls.toString(),
-                    color = ChipColor.Purple,
-                    iconType = SoodalIcons.Pearl,
-                    label = "진주",
-                    large = true,
+                Text(
+                    text = "상점",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = colors.textPrimary,
                 )
+                // 통화 클러스터 — 홈/인양소와 동일한 글래스 칩 (조개 + 진주)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GlassCurrencyChip(SoodalIcons.Shell, state.shells.toString(), colors.accentGold)
+                    GlassCurrencyChip(SoodalIcons.Pearl, state.pearls.toString(), colors.accentPurple)
+                }
             }
 
             // 하단 스크롤 + 헤더 경계 페이드

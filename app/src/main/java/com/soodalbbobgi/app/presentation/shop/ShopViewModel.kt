@@ -46,6 +46,7 @@ data class ShopItem(
 )
 
 data class ShopUiState(
+    val shells: Int = 0,
     val pearls: Int = 0,
     val listings: List<ShopItem> = emptyList(),
     val confirmItem: ShopItem? = null,
@@ -79,6 +80,7 @@ class ShopViewModel @Inject constructor(
         // 보유 판정은 구매 이력이 아니라 인벤토리 기준 — 뽑기/기본 지급으로 얻은 아이템도 "보유 중"이어야 한다
         val ownedItemIds = inventory.map { it.itemId }.toSet()
         ShopUiState(
+            shells = currency.shellBalance,
             pearls = currency.pearlBalance,
             listings = listings.map { it.toUi(ownedItemIds) },
             confirmItem = local.confirmItem,

@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -56,6 +57,7 @@ import com.soodalbbobgi.app.core.ui.ChipColor
 import com.soodalbbobgi.app.core.ui.GlassBox
 import com.soodalbbobgi.app.core.ui.GlassCornerSmall
 import com.soodalbbobgi.app.core.ui.ProfileFrameCorner
+import com.soodalbbobgi.app.core.ui.GlassCurrencyChip
 import com.soodalbbobgi.app.core.ui.GlassSheen
 import com.soodalbbobgi.app.core.ui.glass
 import com.soodalbbobgi.app.core.ui.SoodalCard
@@ -135,9 +137,13 @@ fun HomeScreen(
     }
 
     // 헤더가 고정인 화면 — 루트에서 상태바 인셋 처리 (콘텐츠는 헤더 경계에서 페이드).
+    // 조개 보상 팝업이 떠 있는 동안 뒤 콘텐츠 블러 (API 31+, 미만은 자동 무시).
+    val shellPopupOpen = shellReward > 0
     Box(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .then(if (shellPopupOpen) Modifier.blur(18.dp) else Modifier),
     ) {
         // ── 상단 고정 바 ─────────────────────────────────────
         // 통화 칩(조개·진주) + 조건부 연속 스트릭 · 우측 편집/설정 (디자인 v3.0 상단바).
@@ -154,8 +160,8 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TopCurrencyChip(SoodalIcons.Shell, state.shells.formatNumber(), colors.accentGold)
-                TopCurrencyChip(SoodalIcons.Pearl, state.pearls.formatNumber(), colors.accentPurple)
+                GlassCurrencyChip(SoodalIcons.Shell, state.shells.formatNumber(), colors.accentGold)
+                GlassCurrencyChip(SoodalIcons.Pearl, state.pearls.formatNumber(), colors.accentPurple)
                 // 연속 스트릭: 값이 있을 때만 등장(애니메이션과 함께).
                 AnimatedVisibility(
                     visible = state.streak > 0,
@@ -275,13 +281,12 @@ fun HomeScreen(
 
             // (통화·편집·연속은 상단 고정 바로 이동, 크게 보기는 카드 탭으로 대체됨)
 
-                // ── 도감 컬렉션 (카테고리별 보유/전체) — 탭 시 프로필 편집 ──
+                // ── 도감 컬렉션 (카테고리별 보유/전체) — 정보 표시 전용 ──
                 Spacer(Modifier.height(14.dp))
                 DexCollectionCard(
                     charOwned = state.dexCharOwned, charTotal = state.dexCharTotal,
                     bgOwned = state.dexBgOwned, bgTotal = state.dexBgTotal,
                     frameOwned = state.dexFrameOwned, frameTotal = state.dexFrameTotal,
-                    onClick = { onEditorOpenChange(true) },
                 )
 
                 // ── 오늘 (기록 있을 때만 표시) ──
@@ -409,27 +414,6 @@ fun HomeScreen(
     } // Box
 }
 
-/** 상단바 통화 칩 — 공용 글래스(sheen 포함) + 아이콘 + 값. */
-@Composable
-private fun TopCurrencyChip(icon: SoodalIcons, value: String, tint: Color) {
-    val colors = SoodalDesign.colors
-    val shape = RoundedCornerShape(GlassCornerSmall)
-    Box(
-        modifier = Modifier.height(38.dp).glass(colors, GlassCornerSmall, shape),
-        contentAlignment = Alignment.Center,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 13.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            SoodalIcon(icon = icon, tint = tint, size = 16.dp)
-            Text(value, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = tint)
-        }
-        GlassSheen(shape)
-    }
-}
-
 /** 상단바 연속 스트릭 칩 — 값>0일 때만 조건부 등장. */
 @Composable
 private fun TopStreakChip(streak: Int) {
@@ -469,26 +453,17 @@ private fun GlassIconButton(icon: SoodalIcons, tint: Color, onClick: () -> Unit)
     }
 }
 
-/** 도감 컬렉션 카드 — 카테고리별(캐릭터/배경/액자) 보유/전체 진행바. 탭 시 프로필 편집. */
+/** 도감 컬렉션 카드 — 카테고리별(캐릭터/배경/액자) 보유/전체 진행바. */
 @Composable
 private fun DexCollectionCard(
     charOwned: Int, charTotal: Int,
     bgOwned: Int, bgTotal: Int,
     frameOwned: Int, frameTotal: Int,
-    onClick: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
     val totalOwned = charOwned + bgOwned + frameOwned
     val totalAll = charTotal + bgTotal + frameTotal
-    SoodalCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            ),
-    ) {
+    SoodalCard(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth()) {
             Row(
                 Modifier.fillMaxWidth(),

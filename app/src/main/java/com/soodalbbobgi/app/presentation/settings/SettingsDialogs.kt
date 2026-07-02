@@ -1,6 +1,7 @@
 package com.soodalbbobgi.app.presentation.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -209,11 +211,14 @@ private fun DialogScrim(
             .padding(28.dp),
         contentAlignment = Alignment.Center,
     ) {
+        // 글래스 패널 — 뒤 콘텐츠 블러 + 반투명 화이트 + 흰 하이라이트 보더 (프로스트 팝업).
         Column(
             modifier = Modifier
                 .widthIn(max = 340.dp)
                 .fillMaxWidth()
-                .background(colors.gradCard, RoundedCornerShape(20.dp))
+                .clip(RoundedCornerShape(20.dp))
+                .background(if (colors.isDark) colors.surface2.copy(alpha = 0.92f) else Color.White.copy(alpha = 0.80f))
+                .border(1.dp, colors.glassBorder, RoundedCornerShape(20.dp))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,

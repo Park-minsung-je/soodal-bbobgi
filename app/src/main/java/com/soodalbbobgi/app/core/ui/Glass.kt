@@ -2,12 +2,17 @@ package com.soodalbbobgi.app.core.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -166,6 +171,33 @@ fun BoxScope.GlassSheen(shape: Shape) {
                     ),
                 ),
         )
+    }
+}
+
+/**
+ * 상단바 통화 칩 — 공용 글래스(sheen 포함) + 아이콘 + 값. 홈/인양소/상점 헤더 공용.
+ *
+ * @param icon 통화 아이콘 (조개/진주)
+ * @param value 표시 값
+ * @param tint 아이콘·값 색 (통화 색)
+ */
+@Composable
+fun GlassCurrencyChip(icon: SoodalIcons, value: String, tint: Color) {
+    val colors = SoodalDesign.colors
+    val shape = RoundedCornerShape(GlassCornerSmall)
+    Box(
+        modifier = Modifier.height(38.dp).glass(colors, GlassCornerSmall, shape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            SoodalIcon(icon = icon, tint = tint, size = 16.dp)
+            Text(value, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = tint)
+        }
+        GlassSheen(shape)
     }
 }
 

@@ -35,10 +35,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.SoodalDesign
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
 
 data class TabItem(
     val key: String,
@@ -84,6 +88,7 @@ fun SoodalTabBar(
     onTabSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
     tabs: List<TabItem> = MainTabs,
+    hazeState: HazeState? = null,
 ) {
     val colors = SoodalDesign.colors
     val shape = TabBarShape
@@ -118,9 +123,23 @@ fun SoodalTabBar(
                 }
             }
             .clip(shape)
-            // 반투명 글래스 서피스 (디자인 v3.0 — 물빛 배경이 살짝 비치는 프로스트 바)
-            // + 1px 흰 하이라이트 보더 (카드와 동일한 .glass 처리)
-            .background(colors.tabbarBg)
+            // 반투명 글래스 서피스 (디자인 v3.0 — 물빛 배경이 살짝 비치는 프로스트 바).
+            // hazeState가 있으면 진짜 backdrop blur(뒤 콘텐츠 샘플링·블러) — API 31+에서 동작,
+            // 이하는 Haze가 자동으로 틴트 폴백. 없으면 기존 반투명 배경.
+            .then(
+                if (hazeState != null) {
+                    Modifier.hazeEffect(state = hazeState) {
+                        backgroundColor = if (colors.isDark) Color(0xFF0E1426) else Color.White
+                        // 틴트를 옅게(0.38) — 블러가 프로스트를 만들어주므로 흰끼를 줄이고 투명감을 살린다.
+                        tints = listOf(HazeTint(colors.tabbarBg.copy(alpha = 0.38f)))
+                        blurRadius = 14.dp
+                        noiseFactor = 0f
+                    }
+                } else {
+                    Modifier.background(colors.tabbarBg)
+                },
+            )
+            // 1px 흰 하이라이트 보더 (카드와 동일한 .glass 처리)
             .border(1.dp, colors.glassBorder, shape)
             // 내부 패딩 8 — 액티브 pill이 바 가장자리에서 사방 균등하게 8dp 띄워진다.
             .padding(8.dp),

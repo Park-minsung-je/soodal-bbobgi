@@ -10,6 +10,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -108,6 +110,7 @@ fun ShellRewardPopup(
             .padding(20.dp),
         contentAlignment = Alignment.Center,
     ) {
+        // 글래스 패널 — 뒤 콘텐츠가 블러된 상태에서 반투명 화이트가 프로스트로 읽힌다.
         Column(
             modifier = Modifier
                 .widthIn(max = 380.dp)
@@ -119,10 +122,9 @@ fun ShellRewardPopup(
                     ambientColor = colors.accentGold.copy(alpha = 0.45f),
                     spotColor = colors.accentGold.copy(alpha = 0.45f),
                 )
-                .background(
-                    colors.gradCard,
-                    RoundedCornerShape(24.dp),
-                )
+                .clip(RoundedCornerShape(24.dp))
+                .background(if (colors.isDark) colors.surface2.copy(alpha = 0.92f) else Color.White.copy(alpha = 0.80f))
+                .border(1.dp, colors.glassBorder, RoundedCornerShape(24.dp))
                 .padding(start = 22.dp, end = 22.dp, top = 20.dp, bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {

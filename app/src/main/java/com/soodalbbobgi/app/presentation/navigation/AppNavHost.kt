@@ -32,6 +32,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.ui.LocalTabBarDim
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
 import com.soodalbbobgi.app.core.ui.SoodalTabBar
 import com.soodalbbobgi.app.core.ui.soodalBackground
 import com.soodalbbobgi.app.core.ui.TabBarDimLayer
@@ -81,6 +83,9 @@ fun AppNavHost(navController: NavHostController) {
         }
     }
 
+    // 탭바 backdrop blur — 콘텐츠 레이어를 소스로 등록하고, 탭바가 그 뒤를 샘플링해 블러한다.
+    val hazeState = remember { HazeState() }
+
     // 상태바 패딩은 루트가 아닌 화면별로 적용한다 — 캘린더처럼 콘텐츠가
     // 상태바 밑으로 스크롤되며 페이드되는 화면을 허용하기 위함.
     val bgColors = SoodalDesign.colors
@@ -104,7 +109,7 @@ fun AppNavHost(navController: NavHostController) {
         // 탭 화면들은 스크롤 끝에 TabBarClearance 여백을 둬 마지막 콘텐츠가 가려지지 않게 한다.
         // 화면 안 풀스크린 dim 팝업이 DimTabBarWhileVisible()로 탭바 dim을 켤 수 있게 제공한다.
         CompositionLocalProvider(LocalTabBarDim provides tabBarDim) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.fillMaxSize().hazeSource(hazeState)) {
                 NavHost(
                     navController = navController,
                     startDestination = Screen.Splash.route,
@@ -206,6 +211,7 @@ fun AppNavHost(navController: NavHostController) {
                     SoodalTabBar(
                         activeTab = currentRoute ?: Screen.Home.route,
                         onTabSelected = onSelectTab,
+                        hazeState = hazeState,
                     )
                     TabBarDimLayer(
                         state = tabBarDim,

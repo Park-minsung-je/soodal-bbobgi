@@ -48,6 +48,7 @@ data class GachaResultItem(
 
 data class GachaUiState(
     val shells: Int = 0,
+    val pearls: Int = 0,
     val phase: GachaPhase = GachaPhase.Idle,
     val offset: Float = 0f,
     val results: List<GachaResultItem> = emptyList(),
@@ -105,6 +106,7 @@ class GachaViewModel @Inject constructor(
     ) { currency, local ->
         GachaUiState(
             shells = currency.shellBalance,
+            pearls = currency.pearlBalance,
             phase = local.phase,
             offset = local.offset,
             results = local.results,

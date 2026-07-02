@@ -44,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
@@ -73,8 +74,7 @@ import com.soodalbbobgi.app.R
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.AssetImage
-import com.soodalbbobgi.app.core.ui.ChipColor
-import com.soodalbbobgi.app.core.ui.SoodalChip
+import com.soodalbbobgi.app.core.ui.GlassCurrencyChip
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.TabBarClearance
@@ -107,9 +107,16 @@ fun GachaScreen(
     val boxes by viewModel.boxes.collectAsState()
     val colors = SoodalDesign.colors
 
+    // 결과 팝업이 떠 있는 동안 뒤 콘텐츠를 블러 처리 (API 31+, 미만은 자동 무시 — dim만 유지).
+    val resultOpen = state.phase == GachaPhase.Result && state.results.isNotEmpty()
     Box(Modifier.fillMaxSize()) {
         // 헤더가 고정인 화면 — 루트에서 상태바 인셋 처리.
-        Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .then(if (resultOpen) Modifier.blur(18.dp) else Modifier)
+                .statusBarsPadding(),
+        ) {
             Column(
                 Modifier
                     .fillMaxSize()
@@ -123,21 +130,19 @@ fun GachaScreen(
                     verticalAlignment = Alignment.Top,
                 ) {
                     Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            SoodalIcon(icon = SoodalIcons.Gacha, size = 24.dp, tint = colors.accentBlue)
-                            Text("보물 인양소", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
-                        }
+                        Text("보물 인양소", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
                         Text(
                             "인양꾼 수달이 바닷속 보물을 건져 올려요",
                             fontSize = 11.5.sp, fontWeight = FontWeight.Medium,
                             color = colors.textTertiary,
-                            modifier = Modifier.padding(top = 4.dp, start = 32.dp),
+                            modifier = Modifier.padding(top = 4.dp),
                         )
                     }
-                    SoodalChip(state.shells.toString(), color = ChipColor.Gold, iconType = SoodalIcons.Shell, label = "조개", large = true)
+                    // 통화 클러스터 — 홈/상점과 동일한 글래스 칩 (조개 + 진주)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GlassCurrencyChip(SoodalIcons.Shell, state.shells.toString(), colors.accentGold)
+                        GlassCurrencyChip(SoodalIcons.Pearl, state.pearls.toString(), colors.accentPurple)
+                    }
                 }
 
                 // 인양 씬을 화면 중앙 쪽으로 내린다 (상단에 너무 붙지 않게).

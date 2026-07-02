@@ -94,6 +94,7 @@ dependencies {
     implementation(libs.security.crypto)
     implementation(libs.datastore.preferences)
     implementation(libs.timber)
+    implementation(libs.haze)
     implementation(libs.coroutines.android)
     implementation(libs.coil)
     implementation(libs.coil.compose)

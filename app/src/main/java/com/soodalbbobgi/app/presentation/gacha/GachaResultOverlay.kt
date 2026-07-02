@@ -154,12 +154,13 @@ private fun ResultSingle(
     )
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // 모달 프레임 — 등급색 링 대신 공통 글래스 테두리(흰 하이라이트). 내부 배경은 화려하게 유지.
         Box(
             Modifier.padding(horizontal = 28.dp).fillMaxWidth()
                 .shadow(16.dp, RoundedCornerShape(24.dp), ambientColor = glow, spotColor = glow)
                 .clip(RoundedCornerShape(24.dp))
                 .drawBehind { drawRect(colors.gradCard) }
-                .border(1.5.dp, gc, RoundedCornerShape(24.dp))
+                .border(1.dp, colors.glassBorder, RoundedCornerShape(24.dp))
                 .padding(28.dp, 24.dp),
         ) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -250,7 +251,8 @@ private fun ResultGrid(
         Modifier.padding(horizontal = 24.dp).fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
             .drawBehind { drawRect(colors.gradCard) }
-            .border(1.5.dp, colors.accentBlue.copy(alpha = 0.4f), RoundedCornerShape(24.dp))
+            // 공통 글래스 테두리 — 단발 보기와 동일 프레임.
+            .border(1.dp, colors.glassBorder, RoundedCornerShape(24.dp))
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

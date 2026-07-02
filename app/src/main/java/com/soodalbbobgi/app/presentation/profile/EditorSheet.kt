@@ -95,15 +95,17 @@ fun EditorSheet(
     val dismissDistancePx = with(density) { 100.dp.toPx() }
     val dismissVelocityPx = with(density) { 1000.dp.toPx() }
 
-    val sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    // 디자인 시트: 글래스 표면 (radius 26 + glass-bg + 흰 하이라이트 보더 + 위로 퍼지는 그림자).
+    // 블러 미적용 환경에서 뒤 콘텐츠가 비쳐 산만해지지 않도록 카드(0.74)보다 불투명하게 채운다.
+    val sheetShape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
     Column(
         modifier = modifier
             .fillMaxSize()
             .graphicsLayer { translationY = dragOffset }
-            // 경계선 대신 그림자로 시트를 카드/홈 위에 띄운다.
-            .shadow(16.dp, sheetShape, clip = false)
+            .shadow(22.dp, sheetShape, clip = false)
             .clip(sheetShape)
-            .background(colors.surface2),
+            .background(if (colors.isDark) colors.surface2 else Color.White.copy(alpha = 0.90f))
+            .border(1.dp, colors.glassBorder, sheetShape),
     ) {
         // -- 드래그 핸들 + 제목 --
         Box(
@@ -137,7 +139,44 @@ fun EditorSheet(
             }
         }
 
-        // -- 컨트롤 (스크롤): weight(1f)로 핸들과 적용 버튼 사이 남은 공간을 차지하고 내부에서 스크롤.
+        // -- Tab Selector (고정 — 스크롤 밖) --
+        // 흰 시트 위에서도 구분되도록 잉크 틴트 컨테이너 + 액티브는 시안 솔리드/흰 글자 (디자인 시안).
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.s4)
+                .clip(SoodalShape.md)
+                .background(sheetControlBg(colors))
+                .padding(4.dp),
+        ) {
+            EditorCategory.values().forEach { tab ->
+                val isActive = tab == state.activeTab
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(SoodalShape.sm)
+                        .background(if (isActive) colors.accentBlue else Color.Transparent)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { vm.setActiveTab(tab) },
+                        )
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = tab.label,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isActive) Color.White else colors.textSecondary,
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(spacing.s3))
+
+        // -- 컨트롤 (스크롤): weight(1f)로 탭과 적용 버튼 사이 남은 공간을 차지하고 내부에서 스크롤.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -145,44 +184,6 @@ fun EditorSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = spacing.s4),
         ) {
-            // -- Tab Selector --
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(SoodalShape.md)
-                    .background(colors.surface2),
-            ) {
-                EditorCategory.values().forEach { tab ->
-                    val isActive = tab == state.activeTab
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(SoodalShape.md)
-                            .background(if (isActive) colors.accentBlueSoft else Color.Transparent)
-                            .then(
-                                if (isActive) Modifier.border(1.dp, colors.accentBlue.copy(alpha = 0.3f), SoodalShape.md)
-                                else Modifier
-                            )
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { vm.setActiveTab(tab) },
-                            )
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = tab.label,
-                            fontSize = 13.sp,
-                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isActive) colors.accentBlue else colors.textTertiary,
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(spacing.s4))
-
             // -- Tab Content --
             when (state.activeTab) {
                 EditorCategory.Background -> ItemGrid(
@@ -487,6 +488,14 @@ private fun ItemGrid(
     }
 }
 
+/** 흰(반투명) 시트 위 컨트롤 표면 채움 — 잉크 틴트로 배경과 확실히 구분한다. */
+private fun sheetControlBg(colors: com.soodalbbobgi.app.core.theme.SoodalColors) =
+    if (colors.isDark) Color.White.copy(alpha = 0.06f) else Color(0xFF27384B).copy(alpha = 0.06f)
+
+/** 흰(반투명) 시트 위 컨트롤 테두리 — 잉크 틴트. */
+private fun sheetControlBorder(colors: com.soodalbbobgi.app.core.theme.SoodalColors) =
+    if (colors.isDark) Color.White.copy(alpha = 0.10f) else Color(0xFF27384B).copy(alpha = 0.12f)
+
 /**
  * 슬롯을 비우는 "선택안함" 그리드 칩. 일반 셀과 동일한 틀이지만 X 아이콘으로 구분된다.
  */
@@ -497,7 +506,8 @@ private fun NoneGridCell(
     modifier: Modifier = Modifier,
 ) {
     val colors = SoodalDesign.colors
-    val borderColor = if (isSelected) colors.accentBlue else colors.cardBorder
+    // 흰 시트 위에서 셀이 묻히지 않게 잉크 틴트 배경/테두리 (선택 시 시안 링).
+    val borderColor = if (isSelected) colors.accentBlue else sheetControlBorder(colors)
     val borderWidth = if (isSelected) 2.dp else 1.dp
 
     Box(modifier = modifier) {
@@ -505,7 +515,7 @@ private fun NoneGridCell(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(SoodalShape.md)
-                .background(colors.cardBg)
+                .background(if (isSelected) colors.accentBlueSoft else sheetControlBg(colors))
                 .border(borderWidth, borderColor, SoodalShape.md)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
@@ -519,7 +529,7 @@ private fun NoneGridCell(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(SoodalShape.sm)
-                    .background(colors.surface2),
+                    .background(sheetControlBg(colors)),
                 contentAlignment = Alignment.Center,
             ) {
                 SoodalIcon(icon = SoodalIcons.Close, tint = colors.textTertiary, size = 20.dp)
@@ -547,7 +557,8 @@ private fun ItemGridCell(
     modifier: Modifier = Modifier,
 ) {
     val colors = SoodalDesign.colors
-    val borderColor = if (item.isSelected) colors.accentBlue else colors.cardBorder
+    // 흰 시트 위에서 셀이 묻히지 않게 잉크 틴트 배경/테두리 (선택 시 시안 링).
+    val borderColor = if (item.isSelected) colors.accentBlue else sheetControlBorder(colors)
     val borderWidth = if (item.isSelected) 2.dp else 1.dp
 
     Box(modifier = modifier) {
@@ -555,7 +566,7 @@ private fun ItemGridCell(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(SoodalShape.md)
-                .background(colors.cardBg)
+                .background(if (item.isSelected) colors.accentBlueSoft else sheetControlBg(colors))
                 .border(borderWidth, borderColor, SoodalShape.md)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
@@ -622,7 +633,7 @@ private fun SliderRow(
             colors = SliderDefaults.colors(
                 thumbColor = colors.accentBlue,
                 activeTrackColor = colors.accentBlue,
-                inactiveTrackColor = colors.surface3,
+                inactiveTrackColor = sheetControlBorder(colors),
             ),
         )
         val pct = ((value - range.start) / (range.endInclusive - range.start) * 100).toInt()
@@ -658,7 +669,7 @@ private fun SegmentChip(
     Box(
         modifier = Modifier
             .clip(SoodalShape.md)
-            .background(if (isActive) colors.accentBlueSoft else colors.surface2)
+            .background(if (isActive) colors.accentBlueSoft else sheetControlBg(colors))
             .then(
                 if (isActive) Modifier.border(1.dp, colors.accentBlue.copy(alpha = 0.3f), SoodalShape.md)
                 else Modifier
@@ -674,7 +685,7 @@ private fun SegmentChip(
             text = label,
             fontSize = 13.sp,
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-            color = if (isActive) colors.accentBlue else colors.textTertiary,
+            color = if (isActive) colors.accentBlue else colors.textSecondary,
         )
     }
 }
@@ -700,7 +711,7 @@ private fun StyleToggleChip(
     Box(
         modifier = Modifier
             .clip(SoodalShape.md)
-            .background(if (active) colors.accentBlueSoft else colors.surface2)
+            .background(if (active) colors.accentBlueSoft else sheetControlBg(colors))
             .then(
                 if (active) Modifier.border(1.dp, colors.accentBlue.copy(alpha = 0.3f), SoodalShape.md)
                 else Modifier,
@@ -717,7 +728,7 @@ private fun StyleToggleChip(
             fontSize = 13.sp,
             fontWeight = if (boldText) FontWeight.Bold else FontWeight.Normal,
             fontStyle = if (italicText) FontStyle.Italic else FontStyle.Normal,
-            color = if (active) colors.accentBlue else colors.textTertiary,
+            color = if (active) colors.accentBlue else colors.textSecondary,
         )
     }
 }

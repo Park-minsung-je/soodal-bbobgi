@@ -31,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -144,10 +145,13 @@ fun SettingsScreen(
         }
     }
 
+    // 다이얼로그/팝업이 떠 있는 동안 뒤 콘텐츠 블러 (API 31+, 미만은 자동 무시).
+    val popupOpen = dialog != null || devPopup != null
     Box(Modifier.fillMaxSize().soodalScreenBackdrop()) {
     Column(
         modifier = Modifier
-            .fillMaxSize(),
+            .fillMaxSize()
+            .then(if (popupOpen) Modifier.blur(18.dp) else Modifier),
     ) {
         Column(
             modifier = Modifier
@@ -530,8 +534,9 @@ private fun ToggleSwitch(
 ) {
     val colors = SoodalDesign.colors
     val trackColor = if (checked) colors.accentBlue else colors.surface3
+    // ON 오프셋 = 트랙(44) − 썸(20) − 좌우 여백(2) = 22 → 켜짐/꺼짐 여백이 좌우 대칭.
     val thumbOffset by animateDpAsState(
-        targetValue = if (checked) 20.dp else 2.dp,
+        targetValue = if (checked) 22.dp else 2.dp,
         animationSpec = tween(200),
         label = "thumb",
     )
