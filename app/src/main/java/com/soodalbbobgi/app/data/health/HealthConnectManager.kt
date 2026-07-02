@@ -386,7 +386,7 @@ class HealthConnectManager @Inject constructor(
      * 처리해야 하므로, 여기서는 존재 여부만 보고 저장된 토큰은 건드리지 않는다.
      * 백그라운드 새 기록 알림 워커 전용.
      *
-     * @return 수영 변경 있으면 true, 없으면 false, 토큰 만료/판단 불가면 null
+     * @return 새 수영 세션(추가/수정)이 있으면 true, 없으면 false, 토큰 만료/판단 불가면 null
      */
     suspend fun hasSwimChanges(token: String): Boolean? {
         return try {
@@ -400,7 +400,10 @@ class HealthConnectManager @Inject constructor(
                             val record = change.record
                             if (record is ExerciseSessionRecord && isSwimmingSession(record)) return true
                         }
-                        is DeletionChange -> return true
+                        // 삭제는 무시 — 삭제 변경엔 UID만 있어 수영 여부를 구분할 수 없고,
+                        // 워치/삼성헬스가 다른 운동 세션을 정리(삭제·재작성)만 해도
+                        // "새 기록" 오알림이 났다. 실제 삭제 반영은 포그라운드 동기화가 처리한다.
+                        is DeletionChange -> Unit
                     }
                 }
                 currentToken = response.nextChangesToken
