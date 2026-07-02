@@ -1,4 +1,4 @@
-package com.soodalbbobgi.app.presentation.calendar
+﻿package com.soodalbbobgi.app.presentation.calendar
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -66,6 +66,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
+import com.soodalbbobgi.app.core.ui.GlassBox
+import com.soodalbbobgi.app.core.ui.GlassCorner
+import com.soodalbbobgi.app.core.ui.GlassSheen
+import com.soodalbbobgi.app.core.ui.glass
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.TabBarClearance
@@ -121,78 +125,101 @@ fun CalendarScreen(
     // 선택한 날이 바뀌면 열린 수정 시트는 닫는다.
     LaunchedEffect(state.selectedDay) { editTarget = null }
 
-    Box(modifier = Modifier.fillMaxSize().background(colors.bgDeep)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                // 상태바 인셋을 스크롤되는 콘텐츠 패딩으로 — 위로 스크롤하면 콘텐츠가
-                // 상태바 밑으로 들어가며 전역 페이드 스크림으로 자연스럽게 사라진다.
-                // 하단 여백은 TabBarClearance가 담당하므로 위쪽만 패딩.
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(horizontal = spacing.s4)
                 .padding(top = spacing.s4),
         ) {
-            // ── 헤더: 제목 + 이번 달 인라인 통계 ──────────────
-            CalendarHeader(
-                year = state.year,
-                month = state.month,
-                swimData = state.swimData,
-            )
-
-            Spacer(Modifier.height(18.dp))
-
-            // ── 요일 헤더 (일요일 시작) ─────────────────────
-            DayHeaderRow()
-
-            Spacer(Modifier.height(6.dp))
-
-            // ── 그리드 (좌우 스와이프로 월 이동, 방향에 맞춰 슬라이드) ─────
             val currentYm = YearMonth.of(state.year, state.month)
             // 나가는 달의 그리드가 자기 달 데이터로 그려지도록 월별 데이터를 보관한다.
             val gridData = remember { HashMap<YearMonth, Map<Int, SwimDayData>>() }
             gridData[currentYm] = state.swimData
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .pointerInput(Unit) {
-                        var dragTotal = 0f
-                        detectHorizontalDragGestures(
-                            onDragStart = { dragTotal = 0f },
-                            onDragEnd = {
-                                val threshold = 56.dp.toPx()
-                                if (dragTotal > threshold) viewModel.previousMonth()
-                                else if (dragTotal < -threshold) viewModel.nextMonth()
-                            },
-                        ) { _, dragAmount -> dragTotal += dragAmount }
-                    },
+
+            // 헤더 (카드 아님): 년월 + 월 이동 화살표 (디자인 시안)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp, start = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                AnimatedContent(
-                    targetState = currentYm,
-                    transitionSpec = {
-                        // 다음 달은 오른쪽에서, 이전 달은 왼쪽에서 밀려 들어온다.
-                        val forward = targetState > initialState
-                        (slideInHorizontally { w -> if (forward) w else -w } + fadeIn()) togetherWith
-                            (slideOutHorizontally { w -> if (forward) -w else w } + fadeOut())
-                    },
-                    label = "calendarMonth",
-                ) { ym ->
-                    CalendarGrid(
-                        year = ym.year,
-                        month = ym.monthValue,
-                        selectedDay = if (ym == currentYm) state.selectedDay else null,
-                        swimData = gridData[ym] ?: emptyMap(),
-                        onSelect = viewModel::selectDay,
-                    )
+                Text(
+                    text = "${state.year}년 ${monthNames[state.month - 1]}",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = colors.textPrimary,
+                    letterSpacing = (-0.01).sp,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CalNavButton(SoodalIcons.ArrowLeft) { viewModel.previousMonth() }
+                    CalNavButton(SoodalIcons.ArrowRight) { viewModel.nextMonth() }
                 }
             }
 
-            // ── 영법 범례 ──────────────────────────────────
             Spacer(Modifier.height(12.dp))
-            StrokeLegend()
 
-            // ── 선택한 날 상세 (소제목 없이 카드 자체로 구분) ──────
+            // 카드 1: 이달 통계 (이달 거리 · 횟수 · 이달 조개)
+            GlassBox(modifier = Modifier.fillMaxWidth(), cornerDp = GlassCorner, contentPadding = 16.dp) {
+                CalendarStatsRow(swimData = state.swimData)
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // 카드 2: 요일 + 그리드 (범례는 상세 카드로 이동)
+            GlassBox(
+                modifier = Modifier.fillMaxWidth(),
+                cornerDp = GlassCorner,
+                contentPadding = 14.dp,
+            ) {
+                Column(Modifier.fillMaxWidth()) {
+                    // 요일 헤더 (일요일 시작)
+                    DayHeaderRow()
+
+                    Spacer(Modifier.height(6.dp))
+
+                    // 그리드 (좌우 스와이프로 월 이동, 방향에 맞춰 슬라이드)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .pointerInput(Unit) {
+                                var dragTotal = 0f
+                                detectHorizontalDragGestures(
+                                    onDragStart = { dragTotal = 0f },
+                                    onDragEnd = {
+                                        val threshold = 56.dp.toPx()
+                                        if (dragTotal > threshold) viewModel.previousMonth()
+                                        else if (dragTotal < -threshold) viewModel.nextMonth()
+                                    },
+                                ) { _, dragAmount -> dragTotal += dragAmount }
+                            },
+                    ) {
+                        AnimatedContent(
+                            targetState = currentYm,
+                            transitionSpec = {
+                                val forward = targetState > initialState
+                                (slideInHorizontally { w -> if (forward) w else -w } + fadeIn()) togetherWith
+                                    (slideOutHorizontally { w -> if (forward) -w else w } + fadeOut())
+                            },
+                            label = "calendarMonth",
+                        ) { ym ->
+                            CalendarGrid(
+                                year = ym.year,
+                                month = ym.monthValue,
+                                selectedDay = if (ym == currentYm) state.selectedDay else null,
+                                swimData = gridData[ym] ?: emptyMap(),
+                                onSelect = viewModel::selectDay,
+                            )
+                        }
+                    }
+
+                }
+            }
+
             Spacer(Modifier.height(14.dp))
+
+            // 선택한 날 상세 (소제목 없이 카드 자체로 구분)
             DayDetailCard(
                 year = state.year,
                 month = state.month,
@@ -203,11 +230,11 @@ fun CalendarScreen(
                 onToggleChart = { hrChartExpanded = !hrChartExpanded },
             )
 
-            // ── 최근 7일 활동 (홈과 동일 — 트렌드 내장 자체 라벨 카드) ──
+            // 최근 7일 활동 (홈과 동일 — 트렌드 내장 자체 라벨 카드)
             Spacer(Modifier.height(14.dp))
             WeeklyActivityCard(weekly, trendPercent = weekly.trendPercent)
 
-            // ── 선택한 달 영법별 기록 (도넛 차트) ──────────────────
+            // 선택한 달 영법별 기록 (도넛 차트)
             Spacer(Modifier.height(14.dp))
             val isCurrentMonth = YearMonth.of(state.year, state.month) == YearMonth.now()
             MonthStrokeDonutCard(
@@ -245,7 +272,72 @@ fun CalendarScreen(
     }
 }
 
-// ── 헤더 ─────────────────────────────────────────────────────────
+// ── 월 이동 화살표 버튼 (글래스) ──
+@Composable
+private fun CalNavButton(icon: SoodalIcons, onClick: () -> Unit) {
+    val colors = SoodalDesign.colors
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .glass(colors, 12.dp, shape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        SoodalIcon(icon = icon, tint = colors.textSecondary, size = 16.dp)
+        GlassSheen(shape)
+    }
+}
+
+// ── 이달 통계 카드 내용 (이달 거리 · 횟수 · 이달 조개) — 디자인 시안 ──
+@Composable
+private fun CalendarStatsRow(swimData: Map<Int, SwimDayData>) {
+    val colors = SoodalDesign.colors
+    val swimDays = swimData.size
+    val totalShells = swimData.values.sumOf { it.shellReward }
+    val totalKm = swimData.values.sumOf { it.distanceM } / 1000f
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            CalStatBlock("이달 거리", String.format("%.1f", totalKm), "km", colors.accentBlue)
+            CalStatBlock("횟수", "$swimDays", "회", colors.success)
+        }
+        // 이달 조개 획득 pill
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(999.dp))
+                .background(colors.accentGold.copy(alpha = 0.16f))
+                .padding(horizontal = 12.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Text("이달 +$totalShells", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentGold)
+            SoodalIcon(icon = SoodalIcons.Shell, tint = colors.accentGold, size = 14.dp)
+        }
+    }
+}
+
+@Composable
+private fun CalStatBlock(label: String, value: String, unit: String, color: Color) {
+    val colors = SoodalDesign.colors
+    Column {
+        Text(label, fontSize = 11.sp, color = colors.textSecondary, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(3.dp))
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(value, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = color)
+            Text(unit, fontSize = 11.sp, color = colors.textSecondary, modifier = Modifier.padding(start = 2.dp, bottom = 2.dp))
+        }
+    }
+}
+
+// ── 헤더 (구버전 — 미사용) ────────────────────────────────────────
 @Composable
 private fun CalendarHeader(year: Int, month: Int, swimData: Map<Int, SwimDayData>) {
     val colors = SoodalDesign.colors
@@ -504,8 +596,10 @@ private fun DayDetailCard(
     val colors = SoodalDesign.colors
 
     // 기록 있는 날 ↔ 없는 날을 오갈 때 카드 높이가 탁 바뀌지 않고 부드럽게 변한다.
-    SoodalCard(modifier = Modifier.fillMaxWidth().animateContentSize(tween(220))) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+    // animateContentSize는 콘텐츠를 클립하므로 카드 바깥이 아니라 안쪽 Column에 둔다
+    // (바깥에 두면 카드 그림자가 잘린다).
+    SoodalCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth().animateContentSize(tween(220))) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = if (day != null) "${year}년 ${monthNames[month - 1]} ${day}일" else "날짜를 선택해 주세요",
