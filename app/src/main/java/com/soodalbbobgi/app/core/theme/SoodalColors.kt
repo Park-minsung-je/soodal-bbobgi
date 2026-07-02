@@ -65,7 +65,8 @@ val LightColors = SoodalColors(
     accentPurple = Color(0xFF6E55C9), accentPurpleSoft = Color(0xFFA793EC).copy(alpha = 0.16f),
     accentGold = Color(0xFFC8910F), accentGoldSoft = Color(0xFFF6C95B).copy(alpha = 0.18f),
     success = Color(0xFF1E9E78), warn = Color(0xFFD9614A),
-    textPrimary = Color(0xFF1A2438), textSecondary = Color(0xFF5C6B7E), textTertiary = Color(0xFFA7B0BF),
+    // 이미지 배경 위 가독성 — 3차 회색을 App Canvas ink3(#93A3B3)로 진하게.
+    textPrimary = Color(0xFF1A2438), textSecondary = Color(0xFF56687C), textTertiary = Color(0xFF93A3B3),
     gradBlue = gradientBrush(listOf(Color(0xFF89CEF0), Color(0xFF5AAFD8))),
     gradGold = gradientBrush(listOf(Color(0xFFFAD878), Color(0xFFEFB43A))),
     gradPurple = gradientBrush(listOf(Color(0xFFBBA7F0), Color(0xFF8572D8))),
