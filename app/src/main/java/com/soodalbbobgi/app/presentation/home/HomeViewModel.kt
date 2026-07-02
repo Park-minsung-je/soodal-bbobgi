@@ -93,6 +93,9 @@ data class HomeUiState(
     /** 기록 줄 표시 여부. */
     val cardShowStats: Boolean = true,
     val cardShowText: Boolean = true,
+    val cardNicknamePill: String = "WHITE",
+    val cardTaglinePill: String = "NONE",
+    val cardStatsPill: String = "BLUR",
     /** 닉네임 색상 ("#RRGGBB"). */
     val cardNicknameColor: String = "#FFFFFF",
     /** 소개 줄 색상 ("#RRGGBB"). */
@@ -229,6 +232,9 @@ class HomeViewModel @Inject constructor(
             cardTextScaleStep = profileCard?.textScaleStep ?: 3,
             cardShowStats = profileCard?.showStats ?: true,
             cardShowText = profileCard?.showText ?: true,
+            cardNicknamePill = profileCard?.nicknamePill ?: "WHITE",
+            cardTaglinePill = profileCard?.taglinePill ?: "NONE",
+            cardStatsPill = profileCard?.statsPill ?: "BLUR",
             cardNicknameColor = profileCard?.nicknameColor ?: "#FFFFFF",
             cardTaglineColor = profileCard?.taglineColor ?: "#FFFFFF",
             cardStatsColor = profileCard?.statsColor ?: "#00F5FF",

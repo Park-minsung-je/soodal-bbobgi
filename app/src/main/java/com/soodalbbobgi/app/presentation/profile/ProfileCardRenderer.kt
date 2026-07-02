@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
@@ -65,6 +66,12 @@ data class CardLayers(
     val showStats: Boolean = true,
     /** 이름표(닉네임 알약 + 소개) 표시 여부. false면 블록 전체를 그리지 않는다. */
     val showText: Boolean = true,
+    /** 닉네임 알약 스타일 ("NONE" | "BLACK" | "WHITE" | "BLUR"). */
+    val nicknamePill: String = "WHITE",
+    /** 소개 알약 스타일. */
+    val taglinePill: String = "NONE",
+    /** 기록 칩 알약 스타일. */
+    val statsPill: String = "BLUR",
     /** 닉네임 색상 ("#RRGGBB"). */
     val nicknameColor: String = "#FFFFFF",
     /** 소개 줄 색상 ("#RRGGBB"). */
@@ -180,80 +187,136 @@ object ProfileCardRenderer {
         val isRight = layers.textAlign != "LEFT"
         val anchorX = layers.textX * CARD_WIDTH
 
-        if (layers.showText) {
-            // ── 닉네임 알약: 흰 배경 캡슐 + 잉크 텍스트 ──
-            textPaint.textSize = nicknameSize
+        /**
+         * 텍스트 요소 하나를 알약 스타일에 맞춰 그린다.
+         *
+         * @param style "NONE"(맨글자) | "BLACK" | "WHITE" | "BLUR"
+         * @return 그린 요소의 전체 높이(px)
+         */
+        fun drawElement(
+            text: String,
+            textSize: Float,
+            top: Float,
+            style: String,
+            colorRaw: Int,
+            leftAligned: Boolean,
+            anchor: Float,
+        ): Float {
+            textPaint.textSize = textSize
             textPaint.textAlign = Paint.Align.LEFT
             textPaint.style = Paint.Style.FILL
             textPaint.clearShadowLayer()
-            val nickWidth = textPaint.measureText(layers.nickname)
-            val padH = nicknameSize * 0.55f
-            val padV = nicknameSize * 0.30f
-            val pillW = nickWidth + padH * 2f
-            val pillH = nicknameSize + padV * 2f
-            val gapPillTagline = nicknameSize * 0.28f
-            val blockHeight = pillH + gapPillTagline + taglineSize
-            val blockTop = layers.textY * CARD_HEIGHT - blockHeight / 2f
-            val pillLeft = if (isRight) anchorX - pillW else anchorX
+            val textW = textPaint.measureText(text)
 
-            // 알약 배경 (살짝 뜨는 그림자 포함)
-            val pillPaint = Paint().apply {
-                isAntiAlias = true
-                color = android.graphics.Color.argb(230, 255, 255, 255)
-                setShadowLayer(10f * u, 0f, 3f * u, android.graphics.Color.argb(70, 0, 20, 40))
-            }
-            val pillRect = RectF(pillLeft, blockTop, pillLeft + pillW, blockTop + pillH)
-            canvas.drawRoundRect(pillRect, pillH / 2f, pillH / 2f, pillPaint)
-
-            // 알약 텍스트 — 사용자 색이 흰색 계열이면 알약 위에서 안 보이므로 잉크로 폴백.
-            val rawNick = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.WHITE)
-            textPaint.color = if (isNearWhite(rawNick)) Color(0xFF1A2438).toArgb() else rawNick
-            val nickBaseline = blockTop + padV + nicknameSize - textPaint.descent() * 0.35f
-            canvas.drawText(layers.nickname, pillLeft + padH, nickBaseline, textPaint)
-
-            // ── 소개 — 알약 아래, 외곽선 옵션/색 커스텀 유지 ──
-            textPaint.textSize = taglineSize
-            textPaint.textAlign = if (isRight) Paint.Align.RIGHT else Paint.Align.LEFT
-            val tagBaseline = blockTop + pillH + gapPillTagline + taglineSize
-            val tagColor = parseColorOrDefault(layers.taglineColor, android.graphics.Color.WHITE)
-            if (layers.textOutline) {
-                textPaint.style = Paint.Style.STROKE
-                textPaint.strokeWidth = taglineSize * 0.09f
-                textPaint.color = outlineColor(tagColor)
+            if (style == "NONE") {
+                // 알약 없음 — 맨글자 + 대비 그림자(옵션 시 외곽선).
+                val baseline = top + textSize
+                val x = if (leftAligned) anchor else anchor - textW
+                if (layers.textOutline) {
+                    textPaint.style = Paint.Style.STROKE
+                    textPaint.strokeWidth = textSize * 0.09f
+                    textPaint.color = outlineColor(colorRaw)
+                    canvas.drawText(text, x, baseline, textPaint)
+                    textPaint.style = Paint.Style.FILL
+                }
+                textPaint.color = colorRaw
+                textPaint.setShadowLayer(7f * u, 0f, 2f * u, contrastShadow(colorRaw))
+                canvas.drawText(text, x, baseline, textPaint)
                 textPaint.clearShadowLayer()
-                canvas.drawText(layers.tagline, anchorX, tagBaseline, textPaint)
+                return textSize * 1.15f
             }
-            textPaint.style = Paint.Style.FILL
-            textPaint.color = tagColor
-            textPaint.setShadowLayer(7f * u, 0f, 2f * u, contrastShadow(tagColor))
-            canvas.drawText(layers.tagline, anchorX, tagBaseline, textPaint)
+
+            // ── 알약(캡슐) 계열 ──
+            val padH = textSize * 0.55f
+            val padV = textSize * 0.30f
+            val pillW = textW + padH * 2f
+            val pillH = textSize + padV * 2f
+            val left = if (leftAligned) anchor else anchor - pillW
+            val rect = RectF(left, top, left + pillW, top + pillH)
+            val radius = pillH / 2f
+
+            when (style) {
+                "BLACK" -> {
+                    val pillPaint = Paint().apply {
+                        isAntiAlias = true
+                        color = android.graphics.Color.argb(210, 31, 42, 55)
+                        setShadowLayer(10f * u, 0f, 3f * u, android.graphics.Color.argb(70, 0, 20, 40))
+                    }
+                    canvas.drawRoundRect(rect, radius, radius, pillPaint)
+                    // 어두운 커스텀 색은 검정 알약 위에서 안 보여 흰색 폴백.
+                    textPaint.color = if (isNearBlack(colorRaw)) android.graphics.Color.WHITE else colorRaw
+                }
+                "BLUR" -> {
+                    // 이미 합성된 카드(배경/캐릭터)를 영역 블러 → 진짜 프로스트 알약.
+                    val shadowPaint = Paint().apply {
+                        isAntiAlias = true
+                        color = android.graphics.Color.TRANSPARENT
+                        setShadowLayer(10f * u, 0f, 3f * u, android.graphics.Color.argb(60, 0, 20, 40))
+                    }
+                    canvas.drawRoundRect(rect, radius, radius, shadowPaint)
+                    val blurred = blurRegion(bitmap, rect, (14f * u).toInt().coerceAtLeast(8))
+                    if (blurred != null) {
+                        val save = canvas.save()
+                        val clip = Path().apply { addRoundRect(rect, radius, radius, Path.Direction.CW) }
+                        canvas.clipPath(clip)
+                        canvas.drawBitmap(blurred, null, rect, paint)
+                        canvas.drawRect(rect, Paint().apply { color = android.graphics.Color.argb(115, 255, 255, 255) })
+                        canvas.restoreToCount(save)
+                    } else {
+                        // 영역이 카드 밖 등으로 잘리면 흰 반투명 폴백.
+                        canvas.drawRoundRect(rect, radius, radius, Paint().apply {
+                            isAntiAlias = true
+                            color = android.graphics.Color.argb(180, 255, 255, 255)
+                        })
+                    }
+                    // 유리 하이라이트 보더. (this.style — 함수 파라미터 style이 가리므로 명시)
+                    canvas.drawRoundRect(rect, radius, radius, Paint().apply {
+                        isAntiAlias = true
+                        this.style = Paint.Style.STROKE
+                        strokeWidth = 2.2f * u
+                        color = android.graphics.Color.argb(165, 255, 255, 255)
+                    })
+                    textPaint.color = if (isNearWhite(colorRaw)) Color(0xFF1A2438).toArgb() else colorRaw
+                }
+                else -> { // WHITE
+                    val pillPaint = Paint().apply {
+                        isAntiAlias = true
+                        color = android.graphics.Color.argb(230, 255, 255, 255)
+                        setShadowLayer(10f * u, 0f, 3f * u, android.graphics.Color.argb(70, 0, 20, 40))
+                    }
+                    canvas.drawRoundRect(rect, radius, radius, pillPaint)
+                    textPaint.color = if (isNearWhite(colorRaw)) Color(0xFF1A2438).toArgb() else colorRaw
+                }
+            }
+
+            val baseline = top + padV + textSize - textPaint.descent() * 0.35f
+            canvas.drawText(text, left + padH, baseline, textPaint)
+            return pillH
         }
 
-        // ── 기록 칩: 좌하단 고정 글래스 캡슐 (디자인) — 표시 토글/색 커스텀 유지 ──
+        /** 스타일별 요소 높이 예측 (블록 세로 중앙 정렬용). */
+        fun elementHeight(textSize: Float, style: String): Float =
+            if (style == "NONE") textSize * 1.15f else textSize * 1.60f
+
+        if (layers.showText) {
+            val gap = nicknameSize * 0.24f
+            val blockHeight = elementHeight(nicknameSize, layers.nicknamePill) + gap +
+                elementHeight(taglineSize, layers.taglinePill)
+            var y = layers.textY * CARD_HEIGHT - blockHeight / 2f
+
+            val rawNick = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.WHITE)
+            y += drawElement(layers.nickname, nicknameSize, y, layers.nicknamePill, rawNick, !isRight, anchorX) + gap
+            val rawTag = parseColorOrDefault(layers.taglineColor, android.graphics.Color.WHITE)
+            drawElement(layers.tagline, taglineSize, y, layers.taglinePill, rawTag, !isRight, anchorX)
+        }
+
+        // ── 기록 칩: 좌하단 고정 — 표시 토글/색/알약 스타일 커스텀 ──
         if (layers.showStats) {
             val statsSize = 30f * u
-            textPaint.textSize = statsSize
-            textPaint.textAlign = Paint.Align.LEFT
-            textPaint.style = Paint.Style.FILL
-            textPaint.clearShadowLayer()
-            val statsWidth = textPaint.measureText(layers.stats)
-            val chipPadH = statsSize * 0.65f
-            val chipPadV = statsSize * 0.38f
-            val chipH = statsSize + chipPadV * 2f
             val chipLeft = CARD_WIDTH * 0.035f
-            val chipTop = CARD_HEIGHT - CARD_HEIGHT * 0.075f - chipH
-            val chipPaint = Paint().apply {
-                isAntiAlias = true
-                color = android.graphics.Color.argb(215, 255, 255, 255)
-                setShadowLayer(8f * u, 0f, 2f * u, android.graphics.Color.argb(55, 0, 20, 40))
-            }
-            val chipRect = RectF(chipLeft, chipTop, chipLeft + statsWidth + chipPadH * 2f, chipTop + chipH)
-            canvas.drawRoundRect(chipRect, chipH / 2f, chipH / 2f, chipPaint)
-            // 칩 텍스트 — 밝은 커스텀 색(기본 네온)은 흰 칩 위에서 안 보여 시안 잉크로 폴백.
+            val chipTop = CARD_HEIGHT - CARD_HEIGHT * 0.075f - elementHeight(statsSize, layers.statsPill)
             val rawStats = parseColorOrDefault(layers.statsColor, Color(0xFF00F5FF).toArgb())
-            textPaint.color = if (isNearWhite(rawStats)) Color(0xFF2D86C4).toArgb() else rawStats
-            val statsBaseline = chipTop + chipPadV + statsSize - textPaint.descent() * 0.35f
-            canvas.drawText(layers.stats, chipLeft + chipPadH, statsBaseline, textPaint)
+            drawElement(layers.stats, statsSize, chipTop, layers.statsPill, rawStats, leftAligned = true, anchor = chipLeft)
         }
 
         // 브랜드 워터마크 — 사용자 글꼴 스타일과 무관하게 항상 기본 글꼴로 고정.
@@ -324,6 +387,71 @@ object ProfileCardRenderer {
             0.587 * android.graphics.Color.green(color) +
             0.114 * android.graphics.Color.blue(color)
         return lum >= 190
+    }
+
+    /** 검정 알약 위에서 안 보일 만큼 어두운 색인지. */
+    private fun isNearBlack(color: Int): Boolean {
+        val lum = 0.299 * android.graphics.Color.red(color) +
+            0.587 * android.graphics.Color.green(color) +
+            0.114 * android.graphics.Color.blue(color)
+        return lum <= 80
+    }
+
+    /**
+     * 카드 비트맵의 [rect] 영역을 잘라 분리형 박스 블러를 적용해 돌려준다 (블러 알약용).
+     * 영역이 카드 밖으로 나가 유효 크기가 없으면 null.
+     */
+    private fun blurRegion(src: Bitmap, rect: RectF, radius: Int): Bitmap? {
+        val l = rect.left.toInt().coerceIn(0, src.width - 1)
+        val t = rect.top.toInt().coerceIn(0, src.height - 1)
+        val r = rect.right.toInt().coerceIn(l + 1, src.width)
+        val b = rect.bottom.toInt().coerceIn(t + 1, src.height)
+        val w = r - l
+        val h = b - t
+        if (w < 4 || h < 4) return null
+
+        val px = IntArray(w * h)
+        src.getPixels(px, 0, w, l, t, w, h)
+        val tmp = IntArray(w * h)
+        val win = radius * 2 + 1
+
+        // 가로 패스
+        for (y in 0 until h) {
+            var sr = 0; var sg = 0; var sb = 0
+            val row = y * w
+            for (x in -radius..radius) {
+                val c = px[row + x.coerceIn(0, w - 1)]
+                sr += (c shr 16) and 0xFF; sg += (c shr 8) and 0xFF; sb += c and 0xFF
+            }
+            for (x in 0 until w) {
+                tmp[row + x] = (0xFF shl 24) or ((sr / win) shl 16) or ((sg / win) shl 8) or (sb / win)
+                val add = px[row + (x + radius + 1).coerceIn(0, w - 1)]
+                val sub = px[row + (x - radius).coerceIn(0, w - 1)]
+                sr += ((add shr 16) and 0xFF) - ((sub shr 16) and 0xFF)
+                sg += ((add shr 8) and 0xFF) - ((sub shr 8) and 0xFF)
+                sb += (add and 0xFF) - (sub and 0xFF)
+            }
+        }
+        // 세로 패스
+        for (x in 0 until w) {
+            var sr = 0; var sg = 0; var sb = 0
+            for (y in -radius..radius) {
+                val c = tmp[y.coerceIn(0, h - 1) * w + x]
+                sr += (c shr 16) and 0xFF; sg += (c shr 8) and 0xFF; sb += c and 0xFF
+            }
+            for (y in 0 until h) {
+                px[y * w + x] = (0xFF shl 24) or ((sr / win) shl 16) or ((sg / win) shl 8) or (sb / win)
+                val add = tmp[(y + radius + 1).coerceIn(0, h - 1) * w + x]
+                val sub = tmp[(y - radius).coerceIn(0, h - 1) * w + x]
+                sr += ((add shr 16) and 0xFF) - ((sub shr 16) and 0xFF)
+                sg += ((add shr 8) and 0xFF) - ((sub shr 8) and 0xFF)
+                sb += (add and 0xFF) - (sub and 0xFF)
+            }
+        }
+
+        val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        out.setPixels(px, 0, w, 0, 0, w, h)
+        return out
     }
 }
 

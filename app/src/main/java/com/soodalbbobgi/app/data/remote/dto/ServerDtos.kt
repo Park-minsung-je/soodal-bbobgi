@@ -19,6 +19,10 @@ data class ServerProfileCard(
     val showStats: Boolean = true,
     /** 이름표 표시 여부 — 구서버 응답엔 없을 수 있어 nullable (없으면 true로 매핑). */
     val showText: Boolean? = null,
+    /** 알약 스타일 3종 — 구서버 응답엔 없을 수 있어 nullable (없으면 기본값 매핑). */
+    val nicknamePill: String? = null,
+    val taglinePill: String? = null,
+    val statsPill: String? = null,
     val nicknameColor: String = "#FFFFFF",
     val taglineColor: String = "#FFFFFF",
     val statsColor: String = "#00F5FF",

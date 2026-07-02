@@ -357,6 +357,16 @@ fun EditorSheet(
                         )
                     }
 
+                    // -- 알약 스타일 (닉네임 / 소개 / 기록) --
+                    Spacer(Modifier.height(spacing.s3))
+                    Text("알약", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+                    Spacer(Modifier.height(spacing.s2))
+                    PillStyleRow("닉네임", state.nicknamePill) { vm.setNicknamePill(it) }
+                    Spacer(Modifier.height(spacing.s2))
+                    PillStyleRow("소개", state.taglinePill) { vm.setTaglinePill(it) }
+                    Spacer(Modifier.height(spacing.s2))
+                    PillStyleRow("기록", state.statsPill) { vm.setStatsPill(it) }
+
                     // -- 색상 (닉네임 / 소개 / 기록) --
                     Spacer(Modifier.height(spacing.s3))
                     Text("색상", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
@@ -682,6 +692,24 @@ private val TextColorPalette = listOf(
     "#FFD60A", "#D99500",
     "#FF6B6B", "#30D158", "#4FB8FF",
 )
+
+/**
+ * 알약 스타일 선택 행 — 요소 라벨 + 4옵션(없음/검정/흰색/블러) 단일 선택.
+ *
+ * @param selected 현재 스타일 ("NONE"|"BLACK"|"WHITE"|"BLUR")
+ */
+@Composable
+private fun PillStyleRow(label: String, selected: String, onSelect: (String) -> Unit) {
+    val colors = SoodalDesign.colors
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, fontSize = 11.sp, color = colors.textSecondary, modifier = Modifier.width(44.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("NONE" to "없음", "BLACK" to "검정", "WHITE" to "흰색", "BLUR" to "블러").forEach { (key, optionLabel) ->
+                SegmentChip(label = optionLabel, isActive = selected == key, onClick = { onSelect(key) })
+            }
+        }
+    }
+}
 
 /**
  * 좌/우 정렬·크기 단계 등 단일 선택용 작은 칩.

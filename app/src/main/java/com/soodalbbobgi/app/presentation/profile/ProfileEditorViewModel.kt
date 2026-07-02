@@ -79,6 +79,10 @@ data class ProfileEditorUiState(
     val showStats: Boolean = true,
     /** 이름표(닉네임 알약+소개) 표시 여부. */
     val showText: Boolean = true,
+    /** 알약 스타일 ("NONE"|"BLACK"|"WHITE"|"BLUR"). */
+    val nicknamePill: String = "WHITE",
+    val taglinePill: String = "NONE",
+    val statsPill: String = "BLUR",
     /** 닉네임 색상 ("#RRGGBB"). */
     val nicknameColor: String = "#FFFFFF",
     /** 소개 줄 색상 ("#RRGGBB"). */
@@ -132,6 +136,9 @@ class ProfileEditorViewModel @Inject constructor(
         val textScaleStep: Int = 3,
         val showStats: Boolean = true,
         val showText: Boolean = true,
+        val nicknamePill: String = "WHITE",
+        val taglinePill: String = "NONE",
+        val statsPill: String = "BLUR",
         val nicknameColor: String = "#FFFFFF",
         val taglineColor: String = "#FFFFFF",
         val statsColor: String = "#00F5FF",
@@ -165,6 +172,9 @@ class ProfileEditorViewModel @Inject constructor(
                 textScaleStep = savedCard.textScaleStep,
                 showStats = savedCard.showStats,
                 showText = savedCard.showText,
+                nicknamePill = savedCard.nicknamePill,
+                taglinePill = savedCard.taglinePill,
+                statsPill = savedCard.statsPill,
                 nicknameColor = savedCard.nicknameColor,
                 taglineColor = savedCard.taglineColor,
                 statsColor = savedCard.statsColor,
@@ -201,6 +211,9 @@ class ProfileEditorViewModel @Inject constructor(
             textScaleStep = state.textScaleStep,
             showStats = state.showStats,
             showText = state.showText,
+            nicknamePill = state.nicknamePill,
+            taglinePill = state.taglinePill,
+            statsPill = state.statsPill,
             nicknameColor = state.nicknameColor,
             taglineColor = state.taglineColor,
             statsColor = state.statsColor,
@@ -268,6 +281,11 @@ class ProfileEditorViewModel @Inject constructor(
     /** 이름표(닉네임 알약+소개) 표시 토글. */
     fun setShowText(v: Boolean) { _editState.value = _editState.value.copy(showText = v) }
 
+    /** 알약 스타일 변경 ("NONE"|"BLACK"|"WHITE"|"BLUR"). */
+    fun setNicknamePill(v: String) { _editState.value = _editState.value.copy(nicknamePill = v) }
+    fun setTaglinePill(v: String) { _editState.value = _editState.value.copy(taglinePill = v) }
+    fun setStatsPill(v: String) { _editState.value = _editState.value.copy(statsPill = v) }
+
     /** 닉네임 색상 설정 ("#RRGGBB"). */
     fun setNicknameColor(v: String) { _editState.value = _editState.value.copy(nicknameColor = v) }
 
@@ -310,6 +328,9 @@ class ProfileEditorViewModel @Inject constructor(
                     textScaleStep = s.textScaleStep,
                     showStats = s.showStats,
                     showText = s.showText,
+                    nicknamePill = s.nicknamePill,
+                    taglinePill = s.taglinePill,
+                    statsPill = s.statsPill,
                     nicknameColor = s.nicknameColor,
                     taglineColor = s.taglineColor,
                     statsColor = s.statsColor,
@@ -333,6 +354,9 @@ class ProfileEditorViewModel @Inject constructor(
                     textScaleStep = card.textScaleStep,
                     showStats = card.showStats,
                     showText = card.showText,
+                    nicknamePill = card.nicknamePill,
+                    taglinePill = card.taglinePill,
+                    statsPill = card.statsPill,
                     nicknameColor = card.nicknameColor,
                     taglineColor = card.taglineColor,
                     statsColor = card.statsColor,

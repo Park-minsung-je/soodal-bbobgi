@@ -33,6 +33,12 @@ data class ProfileCard(
     val showStats: Boolean = true,
     /** 이름표(닉네임 알약+소개) 표시 여부. */
     val showText: Boolean = true,
+    /** 닉네임 알약 스타일 ("NONE" | "BLACK" | "WHITE" | "BLUR"). */
+    val nicknamePill: String = "WHITE",
+    /** 소개 알약 스타일. */
+    val taglinePill: String = "NONE",
+    /** 기록 칩 알약 스타일. */
+    val statsPill: String = "BLUR",
     val nicknameColor: String = "#FFFFFF",
     val taglineColor: String = "#FFFFFF",
     val statsColor: String = "#00F5FF",
