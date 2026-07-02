@@ -1,0 +1,194 @@
+package com.soodalbbobgi.app.core.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.draw.paint
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import com.soodalbbobgi.app.R
+import com.soodalbbobgi.app.core.theme.SoodalColors
+import com.soodalbbobgi.app.core.theme.SoodalDesign
+
+// ─── 공용 글래스 기준값 (한 곳에서 관리 — 바꾸면 전 컴포넌트에 반영) ───
+// App Canvas 곡률: 콘텐츠 글래스 카드(도감·오늘·주간·월간·달력)=24, 프로필 프레임=32(내부 24),
+// 칩/아이콘 버튼=14, 탭바=22(SoodalTabBar 자체 shape).
+/** 카드·달력·도감 등 콘텐츠 글래스 컨테이너의 표준 모서리 (App Canvas = 24). */
+val GlassCorner: Dp = 24.dp
+/** 프로필 카드 프레임의 모서리 (App Canvas = 32, 내부 아트 24 = 프레임 − 패딩 8). */
+val ProfileFrameCorner: Dp = 32.dp
+/** 칩·아이콘 버튼 등 작은 글래스 요소의 모서리 (App Canvas = 14). */
+val GlassCornerSmall: Dp = 14.dp
+
+/**
+ * 앱 전역 통일 배경 — 물빛 파스텔 165° 그라데이션 위에 teal/purple/gold radial glow를
+ * 겹친 **디자인 원본(.app-root + ::before) 값 그대로**. 루트에서 한 번만 그리고,
+ * 각 화면은 배경을 칠하지 않아(투명) 고정 헤더 경계에 이음매가 생기지 않는다.
+ */
+fun Modifier.soodalBackground(colors: SoodalColors): Modifier = this.drawBehind {
+    // 1) 베이스 그라데이션 (cyan→mint→lavender 3스톱, 165° ≈ 살짝 기운 세로)
+    drawRect(
+        Brush.linearGradient(
+            colors = colors.screenGradientStops,
+            start = Offset(size.width * 0.16f, 0f),
+            end = Offset(size.width * 0.84f, size.height),
+        ),
+    )
+    // 2) radial glow — 디자인 원본 알파 그대로 (teal .10 / purple .08 / gold .07)
+    val big = maxOf(size.width, size.height)
+    fun glow(c: Color, cx: Float, cy: Float, r: Float) {
+        drawRect(
+            Brush.radialGradient(
+                colors = listOf(c, Color.Transparent),
+                center = Offset(size.width * cx, size.height * cy),
+                radius = big * r,
+            ),
+        )
+    }
+    if (!colors.isDark) {
+        glow(Color(0x1A00A8B8), 0.20f, 0.00f, 0.60f) // teal .10
+        glow(Color(0x14883DDB), 0.90f, 0.30f, 0.60f) // purple .08
+        glow(Color(0x12D99500), 0.50f, 1.00f, 0.60f) // gold .07
+    } else {
+        glow(Color(0x1200F5FF), 0.20f, 0.00f, 0.60f)
+        glow(Color(0x0FBF5AF2), 0.90f, 0.30f, 0.60f)
+        glow(Color(0x0DFFD60A), 0.50f, 1.00f, 0.60f)
+    }
+}
+
+/**
+ * 화면 자체 배경 — 푸시로 열리는 서브 화면(설정·라이선스 등)이 전환 중 뒤 화면을 가리도록
+ * **자기 배경을 직접 칠한다**. 루트 통일 배경과 동일한 이미지/그라데이션이라 이음매 없음.
+ * (탭 화면은 투명 유지 — 루트 배경 공유.)
+ */
+@Composable
+fun Modifier.soodalScreenBackdrop(): Modifier {
+    val colors = SoodalDesign.colors
+    return if (!colors.isDark) {
+        this.paint(painterResource(id = R.drawable.soodal_bg), contentScale = ContentScale.FillBounds)
+    } else {
+        this.soodalBackground(colors)
+    }
+}
+
+/** 화면 배경 그라데이션 색 스톱 (라이트/다크 공통 진입점). */
+private val SoodalColors.screenGradientStops: List<Color>
+    get() = if (!isDark) {
+        listOf(Color(0xFFCFE9FA), Color(0xFFD6F0E6), Color(0xFFE4DCF8))
+    } else {
+        listOf(Color(0xFF0E1A30), Color(0xFF0A1220), Color(0xFF06080F))
+    }
+
+/**
+ * 글래스 서피스 그림자 — 네이티브 `shadowLayer`로 그리는 **부드럽고 균일한** 블루틴트 그림자.
+ * (Compose `Modifier.shadow`는 반투명 카드에서 흰 사각형 아티팩트가 있었어 되돌림.
+ *  오프셋을 작게 두어 예전 "사각으로 잘린 듯한" 하드 그림자도 피한다.)
+ */
+fun Modifier.glassShadow(cornerDp: Dp, colors: SoodalColors): Modifier = this.drawBehind {
+    val argb = if (!colors.isDark) {
+        android.graphics.Color.argb(38, 45, 90, 140)
+    } else {
+        android.graphics.Color.argb(140, 0, 0, 0)
+    }
+    val paint = Paint().asFrameworkPaint().apply {
+        color = android.graphics.Color.TRANSPARENT
+        // 큰 블러 + 작은 y오프셋 = 카드 아래로 은은하게 퍼지는 글로우 (하드 엣지 없음)
+        setShadowLayer(26.dp.toPx(), 0f, 7.dp.toPx(), argb)
+    }
+    drawIntoCanvas { canvas ->
+        canvas.nativeCanvas.drawRoundRect(
+            0f, 0f, size.width, size.height,
+            cornerDp.toPx(), cornerDp.toPx(), paint,
+        )
+    }
+}
+
+/**
+ * 공용 글래스 표면 모디파이어 — 그림자 + 반투명 채움 + 1px 흰 하이라이트 보더.
+ * **상단 sheen은 [GlassSheen]으로 별도로 얹는다** (모디파이어는 자식 컴포저블을 못 그리므로).
+ * 자식이 없는 표면(탭바 등)은 이 모디파이어 + [GlassSheen] 오버레이를 함께 쓴다.
+ */
+fun Modifier.glass(
+    colors: SoodalColors,
+    cornerDp: Dp = GlassCorner,
+    shape: Shape = RoundedCornerShape(cornerDp),
+    shadow: Boolean = true,
+): Modifier {
+    var m = this
+    if (shadow) m = m.glassShadow(cornerDp, colors)
+    return m
+        .clip(shape)
+        .background(colors.glassBg)
+        .border(1.dp, colors.glassBorder, shape)
+}
+
+/**
+ * 글래스 상단 sheen 오버레이 — 유리 윗면에 빛이 번지는 3단 하이라이트.
+ * 어떤 글래스 [Box] 안에서든 호출하면 동일한 sheen이 얹힌다(모서리 [shape]로 클립).
+ * 이 하나로 **모든 글래스 컴포넌트의 상단 효과를 통일**한다.
+ */
+@Composable
+fun BoxScope.GlassSheen(shape: Shape) {
+    val colors = SoodalDesign.colors
+    Box(Modifier.matchParentSize().clip(shape)) {
+        Box(
+            Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(if (colors.isDark) 5.dp else 7.dp)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.White.copy(alpha = if (colors.isDark) 0.14f else 0.42f),
+                            Color.White.copy(alpha = if (colors.isDark) 0.04f else 0.10f),
+                            Color.Transparent,
+                        ),
+                    ),
+                ),
+        )
+    }
+}
+
+/**
+ * 재사용 글래스 박스 — 디자인 표준 글래스(.glass/.card) 공용 컨테이너.
+ * 반투명 프로스트 + 흰 하이라이트 보더 + 소프트 블루틴트 그림자 + **상단 sheen**.
+ * 앱의 모든 카드/패널이 이걸 쓰므로, 기준값(코너·sheen·그림자)을 여기서 바꾸면 전부 반영된다.
+ *
+ * @param cornerDp 모서리 반경 (기본 [GlassCorner]).
+ * @param contentPadding 내부 패딩 (카드 16, 밀집 14, 프레임 6).
+ */
+@Composable
+fun GlassBox(
+    modifier: Modifier = Modifier,
+    cornerDp: Dp = GlassCorner,
+    contentPadding: Dp = 16.dp,
+    shadow: Boolean = true,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    val colors = SoodalDesign.colors
+    val shape = RoundedCornerShape(cornerDp)
+    Box(modifier = modifier.glass(colors, cornerDp, shape, shadow)) {
+        Box(Modifier.padding(contentPadding), content = content)
+        GlassSheen(shape)
+    }
+}

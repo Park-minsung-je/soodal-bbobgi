@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.paint
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -32,6 +33,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.ui.LocalTabBarDim
 import com.soodalbbobgi.app.core.ui.SoodalTabBar
+import com.soodalbbobgi.app.core.ui.soodalBackground
 import com.soodalbbobgi.app.core.ui.TabBarDimLayer
 import com.soodalbbobgi.app.core.ui.TabBarDimState
 import com.soodalbbobgi.app.core.ui.motion.soodalEnter
@@ -81,9 +83,20 @@ fun AppNavHost(navController: NavHostController) {
 
     // 상태바 패딩은 루트가 아닌 화면별로 적용한다 — 캘린더처럼 콘텐츠가
     // 상태바 밑으로 스크롤되며 페이드되는 화면을 허용하기 위함.
+    val bgColors = SoodalDesign.colors
+    // 라이트: 디자인 CSS를 픽셀 그대로 렌더한 배경 이미지(soodal_bg) — 근사 대신 정확 일치.
+    // 다크: Compose 그라데이션(soodalBackground) 유지.
+    val bgModifier = if (!bgColors.isDark) {
+        Modifier.paint(
+            painter = androidx.compose.ui.res.painterResource(id = com.soodalbbobgi.app.R.drawable.soodal_bg),
+            contentScale = androidx.compose.ui.layout.ContentScale.FillBounds,
+        )
+    } else {
+        Modifier.soodalBackground(bgColors)
+    }
     Box(modifier = Modifier
         .fillMaxSize()
-        .background(SoodalDesign.colors.bgDeep)
+        .then(bgModifier)
         .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
         // 콘텐츠는 화면 전체를 쓰고 탭바는 그 위에 떠 있는 오버레이 —
@@ -201,32 +214,8 @@ fun AppNavHost(navController: NavHostController) {
                 }
             }
 
-        // 상태바 페이드 스크림 — 상태바 상단 70%는 불투명(아이콘 가독) 유지,
-        // 하단 30% 지점부터 경계 아래까지 smoothstep S-커브로 완만하게 풀려
-        // 스크롤 콘텐츠가 상태바 밑에서 자연스럽게 사라진다.
-        val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-        val scrim = SoodalDesign.colors.bgDeep
-        val scrimHeight = statusBarHeight + 20.dp
-        // 페이드 시작점 = 상태바 높이의 65% 지점 (전체 스크림 높이 기준 비율로 환산)
-        val solidEnd = (statusBarHeight.value * 0.65f) / scrimHeight.value
-        fun fadeStop(t: Float, alpha: Float) = (solidEnd + (1f - solidEnd) * t) to scrim.copy(alpha = alpha)
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .height(scrimHeight)
-                .background(
-                    Brush.verticalGradient(
-                        0f to scrim,
-                        solidEnd to scrim,
-                        fadeStop(0.2f, 0.9f),
-                        fadeStop(0.4f, 0.65f),
-                        fadeStop(0.6f, 0.35f),
-                        fadeStop(0.8f, 0.1f),
-                        fadeStop(1f, 0f),
-                    ),
-                ),
-        )
+        // (상태바 스크림 제거 — 통일 배경 위에서 이음매가 생기지 않도록. 상태바 아이콘은
+        //  밝은 물빛 배경 위 어두운 아이콘이라 스크림 없이도 가독성 확보.)
 
         // 전체보기 오버레이: 탭바/콘텐츠 위(최상위). 닫힘 애니메이션이 끝나면 상태를 되돌린다.
         if (fullscreenOpen) {

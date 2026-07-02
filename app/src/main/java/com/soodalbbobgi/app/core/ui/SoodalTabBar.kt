@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -117,14 +118,18 @@ fun SoodalTabBar(
                 }
             }
             .clip(shape)
-            // 불투명 서피스 — 뒤 콘텐츠가 비치지 않는다
-            .background(colors.cardBg)
+            // 반투명 글래스 서피스 (디자인 v3.0 — 물빛 배경이 살짝 비치는 프로스트 바)
+            // + 1px 흰 하이라이트 보더 (카드와 동일한 .glass 처리)
+            .background(colors.tabbarBg)
+            .border(1.dp, colors.glassBorder, shape)
             .padding(6.dp),
     ) {
         val tabWidth = maxWidth / tabs.size
 
-        // 활성 탭 뒤를 따라다니는 필 하이라이트 — 탭 칸 전체 크기,
-        // 바 라운드(22dp)와 동심이 되도록 16dp 라운드(22 − 패딩 6).
+        // (상단 sheen은 패딩 안쪽 박스 위에 경계선처럼 보여 제거 — 글래스감은 보더+반투명+그림자로 충분)
+
+        // 활성 탭 뒤를 따라다니는 라벤더 솔리드 필 (디자인 v3.0 — 보라 채움 + 흰 아이콘/라벨).
+        // 탭 칸 전체 크기, 바 라운드(22)와 동심이 되도록 16dp 라운드(22 − 패딩 6).
         Box(
             modifier = Modifier
                 .offset(x = tabWidth * pillIndex)
@@ -132,8 +137,8 @@ fun SoodalTabBar(
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(16.dp))
                 .background(
-                    Brush.linearGradient(
-                        listOf(colors.accentBlue.copy(alpha = 0.16f), colors.accentBlue.copy(alpha = 0.09f)),
+                    Brush.verticalGradient(
+                        listOf(colors.accentPurple, colors.accentPurple.copy(alpha = 0.90f)),
                     ),
                 ),
         )
@@ -155,7 +160,7 @@ fun SoodalTabBar(
                 ) {
                     SoodalIcon(
                         icon = tab.icon,
-                        tint = if (isActive) colors.accentBlue else colors.textTertiary,
+                        tint = if (isActive) androidx.compose.ui.graphics.Color.White else colors.textTertiary,
                         size = 23.dp,
                     )
                     Text(
@@ -163,7 +168,7 @@ fun SoodalTabBar(
                         fontSize = 10.sp,
                         fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
                         letterSpacing = 0.4.sp,
-                        color = if (isActive) colors.accentBlue else colors.textTertiary,
+                        color = if (isActive) androidx.compose.ui.graphics.Color.White else colors.textTertiary,
                     )
                 }
             }

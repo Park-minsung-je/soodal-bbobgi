@@ -24,6 +24,8 @@ fun SoodalTheme(
     theme: SoodalThemeType = SoodalThemeType.Light,
     content: @Composable () -> Unit,
 ) {
+    // 밀도 오버라이드/스케일링 없음 — 기기 네이티브 dp/sp 그대로 쓴다(표준 Android 동작).
+    // 색상 팔레트와 기본 폰트만 주입한다.
     CompositionLocalProvider(
         LocalSoodalColors provides soodalColors(theme),
     ) {
