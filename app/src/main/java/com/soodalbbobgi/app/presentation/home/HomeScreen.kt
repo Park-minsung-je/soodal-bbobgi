@@ -174,6 +174,9 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                // 직접 기록(+) / 동기화(↻) — 오늘 카드의 텍스트 액션을 상단 아이콘으로 이동.
+                GlassIconButton(SoodalIcons.Plus, colors.accentBlue) { manualOpen = true }
+                GlassIconButton(SoodalIcons.Sync, colors.accentBlue) { if (!state.syncing) viewModel.onSync() }
                 GlassIconButton(SoodalIcons.Edit, colors.accentBlue) { onEditorOpenChange(true) }
                 GlassIconButton(SoodalIcons.Settings, colors.textSecondary, onNavigateToSettings)
             }
@@ -308,10 +311,6 @@ fun HomeScreen(
                     minHr = state.todayMinHr,
                     avgHr = state.todayAvgHr,
                     syncing = state.syncing,
-                    canEdit = state.todaySessions.isNotEmpty(),
-                    onSync = { viewModel.onSync() },
-                    onEditStrokes = { editToday = state.todaySessions.lastOrNull() },
-                    onManual = { manualOpen = true },
                 )
 
                 // ── 최근 7일 활동 ─────────────────────────────────────
@@ -440,21 +439,24 @@ fun HomeScreen(
     } // Box
 }
 
-/** 상단바 연속 스트릭 칩 — 값>0일 때만 조건부 등장. */
+/** 상단바 연속 스트릭 칩 — 통화 칩과 동일한 글래스(sheen 포함) 스타일. 값>0일 때만 조건부 등장. */
 @Composable
 private fun TopStreakChip(streak: Int) {
     val colors = SoodalDesign.colors
-    Row(
-        modifier = Modifier
-            .height(38.dp)
-            .clip(RoundedCornerShape(13.dp))
-            .background(colors.accentBlueSoft)
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    val shape = RoundedCornerShape(GlassCornerSmall)
+    Box(
+        modifier = Modifier.height(38.dp).glass(colors, GlassCornerSmall, shape),
+        contentAlignment = Alignment.Center,
     ) {
-        SoodalIcon(icon = SoodalIcons.Fire, tint = colors.accentBlue, size = 15.dp)
-        Text("${streak}일", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue)
+        Row(
+            modifier = Modifier.padding(horizontal = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            SoodalIcon(icon = SoodalIcons.Fire, tint = colors.accentBlue, size = 15.dp)
+            Text("${streak}일", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue)
+        }
+        GlassSheen(shape)
     }
 }
 
@@ -616,38 +618,19 @@ private fun TodayCard(
     minHr: Int?,
     avgHr: Int?,
     syncing: Boolean,
-    canEdit: Boolean,
-    onSync: () -> Unit,
-    onEditStrokes: () -> Unit,
-    onManual: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
     if (hasRecord) {
-        Column(Modifier.fillMaxWidth()) {
-            // 카드 위 텍스트 액션 — 직접 기록 / 동기화 / 수정 (우측 정렬)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 3.dp, end = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TodayTextAction("직접 기록", colors.textSecondary, enabled = !syncing, onClick = onManual)
-                TodayTextAction(if (syncing) "동기화 중…" else "동기화", colors.accentBlue, enabled = !syncing, onClick = onSync)
-                if (canEdit) {
-                    TodayTextAction("수정", colors.textSecondary, enabled = true, onClick = onEditStrokes)
-                }
-            }
-            SoodalCard(modifier = Modifier.fillMaxWidth()) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    TodayMetric(Modifier.weight(1f), "거리", distanceM.formatNumber(), "m", colors.accentBlue)
-                    TodayMetric(Modifier.weight(1f), "칼로리", kcal.formatNumber(), "kcal", colors.success)
-                    TodayMetric(Modifier.weight(1f), "평균 심박", avgHr?.toString() ?: "—", if (avgHr != null) "bpm" else "", Color(0xFFF43F5E))
-                    TodayMetric(Modifier.weight(1f), "시간", "$durationMin", "분", colors.textPrimary)
-                }
+        SoodalCard(modifier = Modifier.fillMaxWidth()) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                TodayMetric(Modifier.weight(1f), "거리", distanceM.formatNumber(), "m", colors.accentBlue)
+                TodayMetric(Modifier.weight(1f), "칼로리", kcal.formatNumber(), "kcal", colors.success)
+                TodayMetric(Modifier.weight(1f), "평균 심박", avgHr?.toString() ?: "—", if (avgHr != null) "bpm" else "", Color(0xFFF43F5E))
+                TodayMetric(Modifier.weight(1f), "시간", "$durationMin", "분", colors.textPrimary)
             }
         }
     } else {
+        // 액션은 상단바 아이콘(↻/+)으로 이동 — 여기는 안내만.
         SoodalCard(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -668,69 +651,15 @@ private fun TodayCard(
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = "동기화하거나 직접 기록해보세요",
+                        text = "위의 ↻ 동기화 또는 + 직접 기록으로 추가해보세요",
                         fontSize = 11.sp,
                         color = colors.textSecondary,
                     )
                 }
-                TodayTextAction("직접 기록", colors.textSecondary, enabled = !syncing, onClick = onManual)
-                TodayActionButton("동기화", SoodalIcons.Sync, Modifier, enabled = !syncing, onClick = onSync)
             }
         }
     }
 }
-
-/** 오늘 카드 액션 버튼 — 블루 soft 칩. */
-@Composable
-private fun TodayActionButton(
-    label: String,
-    icon: SoodalIcons,
-    modifier: Modifier = Modifier,
-    enabled: Boolean,
-    onClick: () -> Unit,
-) {
-    val colors = SoodalDesign.colors
-    Row(
-        modifier = modifier
-            .height(36.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(colors.accentBlue.copy(alpha = if (enabled) 0.10f else 0.05f))
-            .border(1.dp, colors.accentBlue.copy(alpha = 0.30f), RoundedCornerShape(10.dp))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                enabled = enabled,
-                onClick = onClick,
-            )
-            .padding(horizontal = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-    ) {
-        SoodalIcon(icon = icon, tint = colors.accentBlue, size = 15.dp)
-        Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
-    }
-}
-
-/** 카드 위 작은 텍스트 액션 (동기화/수정). */
-@Composable
-private fun TodayTextAction(label: String, color: Color, enabled: Boolean, onClick: () -> Unit) {
-    Text(
-        label,
-        fontSize = 12.sp,
-        fontWeight = FontWeight.Bold,
-        color = if (enabled) color else color.copy(alpha = 0.5f),
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                enabled = enabled,
-                onClick = onClick,
-            )
-            .padding(horizontal = 4.dp, vertical = 2.dp),
-    )
-}
-
 
 @Composable
 private fun TodayMetric(modifier: Modifier, label: String, value: String, unit: String, valueColor: Color) {
