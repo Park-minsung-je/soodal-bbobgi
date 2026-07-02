@@ -1,5 +1,11 @@
 package com.soodalbbobgi.app.presentation.home
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,18 +18,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,131 +37,343 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
-import com.soodalbbobgi.app.core.theme.SoodalDesign
-import com.soodalbbobgi.app.core.ui.GlassSheen
-import com.soodalbbobgi.app.core.ui.LocalHazeContent
-import com.soodalbbobgi.app.core.ui.glassFrost
-import kotlinx.coroutines.launch
+import com.soodalbbobgi.app.core.ui.SoodalBottomSheet
+import com.soodalbbobgi.app.core.ui.SoodalIcon
+import com.soodalbbobgi.app.core.ui.SoodalIcons
+import com.soodalbbobgi.app.core.util.minutesBetween
+import com.soodalbbobgi.app.core.util.parseTimeDigits
+import java.time.LocalTime
 
 // 시트 고정 색 — 프로스트 위 입력창은 디자인 `.input`처럼 흰 배경 + 또렷한 잉크 테두리.
 private val FieldTxt1 = Color(0xFF1A2438)
 private val FieldTxt3 = Color(0xFFA7B0BF)
 private val FieldBg = Color.White
 private val FieldBorder = Color(0xFF1E3C64).copy(alpha = 0.12f)
+private val FieldError = Color(0xFFE0524D)
 
 /**
- * 수영 기록 수동 입력 시트 — 거리/시간(필수) + 칼로리/심박(선택) 입력 후 [인증하고 등록].
+ * 수동 입력 시트의 등록 데이터 — 시트가 수집한 전체 입력값.
+ *
+ * @param startTime 시작 시각 (선택) — 없으면 등록 시각/정오로 대체된다
+ * @param freeM~kickM 영법별 거리(m) — 미입력 잔여분은 혼영으로 등록된다
+ */
+data class ManualEntryInput(
+    val distanceM: Int,
+    val durationMin: Int,
+    val calories: Int?,
+    val maxHr: Int?,
+    val minHr: Int?,
+    val startTime: LocalTime? = null,
+    val freeM: Int = 0,
+    val breastM: Int = 0,
+    val backM: Int = 0,
+    val flyM: Int = 0,
+    val kickM: Int = 0,
+)
+
+/**
+ * 수영 기록 수동 입력 시트 — 1단계(거리/시간 필수 + 시각/칼로리/심박 선택),
+ * 2단계(영법 구성, 선택)로 나뉘며 어느 단계에서든 바로 등록할 수 있다.
  * 인증은 v1에서 즉시 통과(사진 인증은 추후) — 버튼을 누르면 바로 등록된다.
  *
- * @param onSubmit 등록 콜백 (거리 m, 시간 분, 칼로리?, 최대심박?, 최소심박?)
+ * @param onSubmit 등록 콜백 — 닫힘 애니메이션이 끝난 뒤 호출된다
+ * @param dateLabel 입력 대상 날짜 안내 (예: "5월 12일") — null이면 "오늘"
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManualEntrySheet(
     onDismiss: () -> Unit,
-    onSubmit: (distanceMeters: Int, durationMin: Int, calories: Int?, maxHr: Int?, minHr: Int?) -> Unit,
-    /** 입력 대상 날짜 안내 (예: "5월 12일") — null이면 "오늘". */
+    onSubmit: (ManualEntryInput) -> Unit,
     dateLabel: String? = null,
 ) {
-    val colors = SoodalDesign.colors
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope = rememberCoroutineScope()
-
+    // 필드 상태는 시트 레벨에 둬 단계를 오가도 입력이 유지된다.
     var distanceText by remember { mutableStateOf("") }
     var durationText by remember { mutableStateOf("") }
+    // 시작/종료를 모두 입력하면 시간이 자동 계산된다 — 사용자가 직접 고치면 자동 갱신을 멈춘다.
+    var durationEdited by remember { mutableStateOf(false) }
+    var startText by remember { mutableStateOf("") }
+    var endText by remember { mutableStateOf("") }
     var kcalText by remember { mutableStateOf("") }
     var maxHrText by remember { mutableStateOf("") }
     var minHrText by remember { mutableStateOf("") }
+    var freeText by remember { mutableStateOf("") }
+    var breastText by remember { mutableStateOf("") }
+    var backText by remember { mutableStateOf("") }
+    var flyText by remember { mutableStateOf("") }
+    var kickText by remember { mutableStateOf("") }
+    var step by remember { mutableIntStateOf(1) }
+
     val distance = distanceText.toIntOrNull() ?: 0
     val duration = durationText.toIntOrNull() ?: 0
     val kcal = kcalText.toIntOrNull()
     val maxHr = maxHrText.toIntOrNull()
     val minHr = minHrText.toIntOrNull()
+    val startTime = parseTimeDigits(startText)
+    val endTime = parseTimeDigits(endText)
+
+    // 시작+종료가 모두 유효하면 경과 분을 시간 칸에 자동 반영 (직접 수정 전까지만).
+    LaunchedEffect(startText, endText) {
+        if (!durationEdited && startTime != null && endTime != null) {
+            minutesBetween(startTime, endTime)?.let { durationText = it.coerceAtMost(600).toString() }
+        }
+    }
+
     val hrValid = (maxHr == null || maxHr in 40..240) &&
         (minHr == null || minHr in 30..220) &&
         (maxHr == null || minHr == null || minHr <= maxHr)
+    // 종료만 입력하거나 순서가 뒤집히면 무효. 시작만 입력은 허용(그 시각으로 기록).
+    val timeValid = when {
+        startText.isEmpty() && endText.isEmpty() -> true
+        startText.isNotEmpty() && endText.isEmpty() -> startTime != null
+        startText.isEmpty() -> false
+        else -> startTime != null && endTime != null && minutesBetween(startTime, endTime) != null
+    }
+    val free = freeText.toIntOrNull() ?: 0
+    val breast = breastText.toIntOrNull() ?: 0
+    val back = backText.toIntOrNull() ?: 0
+    val fly = flyText.toIntOrNull() ?: 0
+    val kick = kickText.toIntOrNull() ?: 0
+    val strokeSum = free + breast + back + fly + kick
+    val mixedAuto = distance - strokeSum
+    val strokesValid = mixedAuto >= 0
     val valid = distance in 25..30000 && duration in 1..600 &&
-        (kcal == null || kcal in 1..5000) && hrValid
+        (kcal == null || kcal in 1..5000) && hrValid && timeValid && strokesValid
 
-    val sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Color.Transparent,
-        shape = sheetShape,
-        dragHandle = null,
-    ) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .glassFrost(colors, sheetShape, LocalHazeContent.current)
-                .border(1.dp, colors.glassBorder, sheetShape),
-        ) {
-            GlassSheen(sheetShape)
-            Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
-                // 핸들
-                Box(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp), contentAlignment = Alignment.Center) {
-                    Box(
-                        Modifier
-                            .height(4.dp)
-                            .fillMaxWidth(0.1f)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(Color(0xFF27384B).copy(alpha = 0.28f)),
-                    )
-                }
-
-                Spacer(Modifier.height(8.dp))
-                Text("직접 기록", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = FieldTxt1)
-                Spacer(Modifier.height(2.dp))
-                Text("${dateLabel ?: "오늘"} 수영한 기록을 입력해 주세요", fontSize = 11.sp, color = FieldTxt3)
-
-                Spacer(Modifier.height(16.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    NumberField(Modifier.weight(1f), "거리", distanceText, "m") { distanceText = it }
-                    NumberField(Modifier.weight(1f), "시간", durationText, "분") { durationText = it }
-                }
-
-                Spacer(Modifier.height(12.dp))
-                Text("선택 입력 — 비우면 자동 계산/생략돼요", fontSize = 11.sp, color = FieldTxt3)
-                Spacer(Modifier.height(8.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    NumberField(Modifier.weight(1f), "칼로리", kcalText, "kcal") { kcalText = it }
-                    NumberField(Modifier.weight(1f), "최대 심박", maxHrText, "bpm") { maxHrText = it }
-                    NumberField(Modifier.weight(1f), "최소 심박", minHrText, "bpm") { minHrText = it }
-                }
-
-                Spacer(Modifier.height(16.dp))
-                // 인증하고 등록 — 탭 시 즉시 통과 후 등록.
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Brush.linearGradient(listOf(Color(0xFF38BDF8), Color(0xFF2563EB))))
-                        .alpha(if (valid) 1f else 0.45f)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            enabled = valid,
-                        ) {
-                            scope.launch {
-                                sheetState.hide()
-                                onSubmit(distance, duration, kcal, maxHr, minHr)
-                            }
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("인증하고 등록", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, letterSpacing = 0.3.sp)
-                }
-                Spacer(Modifier.height(18.dp))
+    SoodalBottomSheet(onDismiss = onDismiss) { close ->
+        val submit = {
+            close {
+                onSubmit(
+                    ManualEntryInput(
+                        distanceM = distance, durationMin = duration,
+                        calories = kcal, maxHr = maxHr, minHr = minHr,
+                        startTime = startTime,
+                        freeM = free, breastM = breast, backM = back, flyM = fly, kickM = kick,
+                    ),
+                )
             }
         }
+        AnimatedContent(
+            targetState = step,
+            transitionSpec = {
+                val forward = targetState > initialState
+                (slideInHorizontally { w -> if (forward) w else -w } + fadeIn()) togetherWith
+                    (slideOutHorizontally { w -> if (forward) -w else w } + fadeOut())
+            },
+            label = "manualEntryStep",
+        ) { s ->
+            Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
+                if (s == 1) {
+                    StepBasics(
+                        dateLabel = dateLabel,
+                        distanceText = distanceText, onDistance = { distanceText = it },
+                        durationText = durationText,
+                        onDuration = { durationText = it; durationEdited = it.isNotEmpty() },
+                        startText = startText, onStart = { startText = it },
+                        endText = endText, onEnd = { endText = it },
+                        startValid = startText.isEmpty() || startTime != null,
+                        endValid = endText.isEmpty() || (endTime != null && timeValid),
+                        kcalText = kcalText, onKcal = { kcalText = it },
+                        maxHrText = maxHrText, onMaxHr = { maxHrText = it },
+                        minHrText = minHrText, onMinHr = { minHrText = it },
+                        valid = valid,
+                        onStrokes = { step = 2 },
+                        onRegister = submit,
+                    )
+                } else {
+                    StepStrokes(
+                        distance = distance,
+                        freeText = freeText, onFree = { freeText = it },
+                        breastText = breastText, onBreast = { breastText = it },
+                        backText = backText, onBack = { backText = it },
+                        flyText = flyText, onFly = { flyText = it },
+                        kickText = kickText, onKick = { kickText = it },
+                        mixedAuto = mixedAuto,
+                        valid = valid,
+                        onPrev = { step = 1 },
+                        onRegister = submit,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 1단계 — 거리/시간(필수), 시작·종료 시각/칼로리/심박(선택). */
+@Composable
+private fun StepBasics(
+    dateLabel: String?,
+    distanceText: String, onDistance: (String) -> Unit,
+    durationText: String, onDuration: (String) -> Unit,
+    startText: String, onStart: (String) -> Unit,
+    endText: String, onEnd: (String) -> Unit,
+    startValid: Boolean,
+    endValid: Boolean,
+    kcalText: String, onKcal: (String) -> Unit,
+    maxHrText: String, onMaxHr: (String) -> Unit,
+    minHrText: String, onMinHr: (String) -> Unit,
+    valid: Boolean,
+    onStrokes: () -> Unit,
+    onRegister: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        Spacer(Modifier.height(4.dp))
+        Text("직접 기록", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = FieldTxt1)
+        Spacer(Modifier.height(2.dp))
+        Text("${dateLabel ?: "오늘"} 수영한 기록을 입력해 주세요", fontSize = 11.sp, color = FieldTxt3)
+
+        Spacer(Modifier.height(16.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            NumberField(Modifier.weight(1f), "거리", distanceText, "m", onChange = onDistance)
+            NumberField(Modifier.weight(1f), "시간", durationText, "분", onChange = onDuration)
+        }
+
+        Spacer(Modifier.height(12.dp))
+        Text("선택 입력 — 비우면 자동 계산/생략돼요", fontSize = 11.sp, color = FieldTxt3)
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TimeField(Modifier.weight(1f), "시작 시각", startText, isError = !startValid, onChange = onStart)
+            TimeField(Modifier.weight(1f), "종료 시각", endText, isError = !endValid, onChange = onEnd)
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            NumberField(Modifier.weight(1f), "칼로리", kcalText, "kcal", onChange = onKcal)
+            NumberField(Modifier.weight(1f), "최대 심박", maxHrText, "bpm", onChange = onMaxHr)
+            NumberField(Modifier.weight(1f), "최소 심박", minHrText, "bpm", onChange = onMinHr)
+        }
+
+        Spacer(Modifier.height(16.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            // 영법 구성 (선택 단계) — 흰 배경 보조 버튼
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(52.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White)
+                    .border(1.dp, FieldBorder, RoundedCornerShape(14.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onStrokes,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("영법 구성", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2563EB))
+            }
+            RegisterButton(Modifier.weight(1.6f), valid, onRegister)
+        }
+        Spacer(Modifier.height(18.dp))
+    }
+}
+
+/** 2단계 — 영법별 거리(m). 미입력 잔여분은 혼영으로 자동 배정된다. */
+@Composable
+private fun StepStrokes(
+    distance: Int,
+    freeText: String, onFree: (String) -> Unit,
+    breastText: String, onBreast: (String) -> Unit,
+    backText: String, onBack: (String) -> Unit,
+    flyText: String, onFly: (String) -> Unit,
+    kickText: String, onKick: (String) -> Unit,
+    mixedAuto: Int,
+    valid: Boolean,
+    onPrev: () -> Unit,
+    onRegister: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(Color.White)
+                    .border(1.dp, FieldBorder, RoundedCornerShape(9.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onPrev,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                SoodalIcon(icon = SoodalIcons.ArrowLeft, tint = FieldTxt1, size = 13.dp)
+            }
+            Text("영법 구성", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = FieldTxt1)
+        }
+        Spacer(Modifier.height(2.dp))
+        Text("입력하지 않은 거리는 혼영으로 등록돼요", fontSize = 11.sp, color = FieldTxt3)
+
+        Spacer(Modifier.height(16.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            NumberField(Modifier.weight(1f), "자유형", freeText, "m", onChange = onFree)
+            NumberField(Modifier.weight(1f), "평영", breastText, "m", onChange = onBreast)
+            NumberField(Modifier.weight(1f), "배영", backText, "m", onChange = onBack)
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            NumberField(Modifier.weight(1f), "접영", flyText, "m", onChange = onFly)
+            NumberField(Modifier.weight(1f), "킥판", kickText, "m", onChange = onKick)
+            // 혼영 = 잔여 자동 배정 (표시 전용)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White.copy(alpha = 0.55f))
+                    .border(1.dp, FieldBorder, RoundedCornerShape(14.dp))
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+            ) {
+                Text("혼영 · 자동", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = FieldTxt3)
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = mixedAuto.coerceAtLeast(0).toString(),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = JetBrainsMonoFamily,
+                        color = if (mixedAuto < 0) FieldError else FieldTxt3,
+                    )
+                    Text("m", fontSize = 11.sp, color = FieldTxt3, modifier = Modifier.padding(start = 4.dp, bottom = 2.dp))
+                }
+            }
+        }
+        if (mixedAuto < 0) {
+            Spacer(Modifier.height(8.dp))
+            Text("영법 합계가 전체 거리(${distance}m)를 넘었어요", fontSize = 11.sp, color = FieldError)
+        }
+
+        Spacer(Modifier.height(16.dp))
+        RegisterButton(Modifier.fillMaxWidth(), valid, onRegister)
+        Spacer(Modifier.height(18.dp))
+    }
+}
+
+/** 인증하고 등록 — 탭 시 즉시 통과 후 등록. */
+@Composable
+private fun RegisterButton(modifier: Modifier, valid: Boolean, onRegister: () -> Unit) {
+    Box(
+        modifier = modifier
+            .height(52.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFF38BDF8), Color(0xFF2563EB))))
+            .alpha(if (valid) 1f else 0.45f)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                enabled = valid,
+                onClick = onRegister,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("인증하고 등록", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, letterSpacing = 0.3.sp)
     }
 }
 
@@ -167,13 +384,16 @@ private fun NumberField(
     label: String,
     value: String,
     unit: String,
+    isError: Boolean = false,
+    placeholder: String = "0",
+    visualTransformation: VisualTransformation = VisualTransformation.None,
     onChange: (String) -> Unit,
 ) {
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .background(FieldBg)
-            .border(1.dp, FieldBorder, RoundedCornerShape(14.dp))
+            .border(1.dp, if (isError) FieldError.copy(alpha = 0.6f) else FieldBorder, RoundedCornerShape(14.dp))
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
         Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = FieldTxt3)
@@ -191,17 +411,56 @@ private fun NumberField(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
                 cursorBrush = SolidColor(Color(0xFF38BDF8)),
+                visualTransformation = visualTransformation,
                 modifier = Modifier.weight(1f),
                 decorationBox = { inner ->
                     Box {
                         if (value.isEmpty()) {
-                            Text("0", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, fontFamily = JetBrainsMonoFamily, color = FieldTxt3)
+                            Text(placeholder, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, fontFamily = JetBrainsMonoFamily, color = FieldTxt3)
                         }
                         inner()
                     }
                 },
             )
-            Text(unit, fontSize = 11.sp, color = FieldTxt3, modifier = Modifier.padding(start = 4.dp, bottom = 2.dp))
+            if (unit.isNotEmpty()) {
+                Text(unit, fontSize = 11.sp, color = FieldTxt3, modifier = Modifier.padding(start = 4.dp, bottom = 2.dp))
+            }
         }
+    }
+}
+
+/** 시각 입력 필드 — 숫자만 받아 "930" → "9:30"으로 보여준다 (24시간제). */
+@Composable
+private fun TimeField(
+    modifier: Modifier,
+    label: String,
+    value: String,
+    isError: Boolean,
+    onChange: (String) -> Unit,
+) {
+    NumberField(
+        modifier = modifier,
+        label = label,
+        value = value,
+        unit = "",
+        isError = isError,
+        placeholder = "-:--",
+        visualTransformation = remember { TimeColonTransformation() },
+        onChange = { if (it.length <= 4) onChange(it) },
+    )
+}
+
+/** "1430" 숫자 입력을 "14:30"으로 표시하는 변환 — 커서 위치도 콜론만큼 보정한다. */
+private class TimeColonTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val s = text.text
+        if (s.length < 3) return TransformedText(text, OffsetMapping.Identity)
+        val cut = s.length - 2
+        val out = s.substring(0, cut) + ":" + s.substring(cut)
+        val mapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int) = if (offset <= cut) offset else offset + 1
+            override fun transformedToOriginal(offset: Int) = if (offset <= cut) offset else offset - 1
+        }
+        return TransformedText(AnnotatedString(out), mapping)
     }
 }

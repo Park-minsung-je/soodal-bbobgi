@@ -8,6 +8,7 @@ import com.soodalbbobgi.app.domain.model.SwimLog
 import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
 import timber.log.Timber
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -52,6 +53,8 @@ class HcSwimSyncer @Inject constructor(
      * @param maxHr 최대 심박(bpm, 선택)
      * @param minHr 최소 심박(bpm, 선택)
      * @param date 기록 날짜 — 기본은 오늘, 캘린더에서 과거 날짜 입력 가능 (미래는 호출부에서 차단)
+     * @param startTime 시작 시각 (선택) — 없으면 오늘은 등록 시각, 과거 날짜는 정오로 근사
+     * @param strokeFreeM~strokeKickM 영법별 거리(m) — 합계의 잔여분은 혼영으로 배정된다
      * @return 서버가 지급한 조개 수 (그 날 첫 기록일 때만 > 0)
      */
     suspend fun registerManual(
@@ -61,14 +64,22 @@ class HcSwimSyncer @Inject constructor(
         maxHr: Int? = null,
         minHr: Int? = null,
         date: LocalDate = LocalDate.now(),
+        startTime: LocalTime? = null,
+        strokeFreeM: Int = 0,
+        strokeBreastM: Int = 0,
+        strokeBackM: Int = 0,
+        strokeFlyM: Int = 0,
+        strokeKickM: Int = 0,
     ): Int {
         val now = java.time.LocalDateTime.now()
-        // 과거 날짜는 시작 시각을 알 수 없으므로 정오로 둔다 (시간대 라벨용 근사값).
-        val startEpoch = if (date == now.toLocalDate()) {
-            now.atZone(ZoneId.systemDefault()).toEpochSecond()
-        } else {
-            date.atTime(12, 0).atZone(ZoneId.systemDefault()).toEpochSecond()
+        val zone = ZoneId.systemDefault()
+        val startEpoch = when {
+            startTime != null -> date.atTime(startTime).atZone(zone).toEpochSecond()
+            // 과거 날짜는 시작 시각을 알 수 없으므로 정오로 둔다 (시간대 라벨용 근사값).
+            date == now.toLocalDate() -> now.atZone(zone).toEpochSecond()
+            else -> date.atTime(12, 0).atZone(zone).toEpochSecond()
         }
+        val strokeSum = strokeFreeM + strokeBreastM + strokeBackM + strokeFlyM + strokeKickM
         swimLogUseCase.addManualLog(
             SwimLog(
                 userId = userSession.userId,
@@ -78,7 +89,12 @@ class HcSwimSyncer @Inject constructor(
                 durationSeconds = durationMin * 60,
                 // 미입력 시 거리 기반 대략 추정 (자유형 완만 페이스 기준).
                 calories = calories ?: (distanceMeters * 0.21f).toInt(),
-                strokeMixedM = distanceMeters,
+                strokeFreestyleM = strokeFreeM,
+                strokeBreastM = strokeBreastM,
+                strokeBackM = strokeBackM,
+                strokeFlyM = strokeFlyM,
+                strokeKickM = strokeKickM,
+                strokeMixedM = (distanceMeters - strokeSum).coerceAtLeast(0),
                 source = "manual",
                 maxHr = maxHr,
                 minHr = minHr,
@@ -151,15 +167,20 @@ class HcSwimSyncer @Inject constructor(
      * 거부(이미 있는 날짜 등)를 무한 재시도하지 않기 위함. 예외는 호출자가 처리.
      */
     private suspend fun postDayAggregate(date: String, rows: List<SwimLog>): Int {
+        // 영법은 행에 저장된 값을 그대로 합산한다 — 수동 입력의 영법 구성이 서버에도 보존된다.
+        // (HC 행은 저장 시 혼영=거리로 들어가므로 합계는 항상 거리와 일치한다)
         val response = soodalApi.addSwimLog(
             SwimLogRequest(
                 date = date,
                 distanceMeters = rows.sumOf { it.distanceMeters },
                 durationSeconds = rows.sumOf { it.durationSeconds },
                 calories = rows.sumOf { it.calories },
-                strokeFreestyleM = 0, strokeBreastM = 0,
-                strokeBackM = 0, strokeFlyM = 0,
-                strokeMixedM = rows.sumOf { it.distanceMeters }, strokeKickM = 0,
+                strokeFreestyleM = rows.sumOf { it.strokeFreestyleM },
+                strokeBreastM = rows.sumOf { it.strokeBreastM },
+                strokeBackM = rows.sumOf { it.strokeBackM },
+                strokeFlyM = rows.sumOf { it.strokeFlyM },
+                strokeMixedM = rows.sumOf { it.strokeMixedM },
+                strokeKickM = rows.sumOf { it.strokeKickM },
                 source = if (rows.all { it.source == "manual" }) "manual" else "health_connect",
             )
         )

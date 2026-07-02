@@ -13,6 +13,7 @@ import com.soodalbbobgi.app.domain.model.SwimLog
 import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
 import com.soodalbbobgi.app.presentation.common.WeeklyActivity
 import com.soodalbbobgi.app.presentation.common.buildWeeklyActivity
+import com.soodalbbobgi.app.presentation.home.ManualEntryInput
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -162,14 +163,20 @@ class CalendarViewModel @Inject constructor(
      * 선택한 날짜에 수동 입력 기록을 등록한다 — 과거 날짜 보충 기록용 (미래는 UI에서 차단).
      * 등록 후 서버 보고까지 이어지며, 그 날 첫 기록이면 조개가 지급돼 보상 팝업이 뜬다.
      */
-    fun registerManual(day: Int, distanceMeters: Int, durationMin: Int, calories: Int?, maxHr: Int?, minHr: Int?) {
+    fun registerManual(day: Int, input: ManualEntryInput) {
         val ym = _yearMonth.value
         val date = LocalDate.of(ym.year, ym.monthValue, day)
         if (date.isAfter(LocalDate.now())) return // 미래 날짜 방어
         viewModelScope.launch {
             _shellReward.value = 0
             try {
-                val earned = hcSwimSyncer.registerManual(distanceMeters, durationMin, calories, maxHr, minHr, date)
+                val earned = hcSwimSyncer.registerManual(
+                    distanceMeters = input.distanceM, durationMin = input.durationMin,
+                    calories = input.calories, maxHr = input.maxHr, minHr = input.minHr,
+                    date = date, startTime = input.startTime,
+                    strokeFreeM = input.freeM, strokeBreastM = input.breastM,
+                    strokeBackM = input.backM, strokeFlyM = input.flyM, strokeKickM = input.kickM,
+                )
                 appStateLoader.refreshCurrency()
                 _shellReward.value = earned
             } catch (e: Exception) {

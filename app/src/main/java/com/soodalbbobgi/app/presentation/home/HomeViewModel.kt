@@ -301,12 +301,18 @@ class HomeViewModel @Inject constructor(
      * 수동 입력 기록 등록 — 로컬 저장 후 서버 보고까지 동기화 흐름을 재사용한다.
      * 성공 시 조개 지급 팝업(첫 기록일 때)이 뜬다. 인증은 v1에서 즉시 통과.
      */
-    fun onManualRegister(distanceMeters: Int, durationMin: Int, calories: Int?, maxHr: Int?, minHr: Int?) {
+    fun onManualRegister(input: ManualEntryInput) {
         viewModelScope.launch {
             _shellReward.value = 0
             _syncing.value = true
             try {
-                val earned = hcSwimSyncer.registerManual(distanceMeters, durationMin, calories, maxHr, minHr)
+                val earned = hcSwimSyncer.registerManual(
+                    distanceMeters = input.distanceM, durationMin = input.durationMin,
+                    calories = input.calories, maxHr = input.maxHr, minHr = input.minHr,
+                    startTime = input.startTime,
+                    strokeFreeM = input.freeM, strokeBreastM = input.breastM,
+                    strokeBackM = input.backM, strokeFlyM = input.flyM, strokeKickM = input.kickM,
+                )
                 appStateLoader.refreshCurrency()
                 _shellReward.value = earned
             } catch (e: Exception) {

@@ -152,4 +152,59 @@ class HcSwimSyncerTest {
         assertThat(earned).isEqualTo(0)
         coVerify(exactly = 1) { useCase.markSynced("2026-06-07") }
     }
+
+    @Test
+    fun `수동 등록은 영법 분배를 저장하고 잔여분은 혼영으로 배정한다`() = runTest {
+        coEvery { useCase.getUnsyncedDates() } returns emptyList()
+
+        syncer.registerManual(
+            distanceMeters = 1000, durationMin = 40,
+            date = java.time.LocalDate.parse("2026-06-10"),
+            strokeFreeM = 400, strokeBreastM = 200, strokeKickM = 100,
+        )
+
+        coVerify(exactly = 1) {
+            useCase.addManualLog(
+                match {
+                    it.date == "2026-06-10" && it.source == "manual" &&
+                        it.strokeFreestyleM == 400 && it.strokeBreastM == 200 &&
+                        it.strokeKickM == 100 && it.strokeMixedM == 300
+                },
+            )
+        }
+    }
+
+    @Test
+    fun `수동 등록에 시작 시각을 주면 그 시각이 기록 시작이 된다`() = runTest {
+        coEvery { useCase.getUnsyncedDates() } returns emptyList()
+        val date = java.time.LocalDate.parse("2026-06-10")
+        val expected = date.atTime(14, 30)
+            .atZone(java.time.ZoneId.systemDefault()).toEpochSecond()
+
+        syncer.registerManual(
+            distanceMeters = 500, durationMin = 30,
+            date = date, startTime = java.time.LocalTime.of(14, 30),
+        )
+
+        coVerify(exactly = 1) { useCase.addManualLog(match { it.startEpochSec == expected }) }
+    }
+
+    @Test
+    fun `일 집계 전송은 행에 저장된 영법 값을 합산해 보낸다`() = runTest {
+        coEvery { useCase.getLogsForDate("2026-06-07") } returns listOf(
+            row(synced = false, dist = 500, id = 1).copy(strokeFreestyleM = 300, strokeMixedM = 200),
+            row(synced = false, dist = 700, id = 2).copy(strokeBreastM = 100, strokeMixedM = 600),
+        )
+        coEvery { api.addSwimLog(any()) } returns okResponse(earned = 0)
+
+        syncer.sync()
+
+        coVerify(exactly = 1) {
+            api.addSwimLog(
+                match {
+                    it.strokeFreestyleM == 300 && it.strokeBreastM == 100 && it.strokeMixedM == 800
+                },
+            )
+        }
+    }
 }

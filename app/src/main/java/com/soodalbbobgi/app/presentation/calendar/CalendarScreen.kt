@@ -297,9 +297,9 @@ fun CalendarScreen(
             AppOverlay {
                 ManualEntrySheet(
                     onDismiss = { manualDay = null },
-                    onSubmit = { distanceM, durationMin, kcal, maxHr, minHr ->
-                        viewModel.registerManual(mDay, distanceM, durationMin, kcal, maxHr, minHr)
-                        manualSubmitted = distanceM to durationMin
+                    onSubmit = { input ->
+                        viewModel.registerManual(mDay, input)
+                        manualSubmitted = input.distanceM to input.durationMin
                         manualDay = null
                     },
                     dateLabel = "${monthNames[state.month - 1]} ${mDay}일",
