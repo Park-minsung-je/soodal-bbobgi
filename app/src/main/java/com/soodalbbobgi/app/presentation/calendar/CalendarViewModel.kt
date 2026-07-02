@@ -7,6 +7,7 @@ import com.soodalbbobgi.app.core.state.AppStateLoader
 import com.soodalbbobgi.app.core.util.decodeHrRestRanges
 import com.soodalbbobgi.app.core.util.decodeHrSeries
 import com.soodalbbobgi.app.data.health.HcSwimSyncer
+import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.data.remote.dto.UpdateStrokesRequest
 import com.soodalbbobgi.app.domain.model.SwimLog
@@ -16,6 +17,7 @@ import com.soodalbbobgi.app.presentation.common.buildWeeklyActivity
 import com.soodalbbobgi.app.presentation.home.ManualEntryInput
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -56,6 +58,8 @@ data class SwimSessionData(
     val kickM: Int = 0,
     val maxHr: Int? = null,
     val minHr: Int? = null,
+    /** 저장된 평균 심박(bpm) — 수동 입력. 없으면 시계열에서 계산해 보여준다. */
+    val avgHr: Int? = null,
     /** 차트용 심박 시계열 (오프셋초, bpm). 없으면 빈 목록. */
     val hrSeries: List<Pair<Int, Int>> = emptyList(),
     /** 휴식으로 계산된 구간 (오프셋초 범위) — 동기화 때 원본 해상도로 분류된 값. */
@@ -99,19 +103,24 @@ class CalendarViewModel @Inject constructor(
     private val soodalApi: SoodalApi,
     private val hcSwimSyncer: HcSwimSyncer,
     private val appStateLoader: AppStateLoader,
+    private val healthConnectManager: HealthConnectManager,
 ) : ViewModel() {
 
     private val _yearMonth = MutableStateFlow(YearMonth.now())
     // 진입 시 오늘 날짜를 선택해 "선택한 날" 카드가 비어 보이지 않게 한다.
     private val _selectedDay = MutableStateFlow<Int?>(LocalDate.now().dayOfMonth)
 
-    /** 수동 등록으로 지급된 조개 수 — 0보다 크면 보상 팝업 표시. */
+    /** 수동 등록/동기화로 지급된 조개 수 — 0보다 크면 보상 팝업 표시. */
     private val _shellReward = MutableStateFlow(0)
     val shellReward: StateFlow<Int> = _shellReward
 
-    /** 수동 등록 실패 안내 문구 — null이면 표시 없음. */
+    /** 수동 등록/동기화 실패 안내 문구 — null이면 표시 없음. */
     private val _registerError = MutableStateFlow<String?>(null)
     val registerError: StateFlow<String?> = _registerError
+
+    /** HC 수동 동기화 진행 중 여부 — 로딩 오버레이 표시용. */
+    private val _syncing = MutableStateFlow(false)
+    val syncing: StateFlow<Boolean> = _syncing
 
     /** 월과 그 달의 로그를 한 묶음으로 — 월만 먼저 바뀌어 이전 달 데이터가 잠깐 보이는 깜빡임을 막는다. */
     private data class MonthLogs(val ym: YearMonth, val logs: List<SwimLog>)
@@ -160,6 +169,36 @@ class CalendarViewModel @Inject constructor(
     }
 
     /**
+     * Health Connect 수동 동기화 — 홈에서 캘린더로 옮겨온 진입점.
+     * 변경분 반영 + 서버 보고 + 서버 pull까지 수행하고, 지급된 조개는 보상 팝업으로 띄운다.
+     */
+    fun onSync() {
+        if (_syncing.value) return
+        viewModelScope.launch {
+            _shellReward.value = 0
+            _syncing.value = true
+            // 동기화가 순식간에 끝나도 로딩 표시는 최소 1초 유지 — 깜빡임 방지.
+            val startedAt = System.currentTimeMillis()
+            try {
+                if (!healthConnectManager.hasAllPermissions()) {
+                    Timber.w("Health Connect 권한이 없어 동기화를 건너뜀")
+                    return@launch
+                }
+                val earned = hcSwimSyncer.sync()
+                appStateLoader.refreshCurrency()
+                _shellReward.value = earned
+            } catch (e: Exception) {
+                Timber.e(e, "캘린더 수동 동기화 실패")
+                _registerError.value = "동기화에 실패했어요. 다시 시도해주세요."
+            } finally {
+                val elapsed = System.currentTimeMillis() - startedAt
+                if (elapsed < MIN_SYNC_INDICATOR_MS) delay(MIN_SYNC_INDICATOR_MS - elapsed)
+                _syncing.value = false
+            }
+        }
+    }
+
+    /**
      * 선택한 날짜에 수동 입력 기록을 등록한다 — 과거 날짜 보충 기록용 (미래는 UI에서 차단).
      * 등록 후 서버 보고까지 이어지며, 그 날 첫 기록이면 조개가 지급돼 보상 팝업이 뜬다.
      */
@@ -173,6 +212,7 @@ class CalendarViewModel @Inject constructor(
                 val earned = hcSwimSyncer.registerManual(
                     distanceMeters = input.distanceM, durationMin = input.durationMin,
                     calories = input.calories, maxHr = input.maxHr, minHr = input.minHr,
+                    avgHr = input.avgHr,
                     date = date, startTime = input.startTime,
                     strokeFreeM = input.freeM, strokeBreastM = input.breastM,
                     strokeBackM = input.backM, strokeFlyM = input.flyM, strokeKickM = input.kickM,
@@ -189,6 +229,11 @@ class CalendarViewModel @Inject constructor(
     fun clearShellReward() { _shellReward.value = 0 }
 
     fun clearRegisterError() { _registerError.value = null }
+
+    companion object {
+        /** 동기화 로딩 표시 최소 유지 시간(ms). */
+        private const val MIN_SYNC_INDICATOR_MS = 1000L
+    }
 
     /** 수정 시트에서 보정한 세션의 영법별 거리(m)를 로컬과 서버에 저장한다. */
     fun saveStrokes(day: Int, logId: Long, free: Int, breast: Int, back: Int, fly: Int, kick: Int, mixed: Int) {
@@ -235,6 +280,7 @@ private fun SwimLog.toSessionData(): SwimSessionData = SwimSessionData(
     kickM = strokeKickM,
     maxHr = maxHr,
     minHr = minHr,
+    avgHr = avgHr,
     hrSeries = decodeHrSeries(hrSeries),
     hrRestRanges = decodeHrRestRanges(hrSeries),
 )

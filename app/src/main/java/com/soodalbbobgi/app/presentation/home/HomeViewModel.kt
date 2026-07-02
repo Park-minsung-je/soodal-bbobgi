@@ -171,7 +171,9 @@ class HomeViewModel @Inject constructor(
         ).filter { it.second > 0 }.maxByOrNull { it.second }?.first
         val todayMax = todayLogs.mapNotNull { it.maxHr }.maxOrNull()
         val todayMin = todayLogs.mapNotNull { it.minHr }.minOrNull()
+        // 시계열이 없으면(수동 입력) 저장된 평균 심박으로 폴백한다.
         val todayAvg = averageHr(todayLogs.flatMap { decodeHrSeries(it.hrSeries) })
+            ?: todayLogs.mapNotNull { it.avgHr }.takeIf { it.isNotEmpty() }?.average()?.toInt()
         val todaySessionData = todayLogs
             .sortedWith(compareBy(nullsLast()) { it.startEpochSec })
             .map { it.toHomeSessionData() }
@@ -309,6 +311,7 @@ class HomeViewModel @Inject constructor(
                 val earned = hcSwimSyncer.registerManual(
                     distanceMeters = input.distanceM, durationMin = input.durationMin,
                     calories = input.calories, maxHr = input.maxHr, minHr = input.minHr,
+                    avgHr = input.avgHr,
                     startTime = input.startTime,
                     strokeFreeM = input.freeM, strokeBreastM = input.breastM,
                     strokeBackM = input.backM, strokeFlyM = input.flyM, strokeKickM = input.kickM,

@@ -132,6 +132,7 @@ fun CalendarScreen(
     var manualSubmitted by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     val shellReward by viewModel.shellReward.collectAsState()
     val registerError by viewModel.registerError.collectAsState()
+    val syncing by viewModel.syncing.collectAsState()
     val context = LocalContext.current
     // 선택한 날이 바뀌면 열린 수정 시트는 닫는다.
     LaunchedEffect(state.selectedDay) { editTarget = null }
@@ -164,6 +165,8 @@ fun CalendarScreen(
                     letterSpacing = (-0.01).sp,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // HC 수동 동기화 — 홈 상단 과밀 해소를 위해 기록 화면으로 이동.
+                    CalNavButton(SoodalIcons.Sync) { viewModel.onSync() }
                     CalNavButton(SoodalIcons.ArrowLeft) { viewModel.previousMonth() }
                     CalNavButton(SoodalIcons.ArrowRight) { viewModel.nextMonth() }
                 }
@@ -325,6 +328,11 @@ fun CalendarScreen(
                 android.widget.Toast.makeText(context, registerError, android.widget.Toast.LENGTH_LONG).show()
                 viewModel.clearRegisterError()
             }
+        }
+
+        // ── 동기화 로딩 오버레이 ─────────────────────────────────────────
+        if (syncing) {
+            com.soodalbbobgi.app.core.ui.SyncLoadingOverlay("수영 기록 동기화 중이에요...")
         }
     }
 }
@@ -799,11 +807,11 @@ private fun SessionDetail(
             MetricCol("칼로리", session.kcal.toString(), "kcal", colors.success)
         }
 
-        // 최대·최소·평균 심박(HC 심박 기록이 있을 때) + 심박 그래프 펼치기.
+        // 최대·최소·평균 심박 — HC 기록뿐 아니라 수동 입력 값도 하나라도 있으면 표시한다.
         // 페이스 표시는 보류 — 실운동시간 기반 페이스(칼로리 보정)의 신뢰도 확보 전까지 비활성.
         // val pace = session.activeSec?.let { paceSecPer100m(session.distanceM, it) }
-        val avgHr = averageHr(session.hrSeries)
-        val hasHr = session.maxHr != null && session.minHr != null
+        val avgHr = session.avgHr ?: averageHr(session.hrSeries)
+        val hasHr = session.maxHr != null || session.minHr != null
         val hasChart = session.hrSeries.size >= 2
         if (hasHr || avgHr != null) {
             Spacer(Modifier.height(14.dp))
@@ -1108,7 +1116,8 @@ private fun VitalsRow(
 ) {
     val colors = SoodalDesign.colors
     val rose = Color(0xFFF43F5E)
-    val hasHr = maxHr != null && minHr != null
+    // 최대/최소 중 하나만 있어도(수동 입력) 심박 박스를 보여준다.
+    val hasHr = maxHr != null || minHr != null
     val accent = if (hasHr) rose else colors.accentBlue
     val arrowRotation by animateFloatAsState(if (chartExpanded) 90f else 0f, label = "hrChartArrow")
 
@@ -1132,20 +1141,24 @@ private fun VitalsRow(
             size = 16.dp,
         )
         Spacer(Modifier.width(8.dp))
-        if (hasHr) {
+        if (maxHr != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text("최대", fontSize = 11.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold, modifier = Modifier.alignByBaseline())
                 Text("$maxHr", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = rose, fontFamily = JetBrainsMonoFamily, modifier = Modifier.alignByBaseline())
             }
-            Spacer(Modifier.width(8.dp))
-            Box(Modifier.width(1.dp).height(16.dp).background(colors.glassBorder))
-            Spacer(Modifier.width(8.dp))
+        }
+        if (minHr != null) {
+            if (maxHr != null) {
+                Spacer(Modifier.width(8.dp))
+                Box(Modifier.width(1.dp).height(16.dp).background(colors.glassBorder))
+                Spacer(Modifier.width(8.dp))
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text("최소", fontSize = 11.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold, modifier = Modifier.alignByBaseline())
                 Text("$minHr", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary, fontFamily = JetBrainsMonoFamily, modifier = Modifier.alignByBaseline())
             }
         }
-        // 평균 심박 — 휴식 포함 전체 평균
+        // 평균 심박 — 휴식 포함 전체 평균 (수동 입력이면 저장값)
         if (avgHr != null) {
             if (hasHr) {
                 Spacer(Modifier.width(8.dp))

@@ -2,7 +2,9 @@
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -174,9 +176,8 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // 직접 기록(+) / 동기화(↻) — 오늘 카드의 텍스트 액션을 상단 아이콘으로 이동.
+                // 직접 기록(+) — 동기화(↻)는 상단 과밀 해소를 위해 캘린더 헤더로 이동.
                 GlassIconButton(SoodalIcons.Plus, colors.accentBlue) { manualOpen = true }
-                GlassIconButton(SoodalIcons.Sync, colors.accentBlue) { if (!state.syncing) viewModel.onSync() }
                 GlassIconButton(SoodalIcons.Edit, colors.accentBlue) { onEditorOpenChange(true) }
                 GlassIconButton(SoodalIcons.Settings, colors.textSecondary, onNavigateToSettings)
             }
@@ -299,23 +300,28 @@ fun HomeScreen(
                     frameOwned = state.dexFrameOwned, frameTotal = state.dexFrameTotal,
                 )
 
-                // ── 오늘 — 기록 없을 때도 빈 상태 카드로 표시 (동기화/직접 기록 진입점).
-                // AnimatedVisibility로 감싸면 콘텐츠가 경계로 클립돼 카드 그림자가 잘린다.
-                Spacer(Modifier.height(14.dp))
-                TodayCard(
-                    hasRecord = state.todayHasRecord,
-                    distanceM = state.todayDistanceM,
-                    durationMin = state.todayDurationMin,
-                    kcal = state.todayKcal,
-                    maxHr = state.todayMaxHr,
-                    minHr = state.todayMinHr,
-                    avgHr = state.todayAvgHr,
-                    syncing = state.syncing,
-                )
+                // ── 오늘 — 기록이 생길 때만 애니메이션과 함께 나타난다 (빈 상태 카드 없음).
+                // expandVertically(clip=false)라 카드 그림자가 전환 중에도 잘리지 않는다.
+                AnimatedVisibility(
+                    visible = state.todayHasRecord,
+                    enter = fadeIn(tween(250)) +
+                        expandVertically(spring(dampingRatio = 0.8f, stiffness = 380f), clip = false),
+                ) {
+                    Column {
+                        Spacer(Modifier.height(14.dp))
+                        TodayCard(
+                            distanceM = state.todayDistanceM,
+                            durationMin = state.todayDurationMin,
+                            kcal = state.todayKcal,
+                            avgHr = state.todayAvgHr,
+                            onClick = { onNavigateToTab("calendar") },
+                        )
+                    }
+                }
 
                 // ── 최근 7일 활동 ─────────────────────────────────────
                 Spacer(Modifier.height(14.dp))
-                WeeklyActivityCard(state.weekly, trendPercent = state.weekly.trendPercent, onTap = { onNavigateToTab("calendar") })
+                WeeklyActivityCard(state.weekly, trendPercent = state.weekly.trendPercent)
 
                 // ── 이번 달 수영 (문장형) ─────────────────────────────
                 Spacer(Modifier.height(14.dp))
@@ -328,7 +334,6 @@ fun HomeScreen(
                     lastMonthDistance = state.lastMonthDistance,
                     lastMonthSessions = state.lastMonthSessions,
                     topStroke = state.topStroke,
-                    onClick = { onNavigateToTab("calendar") },
                 )
 
                 Spacer(Modifier.height(TabBarClearance))
@@ -605,58 +610,32 @@ private fun StatCard(
 }
 
 /**
- * 오늘 수영 카드 — 기록 있으면 거리/시간/칼로리 + 심박 + 영법수정/동기화, 없으면 빈 상태 + 동기화.
- * (수동 입력은 v1 비활성 — DECISIONS 참조)
+ * 오늘 수영 카드 — 거리/칼로리/평균 심박/시간 요약. 탭하면 캘린더로 이동한다.
+ * 기록이 없는 날은 호출부에서 카드 자체를 띄우지 않는다.
  */
 @Composable
 private fun TodayCard(
-    hasRecord: Boolean,
     distanceM: Int,
     durationMin: Int,
     kcal: Int,
-    maxHr: Int?,
-    minHr: Int?,
     avgHr: Int?,
-    syncing: Boolean,
+    onClick: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
-    if (hasRecord) {
-        SoodalCard(modifier = Modifier.fillMaxWidth()) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                TodayMetric(Modifier.weight(1f), "거리", distanceM.formatNumber(), "m", colors.accentBlue)
-                TodayMetric(Modifier.weight(1f), "칼로리", kcal.formatNumber(), "kcal", colors.success)
-                TodayMetric(Modifier.weight(1f), "평균 심박", avgHr?.toString() ?: "—", if (avgHr != null) "bpm" else "", Color(0xFFF43F5E))
-                TodayMetric(Modifier.weight(1f), "시간", "$durationMin", "분", colors.textPrimary)
-            }
-        }
-    } else {
-        // 액션은 상단바 아이콘(↻/+)으로 이동 — 여기는 안내만.
-        SoodalCard(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                SoodalIcon(
-                    icon = if (syncing) SoodalIcons.Sync else SoodalIcons.Wave,
-                    tint = if (syncing) colors.accentBlue else colors.textTertiary,
-                    size = 22.dp,
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (syncing) "동기화 중이에요…" else "아직 오늘 기록이 없어요",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary,
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = "위의 ↻ 동기화 또는 + 직접 기록으로 추가해보세요",
-                        fontSize = 11.sp,
-                        color = colors.textSecondary,
-                    )
-                }
-            }
+    SoodalCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            TodayMetric(Modifier.weight(1f), "거리", distanceM.formatNumber(), "m", colors.accentBlue)
+            TodayMetric(Modifier.weight(1f), "칼로리", kcal.formatNumber(), "kcal", colors.success)
+            TodayMetric(Modifier.weight(1f), "평균 심박", avgHr?.toString() ?: "—", if (avgHr != null) "bpm" else "", Color(0xFFF43F5E))
+            TodayMetric(Modifier.weight(1f), "시간", "$durationMin", "분", colors.textPrimary)
         }
     }
 }
