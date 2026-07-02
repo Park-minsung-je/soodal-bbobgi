@@ -158,14 +158,16 @@ fun CalendarScreen(
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(13.dp))
 
-            // 카드 1: 이달 통계 (이달 거리 · 횟수 · 이달 조개)
-            GlassBox(modifier = Modifier.fillMaxWidth(), cornerDp = GlassCorner, contentPadding = 16.dp) {
-                CalendarStatsRow(swimData = state.swimData)
+            // 카드 1: 이달 통계 — 콤팩트 한 줄 (시안 padding 13×16)
+            GlassBox(modifier = Modifier.fillMaxWidth(), cornerDp = GlassCorner, contentPadding = 0.dp) {
+                Box(Modifier.padding(horizontal = 16.dp, vertical = 13.dp)) {
+                    CalendarStatsRow(swimData = state.swimData)
+                }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
 
             // 카드 2: 요일 + 그리드 (범례는 상세 카드로 이동)
             GlassBox(
@@ -293,7 +295,7 @@ private fun CalNavButton(icon: SoodalIcons, onClick: () -> Unit) {
     }
 }
 
-// ── 이달 통계 카드 내용 (이달 거리 · 횟수 · 이달 조개) — 디자인 시안 ──
+// ── 이달 통계 카드 내용 — 콤팩트 한 줄 (라벨·값 인라인 + 구분선 + 우측 조개) ──
 @Composable
 private fun CalendarStatsRow(swimData: Map<Int, SwimDayData>) {
     val colors = SoodalDesign.colors
@@ -302,37 +304,29 @@ private fun CalendarStatsRow(swimData: Map<Int, SwimDayData>) {
     val totalKm = swimData.values.sumOf { it.distanceM } / 1000f
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            CalStatBlock("이달 거리", String.format("%.1f", totalKm), "km", colors.accentBlue)
-            CalStatBlock("횟수", "$swimDays", "회", colors.success)
-        }
-        // 이달 조개 획득 pill
-        Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(999.dp))
-                .background(colors.accentGold.copy(alpha = 0.16f))
-                .padding(horizontal = 12.dp, vertical = 7.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            Text("이달 +$totalShells", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentGold)
-            SoodalIcon(icon = SoodalIcons.Shell, tint = colors.accentGold, size = 14.dp)
+        CalStatInline("거리", String.format("%.1f", totalKm), "km", colors.accentBlue)
+        Box(Modifier.width(1.dp).height(15.dp).background(Color(0xFF27384B).copy(alpha = 0.12f)))
+        CalStatInline("횟수", "$swimDays", "회", colors.success)
+        Spacer(Modifier.weight(1f))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            SoodalIcon(icon = SoodalIcons.Shell, tint = colors.accentGold, size = 15.dp)
+            Text("+$totalShells", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentGold)
         }
     }
 }
 
+/** "거리 12.5km" — 캡션 라벨 + 값 + 단위를 인라인으로 붙인 통계 항목. */
 @Composable
-private fun CalStatBlock(label: String, value: String, unit: String, color: Color) {
+private fun CalStatInline(label: String, value: String, unit: String, color: Color) {
     val colors = SoodalDesign.colors
-    Column {
-        Text(label, fontSize = 11.sp, color = colors.textSecondary, fontWeight = FontWeight.Medium)
-        Spacer(Modifier.height(3.dp))
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, fontSize = 11.sp, color = colors.textTertiary, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.1.sp)
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = color)
-            Text(unit, fontSize = 11.sp, color = colors.textSecondary, modifier = Modifier.padding(start = 2.dp, bottom = 2.dp))
+            Text(value, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = color)
+            Text(unit, fontSize = 9.sp, color = colors.textTertiary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 1.dp, bottom = 1.dp))
         }
     }
 }
@@ -619,7 +613,7 @@ private fun DayDetailCard(
                     )
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
 
             if (data == null) {
                 Text(
@@ -657,7 +651,9 @@ private fun DayDetailCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
-                    .background(colors.accentGold.copy(alpha = 0.08f))
+                    // 시안: 골드 서피스 틴트(0.12) + 옅은 골드 보더(0.35)
+                    .background(Color(0xFFF6C95B).copy(alpha = 0.12f))
+                    .border(1.dp, Color(0xFFF6C95B).copy(alpha = 0.35f), RoundedCornerShape(10.dp))
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -799,7 +795,8 @@ private fun SessionDetail(
                         .clip(SoodalShape.sm)
                         .background(
                             if (pct > 0) {
-                                if (colors.isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.03f)
+                                // 시안: 하늘색 틴트 셀 배경 (rgba(111,192,236,.1))
+                                if (colors.isDark) Color.White.copy(alpha = 0.03f) else Color(0xFF6FC0EC).copy(alpha = 0.10f)
                             } else {
                                 Color.Transparent
                             },
@@ -1035,6 +1032,12 @@ private fun VitalsRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(if (hasHr) rose.copy(alpha = 0.06f) else colors.accentBlue.copy(alpha = 0.05f))
+            // 시안: 옅은 코랄 보더로 심박 박스를 살짝 띄운다.
+            .border(
+                1.dp,
+                if (hasHr) rose.copy(alpha = 0.18f) else colors.accentBlue.copy(alpha = 0.16f),
+                RoundedCornerShape(12.dp),
+            )
             .padding(horizontal = 12.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
