@@ -28,10 +28,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
@@ -41,6 +43,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -67,16 +70,19 @@ fun SoodalBottomSheet(
     var sheetHeight by remember { mutableIntStateOf(0) }
     // 0=완전 표시, sheetHeight=완전 숨김. 등장/퇴장/드래그/예측 뒤로가기가 모두 이 값을 움직인다.
     val offsetY = remember { Animatable(0f) }
+    // 예측 뒤로가기 진행도(0~1) — 바닥 고정 축소에 쓴다.
+    val backProgress = remember { Animatable(0f) }
     var entered by remember { mutableStateOf(false) }
     var closing by remember { mutableStateOf(false) }
 
     // 높이가 측정되면 화면 밖(아래)에서 스프링으로 올라온다.
-    LaunchedEffect(sheetHeight) {
-        if (sheetHeight > 0 && !entered) {
-            offsetY.snapTo(sheetHeight.toFloat())
-            entered = true
-            offsetY.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = 380f))
-        }
+    // sheetHeight를 키로 쓰면 첫 측정(0→h) 순간 이펙트가 재시작되며 진행 중인 등장
+    // 애니메이션을 취소해 버린다(시트가 화면 밖에 멈춤) — 한 번만 띄우고 흐름으로 기다린다.
+    LaunchedEffect(Unit) {
+        val measured = snapshotFlow { sheetHeight }.first { it > 0 }
+        offsetY.snapTo(measured.toFloat())
+        entered = true
+        offsetY.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = 380f))
     }
 
     val close: (after: () -> Unit) -> Unit = { after ->
@@ -90,19 +96,25 @@ fun SoodalBottomSheet(
         }
     }
 
-    // 예측 뒤로가기 — 진행도에 따라 시트가 아래로 따라 내려가고, 확정 시 끝까지 내려간 뒤 닫힌다.
+    // 예측 뒤로가기 — 진행도에 따라 시트가 바닥을 고정한 채 살짝 작아지며 아래로 따라
+    // 내려가고, 확정 시 끝까지 내려간 뒤 닫힌다. (축소 기준점이 바닥이라 아래가 뜨지 않는다)
     PredictiveBackHandler(enabled = !closing) { progress ->
         try {
             progress.collect { event ->
-                if (sheetHeight > 0) offsetY.snapTo(event.progress * sheetHeight * 0.5f)
+                backProgress.snapTo(event.progress)
+                if (sheetHeight > 0) offsetY.snapTo(event.progress * sheetHeight * 0.2f)
             }
-            closing = true
-            keyboard?.hide()
-            if (sheetHeight > 0) offsetY.animateTo(sheetHeight.toFloat(), tween(180))
-            onDismiss()
+            // 확정 — 닫힘 애니메이션은 close()의 독립 코루틴에 위임한다. closing=true가
+            // enabled를 끄면서 이 핸들러 코루틴을 취소하므로 여기서 직접 suspend하면 안 된다.
+            close(onDismiss)
         } catch (e: CancellationException) {
-            // 제스처 취소 — 제자리로 복귀
-            scope.launch { offsetY.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = 500f)) }
+            // 제스처 취소 — 제자리로 복귀 (닫히는 중이면 닫힘 애니메이션을 방해하지 않는다)
+            if (!closing) {
+                scope.launch {
+                    launch { backProgress.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = 500f)) }
+                    offsetY.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = 500f))
+                }
+            }
         }
     }
 
@@ -142,6 +154,12 @@ fun SoodalBottomSheet(
                 .onSizeChanged { sheetHeight = it.height }
                 .graphicsLayer {
                     translationY = offsetY.value.coerceAtLeast(0f)
+                    // 예측 뒤로가기 중 바닥 고정 축소 — 시트 높이와 무관하게 아래 모서리는
+                    // 항상 내려가기만 한다.
+                    val scale = 1f - 0.1f * backProgress.value
+                    scaleX = scale
+                    scaleY = scale
+                    transformOrigin = TransformOrigin(0.5f, 1f)
                     alpha = if (entered) 1f else 0f
                 }
                 .glassFrost(colors, sheetShape, LocalHazeContent.current)
