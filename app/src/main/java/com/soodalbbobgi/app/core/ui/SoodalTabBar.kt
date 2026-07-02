@@ -100,7 +100,7 @@ fun SoodalTabBar(
         label = "tabPill",
     )
 
-    BoxWithConstraints(
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(start = TabBarMargin, end = TabBarMargin, bottom = tabBarBottomPadding())
@@ -130,8 +130,8 @@ fun SoodalTabBar(
                 if (hazeState != null) {
                     Modifier.hazeEffect(state = hazeState) {
                         backgroundColor = if (colors.isDark) Color(0xFF0E1426) else Color.White
-                        // 틴트를 옅게(0.38) — 블러가 프로스트를 만들어주므로 흰끼를 줄이고 투명감을 살린다.
-                        tints = listOf(HazeTint(colors.tabbarBg.copy(alpha = 0.38f)))
+                        // 뽀얀 유리 농도 (탭바 흰끼 조정 지점).
+                        tints = listOf(HazeTint(colors.tabbarBg.copy(alpha = 0.70f)))
                         blurRadius = 14.dp
                         noiseFactor = 0f
                     }
@@ -140,13 +140,16 @@ fun SoodalTabBar(
                 },
             )
             // 1px 흰 하이라이트 보더 (카드와 동일한 .glass 처리)
-            .border(1.dp, colors.glassBorder, shape)
-            // 내부 패딩 8 — 액티브 pill이 바 가장자리에서 사방 균등하게 8dp 띄워진다.
-            .padding(8.dp),
+            .border(1.dp, colors.glassBorder, shape),
+    ) {
+        // 상단 sheen — 패딩 '밖'(바 최상단)에 그려 안쪽 경계선처럼 보이지 않게 한다.
+        GlassSheen(shape)
+
+    BoxWithConstraints(
+        // 내부 패딩 8 — 액티브 pill이 바 가장자리에서 사방 균등하게 8dp 띄워진다.
+        Modifier.fillMaxSize().padding(8.dp),
     ) {
         val tabWidth = maxWidth / tabs.size
-
-        // (상단 sheen은 패딩 안쪽 박스 위에 경계선처럼 보여 제거 — 글래스감은 보더+반투명+그림자로 충분)
 
         // 활성 탭 뒤를 따라다니는 라벤더 솔리드 필 (디자인 v3.0 — 보라 채움 + 흰 아이콘/라벨).
         // 탭 칸 전체 크기, 바 라운드(22)와 동심이 되도록 14dp 라운드(22 − 패딩 8).
@@ -209,5 +212,6 @@ fun SoodalTabBar(
                 }
             }
         }
-    }
+    } // BoxWithConstraints (패딩 내부)
+    } // 바 표면 Box
 }

@@ -31,7 +31,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.soodalbbobgi.app.core.theme.SoodalDesign
+import com.soodalbbobgi.app.core.ui.LocalHazeContent
+import com.soodalbbobgi.app.core.ui.LocalOverlayHost
 import com.soodalbbobgi.app.core.ui.LocalTabBarDim
+import com.soodalbbobgi.app.core.ui.OverlayHostState
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import com.soodalbbobgi.app.core.ui.SoodalTabBar
@@ -83,8 +86,13 @@ fun AppNavHost(navController: NavHostController) {
         }
     }
 
-    // 탭바 backdrop blur — 콘텐츠 레이어를 소스로 등록하고, 탭바가 그 뒤를 샘플링해 블러한다.
+    // backdrop blur — Haze 문서의 zIndex 레이어링: 배경=소스(z0), 카드 각각=소스(z1)+
+    // 배경만 블러, 탭바/팝업=모든 소스(배경+카드) 블러. 어떤 이펙트도 다른 소스의
+    // 녹화물 '안'에 갇히지 않아 전부 실시간으로 렌더된다.
     val hazeState = remember { HazeState() }
+    // 팝업/시트를 콘텐츠 소스 밖(탭바 레이어)에서 그리게 하는 호스트 — 소스 안에서는
+    // hazeEffect가 재귀 드로잉이라 불가하므로, 오버레이는 전부 여기로 호이스팅한다.
+    val overlayHost = remember { OverlayHostState() }
 
     // 상태바 패딩은 루트가 아닌 화면별로 적용한다 — 캘린더처럼 콘텐츠가
     // 상태바 밑으로 스크롤되며 페이드되는 화면을 허용하기 위함.
@@ -99,17 +107,27 @@ fun AppNavHost(navController: NavHostController) {
     } else {
         Modifier.soodalBackground(bgColors)
     }
-    Box(modifier = Modifier
-        .fillMaxSize()
-        .then(bgModifier)
-        .windowInsetsPadding(WindowInsets.navigationBars)
+    Box(modifier = Modifier.fillMaxSize()) {
+        // 배경 레이어 (풀블리드) — z=0 소스. 카드/탭바/팝업 모두의 블러에 배경이 깔린다.
+        Box(Modifier.fillMaxSize().hazeSource(hazeState, zIndex = 0f)) {
+            Box(Modifier.fillMaxSize().then(bgModifier))
+        }
+
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
         // 콘텐츠는 화면 전체를 쓰고 탭바는 그 위에 떠 있는 오버레이 —
         // 콘텐츠가 플로팅 바 뒤로 스크롤되고, 바 주변은 투명하게 비친다.
         // 탭 화면들은 스크롤 끝에 TabBarClearance 여백을 둬 마지막 콘텐츠가 가려지지 않게 한다.
         // 화면 안 풀스크린 dim 팝업이 DimTabBarWhileVisible()로 탭바 dim을 켤 수 있게 제공한다.
-        CompositionLocalProvider(LocalTabBarDim provides tabBarDim) {
-            Box(modifier = Modifier.fillMaxSize().hazeSource(hazeState)) {
+        CompositionLocalProvider(
+            LocalTabBarDim provides tabBarDim,
+            LocalHazeContent provides hazeState,
+            LocalOverlayHost provides overlayHost,
+        ) {
+            // 콘텐츠는 더 이상 통소스가 아니다 — 카드 각각이 자기를 z=1 소스로 등록한다(cardFrost).
+            Box(modifier = Modifier.fillMaxSize()) {
                 NavHost(
                     navController = navController,
                     startDestination = Screen.Splash.route,
@@ -223,6 +241,14 @@ fun AppNavHost(navController: NavHostController) {
         // (상태바 스크림 제거 — 통일 배경 위에서 이음매가 생기지 않도록. 상태바 아이콘은
         //  밝은 물빛 배경 위 어두운 아이콘이라 스크림 없이도 가독성 확보.)
 
+        // 호이스팅된 팝업/시트 — 콘텐츠 소스 밖(탭바 위)에서 그려 hazeEffect(콘텐츠 블러)가 동작한다.
+        CompositionLocalProvider(
+            LocalTabBarDim provides tabBarDim,
+            LocalHazeContent provides hazeState,
+        ) {
+            overlayHost.entries.entries.sortedBy { it.key }.forEach { (_, overlay) -> overlay() }
+        }
+
         // 전체보기 오버레이: 탭바/콘텐츠 위(최상위). 닫힘 애니메이션이 끝나면 상태를 되돌린다.
         if (fullscreenOpen) {
             ProfileFullscreenOverlay(
@@ -230,5 +256,6 @@ fun AppNavHost(navController: NavHostController) {
                 onClosed = { fullscreenOpen = false; cardOverlayReady = false },
             )
         }
+        } // 인셋 레이어
     }
 }

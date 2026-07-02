@@ -11,23 +11,36 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.draw.paint
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -129,6 +142,63 @@ fun Modifier.glassShadow(cornerDp: Dp, colors: SoodalColors): Modifier = this.dr
 }
 
 /**
+ * 공용 haze 상태 — zIndex 레이어링: 배경=소스(z0), 카드=소스(z1)+z0 블러,
+ * 탭바/팝업(이펙트 전용)=모든 소스 블러. AppNavHost가 제공.
+ */
+val LocalHazeContent = staticCompositionLocalOf<HazeState?> { null }
+
+/**
+ * 오버레이 글래스 프로스트 채움 — 뒤 콘텐츠를 샘플링·블러해 진짜 젖빛 유리를 만든다.
+ * haze가 없으면(프리뷰 등) 반투명 채움 폴백. 흰끼(틴트)는 여기 한 곳에서 조정.
+ */
+fun Modifier.glassFrost(
+    colors: SoodalColors,
+    shape: Shape,
+    haze: HazeState?,
+): Modifier = this
+    .clip(shape)
+    .then(
+        if (haze != null) {
+            Modifier.hazeEffect(state = haze) {
+                backgroundColor = if (colors.isDark) Color(0xFF0E1426) else Color.White
+                // 프로스트 위 틴트 — 블러된 뒤 콘텐츠가 보이도록 옅게 (팝업 흰끼 조정 지점).
+                tints = listOf(HazeTint(if (colors.isDark) colors.glassBg else Color.White.copy(alpha = 0.42f)))
+                blurRadius = 20.dp
+                noiseFactor = 0f
+            }
+        } else {
+            Modifier.background(colors.glassBg)
+        },
+    )
+
+/**
+ * 카드 글래스 프로스트 — Haze 문서의 zIndex 레이어링 패턴.
+ * 카드는 **자기 자신을 z=1 소스로 등록**하면서, 자기보다 낮은 z(배경, z=0)만 샘플링·블러한다.
+ * 콘텐츠를 감싸는 통소스가 없으므로 어떤 이펙트도 다른 소스의 녹화 안에 갇히지 않고,
+ * 탭바/팝업(이펙트 전용)은 배경(z0)+카드(z1) 소스를 모두 샘플링한다.
+ */
+@Composable
+fun Modifier.cardFrost(colors: SoodalColors, shape: Shape): Modifier {
+    val haze = LocalHazeContent.current
+    return if (!colors.isDark && haze != null) {
+        this
+            // 자기 콘텐츠를 z=1 소스로 등록 — 탭바/팝업 블러에 카드가 비치도록.
+            .hazeSource(haze, zIndex = 1f)
+            .clip(shape)
+            // 소스(z=1)가 붙은 노드의 이펙트는 z<1 소스(배경)만 샘플링 → 재귀 없음.
+            .hazeEffect(state = haze) {
+                backgroundColor = Color.White
+                // 카드 흰끼 조정 지점 — 낮을수록 유리 속 배경색이 진하게 비친다.
+                tints = listOf(HazeTint(Color.White.copy(alpha = 0.60f)))
+                blurRadius = 45.dp
+                noiseFactor = 0f
+            }
+    } else {
+        this.clip(shape).background(colors.glassBg)
+    }
+}
+
+/**
  * 공용 글래스 표면 모디파이어 — 그림자 + 반투명 채움 + 1px 흰 하이라이트 보더.
  * **상단 sheen은 [GlassSheen]으로 별도로 얹는다** (모디파이어는 자식 컴포저블을 못 그리므로).
  * 자식이 없는 표면(탭바 등)은 이 모디파이어 + [GlassSheen] 오버레이를 함께 쓴다.
@@ -219,7 +289,14 @@ fun GlassBox(
 ) {
     val colors = SoodalDesign.colors
     val shape = RoundedCornerShape(cornerDp)
-    Box(modifier = modifier.glass(colors, cornerDp, shape, shadow)) {
+    var m = modifier
+    if (shadow) m = m.glassShadow(cornerDp, colors)
+    Box(
+        modifier = m
+            // 프로스트(블러 배경) 채움 — 반투명 채움 대신 진짜 젖빛 유리 질감.
+            .cardFrost(colors, shape)
+            .border(1.dp, colors.glassBorder, shape),
+    ) {
         Box(Modifier.padding(contentPadding), content = content)
         GlassSheen(shape)
     }
