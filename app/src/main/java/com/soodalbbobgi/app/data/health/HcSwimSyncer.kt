@@ -52,6 +52,7 @@ class HcSwimSyncer @Inject constructor(
      * @param calories 칼로리(kcal) — null이면 거리 기반 추정
      * @param maxHr 최대 심박(bpm, 선택)
      * @param minHr 최소 심박(bpm, 선택)
+     * @param avgHr 평균 심박(bpm, 선택)
      * @param date 기록 날짜 — 기본은 오늘, 캘린더에서 과거 날짜 입력 가능 (미래는 호출부에서 차단)
      * @param startTime 시작 시각 (선택) — 없으면 오늘은 등록 시각, 과거 날짜는 정오로 근사
      * @param strokeFreeM~strokeKickM 영법별 거리(m) — 합계의 잔여분은 혼영으로 배정된다
@@ -63,6 +64,7 @@ class HcSwimSyncer @Inject constructor(
         calories: Int? = null,
         maxHr: Int? = null,
         minHr: Int? = null,
+        avgHr: Int? = null,
         date: LocalDate = LocalDate.now(),
         startTime: LocalTime? = null,
         strokeFreeM: Int = 0,
@@ -98,6 +100,7 @@ class HcSwimSyncer @Inject constructor(
                 source = "manual",
                 maxHr = maxHr,
                 minHr = minHr,
+                avgHr = avgHr,
             )
         )
         return pushUnsyncedDates()

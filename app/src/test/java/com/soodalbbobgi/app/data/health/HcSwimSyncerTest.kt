@@ -159,6 +159,7 @@ class HcSwimSyncerTest {
 
         syncer.registerManual(
             distanceMeters = 1000, durationMin = 40,
+            avgHr = 132,
             date = java.time.LocalDate.parse("2026-06-10"),
             strokeFreeM = 400, strokeBreastM = 200, strokeKickM = 100,
         )
@@ -168,7 +169,8 @@ class HcSwimSyncerTest {
                 match {
                     it.date == "2026-06-10" && it.source == "manual" &&
                         it.strokeFreestyleM == 400 && it.strokeBreastM == 200 &&
-                        it.strokeKickM == 100 && it.strokeMixedM == 300
+                        it.strokeKickM == 100 && it.strokeMixedM == 300 &&
+                        it.avgHr == 132
                 },
             )
         }

@@ -64,7 +64,7 @@ private fun SwimLogEntity.toDomain() = SwimLog(
     strokeMixedM = strokeMixedM, strokeKickM = strokeKickM,
     source = source, shellsEarned = shellsEarned, synced = synced,
     hcRecordId = hcRecordId,
-    maxHr = maxHr, minHr = minHr, activeSeconds = activeSeconds, hrSeries = hrSeries,
+    maxHr = maxHr, minHr = minHr, avgHr = avgHr, activeSeconds = activeSeconds, hrSeries = hrSeries,
 )
 
 private fun SwimLog.toEntity() = SwimLogEntity(
@@ -76,6 +76,6 @@ private fun SwimLog.toEntity() = SwimLogEntity(
     strokeMixedM = strokeMixedM, strokeKickM = strokeKickM,
     source = source, shellsEarned = shellsEarned, synced = synced,
     hcRecordId = hcRecordId,
-    maxHr = maxHr, minHr = minHr, activeSeconds = activeSeconds, hrSeries = hrSeries,
+    maxHr = maxHr, minHr = minHr, avgHr = avgHr, activeSeconds = activeSeconds, hrSeries = hrSeries,
     createdAt = System.currentTimeMillis(),
 )

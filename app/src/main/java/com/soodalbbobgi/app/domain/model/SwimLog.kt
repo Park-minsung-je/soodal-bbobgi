@@ -23,6 +23,8 @@ data class SwimLog(
     /** 세션 중 최대/최소 심박(bpm). 심박 기록이 없으면 null. */
     val maxHr: Int? = null,
     val minHr: Int? = null,
+    /** 평균 심박(bpm) — 수동 입력용. HC 기록은 시계열에서 계산하므로 null. */
+    val avgHr: Int? = null,
     /** 실제 운동 시간(초) — HC 세그먼트/랩 기반. 없으면 null (경과 시간으로 폴백). */
     val activeSeconds: Int? = null,
     /** 차트용 다운샘플 심박 시계열 ("오프셋초:bpm,..." 직렬화). 없으면 null. */
