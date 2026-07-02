@@ -101,6 +101,9 @@ fun HomeScreen(
     // 오늘 기록 영법 수정 시트 대상 세션 (null이면 닫힘).
     var editToday by remember { mutableStateOf<SwimSessionData?>(null) }
 
+    // 수동 입력 시트 열림 여부.
+    var manualOpen by remember { mutableStateOf(false) }
+
     // 홈 스크롤 상태 — 편집 시트가 열리면 최상단(카드 위치)으로 올린다.
     val homeScrollState = rememberScrollState()
     LaunchedEffect(editorOpen) {
@@ -293,25 +296,23 @@ fun HomeScreen(
                     frameOwned = state.dexFrameOwned, frameTotal = state.dexFrameTotal,
                 )
 
-                // ── 오늘 (기록 있을 때만 표시) ──
+                // ── 오늘 — 기록 없을 때도 빈 상태 카드로 표시 (동기화/직접 기록 진입점).
                 // AnimatedVisibility로 감싸면 콘텐츠가 경계로 클립돼 카드 그림자가 잘린다.
-                // 조건부 렌더로만 처리해 그림자가 다른 카드처럼 온전히 번지게 한다.
-                if (state.todayHasRecord) {
-                    Spacer(Modifier.height(14.dp))
-                    TodayCard(
-                        hasRecord = true,
-                        distanceM = state.todayDistanceM,
-                        durationMin = state.todayDurationMin,
-                        kcal = state.todayKcal,
-                        maxHr = state.todayMaxHr,
-                        minHr = state.todayMinHr,
-                        avgHr = state.todayAvgHr,
-                        syncing = state.syncing,
-                        canEdit = state.todaySessions.isNotEmpty(),
-                        onSync = { viewModel.onSync() },
-                        onEditStrokes = { editToday = state.todaySessions.lastOrNull() },
-                    )
-                }
+                Spacer(Modifier.height(14.dp))
+                TodayCard(
+                    hasRecord = state.todayHasRecord,
+                    distanceM = state.todayDistanceM,
+                    durationMin = state.todayDurationMin,
+                    kcal = state.todayKcal,
+                    maxHr = state.todayMaxHr,
+                    minHr = state.todayMinHr,
+                    avgHr = state.todayAvgHr,
+                    syncing = state.syncing,
+                    canEdit = state.todaySessions.isNotEmpty(),
+                    onSync = { viewModel.onSync() },
+                    onEditStrokes = { editToday = state.todaySessions.lastOrNull() },
+                    onManual = { manualOpen = true },
+                )
 
                 // ── 최근 7일 활동 ─────────────────────────────────────
                 Spacer(Modifier.height(14.dp))
@@ -362,6 +363,19 @@ fun HomeScreen(
                     { viewModel.clearShellReward(); editToday = s }
                 },
                 onDismiss = { viewModel.clearShellReward() },
+            )
+        }
+    }
+
+    // ── 수동 입력 시트 (오버레이 레이어) ─────────────────────
+    if (manualOpen) {
+        AppOverlay {
+            ManualEntrySheet(
+                onDismiss = { manualOpen = false },
+                onSubmit = { distanceM, durationMin ->
+                    manualOpen = false
+                    viewModel.onManualRegister(distanceM, durationMin)
+                },
             )
         }
     }
@@ -605,11 +619,12 @@ private fun TodayCard(
     canEdit: Boolean,
     onSync: () -> Unit,
     onEditStrokes: () -> Unit,
+    onManual: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
     if (hasRecord) {
         Column(Modifier.fillMaxWidth()) {
-            // 카드 위 텍스트 액션 — 동기화 / 수정 (우측 정렬)
+            // 카드 위 텍스트 액션 — 직접 기록 / 동기화 / 수정 (우측 정렬)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -617,6 +632,7 @@ private fun TodayCard(
                 horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.End),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                TodayTextAction("직접 기록", colors.textSecondary, enabled = !syncing, onClick = onManual)
                 TodayTextAction(if (syncing) "동기화 중…" else "동기화", colors.accentBlue, enabled = !syncing, onClick = onSync)
                 if (canEdit) {
                     TodayTextAction("수정", colors.textSecondary, enabled = true, onClick = onEditStrokes)
@@ -652,11 +668,12 @@ private fun TodayCard(
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = "동기화를 눌러 기록을 불러와보세요",
+                        text = "동기화하거나 직접 기록해보세요",
                         fontSize = 11.sp,
                         color = colors.textSecondary,
                     )
                 }
+                TodayTextAction("직접 기록", colors.textSecondary, enabled = !syncing, onClick = onManual)
                 TodayActionButton("동기화", SoodalIcons.Sync, Modifier, enabled = !syncing, onClick = onSync)
             }
         }

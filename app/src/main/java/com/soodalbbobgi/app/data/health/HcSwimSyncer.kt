@@ -42,6 +42,32 @@ class HcSwimSyncer @Inject constructor(
         return earned
     }
 
+    /**
+     * 수동 입력 기록을 오늘 세션으로 등록하고 서버에 보고한다.
+     * (인증은 v1에서 즉시 통과 — 추후 AI 사진 인증으로 대체 예정)
+     *
+     * @param distanceMeters 수영 거리(m)
+     * @param durationMin 수영 시간(분)
+     * @return 서버가 지급한 조개 수 (하루 첫 기록일 때만 > 0)
+     */
+    suspend fun registerManual(distanceMeters: Int, durationMin: Int): Int {
+        val now = java.time.LocalDateTime.now()
+        swimLogUseCase.addManualLog(
+            SwimLog(
+                userId = userSession.userId,
+                date = now.toLocalDate().toString(),
+                startEpochSec = now.atZone(ZoneId.systemDefault()).toEpochSecond(),
+                distanceMeters = distanceMeters,
+                durationSeconds = durationMin * 60,
+                // HC 없이 입력된 기록 — 거리 기반 대략 추정 (자유형 완만 페이스 기준).
+                calories = (distanceMeters * 0.21f).toInt(),
+                strokeMixedM = distanceMeters,
+                source = "manual",
+            )
+        )
+        return pushUnsyncedDates()
+    }
+
     /** HC 변경분(추가/수정/삭제)을 반영한다. 토큰이 없거나 만료면 오늘 기록만 읽고 새 토큰 발급. */
     private suspend fun syncChanges() {
         val storedToken = hcSyncPreferences.getChangesToken()
@@ -115,7 +141,7 @@ class HcSwimSyncer @Inject constructor(
                 strokeFreestyleM = 0, strokeBreastM = 0,
                 strokeBackM = 0, strokeFlyM = 0,
                 strokeMixedM = rows.sumOf { it.distanceMeters }, strokeKickM = 0,
-                source = "health_connect",
+                source = if (rows.all { it.source == "manual" }) "manual" else "health_connect",
             )
         )
         swimLogUseCase.markSynced(date)

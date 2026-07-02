@@ -297,6 +297,27 @@ class HomeViewModel @Inject constructor(
 
     fun clearShellReward() { _shellReward.value = 0 }
 
+    /**
+     * 수동 입력 기록 등록 — 로컬 저장 후 서버 보고까지 동기화 흐름을 재사용한다.
+     * 성공 시 조개 지급 팝업(첫 기록일 때)이 뜬다. 인증은 v1에서 즉시 통과.
+     */
+    fun onManualRegister(distanceMeters: Int, durationMin: Int) {
+        viewModelScope.launch {
+            _shellReward.value = 0
+            _syncing.value = true
+            try {
+                val earned = hcSwimSyncer.registerManual(distanceMeters, durationMin)
+                appStateLoader.refreshCurrency()
+                _shellReward.value = earned
+            } catch (e: Exception) {
+                Timber.e(e, "수동 기록 등록 실패")
+                _syncError.value = "기록 등록에 실패했어요. 다시 시도해주세요."
+            } finally {
+                _syncing.value = false
+            }
+        }
+    }
+
     companion object {
         /** 동기화 로딩 표시 최소 유지 시간(ms). */
         private const val MIN_SYNC_INDICATOR_MS = 1000L

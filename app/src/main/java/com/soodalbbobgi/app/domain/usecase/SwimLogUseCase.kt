@@ -75,6 +75,12 @@ class SwimLogUseCase @Inject constructor(
         }
     }
 
+    /**
+     * 수동 입력 기록을 추가한다 — 같은 날 기존 세션이 있어도 추가 세션으로 저장한다.
+     * ([syncSwimLog]의 hcRecordId 없는 경로는 하루 1행 제한이라 수동 다중 세션엔 부적합)
+     */
+    suspend fun addManualLog(log: SwimLog) = swimLogRepo.addSwimLog(log)
+
     /** 같은 날짜의 세션 목록을 반환한다 — 서버 일 집계 전송용. */
     suspend fun getLogsForDate(date: String): List<SwimLog> =
         swimLogRepo.getLogsForDateOnce(date)
