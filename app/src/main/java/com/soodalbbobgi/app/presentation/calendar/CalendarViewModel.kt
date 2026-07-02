@@ -3,8 +3,10 @@ package com.soodalbbobgi.app.presentation.calendar
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.session.UserSession
+import com.soodalbbobgi.app.core.state.AppStateLoader
 import com.soodalbbobgi.app.core.util.decodeHrRestRanges
 import com.soodalbbobgi.app.core.util.decodeHrSeries
+import com.soodalbbobgi.app.data.health.HcSwimSyncer
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.data.remote.dto.UpdateStrokesRequest
 import com.soodalbbobgi.app.domain.model.SwimLog
@@ -94,11 +96,21 @@ class CalendarViewModel @Inject constructor(
     private val userSession: UserSession,
     private val swimLogUseCase: SwimLogUseCase,
     private val soodalApi: SoodalApi,
+    private val hcSwimSyncer: HcSwimSyncer,
+    private val appStateLoader: AppStateLoader,
 ) : ViewModel() {
 
     private val _yearMonth = MutableStateFlow(YearMonth.now())
     // 진입 시 오늘 날짜를 선택해 "선택한 날" 카드가 비어 보이지 않게 한다.
     private val _selectedDay = MutableStateFlow<Int?>(LocalDate.now().dayOfMonth)
+
+    /** 수동 등록으로 지급된 조개 수 — 0보다 크면 보상 팝업 표시. */
+    private val _shellReward = MutableStateFlow(0)
+    val shellReward: StateFlow<Int> = _shellReward
+
+    /** 수동 등록 실패 안내 문구 — null이면 표시 없음. */
+    private val _registerError = MutableStateFlow<String?>(null)
+    val registerError: StateFlow<String?> = _registerError
 
     /** 월과 그 달의 로그를 한 묶음으로 — 월만 먼저 바뀌어 이전 달 데이터가 잠깐 보이는 깜빡임을 막는다. */
     private data class MonthLogs(val ym: YearMonth, val logs: List<SwimLog>)
@@ -145,6 +157,31 @@ class CalendarViewModel @Inject constructor(
         _yearMonth.update { it.plusMonths(1) }
         _selectedDay.value = null
     }
+
+    /**
+     * 선택한 날짜에 수동 입력 기록을 등록한다 — 과거 날짜 보충 기록용 (미래는 UI에서 차단).
+     * 등록 후 서버 보고까지 이어지며, 그 날 첫 기록이면 조개가 지급돼 보상 팝업이 뜬다.
+     */
+    fun registerManual(day: Int, distanceMeters: Int, durationMin: Int, calories: Int?, maxHr: Int?, minHr: Int?) {
+        val ym = _yearMonth.value
+        val date = LocalDate.of(ym.year, ym.monthValue, day)
+        if (date.isAfter(LocalDate.now())) return // 미래 날짜 방어
+        viewModelScope.launch {
+            _shellReward.value = 0
+            try {
+                val earned = hcSwimSyncer.registerManual(distanceMeters, durationMin, calories, maxHr, minHr, date)
+                appStateLoader.refreshCurrency()
+                _shellReward.value = earned
+            } catch (e: Exception) {
+                Timber.e(e, "캘린더 수동 기록 등록 실패: $date")
+                _registerError.value = "기록 등록에 실패했어요. 다시 시도해주세요."
+            }
+        }
+    }
+
+    fun clearShellReward() { _shellReward.value = 0 }
+
+    fun clearRegisterError() { _registerError.value = null }
 
     /** 수정 시트에서 보정한 세션의 영법별 거리(m)를 로컬과 서버에 저장한다. */
     fun saveStrokes(day: Int, logId: Long, free: Int, breast: Int, back: Int, fly: Int, kick: Int, mixed: Int) {

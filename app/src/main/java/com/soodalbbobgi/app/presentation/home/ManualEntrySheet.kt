@@ -61,6 +61,8 @@ private val FieldBorder = Color(0xFF1E3C64).copy(alpha = 0.12f)
 fun ManualEntrySheet(
     onDismiss: () -> Unit,
     onSubmit: (distanceMeters: Int, durationMin: Int, calories: Int?, maxHr: Int?, minHr: Int?) -> Unit,
+    /** 입력 대상 날짜 안내 (예: "5월 12일") — null이면 "오늘". */
+    dateLabel: String? = null,
 ) {
     val colors = SoodalDesign.colors
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -112,7 +114,7 @@ fun ManualEntrySheet(
                 Spacer(Modifier.height(8.dp))
                 Text("직접 기록", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = FieldTxt1)
                 Spacer(Modifier.height(2.dp))
-                Text("오늘 수영한 기록을 입력해 주세요", fontSize = 11.sp, color = FieldTxt3)
+                Text("${dateLabel ?: "오늘"} 수영한 기록을 입력해 주세요", fontSize = 11.sp, color = FieldTxt3)
 
                 Spacer(Modifier.height(16.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {

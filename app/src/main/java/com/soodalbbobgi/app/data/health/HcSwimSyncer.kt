@@ -51,7 +51,8 @@ class HcSwimSyncer @Inject constructor(
      * @param calories 칼로리(kcal) — null이면 거리 기반 추정
      * @param maxHr 최대 심박(bpm, 선택)
      * @param minHr 최소 심박(bpm, 선택)
-     * @return 서버가 지급한 조개 수 (하루 첫 기록일 때만 > 0)
+     * @param date 기록 날짜 — 기본은 오늘, 캘린더에서 과거 날짜 입력 가능 (미래는 호출부에서 차단)
+     * @return 서버가 지급한 조개 수 (그 날 첫 기록일 때만 > 0)
      */
     suspend fun registerManual(
         distanceMeters: Int,
@@ -59,13 +60,20 @@ class HcSwimSyncer @Inject constructor(
         calories: Int? = null,
         maxHr: Int? = null,
         minHr: Int? = null,
+        date: LocalDate = LocalDate.now(),
     ): Int {
         val now = java.time.LocalDateTime.now()
+        // 과거 날짜는 시작 시각을 알 수 없으므로 정오로 둔다 (시간대 라벨용 근사값).
+        val startEpoch = if (date == now.toLocalDate()) {
+            now.atZone(ZoneId.systemDefault()).toEpochSecond()
+        } else {
+            date.atTime(12, 0).atZone(ZoneId.systemDefault()).toEpochSecond()
+        }
         swimLogUseCase.addManualLog(
             SwimLog(
                 userId = userSession.userId,
-                date = now.toLocalDate().toString(),
-                startEpochSec = now.atZone(ZoneId.systemDefault()).toEpochSecond(),
+                date = date.toString(),
+                startEpochSec = startEpoch,
                 distanceMeters = distanceMeters,
                 durationSeconds = durationMin * 60,
                 // 미입력 시 거리 기반 대략 추정 (자유형 완만 페이스 기준).

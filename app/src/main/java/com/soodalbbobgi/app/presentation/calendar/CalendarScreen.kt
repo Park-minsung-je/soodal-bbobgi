@@ -56,6 +56,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -70,6 +71,7 @@ import com.soodalbbobgi.app.core.ui.AppOverlay
 import com.soodalbbobgi.app.core.ui.GlassBox
 import com.soodalbbobgi.app.core.ui.GlassCorner
 import com.soodalbbobgi.app.core.ui.GlassSheen
+import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.glass
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalIcon
@@ -79,6 +81,7 @@ import com.soodalbbobgi.app.core.util.averageHr
 import com.soodalbbobgi.app.core.theme.StrokePalette
 import com.soodalbbobgi.app.presentation.common.WeeklyActivityCard
 import com.soodalbbobgi.app.presentation.common.strokeTextColorOf
+import com.soodalbbobgi.app.presentation.home.ManualEntrySheet
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -123,6 +126,13 @@ fun CalendarScreen(
     var editTarget by remember { mutableStateOf<Pair<Int, SwimSessionData>?>(null) }
     // 심박 그래프 펼침 상태 — 세션/날짜 간 공유(한 번 열면 다른 기록으로 넘어가도 유지).
     var hrChartExpanded by remember { mutableStateOf(false) }
+    // 수동 입력 시트 대상 날짜 (null이면 닫힘) — 기록 없는 과거 날짜에서 연다.
+    var manualDay by remember { mutableStateOf<Int?>(null) }
+    // 방금 수동 등록한 거리/시간 — 조개 보상 팝업 표시용.
+    var manualSubmitted by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    val shellReward by viewModel.shellReward.collectAsState()
+    val registerError by viewModel.registerError.collectAsState()
+    val context = LocalContext.current
     // 선택한 날이 바뀌면 열린 수정 시트는 닫는다.
     LaunchedEffect(state.selectedDay) { editTarget = null }
 
@@ -223,6 +233,11 @@ fun CalendarScreen(
             Spacer(Modifier.height(14.dp))
 
             // 선택한 날 상세 (소제목 없이 카드 자체로 구분)
+            // 기록 없는 날의 수동 입력 — 오늘 이후(미래) 날짜는 버튼을 숨긴다.
+            val selectedDate = state.selectedDay?.let {
+                runCatching { LocalDate.of(state.year, state.month, it) }.getOrNull()
+            }
+            val canManualEntry = selectedDate != null && !selectedDate.isAfter(LocalDate.now())
             DayDetailCard(
                 year = state.year,
                 month = state.month,
@@ -231,6 +246,7 @@ fun CalendarScreen(
                 onEdit = { session -> state.selectedDay?.let { editTarget = it to session } },
                 chartExpanded = hrChartExpanded,
                 onToggleChart = { hrChartExpanded = !hrChartExpanded },
+                onManualEntry = if (canManualEntry) ({ manualDay = state.selectedDay }) else null,
             )
 
             // 최근 7일 활동 (홈과 동일 — 트렌드 내장 자체 라벨 카드)
@@ -272,6 +288,42 @@ fun CalendarScreen(
                         editTarget = null
                     },
                 )
+            }
+        }
+
+        // ── 수동 입력 시트 (기록 없는 과거 날짜 보충용, 오버레이 레이어) ──────────────
+        val mDay = manualDay
+        if (mDay != null) {
+            AppOverlay {
+                ManualEntrySheet(
+                    onDismiss = { manualDay = null },
+                    onSubmit = { distanceM, durationMin, kcal, maxHr, minHr ->
+                        viewModel.registerManual(mDay, distanceM, durationMin, kcal, maxHr, minHr)
+                        manualSubmitted = distanceM to durationMin
+                        manualDay = null
+                    },
+                    dateLabel = "${monthNames[state.month - 1]} ${mDay}일",
+                )
+            }
+        }
+
+        // ── 조개 획득 팝업 (그 날 첫 기록 등록 시) ─────────────────────────────
+        if (shellReward > 0) {
+            AppOverlay {
+                ShellRewardPopup(
+                    shellCount = shellReward,
+                    distanceM = manualSubmitted?.first,
+                    durationMin = manualSubmitted?.second,
+                    onDismiss = { viewModel.clearShellReward() },
+                )
+            }
+        }
+
+        // ── 등록 에러 표시 ───────────────────────────────────────────────
+        if (registerError != null) {
+            LaunchedEffect(registerError) {
+                android.widget.Toast.makeText(context, registerError, android.widget.Toast.LENGTH_LONG).show()
+                viewModel.clearRegisterError()
             }
         }
     }
@@ -593,6 +645,8 @@ private fun DayDetailCard(
     onEdit: (SwimSessionData) -> Unit,
     chartExpanded: Boolean,
     onToggleChart: () -> Unit,
+    /** 기록 없는 날의 수동 입력 열기 — null이면 버튼 숨김 (미래 날짜 등). */
+    onManualEntry: (() -> Unit)? = null,
 ) {
     val colors = SoodalDesign.colors
 
@@ -627,9 +681,33 @@ private fun DayDetailCard(
                     text = "이 날은 수영 기록이 없어요",
                     fontSize = 13.sp,
                     color = colors.textSecondary,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 14.dp, bottom = if (onManualEntry != null) 12.dp else 14.dp),
                     textAlign = TextAlign.Center,
                 )
+                // 과거 날짜 보충 기록 — 미래 날짜에서는 onManualEntry가 null이라 숨겨진다.
+                if (onManualEntry != null) {
+                    Box(Modifier.fillMaxWidth().padding(bottom = 6.dp), contentAlignment = Alignment.Center) {
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(colors.accentBlue.copy(alpha = 0.10f))
+                                .border(1.dp, colors.accentBlue.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = onManualEntry,
+                                )
+                                .padding(horizontal = 16.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            SoodalIcon(icon = SoodalIcons.Plus, tint = colors.accentBlue, size = 13.dp)
+                            Text("직접 기록하기", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
+                        }
+                    }
+                }
                 return@Column
             }
 
