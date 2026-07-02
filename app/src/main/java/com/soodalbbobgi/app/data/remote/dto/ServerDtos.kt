@@ -17,6 +17,8 @@ data class ServerProfileCard(
     val textY: Float = 0.5f,
     val textScaleStep: Int = 3,
     val showStats: Boolean = true,
+    /** 이름표 표시 여부 — 구서버 응답엔 없을 수 있어 nullable (없으면 true로 매핑). */
+    val showText: Boolean? = null,
     val nicknameColor: String = "#FFFFFF",
     val taglineColor: String = "#FFFFFF",
     val statsColor: String = "#00F5FF",

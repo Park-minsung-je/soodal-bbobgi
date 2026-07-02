@@ -61,8 +61,10 @@ data class CardLayers(
     val textY: Float = 0.5f,
     /** 텍스트 블록 크기 단계 (1~5). 3 = 기본 배율. */
     val textScaleStep: Int = 3,
-    /** 기록(통계) 줄 표시 여부. false면 줄과 여백 모두 생략. */
+    /** 기록(통계) 칩 표시 여부. false면 칩을 그리지 않는다. */
     val showStats: Boolean = true,
+    /** 이름표(닉네임 알약 + 소개) 표시 여부. false면 블록 전체를 그리지 않는다. */
+    val showText: Boolean = true,
     /** 닉네임 색상 ("#RRGGBB"). */
     val nicknameColor: String = "#FFFFFF",
     /** 소개 줄 색상 ("#RRGGBB"). */
@@ -153,11 +155,8 @@ object ProfileCardRenderer {
             canvas.drawBitmap(layers.frameBitmap, null, RectF(0f, 0f, CARD_WIDTH.toFloat(), CARD_HEIGHT.toFloat()), paint)
         }
 
-        // Layer 4: Text — 닉네임·소개·기록 3줄을 하나의 블록으로 그린다.
-        // 정렬(좌/우) + 블록 크기(단계) + 색상 + 표시여부를 한 묶음으로 처리하고,
-        // 세 줄을 폰트 크기에 비례한 좁은 간격으로 수직 중앙 정렬해 응집감 있게 배치한다.
-        // 글꼴 스타일을 닉네임·소개·기록 세 줄 전체에 일괄 적용한다.
-        // REGULAR면 닉네임도 굵게 처리하지 않는다 (이전엔 닉네임이 하드코딩 BOLD였음).
+        // Layer 4: 이름표 — 디자인 신구조: 흰 알약(닉네임) + 아래 소개 텍스트.
+        // 위치(textX/textY 앵커)·크기 단계·표시여부는 기존 커스텀 값을 그대로 따른다.
         val blockTypeface = when (layers.textStyle) {
             "BOLD" -> Typeface.DEFAULT_BOLD
             "ITALIC" -> Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
@@ -175,62 +174,86 @@ object ProfileCardRenderer {
         val scaleMul = floatArrayOf(0.8f, 1.0f, 1.2f, 1.5f, 1.8f)[
             (layers.textScaleStep - 1).coerceIn(0, 4)
         ]
-        val nicknameSize = 72f * u * scaleMul
+        val nicknameSize = 60f * u * scaleMul
         val taglineSize = 32f * u * scaleMul
-        val statsSize = 28f * u * scaleMul
-        // 줄 간 여백 — 각 줄 폰트 크기에 비례한 작은 간격으로 블록을 조밀하게 묶는다.
-        val gapAfterNickname = nicknameSize * 0.35f
-        val gapAfterTagline = taglineSize * 0.55f
 
-        // 블록 전체 높이 = 세 줄 높이 + 줄 간 여백 (showStats=false면 기록 줄/여백 제외).
-        val blockHeight = nicknameSize + gapAfterNickname + taglineSize +
-            (if (layers.showStats) gapAfterTagline + statsSize else 0f)
-        // textY는 블록의 세로 '중심'. 슬라이더로 블록 전체를 위아래로 옮긴다.
-        val blockTop = layers.textY * CARD_HEIGHT - blockHeight / 2f
-
-        // 정렬은 블록 내부 줄 정렬(Paint.Align). textX가 앵커 가로 위치를 정한다.
-        // LEFT면 textX가 좌측 모서리(왼쪽 정렬), RIGHT면 textX가 우측 모서리(오른쪽 정렬).
         val isRight = layers.textAlign != "LEFT"
-        val textX = layers.textX * CARD_WIDTH
-        textPaint.textAlign = if (isRight) Paint.Align.RIGHT else Paint.Align.LEFT
+        val anchorX = layers.textX * CARD_WIDTH
 
-        // 한 줄을 그린다. 외곽선이 켜져 있으면 STROKE로 테두리를 먼저 깔고 FILL로 글자를 덮어
-        // 어떤 배경에서도 글자 경계가 또렷하게 살아나게 한다. textPaint는 재사용되므로 그릴 때마다
-        // STROKE→FILL을 갖춰 다음 줄/워터마크에 스타일이 새지 않도록 한다.
-        fun drawLine(text: String, baseline: Float, color: Int) {
-            if (layers.textOutline) {
-                // 외곽선: 그림자 없이 불투명 스트로크. strokeWidth는 글자 크기에 비례.
-                textPaint.style = Paint.Style.STROKE
-                textPaint.strokeWidth = textPaint.textSize * 0.09f
-                textPaint.color = outlineColor(color)
-                textPaint.clearShadowLayer()
-                canvas.drawText(text, textX, baseline, textPaint)
-            }
-            // 글자 본체: FILL + 기존 대비 그림자.
+        if (layers.showText) {
+            // ── 닉네임 알약: 흰 배경 캡슐 + 잉크 텍스트 ──
+            textPaint.textSize = nicknameSize
+            textPaint.textAlign = Paint.Align.LEFT
             textPaint.style = Paint.Style.FILL
-            textPaint.color = color
-            textPaint.setShadowLayer(6f * u, 0f, 0f, contrastShadow(color))
-            canvas.drawText(text, textX, baseline, textPaint)
+            textPaint.clearShadowLayer()
+            val nickWidth = textPaint.measureText(layers.nickname)
+            val padH = nicknameSize * 0.55f
+            val padV = nicknameSize * 0.30f
+            val pillW = nickWidth + padH * 2f
+            val pillH = nicknameSize + padV * 2f
+            val gapPillTagline = nicknameSize * 0.28f
+            val blockHeight = pillH + gapPillTagline + taglineSize
+            val blockTop = layers.textY * CARD_HEIGHT - blockHeight / 2f
+            val pillLeft = if (isRight) anchorX - pillW else anchorX
+
+            // 알약 배경 (살짝 뜨는 그림자 포함)
+            val pillPaint = Paint().apply {
+                isAntiAlias = true
+                color = android.graphics.Color.argb(230, 255, 255, 255)
+                setShadowLayer(10f * u, 0f, 3f * u, android.graphics.Color.argb(70, 0, 20, 40))
+            }
+            val pillRect = RectF(pillLeft, blockTop, pillLeft + pillW, blockTop + pillH)
+            canvas.drawRoundRect(pillRect, pillH / 2f, pillH / 2f, pillPaint)
+
+            // 알약 텍스트 — 사용자 색이 흰색 계열이면 알약 위에서 안 보이므로 잉크로 폴백.
+            val rawNick = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.WHITE)
+            textPaint.color = if (isNearWhite(rawNick)) Color(0xFF1A2438).toArgb() else rawNick
+            val nickBaseline = blockTop + padV + nicknameSize - textPaint.descent() * 0.35f
+            canvas.drawText(layers.nickname, pillLeft + padH, nickBaseline, textPaint)
+
+            // ── 소개 — 알약 아래, 외곽선 옵션/색 커스텀 유지 ──
+            textPaint.textSize = taglineSize
+            textPaint.textAlign = if (isRight) Paint.Align.RIGHT else Paint.Align.LEFT
+            val tagBaseline = blockTop + pillH + gapPillTagline + taglineSize
+            val tagColor = parseColorOrDefault(layers.taglineColor, android.graphics.Color.WHITE)
+            if (layers.textOutline) {
+                textPaint.style = Paint.Style.STROKE
+                textPaint.strokeWidth = taglineSize * 0.09f
+                textPaint.color = outlineColor(tagColor)
+                textPaint.clearShadowLayer()
+                canvas.drawText(layers.tagline, anchorX, tagBaseline, textPaint)
+            }
+            textPaint.style = Paint.Style.FILL
+            textPaint.color = tagColor
+            textPaint.setShadowLayer(7f * u, 0f, 2f * u, contrastShadow(tagColor))
+            canvas.drawText(layers.tagline, anchorX, tagBaseline, textPaint)
         }
 
-        // 닉네임
-        var baseline = blockTop + nicknameSize
-        textPaint.textSize = nicknameSize
-        val nickColor = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.WHITE)
-        drawLine(layers.nickname, baseline, nickColor)
-
-        // 소개
-        baseline += gapAfterNickname + taglineSize
-        textPaint.textSize = taglineSize
-        val tagColor = parseColorOrDefault(layers.taglineColor, android.graphics.Color.WHITE)
-        drawLine(layers.tagline, baseline, tagColor)
-
-        // 기록 (표시 옵션 ON일 때만)
+        // ── 기록 칩: 좌하단 고정 글래스 캡슐 (디자인) — 표시 토글/색 커스텀 유지 ──
         if (layers.showStats) {
-            baseline += gapAfterTagline + statsSize
+            val statsSize = 30f * u
             textPaint.textSize = statsSize
-            val statsColor = parseColorOrDefault(layers.statsColor, Color(0xFF00F5FF).toArgb())
-            drawLine(layers.stats, baseline, statsColor)
+            textPaint.textAlign = Paint.Align.LEFT
+            textPaint.style = Paint.Style.FILL
+            textPaint.clearShadowLayer()
+            val statsWidth = textPaint.measureText(layers.stats)
+            val chipPadH = statsSize * 0.65f
+            val chipPadV = statsSize * 0.38f
+            val chipH = statsSize + chipPadV * 2f
+            val chipLeft = CARD_WIDTH * 0.035f
+            val chipTop = CARD_HEIGHT - CARD_HEIGHT * 0.075f - chipH
+            val chipPaint = Paint().apply {
+                isAntiAlias = true
+                color = android.graphics.Color.argb(215, 255, 255, 255)
+                setShadowLayer(8f * u, 0f, 2f * u, android.graphics.Color.argb(55, 0, 20, 40))
+            }
+            val chipRect = RectF(chipLeft, chipTop, chipLeft + statsWidth + chipPadH * 2f, chipTop + chipH)
+            canvas.drawRoundRect(chipRect, chipH / 2f, chipH / 2f, chipPaint)
+            // 칩 텍스트 — 밝은 커스텀 색(기본 네온)은 흰 칩 위에서 안 보여 시안 잉크로 폴백.
+            val rawStats = parseColorOrDefault(layers.statsColor, Color(0xFF00F5FF).toArgb())
+            textPaint.color = if (isNearWhite(rawStats)) Color(0xFF2D86C4).toArgb() else rawStats
+            val statsBaseline = chipTop + chipPadV + statsSize - textPaint.descent() * 0.35f
+            canvas.drawText(layers.stats, chipLeft + chipPadH, statsBaseline, textPaint)
         }
 
         // 브랜드 워터마크 — 사용자 글꼴 스타일과 무관하게 항상 기본 글꼴로 고정.
@@ -293,6 +316,14 @@ object ProfileCardRenderer {
         } else {
             android.graphics.Color.argb(255, 255, 255, 255)
         }
+    }
+
+    /** 흰 알약/칩 위에서 안 보일 만큼 밝은 색인지 — 기존 저장값(흰색/네온) 호환 폴백용. */
+    private fun isNearWhite(color: Int): Boolean {
+        val lum = 0.299 * android.graphics.Color.red(color) +
+            0.587 * android.graphics.Color.green(color) +
+            0.114 * android.graphics.Color.blue(color)
+        return lum >= 190
     }
 }
 

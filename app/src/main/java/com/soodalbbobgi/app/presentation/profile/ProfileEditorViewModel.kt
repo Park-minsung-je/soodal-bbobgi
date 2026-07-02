@@ -77,6 +77,8 @@ data class ProfileEditorUiState(
     val textScaleStep: Int = 3,
     /** 기록(통계) 줄 표시 여부. */
     val showStats: Boolean = true,
+    /** 이름표(닉네임 알약+소개) 표시 여부. */
+    val showText: Boolean = true,
     /** 닉네임 색상 ("#RRGGBB"). */
     val nicknameColor: String = "#FFFFFF",
     /** 소개 줄 색상 ("#RRGGBB"). */
@@ -129,6 +131,7 @@ class ProfileEditorViewModel @Inject constructor(
         val textY: Float = 0.5f,
         val textScaleStep: Int = 3,
         val showStats: Boolean = true,
+        val showText: Boolean = true,
         val nicknameColor: String = "#FFFFFF",
         val taglineColor: String = "#FFFFFF",
         val statsColor: String = "#00F5FF",
@@ -161,6 +164,7 @@ class ProfileEditorViewModel @Inject constructor(
                 textY = savedCard.textY,
                 textScaleStep = savedCard.textScaleStep,
                 showStats = savedCard.showStats,
+                showText = savedCard.showText,
                 nicknameColor = savedCard.nicknameColor,
                 taglineColor = savedCard.taglineColor,
                 statsColor = savedCard.statsColor,
@@ -196,6 +200,7 @@ class ProfileEditorViewModel @Inject constructor(
             textY = state.textY,
             textScaleStep = state.textScaleStep,
             showStats = state.showStats,
+            showText = state.showText,
             nicknameColor = state.nicknameColor,
             taglineColor = state.taglineColor,
             statsColor = state.statsColor,
@@ -260,6 +265,9 @@ class ProfileEditorViewModel @Inject constructor(
     /** 기록 줄 표시 여부 설정. */
     fun setShowStats(v: Boolean) { _editState.value = _editState.value.copy(showStats = v) }
 
+    /** 이름표(닉네임 알약+소개) 표시 토글. */
+    fun setShowText(v: Boolean) { _editState.value = _editState.value.copy(showText = v) }
+
     /** 닉네임 색상 설정 ("#RRGGBB"). */
     fun setNicknameColor(v: String) { _editState.value = _editState.value.copy(nicknameColor = v) }
 
@@ -301,6 +309,7 @@ class ProfileEditorViewModel @Inject constructor(
                     textY = s.textY.coerceIn(0f, 1f),
                     textScaleStep = s.textScaleStep,
                     showStats = s.showStats,
+                    showText = s.showText,
                     nicknameColor = s.nicknameColor,
                     taglineColor = s.taglineColor,
                     statsColor = s.statsColor,
@@ -323,6 +332,7 @@ class ProfileEditorViewModel @Inject constructor(
                     textY = card.textY,
                     textScaleStep = card.textScaleStep,
                     showStats = card.showStats,
+                    showText = card.showText,
                     nicknameColor = card.nicknameColor,
                     taglineColor = card.taglineColor,
                     statsColor = card.statsColor,

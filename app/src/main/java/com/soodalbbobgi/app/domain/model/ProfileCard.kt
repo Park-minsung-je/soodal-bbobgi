@@ -31,6 +31,8 @@ data class ProfileCard(
     val textY: Float = 0.5f,
     val textScaleStep: Int = 3,
     val showStats: Boolean = true,
+    /** 이름표(닉네임 알약+소개) 표시 여부. */
+    val showText: Boolean = true,
     val nicknameColor: String = "#FFFFFF",
     val taglineColor: String = "#FFFFFF",
     val statsColor: String = "#00F5FF",

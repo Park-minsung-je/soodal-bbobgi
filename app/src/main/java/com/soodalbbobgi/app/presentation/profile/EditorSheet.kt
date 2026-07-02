@@ -319,6 +319,25 @@ fun EditorSheet(
                         }
                     }
 
+                    // -- 이름표(닉네임 알약+소개) 표시 토글 --
+                    Spacer(Modifier.height(spacing.s3))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("이름표 표시", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+                        Switch(
+                            checked = state.showText,
+                            onCheckedChange = { vm.setShowText(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = colors.btnPrimaryText,
+                                checkedTrackColor = SheetAccent,
+                                uncheckedTrackColor = colors.surface3,
+                            ),
+                        )
+                    }
+
                     // -- 기록 표시 토글 --
                     Spacer(Modifier.height(spacing.s3))
                     Row(

@@ -128,6 +128,7 @@ fun ProfileFullscreenOverlay(
         textY = cardState.textY,
         textScaleStep = cardState.textScaleStep,
         showStats = cardState.showStats,
+        showText = cardState.showText,
         nicknameColor = cardState.nicknameColor,
         taglineColor = cardState.taglineColor,
         statsColor = cardState.statsColor,

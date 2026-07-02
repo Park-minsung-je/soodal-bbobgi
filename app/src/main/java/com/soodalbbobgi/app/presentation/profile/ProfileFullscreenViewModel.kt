@@ -61,6 +61,7 @@ data class FullscreenCardState(
     val textScaleStep: Int = 3,
     /** 기록 줄 표시 여부. */
     val showStats: Boolean = true,
+    val showText: Boolean = true,
     /** 닉네임 색상 ("#RRGGBB"). */
     val nicknameColor: String = "#FFFFFF",
     /** 소개 줄 색상 ("#RRGGBB"). */
@@ -115,6 +116,7 @@ class ProfileFullscreenViewModel @Inject constructor(
             textY = card?.textY ?: 0.5f,
             textScaleStep = card?.textScaleStep ?: 3,
             showStats = card?.showStats ?: true,
+            showText = card?.showText ?: true,
             nicknameColor = card?.nicknameColor ?: "#FFFFFF",
             taglineColor = card?.taglineColor ?: "#FFFFFF",
             statsColor = card?.statsColor ?: "#00F5FF",
