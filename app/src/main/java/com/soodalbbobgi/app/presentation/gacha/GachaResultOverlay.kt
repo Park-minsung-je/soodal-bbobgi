@@ -109,15 +109,15 @@ fun GachaResultOverlay(
 
     Box(
         Modifier.fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.45f * p))
+            .background(Color.Black.copy(alpha = 0.45f * p.coerceIn(0f, 1f)))
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             Modifier.graphicsLayer {
-                scaleX = 0.9f + 0.1f * p
-                scaleY = 0.9f + 0.1f * p
-                alpha = p
+                scaleX = 0.82f + 0.18f * p
+                scaleY = 0.82f + 0.18f * p
+                alpha = p.coerceIn(0f, 1f)
             },
             contentAlignment = Alignment.Center,
         ) {
