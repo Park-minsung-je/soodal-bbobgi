@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,17 +26,13 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +45,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -59,12 +57,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
-import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.StrokePalette
-import com.soodalbbobgi.app.core.ui.GlassSheen
-import com.soodalbbobgi.app.core.ui.LocalHazeContent
-import com.soodalbbobgi.app.core.ui.glassFrost
-import kotlinx.coroutines.launch
+import com.soodalbbobgi.app.core.ui.SoodalBottomSheet
 
 // 시트는 항상 화이트(라이트) — 앱 테마와 무관하게 디자인 고정값 사용.
 // 프로스트(블러) 표면 위에서 인풋이 죽어 보이지 않도록 디자인 `.input`처럼 흰 배경 + 또렷한 테두리.
@@ -99,7 +93,6 @@ private val EDIT_STROKES = listOf(
  * @param data 수정 대상 세션의 수영 데이터 (원본 영법 미터 포함)
  * @param onSave (free, breast, back, fly, kick, mixed) 순서의 보정값 콜백 — 합계는 항상 기록 거리와 같다
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StrokeEditSheet(
     dateLabel: String,
@@ -107,8 +100,6 @@ fun StrokeEditSheet(
     onDismiss: () -> Unit,
     onSave: (free: Int, breast: Int, back: Int, fly: Int, kick: Int, mixed: Int) -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope = rememberCoroutineScope()
     val distance = data.distanceM.coerceAtLeast(0)
 
     // 저장값이 거리를 넘는 비정상 데이터여도 앞에서부터 잔여 안으로 눌러 담는다.
@@ -134,28 +125,14 @@ fun StrokeEditSheet(
     // EDIT_STROKES 순서와 동일: 혼영(잔여)이 맨 앞.
     val values = listOf(medley, free, breast, back, fly, kick)
 
-    // 글래스+블러 시트 — 컨테이너는 투명으로 두고 표면을 직접 프로스트로 그린다.
-    val sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-    val glassColors = SoodalDesign.colors
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Color.Transparent,
-        shape = sheetShape,
-        dragHandle = null,
-    ) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .glassFrost(glassColors, sheetShape, LocalHazeContent.current)
-                .border(1.dp, glassColors.glassBorder, sheetShape),
-        ) {
-        GlassSheen(sheetShape)
-        Column(Modifier.fillMaxWidth()) {
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { SheetHandle() }
+    // 글래스+블러+예측 뒤로가기(슬라이드-다운)는 공용 시트가 담당한다.
+    SoodalBottomSheet(onDismiss = onDismiss) { close ->
+        // 콘텐츠가 길어도 화면을 넘지 않게 제한 — 넘치면 내부 스크롤.
+        val maxSheetHeight = LocalConfiguration.current.screenHeightDp.dp * 0.85f
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = maxSheetHeight)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp)
                 .padding(bottom = 18.dp),
@@ -226,31 +203,13 @@ fun StrokeEditSheet(
                         indication = null,
                     ) {
                         // 저장 시 시트를 먼저 내린 뒤 콜백 (부드러운 닫힘).
-                        scope.launch {
-                            sheetState.hide()
-                            onSave(free, breast, back, fly, kick, medley)
-                        }
+                        close { onSave(free, breast, back, fly, kick, medley) }
                     },
                 contentAlignment = Alignment.Center,
             ) {
                 Text("저장", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, letterSpacing = 0.3.sp)
             }
         }
-        } // 내부 Column (핸들 + 콘텐츠)
-        } // 글래스 표면 Box
-    }
-}
-
-@Composable
-private fun SheetHandle() {
-    Box(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp), contentAlignment = Alignment.Center) {
-        Box(
-            Modifier
-                .size(width = 40.dp, height = 4.dp)
-                .clip(RoundedCornerShape(999.dp))
-                // 프로스트 위에서도 또렷하게.
-                .background(Color(0xFF12263F).copy(alpha = 0.28f)),
-        )
     }
 }
 
