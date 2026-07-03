@@ -663,23 +663,44 @@ private fun DayDetailCard(
     // (바깥에 두면 카드 그림자가 잘린다).
     SoodalCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth().animateContentSize(tween(220))) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = if (day != null) "${year}년 ${monthNames[month - 1]} ${day}일" else "날짜를 선택해 주세요",
-                    fontSize = 14.sp,
-                    color = colors.textSecondary,
-                    modifier = Modifier.alignByBaseline(),
-                )
-                // 세션이 하나면 날짜 옆에 운동 시각을 작게 — 여러 세션은 각 회차 라벨에 표시
-                val single = data?.sessions?.singleOrNull()
-                val singleStart = single?.startEpochSec
-                if (single != null && singleStart != null) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        formatSessionTimeRange(singleStart, single.durationSec),
-                        fontSize = 11.sp,
-                        color = colors.textTertiary,
+                        text = if (day != null) "${year}년 ${monthNames[month - 1]} ${day}일" else "날짜를 선택해 주세요",
+                        fontSize = 14.sp,
+                        color = colors.textSecondary,
                         modifier = Modifier.alignByBaseline(),
                     )
+                    // 세션이 하나면 날짜 옆에 운동 시각을 작게 — 여러 세션은 각 회차 라벨에 표시
+                    val single = data?.sessions?.singleOrNull()
+                    val singleStart = single?.startEpochSec
+                    if (single != null && singleStart != null) {
+                        Text(
+                            formatSessionTimeRange(singleStart, single.durationSec),
+                            fontSize = 11.sp,
+                            color = colors.textTertiary,
+                            modifier = Modifier.alignByBaseline(),
+                        )
+                    }
+                }
+                // 기록 추가 — 기록이 있어도 세션을 더 얹을 수 있게 상시 노출 (미래 날짜만 null로 숨김).
+                if (onManualEntry != null) {
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(colors.accentBlue.copy(alpha = 0.12f))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onManualEntry,
+                            )
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        SoodalIcon(icon = SoodalIcons.Plus, tint = colors.accentBlue, size = 12.dp)
+                        Text("기록 추가하기", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
+                    }
                 }
             }
             Spacer(Modifier.height(14.dp))
@@ -689,33 +710,9 @@ private fun DayDetailCard(
                     text = "이 날은 수영 기록이 없어요",
                     fontSize = 13.sp,
                     color = colors.textSecondary,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 14.dp, bottom = if (onManualEntry != null) 12.dp else 14.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
                     textAlign = TextAlign.Center,
                 )
-                // 과거 날짜 보충 기록 — 미래 날짜에서는 onManualEntry가 null이라 숨겨진다.
-                if (onManualEntry != null) {
-                    Box(Modifier.fillMaxWidth().padding(bottom = 6.dp), contentAlignment = Alignment.Center) {
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(colors.accentBlue.copy(alpha = 0.10f))
-                                .border(1.dp, colors.accentBlue.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = onManualEntry,
-                                )
-                                .padding(horizontal = 16.dp, vertical = 9.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            SoodalIcon(icon = SoodalIcons.Plus, tint = colors.accentBlue, size = 13.dp)
-                            Text("직접 기록하기", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
-                        }
-                    }
-                }
                 return@Column
             }
 

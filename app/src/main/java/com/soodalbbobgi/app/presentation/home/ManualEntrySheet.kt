@@ -32,7 +32,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -221,7 +220,7 @@ private fun StepBasics(
         // 헤더 — 첫 입력 섹션 직전까지 드래그로 닫기 가능.
         Column(Modifier.fillMaxWidth().then(dragModifier)) {
             Spacer(Modifier.height(4.dp))
-            Text("직접 기록", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = FieldTxt1)
+            Text("기록 추가", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = FieldTxt1)
             Spacer(Modifier.height(2.dp))
             Text("${dateLabel ?: "오늘"} 수영한 기록을 입력해 주세요", fontSize = 11.sp, color = FieldTxt3)
             Spacer(Modifier.height(16.dp))
@@ -247,23 +246,7 @@ private fun StepBasics(
 
         Spacer(Modifier.height(16.dp))
         // 다음 — 영법 구성 단계로. 등록은 2단계에서만 한다 (영법 입력이 정식 플로우).
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(Brush.linearGradient(listOf(Color(0xFF38BDF8), Color(0xFF2563EB))))
-                .alpha(if (nextEnabled) 1f else 0.45f)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    enabled = nextEnabled,
-                    onClick = onNext,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("다음", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, letterSpacing = 0.3.sp)
-        }
+        PrimaryButton(Modifier.fillMaxWidth(), "다음", nextEnabled, onNext)
         Spacer(Modifier.height(18.dp))
     }
 }
@@ -347,29 +330,40 @@ private fun StepStrokes(
         }
 
         Spacer(Modifier.height(16.dp))
-        RegisterButton(Modifier.fillMaxWidth(), valid, onRegister)
+        PrimaryButton(Modifier.fillMaxWidth(), "인증하고 등록", valid, onRegister)
         Spacer(Modifier.height(18.dp))
     }
 }
 
-/** 인증하고 등록 — 탭 시 즉시 통과 후 등록. */
+/**
+ * 시트 주 액션 버튼 — 활성이면 파랑 그라데이션, 비활성이면 잉크 틴트 회색.
+ * 반투명(alpha)으로 죽이면 유리 시트 위에서 버튼이 '투명해진' 것처럼 보여 solid로 처리한다.
+ */
 @Composable
-private fun RegisterButton(modifier: Modifier, valid: Boolean, onRegister: () -> Unit) {
+private fun PrimaryButton(modifier: Modifier, label: String, enabled: Boolean, onClick: () -> Unit) {
     Box(
         modifier = modifier
             .height(52.dp)
             .clip(RoundedCornerShape(14.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF38BDF8), Color(0xFF2563EB))))
-            .alpha(if (valid) 1f else 0.45f)
+            .background(
+                if (enabled) Brush.linearGradient(listOf(Color(0xFF38BDF8), Color(0xFF2563EB)))
+                else SolidColor(Color(0xFF1E3C64).copy(alpha = 0.12f)),
+            )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-                enabled = valid,
-                onClick = onRegister,
+                enabled = enabled,
+                onClick = onClick,
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Text("인증하고 등록", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, letterSpacing = 0.3.sp)
+        Text(
+            text = label,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = if (enabled) Color.White else FieldTxt3,
+            letterSpacing = 0.3.sp,
+        )
     }
 }
 
