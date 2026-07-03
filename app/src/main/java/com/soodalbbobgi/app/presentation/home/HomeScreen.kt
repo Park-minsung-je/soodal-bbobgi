@@ -84,6 +84,7 @@ private fun Int.formatNumber(): String = String.format("%,d", this)
 fun HomeScreen(
     onNavigateToTab: (String) -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToCollection: () -> Unit,
     onOpenFullscreen: () -> Unit,
     hideCard: Boolean,
     editorOpen: Boolean,
@@ -292,12 +293,13 @@ fun HomeScreen(
 
             // (통화·편집·연속은 상단 고정 바로 이동, 크게 보기는 카드 탭으로 대체됨)
 
-                // ── 도감 컬렉션 (카테고리별 보유/전체) — 정보 표시 전용 ──
+                // ── 내 컬렉션 (카테고리별 보유/전체) — 탭하면 컬렉션 화면으로 ──
                 Spacer(Modifier.height(14.dp))
                 DexCollectionCard(
                     charOwned = state.dexCharOwned, charTotal = state.dexCharTotal,
                     bgOwned = state.dexBgOwned, bgTotal = state.dexBgTotal,
                     frameOwned = state.dexFrameOwned, frameTotal = state.dexFrameTotal,
+                    onClick = onNavigateToCollection,
                 )
 
                 // ── 오늘 — 기록이 생길 때만 애니메이션과 함께 나타난다 (빈 상태 카드 없음).
@@ -486,17 +488,26 @@ private fun GlassIconButton(icon: SoodalIcons, tint: Color, onClick: () -> Unit)
     }
 }
 
-/** 도감 컬렉션 카드 — 카테고리별(캐릭터/배경/액자) 보유/전체 진행바. */
+/** 내 컬렉션 카드 — 카테고리별(캐릭터/배경/액자) 보유/전체 진행바. 탭하면 컬렉션 화면으로. */
 @Composable
 private fun DexCollectionCard(
     charOwned: Int, charTotal: Int,
     bgOwned: Int, bgTotal: Int,
     frameOwned: Int, frameTotal: Int,
+    onClick: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
     val totalOwned = charOwned + bgOwned + frameOwned
     val totalAll = charTotal + bgTotal + frameTotal
-    SoodalCard(modifier = Modifier.fillMaxWidth()) {
+    SoodalCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+    ) {
         Column(Modifier.fillMaxWidth()) {
             Row(
                 Modifier.fillMaxWidth(),

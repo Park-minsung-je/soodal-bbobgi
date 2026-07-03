@@ -49,6 +49,7 @@ import com.soodalbbobgi.app.core.ui.motion.tabIndexOf
 import com.soodalbbobgi.app.presentation.auth.AuthRoute
 import com.soodalbbobgi.app.presentation.auth.AuthScreen
 import com.soodalbbobgi.app.presentation.calendar.CalendarScreen
+import com.soodalbbobgi.app.presentation.collection.CollectionScreen
 import com.soodalbbobgi.app.presentation.gacha.GachaScreen
 import com.soodalbbobgi.app.presentation.home.HomeScreen
 import com.soodalbbobgi.app.presentation.onboarding.OnboardingNicknameScreen
@@ -183,6 +184,7 @@ fun AppNavHost(navController: NavHostController) {
                         HomeScreen(
                             onNavigateToTab = onSelectTab,
                             onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                            onNavigateToCollection = { navController.navigate(Screen.Collection.route) },
                             onOpenFullscreen = { cardOverlayReady = false; fullscreenOpen = true },
                             hideCard = cardOverlayReady,
                             editorOpen = homeEditorOpen,
@@ -211,6 +213,9 @@ fun AppNavHost(navController: NavHostController) {
                     }
                     composable(Screen.Licenses.route) {
                         LicensesScreen(onBack = { navController.popBackStack() })
+                    }
+                    composable(Screen.Collection.route) {
+                        CollectionScreen(onBack = { navController.popBackStack() })
                     }
                 }
             }
