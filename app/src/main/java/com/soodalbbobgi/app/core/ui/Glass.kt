@@ -167,9 +167,9 @@ fun Modifier.glassFrost(
         if (haze != null) {
             Modifier.hazeEffect(state = haze) {
                 backgroundColor = if (colors.isDark) Color(0xFF0E1426) else Color.White
-                // 프로스트 위 틴트 — 블러된 뒤 콘텐츠가 보이도록 옅게 (팝업 흰끼 조정 지점).
-                // 0.42는 인양소처럼 어두운 씬 위에서 너무 투명해 0.55로 상향 (카드 0.60보다는 옅게).
-                tints = listOf(HazeTint(if (colors.isDark) colors.glassBg else Color.White.copy(alpha = 0.55f)))
+                // 프로스트 위 틴트 — 팝업/시트는 가독 우선이라 카드(0.60)보다 진하게.
+                // (0.42→0.55→0.75 단계적 상향: 인양소처럼 어두운 씬 위에서도 흰 유리로 서도록)
+                tints = listOf(HazeTint(if (colors.isDark) colors.glassBg else Color.White.copy(alpha = 0.75f)))
                 blurRadius = 20.dp
                 noiseFactor = 0f
             }
