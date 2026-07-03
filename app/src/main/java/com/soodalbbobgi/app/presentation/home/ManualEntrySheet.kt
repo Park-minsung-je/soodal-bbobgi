@@ -1,5 +1,6 @@
 package com.soodalbbobgi.app.presentation.home
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -133,10 +134,14 @@ fun ManualEntrySheet(
     val strokeSum = free + breast + back + fly + kick
     val mixedAuto = distance - strokeSum
     val strokesValid = mixedAuto >= 0
-    val valid = distance in 25..30000 && duration in 1..600 &&
-        (kcal == null || kcal in 1..5000) && hrValid && timeValid && strokesValid
+    // 1단계(기본 정보)만의 유효성 — [다음] 버튼 활성 조건.
+    val basicsValid = distance in 25..30000 && duration in 1..600 &&
+        (kcal == null || kcal in 1..5000) && hrValid && timeValid
+    val valid = basicsValid && strokesValid
 
     SoodalBottomSheet(onDismiss = onDismiss) { close, dragModifier ->
+        // 2단계에서 뒤로가기는 시트를 닫지 않고 1단계로 되돌린다.
+        BackHandler(enabled = step == 2) { step = 1 }
         val submit = {
             close {
                 onSubmit(
@@ -172,9 +177,8 @@ fun ManualEntrySheet(
                         avgHrText = avgHrText, onAvgHr = { avgHrText = it },
                         minHrText = minHrText, onMinHr = { minHrText = it },
                         hrValid = hrValid,
-                        valid = valid,
-                        onStrokes = { step = 2 },
-                        onRegister = submit,
+                        nextEnabled = basicsValid,
+                        onNext = { step = 2 },
                     )
                 } else {
                     StepStrokes(
@@ -196,7 +200,7 @@ fun ManualEntrySheet(
     }
 }
 
-/** 1단계 — 총 거리/운동 시간(필수), 시작 시각/칼로리/최대·평균·최소 심박(선택). */
+/** 1단계 — 총 거리/운동 시간(필수), 시작 시각/칼로리/최대·평균·최소 심박(선택) 입력 후 [다음]. */
 @Composable
 private fun StepBasics(
     dragModifier: Modifier,
@@ -210,9 +214,8 @@ private fun StepBasics(
     avgHrText: String, onAvgHr: (String) -> Unit,
     minHrText: String, onMinHr: (String) -> Unit,
     hrValid: Boolean,
-    valid: Boolean,
-    onStrokes: () -> Unit,
-    onRegister: () -> Unit,
+    nextEnabled: Boolean,
+    onNext: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
         // 헤더 — 첫 입력 섹션 직전까지 드래그로 닫기 가능.
@@ -243,25 +246,23 @@ private fun StepBasics(
         }
 
         Spacer(Modifier.height(16.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            // 영법 구성 (선택 단계) — 흰 배경 보조 버튼
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(52.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color.White)
-                    .border(1.dp, FieldBorder, RoundedCornerShape(14.dp))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onStrokes,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("영법 구성", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2563EB))
-            }
-            RegisterButton(Modifier.weight(1.6f), valid, onRegister)
+        // 다음 — 영법 구성 단계로. 등록은 2단계에서만 한다 (영법 입력이 정식 플로우).
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Brush.linearGradient(listOf(Color(0xFF38BDF8), Color(0xFF2563EB))))
+                .alpha(if (nextEnabled) 1f else 0.45f)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    enabled = nextEnabled,
+                    onClick = onNext,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("다음", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, letterSpacing = 0.3.sp)
         }
         Spacer(Modifier.height(18.dp))
     }
