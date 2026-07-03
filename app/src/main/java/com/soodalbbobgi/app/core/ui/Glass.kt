@@ -168,8 +168,8 @@ fun Modifier.glassFrost(
             Modifier.hazeEffect(state = haze) {
                 backgroundColor = if (colors.isDark) Color(0xFF0E1426) else Color.White
                 // 프로스트 위 틴트 — 팝업/시트는 가독 우선이라 카드(0.60)보다 진하게.
-                // (0.42→0.55→0.75 단계적 상향: 인양소처럼 어두운 씬 위에서도 흰 유리로 서도록)
-                tints = listOf(HazeTint(if (colors.isDark) colors.glassBg else Color.White.copy(alpha = 0.75f)))
+                // (0.42→0.55→0.75→0.82 단계적 상향: 어두운 씬 위에서도 흰 유리로 서도록)
+                tints = listOf(HazeTint(if (colors.isDark) colors.glassBg else Color.White.copy(alpha = 0.82f)))
                 blurRadius = 20.dp
                 noiseFactor = 0f
             }
