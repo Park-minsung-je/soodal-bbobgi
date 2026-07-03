@@ -50,6 +50,7 @@ import com.soodalbbobgi.app.core.ui.GlassCorner
 import com.soodalbbobgi.app.core.ui.GlassSheen
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
+import com.soodalbbobgi.app.core.ui.displayLabel
 import com.soodalbbobgi.app.core.ui.glass
 import com.soodalbbobgi.app.core.ui.soodalScreenBackdrop
 import com.soodalbbobgi.app.domain.model.Grade
@@ -151,7 +152,7 @@ fun CollectionScreen(
                                             .padding(horizontal = 9.dp, vertical = 4.dp),
                                         horizontalArrangement = Arrangement.spacedBy(5.dp),
                                     ) {
-                                        Text(g.name, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = gradeInk(g))
+                                        Text(g.displayLabel, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = gradeInk(g))
                                         Text(
                                             "${state.ownedByGrade(g)}",
                                             fontSize = 11.sp, fontWeight = FontWeight.Bold,
@@ -331,7 +332,7 @@ private fun CollectionCell(entry: CollectionEntry, modifier: Modifier = Modifier
             }
             // 등급 태그 — 좌상단
             Text(
-                text = entry.grade.name,
+                text = entry.grade.displayLabel,
                 fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, color = ink,
                 modifier = Modifier
                     .align(Alignment.TopStart)

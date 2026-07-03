@@ -17,6 +17,18 @@ import androidx.compose.material3.Text
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.domain.model.Grade
 
+/**
+ * 등급 표시 라벨 — 디자인 개정: SSR/SR/R/N 코드 대신 한국어 등급명을 쓴다.
+ * (서버/도메인의 grade 코드값은 그대로 — 표시만 바꾼다)
+ */
+val Grade.displayLabel: String
+    get() = when (this) {
+        Grade.SSR -> "한정판"
+        Grade.SR -> "스페셜"
+        Grade.R -> "희귀"
+        Grade.N -> "일반"
+    }
+
 @Composable
 fun GradeBadge(
     grade: Grade,
@@ -45,7 +57,7 @@ fun GradeBadge(
             else -> {}
         }
         Text(
-            text = grade.name,
+            text = grade.displayLabel,
             color = fg,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
