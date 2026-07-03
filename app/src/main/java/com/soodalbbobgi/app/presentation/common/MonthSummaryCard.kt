@@ -25,6 +25,9 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.StrokePalette
 import com.soodalbbobgi.app.core.ui.SoodalCard
 
+/** 문장 속 거리 강조 파랑 — 디자인 v3 가독성 개정: accentBlue보다 진한 본문 강조색. */
+private val EmphasisBlue = Color(0xFF2563EB)
+
 /** 영법 이름 → 영법 고유 파스텔 색 (그래프/색칩용). 모르는 이름은 자유형 색 폴백. */
 fun strokeColorOf(name: String): Color = when (name) {
     "자유형" -> StrokePalette.Free
@@ -106,7 +109,7 @@ fun MonthSummaryCard(
                     append("${sessions}회")
                     pop()
                     append(" 수영해서 ")
-                    pushStyle(SpanStyle(color = colors.accentBlue, fontWeight = FontWeight.ExtraBold))
+                    pushStyle(SpanStyle(color = EmphasisBlue, fontWeight = FontWeight.ExtraBold))
                     append("${formatThousands(distanceM)}m")
                     pop()
                     append(" 헤엄치고, ")
@@ -142,7 +145,7 @@ fun MonthSummaryCard(
             Spacer(Modifier.height(4.dp))
             Text(
                 text = buildAnnotatedString {
-                    pushStyle(SpanStyle(color = colors.accentBlue, fontWeight = FontWeight.ExtraBold))
+                    pushStyle(SpanStyle(color = EmphasisBlue, fontWeight = FontWeight.ExtraBold))
                     append("${formatThousands(Math.abs(distanceDelta))}m")
                     pop()
                     append(if (distanceDelta >= 0) " 더 헤엄쳤어요." else " 덜 헤엄쳤어요.")

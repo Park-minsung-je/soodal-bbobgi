@@ -741,9 +741,9 @@ private fun DayDetailCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
-                    // 시안: 골드 서피스 틴트(0.12) + 옅은 골드 보더(0.35)
-                    .background(Color(0xFFF6C95B).copy(alpha = 0.12f))
-                    .border(1.dp, Color(0xFFF6C95B).copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                    // 시안: 골드 서피스 틴트(0.14) + 옅은 골드 보더(0.4)
+                    .background(Color(0xFFF6C95B).copy(alpha = 0.14f))
+                    .border(1.dp, Color(0xFFF6C95B).copy(alpha = 0.4f), RoundedCornerShape(10.dp))
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),

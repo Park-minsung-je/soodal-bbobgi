@@ -503,10 +503,11 @@ private fun DexCollectionCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("도감 컬렉션", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+                Text("내 컬렉션", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
                 Row(verticalAlignment = Alignment.Bottom) {
-                    Text("$totalOwned", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue)
+                    Text("$totalOwned", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue)
                     Text(" / $totalAll", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textTertiary)
+                    Text(" ›", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textTertiary)
                 }
             }
             Spacer(Modifier.height(12.dp))
