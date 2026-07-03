@@ -43,6 +43,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import com.soodalbbobgi.app.core.theme.SoodalDesign
+import com.soodalbbobgi.app.core.ui.motion.Motion
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -76,14 +77,14 @@ fun SoodalBottomSheet(
     var entered by remember { mutableStateOf(false) }
     var closing by remember { mutableStateOf(false) }
 
-    // 높이가 측정되면 화면 밖(아래)에서 스프링으로 올라온다.
+    // 높이가 측정되면 화면 밖(아래)에서 올라온다 — 프로필 편집 시트와 동일한 부드러운 이징.
     // sheetHeight를 키로 쓰면 첫 측정(0→h) 순간 이펙트가 재시작되며 진행 중인 등장
     // 애니메이션을 취소해 버린다(시트가 화면 밖에 멈춤) — 한 번만 띄우고 흐름으로 기다린다.
     LaunchedEffect(Unit) {
         val measured = snapshotFlow { sheetHeight }.first { it > 0 }
         offsetY.snapTo(measured.toFloat())
         entered = true
-        offsetY.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = 380f))
+        offsetY.animateTo(0f, tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized))
     }
 
     val close: (after: () -> Unit) -> Unit = { after ->
@@ -91,7 +92,9 @@ fun SoodalBottomSheet(
             closing = true
             keyboard?.hide()
             scope.launch {
-                if (sheetHeight > 0) offsetY.animateTo(sheetHeight.toFloat(), tween(200))
+                if (sheetHeight > 0) {
+                    offsetY.animateTo(sheetHeight.toFloat(), tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized))
+                }
                 after()
             }
         }
