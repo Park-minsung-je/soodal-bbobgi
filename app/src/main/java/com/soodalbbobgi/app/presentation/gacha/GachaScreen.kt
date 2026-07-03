@@ -75,6 +75,8 @@ import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.AppOverlay
 import com.soodalbbobgi.app.core.ui.AssetImage
 import com.soodalbbobgi.app.core.ui.GlassCurrencyChip
+import com.soodalbbobgi.app.core.ui.LocalHazeContent
+import dev.chrisbanes.haze.hazeSource
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.TabBarClearance
@@ -141,6 +143,11 @@ fun GachaScreen(
                 // 인양 씬을 화면 중앙 쪽으로 내린다 (상단에 너무 붙지 않게).
                 Spacer(Modifier.height(52.dp))
 
+                // 씬~버튼을 z1 소스로 등록 — 결과 팝업/탭바의 블러에 실제 뒤 요소로 비치게 한다.
+                // (이 화면엔 글래스 카드가 없어 소스가 하나도 없었고, 팝업 유리가 배경만 블러했다.
+                //  헤더의 글래스 칩은 hazeEffect라 소스 안에 두면 렌더되지 않으므로 제외.)
+                val haze = LocalHazeContent.current
+                Column(if (haze != null) Modifier.hazeSource(haze, zIndex = 1f) else Modifier) {
                 // -- Ocean salvage scene --
                 Box(Modifier.padding(horizontal = 14.dp)) {
                     SalvageScene(
@@ -192,6 +199,7 @@ fun GachaScreen(
                     fontSize = 11.sp, color = colors.textTertiary,
                     textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 )
+                } // z1 소스 Column
 
                 Spacer(Modifier.height(TabBarClearance))
             }
