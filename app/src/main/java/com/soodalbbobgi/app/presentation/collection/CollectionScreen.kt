@@ -51,6 +51,7 @@ import com.soodalbbobgi.app.core.ui.GlassSheen
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.glass
+import com.soodalbbobgi.app.core.ui.soodalScreenBackdrop
 import com.soodalbbobgi.app.domain.model.Grade
 
 private val KIND_LABEL = mapOf("char" to "캐릭터", "bg" to "배경", "frame" to "액자")
@@ -84,7 +85,8 @@ fun CollectionScreen(
     val colors = SoodalDesign.colors
     var tab by rememberSaveable { mutableStateOf("all") }
 
-    Box(Modifier.fillMaxSize()) {
+    // 푸시 서브 화면 — 슬라이드 전환 중 뒤 화면(홈)이 비치지 않게 자체 배경을 칠한다.
+    Box(Modifier.fillMaxSize().soodalScreenBackdrop()) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             // ── 헤더: 뒤로가기 + 타이틀 ─────────────────────────
             Row(
