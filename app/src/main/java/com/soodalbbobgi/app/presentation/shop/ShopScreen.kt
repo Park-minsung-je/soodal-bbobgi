@@ -436,8 +436,10 @@ private fun PurchaseConfirmOverlay(
                 .padding(horizontal = 32.dp)
                 .fillMaxWidth()
                 .graphicsLayer {
-                    scaleX = 0.82f + 0.18f * p
-                    scaleY = 0.82f + 0.18f * p
+                    // 첫 프레임은 스케일 1로 배치 — 축소 상태 배치는 블러 위치가 어긋난 채 굳는다.
+                    val s = com.soodalbbobgi.app.core.ui.motion.popupEnterScale(p)
+                    scaleX = s
+                    scaleY = s
                     alpha = p.coerceIn(0f, 1f)
                 }
                 .glassShadow(24.dp, colors)

@@ -17,7 +17,7 @@ import androidx.compose.runtime.setValue
  * (1을 넘길 수 있으므로 alpha에는 `coerceIn(0f,1f)`, 딤에도 coerce를 걸어 쓴다.)
  *
  * 예) `val p = rememberPopupEnter()` → 배경 `alpha = SoodalDimAlpha * p.coerceIn(0f,1f)`,
- * 콘텐츠 `graphicsLayer { scaleX = 0.82f + 0.18f*p; scaleY = 동일; alpha = p.coerceIn(0f,1f) }`
+ * 콘텐츠 `graphicsLayer { scaleX = popupEnterScale(p); scaleY = 동일; alpha = p.coerceIn(0f,1f) }`
  */
 @Composable
 fun rememberPopupEnter(): Float {
@@ -30,3 +30,12 @@ fun rememberPopupEnter(): Float {
     )
     return progress
 }
+
+/**
+ * 팝업 등장 바운스 스케일 — 첫 프레임(p=0)은 반드시 1을 반환한다.
+ *
+ * Haze는 백드롭(블러 대상) 위치를 노드 '배치 시점' 좌표로 잡는데, 첫 배치가 축소
+ * 상태(0.82)면 블러가 축소된 스냅샷 위치로 굳어 애니메이션이 끝난 뒤에도 어긋난다.
+ * p=0에서는 어차피 alpha=0이라 스케일 1로 배치돼도 화면에 보이지 않는다.
+ */
+fun popupEnterScale(p: Float): Float = if (p <= 0f) 1f else 0.82f + 0.18f * p
