@@ -4,7 +4,6 @@ import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,12 +31,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
@@ -49,7 +45,6 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlin.math.tan
 
 /**
  * 앱 공용 글래스 바텀시트 — ModalBottomSheet 대신 오버레이 레이어(AppOverlay)에 직접 그린다.
@@ -202,30 +197,19 @@ fun SoodalBottomSheet(
             GlassSheen(sheetShape)
             Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
                 // 핸들 — 아래로 드래그하면 시트가 따라 내려가고, 충분히 내리면 닫힌다.
-                // 일자 대신 살짝 아래로 꺾인 셰브론(약 150°) — 내려서 닫는 방향을 암시한다.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(dragToDismiss)
-                        .padding(top = 7.dp, bottom = 3.dp),
+                        .padding(top = 10.dp, bottom = 6.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Canvas(Modifier.size(width = 40.dp, height = 10.dp)) {
-                        val stroke = 4.dp.toPx()
-                        // 양쪽 15°씩 꺾여 사이각이 150°가 된다.
-                        val drop = size.width / 2f * tan(Math.toRadians(15.0)).toFloat()
-                        val yTop = (size.height - drop) / 2f
-                        val path = Path().apply {
-                            moveTo(stroke / 2f, yTop)
-                            lineTo(size.width / 2f, yTop + drop)
-                            lineTo(size.width - stroke / 2f, yTop)
-                        }
-                        drawPath(
-                            path = path,
-                            color = Color(0xFF12263F).copy(alpha = 0.28f),
-                            style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round),
-                        )
-                    }
+                    Box(
+                        Modifier
+                            .size(width = 40.dp, height = 4.dp)
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(Color(0xFF12263F).copy(alpha = 0.28f)),
+                    )
                 }
                 content(close, dragToDismiss)
             }
