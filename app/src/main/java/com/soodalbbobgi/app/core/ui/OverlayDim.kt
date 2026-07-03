@@ -17,7 +17,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 
 /** 팝업 스크림과 동일한 탭바 dim 색. */
-private val TabBarDimColor = Color.Black.copy(alpha = 0.55f)
+private val TabBarDimColor = Color.Black.copy(alpha = SoodalDimAlpha)
 
 /**
  * 탭바 dim 요청 모음.

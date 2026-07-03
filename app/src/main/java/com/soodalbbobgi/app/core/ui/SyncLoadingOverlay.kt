@@ -33,7 +33,7 @@ fun SyncLoadingOverlay(message: String = "동기화 중이에요...") {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.5f))
+            .background(Color.Black.copy(alpha = SoodalDimAlpha))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,

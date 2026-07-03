@@ -16,7 +16,7 @@ import androidx.compose.runtime.setValue
  * 반환값을 배경 딤 alpha와 콘텐츠의 scale/alpha에 함께 적용하면 "톡 튀어오르는" 등장이 된다.
  * (1을 넘길 수 있으므로 alpha에는 `coerceIn(0f,1f)`, 딤에도 coerce를 걸어 쓴다.)
  *
- * 예) `val p = rememberPopupEnter()` → 배경 `alpha = 0.45f * p.coerceIn(0f,1f)`,
+ * 예) `val p = rememberPopupEnter()` → 배경 `alpha = SoodalDimAlpha * p.coerceIn(0f,1f)`,
  * 콘텐츠 `graphicsLayer { scaleX = 0.82f + 0.18f*p; scaleY = 동일; alpha = p.coerceIn(0f,1f) }`
  */
 @Composable

@@ -32,6 +32,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -162,7 +163,7 @@ fun SoodalBottomSheet(
         Box(
             Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.45f * shown))
+                .background(Color.Black.copy(alpha = SoodalDimAlpha * shown))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -186,6 +187,8 @@ fun SoodalBottomSheet(
                     transformOrigin = TransformOrigin(0.5f, 1f)
                     alpha = if (entered) 1f else 0f
                 }
+                // 유리판 입체감 — 프로필 편집 시트와 동일한 가장자리 그림자.
+                .shadow(22.dp, sheetShape, clip = false)
                 .glassFrost(colors, sheetShape, LocalHazeContent.current)
                 .border(1.dp, colors.glassBorder, sheetShape)
                 // 시트 내부 빈 영역 탭이 뒤의 스크림(닫기)으로 새지 않게 소비한다.

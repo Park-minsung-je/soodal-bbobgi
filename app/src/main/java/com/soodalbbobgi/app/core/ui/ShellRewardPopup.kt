@@ -102,7 +102,7 @@ fun ShellRewardPopup(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.45f * bgAlpha))
+            .background(Color.Black.copy(alpha = SoodalDimAlpha * bgAlpha))
             .alpha(bgAlpha)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },

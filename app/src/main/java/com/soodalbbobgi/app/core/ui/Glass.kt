@@ -59,6 +59,12 @@ val ProfileFrameCorner: Dp = 24.dp
 val GlassCornerSmall: Dp = 14.dp
 
 /**
+ * 팝업/시트 뒤 스크림(딤)의 공통 알파 — 앱 전체 통일.
+ * 높으면 유리 시트 경계에서 안(밝은 블러)과 밖(어두운 원본)의 연속성이 끊겨 유리감이 죽는다.
+ */
+const val SoodalDimAlpha = 0.2f
+
+/**
  * 앱 전역 통일 배경 — 물빛 파스텔 165° 그라데이션 위에 teal/purple/gold radial glow를
  * 겹친 **디자인 원본(.app-root + ::before) 값 그대로**. 루트에서 한 번만 그리고,
  * 각 화면은 배경을 칠하지 않아(투명) 고정 헤더 경계에 이음매가 생기지 않는다.

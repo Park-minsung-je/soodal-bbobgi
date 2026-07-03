@@ -109,7 +109,7 @@ fun GachaResultOverlay(
 
     Box(
         Modifier.fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.45f * p.coerceIn(0f, 1f)))
+            .background(Color.Black.copy(alpha = com.soodalbbobgi.app.core.ui.SoodalDimAlpha * p.coerceIn(0f, 1f)))
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}),
         contentAlignment = Alignment.Center,
     ) {
