@@ -164,13 +164,13 @@ private fun ResultSingle(
         // 모달 프레임 — 공통 글래스: 뒤 콘텐츠 프로스트(블러) + 흰 하이라이트 보더 + 상단 sheen.
         val panelShape = RoundedCornerShape(24.dp)
         Box(
-            Modifier.padding(horizontal = 28.dp).fillMaxWidth()
+            Modifier.padding(horizontal = 40.dp).fillMaxWidth()
                 .glassShadow(24.dp, colors)
                 .glassFrost(colors, panelShape, LocalHazeContent.current)
                 .border(1.dp, colors.glassBorder, panelShape),
         ) {
             GlassSheen(panelShape)
-            Box(Modifier.padding(28.dp, 24.dp)) {
+            Box(Modifier.padding(22.dp, 18.dp)) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 if (results.size > 1) {
                     Text(
@@ -182,33 +182,33 @@ private fun ResultSingle(
                     )
                 }
 
-                SoodalChip("${kindLabel(item.kind)} 상자 인양 성공!", color = ChipColor.Blue, iconType = SoodalIcons.Box)
-                Spacer(Modifier.height(16.dp))
+                SoodalChip("${kindLabel(item.kind)} 상자", color = ChipColor.Blue)
+                Spacer(Modifier.height(12.dp))
                 GradeBadge(item.grade)
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(14.dp))
 
                 Box(
-                    Modifier.size(80.dp).scale(bounceScale)
-                        .clip(RoundedCornerShape(24.dp))
+                    Modifier.size(64.dp).scale(bounceScale)
+                        .clip(RoundedCornerShape(20.dp))
                         .background(glow.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (!item.imageAsset.isNullOrBlank()) {
                         AssetImage(imageAsset = item.imageAsset, contentDescription = item.name, modifier = Modifier.fillMaxWidth())
                     } else {
-                        SoodalIcon(icon = kindIcon(item.kind), tint = gc, size = 40.dp)
+                        SoodalIcon(icon = kindIcon(item.kind), tint = gc, size = 32.dp)
                     }
                 }
 
-                Spacer(Modifier.height(16.dp))
-                Text(item.name, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(12.dp))
+                Text(item.name, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+                Spacer(Modifier.height(5.dp))
 
                 if (item.isNew) {
-                    Text("${kindLabel(item.kind)} — 새로 획득!", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = gc)
+                    Text("${kindLabel(item.kind)} — 새로 획득!", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = gc)
                 } else {
-                    Text("이미 보유 중인 ${kindLabel(item.kind)}", fontSize = 12.sp, color = colors.textTertiary)
-                    Spacer(Modifier.height(8.dp))
+                    Text("이미 보유 중인 ${kindLabel(item.kind)}", fontSize = 11.sp, color = colors.textTertiary)
+                    Spacer(Modifier.height(7.dp))
                     Row(
                         modifier = Modifier
                             .background(
@@ -216,17 +216,17 @@ private fun ResultSingle(
                                 RoundedCornerShape(12.dp),
                             )
                             .border(1.dp, colors.accentPurple.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 18.dp)
-                        Text("진주 +${item.pearlsEarned}", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, fontFamily = JetBrainsMonoFamily, color = colors.accentPurple)
-                        Text("교환 완료", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.accentPurple.copy(alpha = 0.7f))
+                        SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 15.dp)
+                        Text("진주 +${item.pearlsEarned}", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, fontFamily = JetBrainsMonoFamily, color = colors.accentPurple)
+                        Text("교환 완료", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = colors.accentPurple.copy(alpha = 0.7f))
                     }
                 }
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(18.dp))
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (!isLast && results.size > 1) {
@@ -301,8 +301,8 @@ private fun ResultGridCell(item: GachaResultItem, modifier: Modifier = Modifier)
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background((if (colors.isDark) Color.White else Color.Black).copy(alpha = 0.05f))
-            .border(1.dp, gc.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+            // 등급색 테두리는 프로스트 위에서 칙칙해 보여 제거 — 등급 구분은 배지가 담당.
+            .background(if (colors.isDark) Color.White.copy(alpha = 0.08f) else Color.White)
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
