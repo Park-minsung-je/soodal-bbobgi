@@ -202,12 +202,17 @@ object ProfileCardRenderer {
             textPaint.textAlign = Paint.Align.LEFT
             textPaint.style = Paint.Style.FILL
             textPaint.clearShadowLayer()
-            val textW = textPaint.measureText(text)
+            // 기울임(이탤릭)은 글자가 진행 폭(measureText) 밖으로 기울어 나가 우측 여백이
+            // 좁아 보인다 — 실제 잉크 경계로 폭을 재고 좌측 오프셋을 보정해 양쪽을 맞춘다.
+            val ink = Rect()
+            textPaint.getTextBounds(text, 0, text.length, ink)
+            val textW = ink.width().toFloat()
+            val inkLeft = ink.left.toFloat()
 
             if (style == "NONE") {
                 // 알약 없음 — 맨글자 + 대비 그림자(옵션 시 외곽선).
                 val baseline = top + textSize
-                val x = if (leftAligned) anchor else anchor - textW
+                val x = (if (leftAligned) anchor else anchor - textW) - inkLeft
                 if (layers.textOutline) {
                     textPaint.style = Paint.Style.STROKE
                     textPaint.strokeWidth = textSize * 0.09f
@@ -287,7 +292,7 @@ object ProfileCardRenderer {
             }
 
             val baseline = top + padV + textSize - textPaint.descent() * 0.35f
-            canvas.drawText(text, left + padH, baseline, textPaint)
+            canvas.drawText(text, left + padH - inkLeft, baseline, textPaint)
             return pillH
         }
 
@@ -295,10 +300,12 @@ object ProfileCardRenderer {
         fun elementHeight(textSize: Float, style: String): Float =
             if (style == "NONE") textSize * 1.15f else textSize * 1.60f
 
-        /** 스타일별 요소 폭 예측 (중심 앵커 배치용) — 알약은 좌우 패딩 포함. */
+        /** 스타일별 요소 폭 예측 (중심 앵커 배치용) — 알약은 좌우 패딩 포함, 폭은 잉크 경계 기준. */
         fun elementWidth(text: String, textSize: Float, style: String): Float {
             textPaint.textSize = textSize
-            val w = textPaint.measureText(text)
+            val ink = Rect()
+            textPaint.getTextBounds(text, 0, text.length, ink)
+            val w = ink.width().toFloat()
             return if (style == "NONE") w else w + textSize * 0.55f * 2f
         }
 
