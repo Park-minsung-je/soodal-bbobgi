@@ -121,6 +121,9 @@ fun GachaResultOverlay(
                 scaleX = s
                 scaleY = s
                 alpha = p.coerceIn(0f, 1f)
+                // alpha<1일 때 오프스크린 합성이 경계 밖 그림자를 잘라 스프링 정착 중
+                // 그림자가 깜빡인다 — 클립 없는 알파 변조로 그린다.
+                compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
             },
             contentAlignment = Alignment.Center,
         ) {
