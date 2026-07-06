@@ -23,9 +23,9 @@ import com.soodalbbobgi.app.domain.model.Grade
  */
 val Grade.displayLabel: String
     get() = when (this) {
-        Grade.SSR -> "한정판"
-        Grade.SR -> "스페셜"
-        Grade.R -> "희귀"
+        Grade.SSR -> "전설"
+        Grade.SR -> "희귀"
+        Grade.R -> "고급"
         Grade.N -> "일반"
     }
 
@@ -51,11 +51,6 @@ fun GradeBadge(
         horizontalArrangement = Arrangement.spacedBy(3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        when (grade) {
-            Grade.SSR -> SoodalIcon(icon = SoodalIcons.Star, tint = fg, size = 10.dp)
-            Grade.SR -> SoodalIcon(icon = SoodalIcons.Sparkle, tint = fg, size = 10.dp)
-            else -> {}
-        }
         Text(
             text = grade.displayLabel,
             color = fg,

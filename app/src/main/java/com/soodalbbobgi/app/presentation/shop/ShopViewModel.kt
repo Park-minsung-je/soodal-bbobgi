@@ -40,6 +40,8 @@ data class ShopItem(
     val purchasedThisPeriod: Int,
     val periodResetAt: Long?,
     val isLimited: Boolean,
+    /** 판매 종료 시각(epoch ms) — 있으면 기간 한정 상품으로 남은 기간을 표시한다. */
+    val endAt: Long? = null,
     val canBuy: Boolean,
     /** 인벤토리 보유 여부 — 아이템 상품만 해당, 상자는 항상 false. */
     val owned: Boolean = false,
@@ -194,6 +196,7 @@ class ShopViewModel @Inject constructor(
             purchasedThisPeriod = purchasedThisPeriod,
             periodResetAt = periodResetAt,
             isLimited = product.isLimited,
+            endAt = endAt,
             canBuy = canBuy,
             owned = productType == "item" && product.id in ownedItemIds,
         )

@@ -105,7 +105,10 @@ fun ShopScreen(
                 Spacer(Modifier.height(spacing.s4))
 
                 val boxListings = state.listings.filter { it.productType == "box" }
-                val itemListings = state.listings.filter { it.productType == "item" }
+                // 아이템은 등급 내림차순(전설→일반) — 동급은 서버 목록 순서 유지.
+                val itemListings = state.listings
+                    .filter { it.productType == "item" }
+                    .sortedByDescending { it.grade?.ordinal ?: -1 }
 
                 // -- Boxes Section --
                 if (boxListings.isNotEmpty()) {
@@ -304,6 +307,15 @@ private fun BoxGridItem(
                     color = if (item.canBuy) colors.textTertiary else colors.warn,
                 )
             }
+            saleRemainingLabel(item.endAt)?.let { label ->
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = label,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.warn,
+                )
+            }
         }
     }
 }
@@ -396,9 +408,35 @@ private fun DirectItemCard(
                         color = colors.textTertiary,
                     )
                 }
+                saleRemainingLabel(item.endAt)?.let { label ->
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = label,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.warn,
+                    )
+                }
             }
         }
     }
+}
+
+/**
+ * 판매 종료까지 남은 기간 라벨 — 기간 한정 상품에만 표시.
+ *
+ * @return endAt이 없으면 null, 있으면 "기간 한정 · N일 남음" 형식
+ */
+private fun saleRemainingLabel(endAt: Long?): String? {
+    if (endAt == null) return null
+    val remainMs = endAt - System.currentTimeMillis()
+    val label = when {
+        remainMs <= 0 -> "판매 종료"
+        remainMs >= 24 * 60 * 60 * 1000L -> "${remainMs / (24 * 60 * 60 * 1000L)}일 남음"
+        remainMs >= 60 * 60 * 1000L -> "${remainMs / (60 * 60 * 1000L)}시간 남음"
+        else -> "곧 종료"
+    }
+    return "기간 한정 · $label"
 }
 
 @Composable

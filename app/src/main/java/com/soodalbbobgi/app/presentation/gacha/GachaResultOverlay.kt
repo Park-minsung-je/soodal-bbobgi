@@ -44,6 +44,7 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.ui.AssetImage
 import com.soodalbbobgi.app.core.ui.ButtonStyle
 import com.soodalbbobgi.app.core.ui.ChipColor
+import com.soodalbbobgi.app.core.ui.GlassFrostTintHeavy
 import com.soodalbbobgi.app.core.ui.GlassSheen
 import com.soodalbbobgi.app.core.ui.GradeBadge
 import com.soodalbbobgi.app.core.ui.LocalHazeContent
@@ -166,7 +167,8 @@ private fun ResultSingle(
         Box(
             Modifier.padding(horizontal = 40.dp).fillMaxWidth()
                 .glassShadow(24.dp, colors)
-                .glassFrost(colors, panelShape, LocalHazeContent.current)
+                // 화려한 인양 씬 위 — 가독을 위해 진한 틴트 사용.
+                .glassFrost(colors, panelShape, LocalHazeContent.current, tintAlpha = GlassFrostTintHeavy)
                 .border(1.dp, colors.glassBorder, panelShape),
         ) {
             GlassSheen(panelShape)
@@ -262,7 +264,8 @@ private fun ResultGrid(
     Box(
         Modifier.padding(horizontal = 24.dp).fillMaxWidth()
             .glassShadow(24.dp, colors)
-            .glassFrost(colors, panelShape, LocalHazeContent.current)
+            // 화려한 인양 씬 위 — 가독을 위해 진한 틴트 사용.
+            .glassFrost(colors, panelShape, LocalHazeContent.current, tintAlpha = GlassFrostTintHeavy)
             .border(1.dp, colors.glassBorder, panelShape),
     ) {
     GlassSheen(panelShape)

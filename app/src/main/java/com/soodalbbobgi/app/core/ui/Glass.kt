@@ -153,23 +153,30 @@ fun Modifier.glassShadow(cornerDp: Dp, colors: SoodalColors): Modifier = this.dr
  */
 val LocalHazeContent = staticCompositionLocalOf<HazeState?> { null }
 
+/** 팝업/시트 공통 프로스트 흰 틴트 — 유리감(뒤 비침)을 남기는 표준값. */
+const val GlassFrostTint = 0.72f
+
+/** 뽑기 결과처럼 화려한 씬 위에 뜨는 프로스트 — 가독 우선의 진한 틴트. */
+const val GlassFrostTintHeavy = 0.90f
+
 /**
  * 오버레이 글래스 프로스트 채움 — 뒤 콘텐츠를 샘플링·블러해 진짜 젖빛 유리를 만든다.
- * haze가 없으면(프리뷰 등) 반투명 채움 폴백. 흰끼(틴트)는 여기 한 곳에서 조정.
+ * haze가 없으면(프리뷰 등) 반투명 채움 폴백.
+ *
+ * @param tintAlpha 흰 틴트 강도 — 표준 [GlassFrostTint], 뽑기 결과는 [GlassFrostTintHeavy]
  */
 fun Modifier.glassFrost(
     colors: SoodalColors,
     shape: Shape,
     haze: HazeState?,
+    tintAlpha: Float = GlassFrostTint,
 ): Modifier = this
     .clip(shape)
     .then(
         if (haze != null) {
             Modifier.hazeEffect(state = haze) {
                 backgroundColor = if (colors.isDark) Color(0xFF0E1426) else Color.White
-                // 프로스트 위 틴트 — 팝업/시트는 가독 우선이라 카드(0.60)보다 진하게.
-                // (0.42→0.55→0.75→0.82 단계적 상향: 어두운 씬 위에서도 흰 유리로 서도록)
-                tints = listOf(HazeTint(if (colors.isDark) colors.glassBg else Color.White.copy(alpha = 0.82f)))
+                tints = listOf(HazeTint(if (colors.isDark) colors.glassBg else Color.White.copy(alpha = tintAlpha)))
                 blurRadius = 20.dp
                 noiseFactor = 0f
             }
