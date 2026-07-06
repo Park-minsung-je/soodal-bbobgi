@@ -351,16 +351,6 @@ object ProfileCardRenderer {
             )
         }
 
-        // 브랜드 워터마크 — 사용자 글꼴 스타일과 무관하게 항상 기본 글꼴로 고정.
-        // 위 외곽선 처리가 남긴 STROKE가 새지 않도록 FILL로 되돌린다.
-        textPaint.style = Paint.Style.FILL
-        textPaint.textSize = 20f * u
-        textPaint.typeface = Typeface.DEFAULT
-        textPaint.color = Color(0xFF00A8B8).toArgb()
-        textPaint.textAlign = Paint.Align.RIGHT
-        textPaint.clearShadowLayer()
-        canvas.drawText("SOODAL.CARD", CARD_WIDTH - 40f * u, 50f * u, textPaint)
-
         return bitmap
     }
 
