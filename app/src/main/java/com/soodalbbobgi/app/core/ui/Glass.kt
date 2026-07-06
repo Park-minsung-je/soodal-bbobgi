@@ -154,7 +154,7 @@ fun Modifier.glassShadow(cornerDp: Dp, colors: SoodalColors): Modifier = this.dr
 val LocalHazeContent = staticCompositionLocalOf<HazeState?> { null }
 
 /** 팝업/시트 공통 프로스트 흰 틴트 — 유리감(뒤 비침)을 남기는 표준값. */
-const val GlassFrostTint = 0.72f
+const val GlassFrostTint = 0.66f
 
 /** 뽑기 결과처럼 화려한 씬 위에 뜨는 프로스트 — 가독 우선의 진한 틴트. */
 const val GlassFrostTintHeavy = 0.90f
