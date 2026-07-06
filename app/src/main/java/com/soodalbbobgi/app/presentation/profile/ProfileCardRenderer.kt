@@ -239,8 +239,8 @@ object ProfileCardRenderer {
                         setShadowLayer(10f * u, 0f, 3f * u, android.graphics.Color.argb(70, 0, 20, 40))
                     }
                     canvas.drawRoundRect(rect, radius, radius, pillPaint)
-                    // 어두운 커스텀 색은 검정 알약 위에서 안 보여 흰색 폴백.
-                    textPaint.color = if (isNearBlack(colorRaw)) android.graphics.Color.WHITE else colorRaw
+                    // 사용자가 고른 색 그대로 — 검정 칩+검정 글자 같은 조합도 허용한다.
+                    textPaint.color = colorRaw
                 }
                 "BLUR" -> {
                     // 이미 합성된 카드(배경/캐릭터)를 영역 블러 → 진짜 프로스트 알약.
@@ -272,7 +272,7 @@ object ProfileCardRenderer {
                         strokeWidth = 2.2f * u
                         color = android.graphics.Color.argb(165, 255, 255, 255)
                     })
-                    textPaint.color = if (isNearWhite(colorRaw)) Color(0xFF1A2438).toArgb() else colorRaw
+                    textPaint.color = colorRaw
                 }
                 else -> { // WHITE
                     val pillPaint = Paint().apply {
@@ -281,7 +281,8 @@ object ProfileCardRenderer {
                         setShadowLayer(10f * u, 0f, 3f * u, android.graphics.Color.argb(70, 0, 20, 40))
                     }
                     canvas.drawRoundRect(rect, radius, radius, pillPaint)
-                    textPaint.color = if (isNearWhite(colorRaw)) Color(0xFF1A2438).toArgb() else colorRaw
+                    // 사용자가 고른 색 그대로 — 흰 칩+흰 글자 같은 조합도 허용한다.
+                    textPaint.color = colorRaw
                 }
             }
 
@@ -403,22 +404,6 @@ object ProfileCardRenderer {
         } else {
             android.graphics.Color.argb(255, 255, 255, 255)
         }
-    }
-
-    /** 흰 알약/칩 위에서 안 보일 만큼 밝은 색인지 — 기존 저장값(흰색/네온) 호환 폴백용. */
-    private fun isNearWhite(color: Int): Boolean {
-        val lum = 0.299 * android.graphics.Color.red(color) +
-            0.587 * android.graphics.Color.green(color) +
-            0.114 * android.graphics.Color.blue(color)
-        return lum >= 190
-    }
-
-    /** 검정 알약 위에서 안 보일 만큼 어두운 색인지. */
-    private fun isNearBlack(color: Int): Boolean {
-        val lum = 0.299 * android.graphics.Color.red(color) +
-            0.587 * android.graphics.Color.green(color) +
-            0.114 * android.graphics.Color.blue(color)
-        return lum <= 80
     }
 
     /**

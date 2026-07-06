@@ -334,9 +334,9 @@ fun EditorSheet(
                         }
                     }
 
-                    // -- 알약 스타일 --
+                    // -- 배경 칩 스타일 --
                     Spacer(Modifier.height(spacing.s3))
-                    PillStyleRow("알약", elState.pill) { vm.setElementPill(element, it) }
+                    PillStyleRow("배경 칩", elState.pill) { vm.setElementPill(element, it) }
 
                     // -- 색상 --
                     Spacer(Modifier.height(spacing.s3))
@@ -350,7 +350,7 @@ fun EditorSheet(
                         color = colors.textSecondary,
                     )
                     Spacer(Modifier.height(spacing.s2))
-                    // 굵게/이탤릭을 각각 켜고 끈다 — 둘 다 켜면 굵은 이탤릭. (둘 다 끄면 기본)
+                    // 굵게/기울임을 각각 켜고 끈다 — 둘 다 켜면 굵은 기울임. (둘 다 끄면 기본)
                     Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                         val bold = textStyleHasBold(state.textStyle)
                         val italic = textStyleHasItalic(state.textStyle)
@@ -361,7 +361,7 @@ fun EditorSheet(
                             onClick = { vm.setTextStyle(combineTextStyle(!bold, italic)) },
                         )
                         StyleToggleChip(
-                            label = "이탤릭",
+                            label = "기울임",
                             active = italic,
                             italicText = true,
                             onClick = { vm.setTextStyle(combineTextStyle(bold, !italic)) },
@@ -667,7 +667,7 @@ private val TextColorPalette = listOf(
 private fun PillStyleRow(label: String, selected: String, onSelect: (String) -> Unit) {
     val colors = SoodalDesign.colors
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, fontSize = 11.sp, color = colors.textSecondary, modifier = Modifier.width(44.dp))
+        Text(label, fontSize = 11.sp, color = colors.textSecondary, modifier = Modifier.width(52.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf("NONE" to "없음", "BLACK" to "검정", "WHITE" to "흰색", "BLUR" to "블러").forEach { (key, optionLabel) ->
                 SegmentChip(label = optionLabel, isActive = selected == key, onClick = { onSelect(key) })
