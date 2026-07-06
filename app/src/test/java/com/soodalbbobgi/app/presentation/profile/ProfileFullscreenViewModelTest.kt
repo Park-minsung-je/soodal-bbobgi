@@ -106,7 +106,6 @@ class ProfileFullscreenViewModelTest {
             assertThat(s.nickname).isEqualTo("수달이")
             assertThat(s.charAsset).isEqualTo("/assets/char/c1.png")
             assertThat(s.bgAsset).isNull()
-            assertThat(s.frameAsset).isNull()
             assertThat(s.charX).isEqualTo(0.3f)
             assertThat(s.charY).isEqualTo(0.4f)
             assertThat(s.charScale).isEqualTo(0.85f)
@@ -146,6 +145,5 @@ class ProfileFullscreenViewModelTest {
             assertThat(s.tagline).isEqualTo("수영을 사랑하는 수달")
             assertThat(s.bgAsset).isNull()
             assertThat(s.charAsset).isNull()
-            assertThat(s.frameAsset).isNull()
         }
 }

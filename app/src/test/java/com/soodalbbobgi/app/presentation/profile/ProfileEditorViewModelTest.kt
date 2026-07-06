@@ -80,7 +80,6 @@ class ProfileEditorViewModelTest {
 
         assertThat(vm.uiState.value.charItems).hasSize(1)
         assertThat(vm.uiState.value.bgItems).hasSize(1)
-        assertThat(vm.uiState.value.frameItems).hasSize(1)
         assertThat(vm.uiState.value.charItems[0].name).isEqualTo("수달이")
     }
 
@@ -132,51 +131,49 @@ class ProfileEditorViewModelTest {
     }
 
     @Test
-    fun `selectItem with null clears background and frame slots`() = runTest(testDispatcher) {
+    fun `selectItem with null clears background slot`() = runTest(testDispatcher) {
         appState.applyProfileCard(ProfileCard(
             userId = "u1",
             backgroundItemId = 2L,
-            borderItemId = 3L,
         ))
 
         val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
         startCollect(vm)
         advanceUntilIdle()
         assertThat(vm.uiState.value.selectedBgInventoryId).isEqualTo(2L)
-        assertThat(vm.uiState.value.selectedFrameInventoryId).isEqualTo(3L)
 
         vm.selectItem(EditorCategory.Background, null)
-        vm.selectItem(EditorCategory.Frame, null)
         advanceUntilIdle()
 
         assertThat(vm.uiState.value.selectedBgInventoryId).isNull()
-        assertThat(vm.uiState.value.selectedFrameInventoryId).isNull()
     }
 
     @Test
-    fun `text block fields default to spec defaults on fresh state`() = runTest(testDispatcher) {
+    fun `text elements default to spec defaults on fresh state`() = runTest(testDispatcher) {
         val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
         startCollect(vm)
         advanceUntilIdle()
 
         val s = vm.uiState.value
-        assertThat(s.textAlign).isEqualTo("RIGHT")
-        assertThat(s.textScaleStep).isEqualTo(3)
-        assertThat(s.showStats).isTrue()
-        assertThat(s.nicknameColor).isEqualTo("#FFFFFF")
-        assertThat(s.taglineColor).isEqualTo("#FFFFFF")
-        assertThat(s.statsColor).isEqualTo("#00F5FF")
+        assertThat(s.nicknameEl.show).isTrue()
+        assertThat(s.nicknameEl.scaleStep).isEqualTo(3)
+        assertThat(s.nicknameEl.pill).isEqualTo("WHITE")
+        assertThat(s.nicknameEl.color).isEqualTo("#FFFFFF")
+        assertThat(s.taglineEl.pill).isEqualTo("NONE")
+        assertThat(s.statsEl.show).isTrue()
+        assertThat(s.statsEl.pill).isEqualTo("BLUR")
+        assertThat(s.statsEl.color).isEqualTo("#00F5FF")
     }
 
     @Test
-    fun `text block fields seeded from saved profile card`() = runTest(testDispatcher) {
+    fun `text elements seeded from saved profile card`() = runTest(testDispatcher) {
         appState.applyProfileCard(ProfileCard(
             userId = "u1",
-            textAlign = "LEFT",
-            textScaleStep = 5,
-            showStats = false,
+            showNickname = false,
+            nicknameX = 0.2f, nicknameY = 0.3f, nicknameScaleStep = 5,
             nicknameColor = "#FF0000",
-            taglineColor = "#00FF00",
+            taglineX = 0.4f, taglineY = 0.6f,
+            showStats = false, statsX = 0.7f, statsY = 0.8f,
             statsColor = "#0000FF",
         ))
 
@@ -185,82 +182,58 @@ class ProfileEditorViewModelTest {
         advanceUntilIdle()
 
         val s = vm.uiState.value
-        assertThat(s.textAlign).isEqualTo("LEFT")
-        assertThat(s.textScaleStep).isEqualTo(5)
-        assertThat(s.showStats).isFalse()
-        assertThat(s.nicknameColor).isEqualTo("#FF0000")
-        assertThat(s.taglineColor).isEqualTo("#00FF00")
-        assertThat(s.statsColor).isEqualTo("#0000FF")
+        assertThat(s.nicknameEl.show).isFalse()
+        assertThat(s.nicknameEl.x).isEqualTo(0.2f)
+        assertThat(s.nicknameEl.y).isEqualTo(0.3f)
+        assertThat(s.nicknameEl.scaleStep).isEqualTo(5)
+        assertThat(s.nicknameEl.color).isEqualTo("#FF0000")
+        assertThat(s.taglineEl.x).isEqualTo(0.4f)
+        assertThat(s.taglineEl.y).isEqualTo(0.6f)
+        assertThat(s.statsEl.show).isFalse()
+        assertThat(s.statsEl.x).isEqualTo(0.7f)
+        assertThat(s.statsEl.y).isEqualTo(0.8f)
+        assertThat(s.statsEl.color).isEqualTo("#0000FF")
     }
 
     @Test
-    fun `text position defaults on fresh state`() = runTest(testDispatcher) {
+    fun `element position setters update uiState and clamp to 0 to 1`() = runTest(testDispatcher) {
         val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
         startCollect(vm)
+        advanceUntilIdle()
+
+        vm.setElementX(TextElement.Nickname, 0.3f)
+        vm.setElementY(TextElement.Nickname, 0.7f)
+        advanceUntilIdle()
+        assertThat(vm.uiState.value.nicknameEl.x).isEqualTo(0.3f)
+        assertThat(vm.uiState.value.nicknameEl.y).isEqualTo(0.7f)
+
+        vm.setElementX(TextElement.Stats, 1.5f)
+        vm.setElementY(TextElement.Stats, -0.5f)
+        advanceUntilIdle()
+        assertThat(vm.uiState.value.statsEl.x).isEqualTo(1.0f)
+        assertThat(vm.uiState.value.statsEl.y).isEqualTo(0.0f)
+    }
+
+    @Test
+    fun `element setters only touch their target element`() = runTest(testDispatcher) {
+        val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
+        startCollect(vm)
+        advanceUntilIdle()
+
+        vm.setElementShow(TextElement.Tagline, false)
+        vm.setElementScaleStep(TextElement.Tagline, 4)
+        vm.setElementPill(TextElement.Tagline, "BLACK")
+        vm.setElementColor(TextElement.Tagline, "#ABCDEF")
         advanceUntilIdle()
 
         val s = vm.uiState.value
-        assertThat(s.textX).isEqualTo(0.95f)
-        assertThat(s.textY).isEqualTo(0.5f)
-    }
-
-    @Test
-    fun `text position seeded from saved profile card`() = runTest(testDispatcher) {
-        appState.applyProfileCard(ProfileCard(
-            userId = "u1",
-            textX = 0.2f,
-            textY = 0.8f,
-        ))
-
-        val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
-        startCollect(vm)
-        advanceUntilIdle()
-
-        val s = vm.uiState.value
-        assertThat(s.textX).isEqualTo(0.2f)
-        assertThat(s.textY).isEqualTo(0.8f)
-    }
-
-    @Test
-    fun `setTextX and setTextY update uiState and clamp to 0 to 1`() = runTest(testDispatcher) {
-        val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
-        startCollect(vm)
-        advanceUntilIdle()
-
-        vm.setTextX(0.3f)
-        vm.setTextY(0.7f)
-        advanceUntilIdle()
-        assertThat(vm.uiState.value.textX).isEqualTo(0.3f)
-        assertThat(vm.uiState.value.textY).isEqualTo(0.7f)
-
-        vm.setTextX(1.5f)
-        vm.setTextY(-0.5f)
-        advanceUntilIdle()
-        assertThat(vm.uiState.value.textX).isEqualTo(1.0f)
-        assertThat(vm.uiState.value.textY).isEqualTo(0.0f)
-    }
-
-    @Test
-    fun `text block setters update uiState`() = runTest(testDispatcher) {
-        val vm = ProfileEditorViewModel(session, appState, loader, api, swimLogUseCase)
-        startCollect(vm)
-        advanceUntilIdle()
-
-        vm.setTextAlign("LEFT")
-        vm.setTextScaleStep(4)
-        vm.setShowStats(false)
-        vm.setNicknameColor("#123456")
-        vm.setTaglineColor("#ABCDEF")
-        vm.setStatsColor("#FF0000")
-        advanceUntilIdle()
-
-        val s = vm.uiState.value
-        assertThat(s.textAlign).isEqualTo("LEFT")
-        assertThat(s.textScaleStep).isEqualTo(4)
-        assertThat(s.showStats).isFalse()
-        assertThat(s.nicknameColor).isEqualTo("#123456")
-        assertThat(s.taglineColor).isEqualTo("#ABCDEF")
-        assertThat(s.statsColor).isEqualTo("#FF0000")
+        assertThat(s.taglineEl.show).isFalse()
+        assertThat(s.taglineEl.scaleStep).isEqualTo(4)
+        assertThat(s.taglineEl.pill).isEqualTo("BLACK")
+        assertThat(s.taglineEl.color).isEqualTo("#ABCDEF")
+        // 다른 요소는 그대로
+        assertThat(s.nicknameEl.show).isTrue()
+        assertThat(s.statsEl.pill).isEqualTo("BLUR")
     }
 
     @Test

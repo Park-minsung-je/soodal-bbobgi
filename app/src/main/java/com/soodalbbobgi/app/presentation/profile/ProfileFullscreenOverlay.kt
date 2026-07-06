@@ -102,40 +102,41 @@ fun ProfileFullscreenOverlay(
 
     val bgBitmap = rememberAssetBitmap(cardState.bgAsset)
     val charBitmap = rememberAssetBitmap(cardState.charAsset)
-    val frameBitmap = rememberAssetBitmap(cardState.frameAsset)
 
     // 카드 데이터가 결합되고(cardStateOrNull != null) 에셋 이미지가 모두 로드되기 전에는
     // 카드가 흰 베이스로 그려진다(ProfileCardRenderer Layer0). 그 전에는 홈 카드를 숨기지 않고
     // (onReady 보류) 진입도 시작하지 않아 흰 깜빡을 막는다.
     val assetsReady = cardStateOrNull != null &&
         (cardState.bgAsset.isNullOrBlank() || bgBitmap != null) &&
-        (cardState.charAsset.isNullOrBlank() || charBitmap != null) &&
-        (cardState.frameAsset.isNullOrBlank() || frameBitmap != null)
+        (cardState.charAsset.isNullOrBlank() || charBitmap != null)
 
+    val saved = cardState.card
     val layers = CardLayers(
         bgBitmap = bgBitmap,
         charBitmap = charBitmap,
-        frameBitmap = frameBitmap,
         nickname = cardState.nickname,
         tagline = cardState.tagline,
         stats = cardState.statsText,
         charX = cardState.charX,
         charY = cardState.charY,
         charScale = cardState.charScale,
-        textStyle = cardState.textStyle,
-        textAlign = cardState.textAlign,
-        textX = cardState.textX,
-        textY = cardState.textY,
-        textScaleStep = cardState.textScaleStep,
-        showStats = cardState.showStats,
-        showText = cardState.showText,
-        nicknamePill = cardState.nicknamePill,
-        taglinePill = cardState.taglinePill,
-        statsPill = cardState.statsPill,
-        nicknameColor = cardState.nicknameColor,
-        taglineColor = cardState.taglineColor,
-        statsColor = cardState.statsColor,
-        textOutline = cardState.textOutline,
+        textStyle = saved?.textStyle ?: "REGULAR",
+        showNickname = saved?.showNickname ?: true,
+        nicknameX = saved?.nicknameX ?: 0.83f, nicknameY = saved?.nicknameY ?: 0.40f,
+        nicknameScaleStep = saved?.nicknameScaleStep ?: 3,
+        showTagline = saved?.showTagline ?: true,
+        taglineX = saved?.taglineX ?: 0.83f, taglineY = saved?.taglineY ?: 0.57f,
+        taglineScaleStep = saved?.taglineScaleStep ?: 3,
+        showStats = saved?.showStats ?: true,
+        statsX = saved?.statsX ?: 0.16f, statsY = saved?.statsY ?: 0.90f,
+        statsScaleStep = saved?.statsScaleStep ?: 3,
+        nicknamePill = saved?.nicknamePill ?: "WHITE",
+        taglinePill = saved?.taglinePill ?: "NONE",
+        statsPill = saved?.statsPill ?: "BLUR",
+        nicknameColor = saved?.nicknameColor ?: "#FFFFFF",
+        taglineColor = saved?.taglineColor ?: "#FFFFFF",
+        statsColor = saved?.statsColor ?: "#00F5FF",
+        textOutline = saved?.textOutline ?: false,
     )
     val bitmap = remember(layers) { ProfileCardRenderer.renderCached(layers) }
 

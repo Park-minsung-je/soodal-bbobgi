@@ -52,20 +52,22 @@ data class CardLayers(
     val charX: Float = 0.5f,
     val charY: Float = 0.5f,
     val charScale: Float = 1.0f,
-    /** 텍스트 글꼴 스타일 ("REGULAR" | "BOLD" | "ITALIC"). 세 줄 전체에 적용. */
+    /** 텍스트 글꼴 스타일 ("REGULAR" | "BOLD" | "ITALIC"). 세 요소 전체에 적용. */
     val textStyle: String = "REGULAR",
-    /** 텍스트 블록 내부 줄 정렬 ("LEFT" | "RIGHT"). */
-    val textAlign: String = "RIGHT",
-    /** 텍스트 블록 가로 위치 (0~1). 정렬에 따라 좌/우 앵커 기준. */
-    val textX: Float = 0.95f,
-    /** 텍스트 블록 세로 중심 위치 (0~1). */
-    val textY: Float = 0.5f,
-    /** 텍스트 블록 크기 단계 (1~5). 3 = 기본 배율. */
-    val textScaleStep: Int = 3,
+    // ── 요소별 표시/위치(중심 앵커 0~1)/크기 단계 — 닉네임·한마디·기록 독립 커스텀 ──
+    val showNickname: Boolean = true,
+    val nicknameX: Float = 0.83f,
+    val nicknameY: Float = 0.40f,
+    val nicknameScaleStep: Int = 3,
+    val showTagline: Boolean = true,
+    val taglineX: Float = 0.83f,
+    val taglineY: Float = 0.57f,
+    val taglineScaleStep: Int = 3,
     /** 기록(통계) 칩 표시 여부. false면 칩을 그리지 않는다. */
     val showStats: Boolean = true,
-    /** 이름표(닉네임 알약 + 소개) 표시 여부. false면 블록 전체를 그리지 않는다. */
-    val showText: Boolean = true,
+    val statsX: Float = 0.16f,
+    val statsY: Float = 0.90f,
+    val statsScaleStep: Int = 3,
     /** 닉네임 알약 스타일 ("NONE" | "BLACK" | "WHITE" | "BLUR"). */
     val nicknamePill: String = "WHITE",
     /** 소개 알약 스타일. */
@@ -177,15 +179,9 @@ object ProfileCardRenderer {
 
         // 카드 해상도 대비 텍스트 크기 보정 — 기준폭 1472 대비 현재 폭 비율.
         val u = CARD_WIDTH / TEXT_REF_WIDTH
-        // 블록 크기 단계(1~5) → 배율. 3이 기준(1.2).
-        val scaleMul = floatArrayOf(0.8f, 1.0f, 1.2f, 1.5f, 1.8f)[
-            (layers.textScaleStep - 1).coerceIn(0, 4)
-        ]
-        val nicknameSize = 60f * u * scaleMul
-        val taglineSize = 32f * u * scaleMul
-
-        val isRight = layers.textAlign != "LEFT"
-        val anchorX = layers.textX * CARD_WIDTH
+        // 요소 크기 단계(1~5) → 배율. 3이 기준(1.2).
+        fun scaleMulOf(step: Int): Float =
+            floatArrayOf(0.8f, 1.0f, 1.2f, 1.5f, 1.8f)[(step - 1).coerceIn(0, 4)]
 
         /**
          * 텍스트 요소 하나를 알약 스타일에 맞춰 그린다.
@@ -294,29 +290,57 @@ object ProfileCardRenderer {
             return pillH
         }
 
-        /** 스타일별 요소 높이 예측 (블록 세로 중앙 정렬용). */
+        /** 스타일별 요소 높이 예측 (중심 앵커 배치용). */
         fun elementHeight(textSize: Float, style: String): Float =
             if (style == "NONE") textSize * 1.15f else textSize * 1.60f
 
-        if (layers.showText) {
-            val gap = nicknameSize * 0.24f
-            val blockHeight = elementHeight(nicknameSize, layers.nicknamePill) + gap +
-                elementHeight(taglineSize, layers.taglinePill)
-            var y = layers.textY * CARD_HEIGHT - blockHeight / 2f
-
-            val rawNick = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.WHITE)
-            y += drawElement(layers.nickname, nicknameSize, y, layers.nicknamePill, rawNick, !isRight, anchorX) + gap
-            val rawTag = parseColorOrDefault(layers.taglineColor, android.graphics.Color.WHITE)
-            drawElement(layers.tagline, taglineSize, y, layers.taglinePill, rawTag, !isRight, anchorX)
+        /** 스타일별 요소 폭 예측 (중심 앵커 배치용) — 알약은 좌우 패딩 포함. */
+        fun elementWidth(text: String, textSize: Float, style: String): Float {
+            textPaint.textSize = textSize
+            val w = textPaint.measureText(text)
+            return if (style == "NONE") w else w + textSize * 0.55f * 2f
         }
 
-        // ── 기록 칩: 좌하단 고정 — 표시 토글/색/알약 스타일 커스텀 ──
+        /** 요소 하나를 중심 앵커(cx, cy — 0~1 비율) 기준으로 그린다. */
+        fun drawElementCentered(text: String, textSize: Float, style: String, colorRaw: Int, cx: Float, cy: Float) {
+            val w = elementWidth(text, textSize, style)
+            val h = elementHeight(textSize, style)
+            drawElement(
+                text = text, textSize = textSize,
+                top = cy * CARD_HEIGHT - h / 2f,
+                style = style, colorRaw = colorRaw,
+                leftAligned = true,
+                anchor = cx * CARD_WIDTH - w / 2f,
+            )
+        }
+
+        // ── 텍스트 3요소 — 각각 표시/위치/크기/알약/색을 독립 커스텀 ──
+        if (layers.showNickname) {
+            drawElementCentered(
+                text = layers.nickname,
+                textSize = 60f * u * scaleMulOf(layers.nicknameScaleStep),
+                style = layers.nicknamePill,
+                colorRaw = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.WHITE),
+                cx = layers.nicknameX, cy = layers.nicknameY,
+            )
+        }
+        if (layers.showTagline) {
+            drawElementCentered(
+                text = layers.tagline,
+                textSize = 32f * u * scaleMulOf(layers.taglineScaleStep),
+                style = layers.taglinePill,
+                colorRaw = parseColorOrDefault(layers.taglineColor, android.graphics.Color.WHITE),
+                cx = layers.taglineX, cy = layers.taglineY,
+            )
+        }
         if (layers.showStats) {
-            val statsSize = 30f * u
-            val chipLeft = CARD_WIDTH * 0.035f
-            val chipTop = CARD_HEIGHT - CARD_HEIGHT * 0.075f - elementHeight(statsSize, layers.statsPill)
-            val rawStats = parseColorOrDefault(layers.statsColor, Color(0xFF00F5FF).toArgb())
-            drawElement(layers.stats, statsSize, chipTop, layers.statsPill, rawStats, leftAligned = true, anchor = chipLeft)
+            drawElementCentered(
+                text = layers.stats,
+                textSize = 30f * u * scaleMulOf(layers.statsScaleStep),
+                style = layers.statsPill,
+                colorRaw = parseColorOrDefault(layers.statsColor, Color(0xFF00F5FF).toArgb()),
+                cx = layers.statsX, cy = layers.statsY,
+            )
         }
 
         // 브랜드 워터마크 — 사용자 글꼴 스타일과 무관하게 항상 기본 글꼴로 고정.

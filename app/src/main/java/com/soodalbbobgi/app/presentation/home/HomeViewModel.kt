@@ -80,30 +80,11 @@ data class HomeUiState(
     val cardCharY: Float = 0.5f,
     /** 캐릭터 크기 배율 (0.3..1). */
     val cardCharScale: Float = 1.0f,
-    /** 텍스트 글꼴 스타일 ("REGULAR" | "BOLD" | "ITALIC"). */
-    val cardTextStyle: String = "REGULAR",
-    /** 텍스트 블록 내부 줄 정렬 ("LEFT" | "RIGHT"). */
-    val cardTextAlign: String = "RIGHT",
-    /** 텍스트 블록 가로 위치 (0~1). */
-    val cardTextX: Float = 0.95f,
-    /** 텍스트 블록 세로 중심 위치 (0~1). */
-    val cardTextY: Float = 0.5f,
-    /** 텍스트 블록 크기 단계 (1~5). */
-    val cardTextScaleStep: Int = 3,
-    /** 기록 줄 표시 여부. */
-    val cardShowStats: Boolean = true,
-    val cardShowText: Boolean = true,
-    val cardNicknamePill: String = "WHITE",
-    val cardTaglinePill: String = "NONE",
-    val cardStatsPill: String = "BLUR",
-    /** 닉네임 색상 ("#RRGGBB"). */
-    val cardNicknameColor: String = "#FFFFFF",
-    /** 소개 줄 색상 ("#RRGGBB"). */
-    val cardTaglineColor: String = "#FFFFFF",
-    /** 기록 줄 색상 ("#RRGGBB"). */
-    val cardStatsColor: String = "#00F5FF",
-    /** 텍스트 외곽선(테두리) 표시 여부. */
-    val cardTextOutline: Boolean = false,
+    /**
+     * 저장된 프로필 카드 원본 — 텍스트 요소별 배치/스타일이 많아 개별 필드 대신 통째로 노출한다.
+     * null이면 카드 데이터 미로드(기본값 렌더).
+     */
+    val card: com.soodalbbobgi.app.domain.model.ProfileCard? = null,
 )
 
 /**
@@ -227,20 +208,7 @@ class HomeViewModel @Inject constructor(
             cardCharX = profileCard?.characterX ?: 0.5f,
             cardCharY = profileCard?.characterY ?: 0.5f,
             cardCharScale = profileCard?.characterScale ?: 1.0f,
-            cardTextStyle = profileCard?.textStyle ?: "REGULAR",
-            cardTextAlign = profileCard?.textAlign ?: "RIGHT",
-            cardTextX = profileCard?.textX ?: 0.95f,
-            cardTextY = profileCard?.textY ?: 0.5f,
-            cardTextScaleStep = profileCard?.textScaleStep ?: 3,
-            cardShowStats = profileCard?.showStats ?: true,
-            cardShowText = profileCard?.showText ?: true,
-            cardNicknamePill = profileCard?.nicknamePill ?: "WHITE",
-            cardTaglinePill = profileCard?.taglinePill ?: "NONE",
-            cardStatsPill = profileCard?.statsPill ?: "BLUR",
-            cardNicknameColor = profileCard?.nicknameColor ?: "#FFFFFF",
-            cardTaglineColor = profileCard?.taglineColor ?: "#FFFFFF",
-            cardStatsColor = profileCard?.statsColor ?: "#00F5FF",
-            cardTextOutline = profileCard?.textOutline ?: false,
+            card = profileCard,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 

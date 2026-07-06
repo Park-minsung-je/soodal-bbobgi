@@ -20,19 +20,33 @@ data class ProfileCard(
     val userId: String,
     val backgroundItemId: Long? = null,
     val characterItemId: Long? = null,
+    /** 테두리 장착 id — 테두리 기능 보류 중(렌더/편집 비활성)이지만 데이터는 보존한다. */
     val borderItemId: Long? = null,
     val characterX: Float = 0.5f,
     val characterY: Float = 0.5f,
     val characterScale: Float = 1.0f,
     val customText: String = "",
     val textStyle: String = "REGULAR",
+    // ── 구 블록 단위 필드 (서버/구버전 호환용 — 신규 요소별 필드의 기본값 유도에만 사용) ──
     val textAlign: String = "RIGHT",
     val textX: Float = 0.95f,
     val textY: Float = 0.5f,
     val textScaleStep: Int = 3,
-    val showStats: Boolean = true,
-    /** 이름표(닉네임 알약+소개) 표시 여부. */
+    /** (구) 이름표 블록 표시 여부 — 신규 showNickname/showTagline의 유도 원본. */
     val showText: Boolean = true,
+    // ── 요소별 커스텀: 닉네임 / 한마디(소개) / 기록 각각 표시·중심 위치(0~1)·크기 단계 ──
+    val showNickname: Boolean = true,
+    val nicknameX: Float = 0.83f,
+    val nicknameY: Float = 0.40f,
+    val nicknameScaleStep: Int = 3,
+    val showTagline: Boolean = true,
+    val taglineX: Float = 0.83f,
+    val taglineY: Float = 0.57f,
+    val taglineScaleStep: Int = 3,
+    val showStats: Boolean = true,
+    val statsX: Float = 0.16f,
+    val statsY: Float = 0.90f,
+    val statsScaleStep: Int = 3,
     /** 닉네임 알약 스타일 ("NONE" | "BLACK" | "WHITE" | "BLUR"). */
     val nicknamePill: String = "WHITE",
     /** 소개 알약 스타일. */

@@ -45,34 +45,11 @@ data class FullscreenCardState(
     val statsText: String = "",
     val bgAsset: String? = null,
     val charAsset: String? = null,
-    val frameAsset: String? = null,
     val charX: Float = 0.5f,
     val charY: Float = 0.5f,
     val charScale: Float = 1.0f,
-    /** 텍스트 글꼴 스타일 ("REGULAR" | "BOLD" | "ITALIC"). */
-    val textStyle: String = "REGULAR",
-    /** 텍스트 블록 내부 줄 정렬 ("LEFT" | "RIGHT"). */
-    val textAlign: String = "RIGHT",
-    /** 텍스트 블록 가로 위치 (0~1). */
-    val textX: Float = 0.95f,
-    /** 텍스트 블록 세로 중심 위치 (0~1). */
-    val textY: Float = 0.5f,
-    /** 텍스트 블록 크기 단계 (1~5). */
-    val textScaleStep: Int = 3,
-    /** 기록 줄 표시 여부. */
-    val showStats: Boolean = true,
-    val showText: Boolean = true,
-    val nicknamePill: String = "WHITE",
-    val taglinePill: String = "NONE",
-    val statsPill: String = "BLUR",
-    /** 닉네임 색상 ("#RRGGBB"). */
-    val nicknameColor: String = "#FFFFFF",
-    /** 소개 줄 색상 ("#RRGGBB"). */
-    val taglineColor: String = "#FFFFFF",
-    /** 기록 줄 색상 ("#RRGGBB"). */
-    val statsColor: String = "#00F5FF",
-    /** 텍스트 외곽선(테두리) 표시 여부. */
-    val textOutline: Boolean = false,
+    /** 저장된 프로필 카드 원본 — 텍스트 요소별 배치/스타일을 렌더에 그대로 전달한다. */
+    val card: com.soodalbbobgi.app.domain.model.ProfileCard? = null,
 )
 
 /**
@@ -109,24 +86,10 @@ class ProfileFullscreenViewModel @Inject constructor(
             statsText = "${stats.totalDistanceMeters}m · ${stats.swimCount}회",
             bgAsset = resolveCardAsset(card?.backgroundItemId, inventory, items),
             charAsset = resolveCardAsset(card?.characterItemId, inventory, items),
-            frameAsset = resolveCardAsset(card?.borderItemId, inventory, items),
             charX = card?.characterX ?: 0.5f,
             charY = card?.characterY ?: 0.5f,
             charScale = card?.characterScale ?: 1.0f,
-            textStyle = card?.textStyle ?: "REGULAR",
-            textAlign = card?.textAlign ?: "RIGHT",
-            textX = card?.textX ?: 0.95f,
-            textY = card?.textY ?: 0.5f,
-            textScaleStep = card?.textScaleStep ?: 3,
-            showStats = card?.showStats ?: true,
-            showText = card?.showText ?: true,
-            nicknamePill = card?.nicknamePill ?: "WHITE",
-            taglinePill = card?.taglinePill ?: "NONE",
-            statsPill = card?.statsPill ?: "BLUR",
-            nicknameColor = card?.nicknameColor ?: "#FFFFFF",
-            taglineColor = card?.taglineColor ?: "#FFFFFF",
-            statsColor = card?.statsColor ?: "#00F5FF",
-            textOutline = card?.textOutline ?: false,
+            card = card,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 

@@ -19,6 +19,18 @@ data class ServerProfileCard(
     val showStats: Boolean = true,
     /** 이름표 표시 여부 — 구서버 응답엔 없을 수 있어 nullable (없으면 true로 매핑). */
     val showText: Boolean? = null,
+    /** 요소별 커스텀 — 구서버 응답엔 없을 수 있어 전부 nullable (없으면 구 필드에서 유도). */
+    val showNickname: Boolean? = null,
+    val nicknameX: Float? = null,
+    val nicknameY: Float? = null,
+    val nicknameScaleStep: Int? = null,
+    val showTagline: Boolean? = null,
+    val taglineX: Float? = null,
+    val taglineY: Float? = null,
+    val taglineScaleStep: Int? = null,
+    val statsX: Float? = null,
+    val statsY: Float? = null,
+    val statsScaleStep: Int? = null,
     /** 알약 스타일 3종 — 구서버 응답엔 없을 수 있어 nullable (없으면 기본값 매핑). */
     val nicknamePill: String? = null,
     val taglinePill: String? = null,

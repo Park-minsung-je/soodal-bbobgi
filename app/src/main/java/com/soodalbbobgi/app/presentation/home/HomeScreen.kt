@@ -197,10 +197,10 @@ fun HomeScreen(
 
             // ── Profile Card ────────────────────────────────────
             // 편집 중이면 편집값(미저장)으로, 아니면 저장값으로 카드를 그린다. 카드 위치는 고정.
+            // (테두리 레이어는 보류 — frame 에셋을 전달하지 않는다)
             val cardLayers: CardLayers
             val cardBgAsset: String?
             val cardCharAsset: String?
-            val cardFrameAsset: String?
             if (editorOpen) {
                 cardLayers = CardLayers(
                     nickname = editorState.nickname,
@@ -210,24 +210,27 @@ fun HomeScreen(
                     charY = editorState.charY,
                     charScale = editorState.charScale,
                     textStyle = editorState.textStyle,
-                    textAlign = editorState.textAlign,
-                    textX = editorState.textX,
-                    textY = editorState.textY,
-                    textScaleStep = editorState.textScaleStep,
-                    showStats = editorState.showStats,
-                    showText = editorState.showText,
-                    nicknamePill = editorState.nicknamePill,
-                    taglinePill = editorState.taglinePill,
-                    statsPill = editorState.statsPill,
-                    nicknameColor = editorState.nicknameColor,
-                    taglineColor = editorState.taglineColor,
-                    statsColor = editorState.statsColor,
+                    showNickname = editorState.nicknameEl.show,
+                    nicknameX = editorState.nicknameEl.x, nicknameY = editorState.nicknameEl.y,
+                    nicknameScaleStep = editorState.nicknameEl.scaleStep,
+                    showTagline = editorState.taglineEl.show,
+                    taglineX = editorState.taglineEl.x, taglineY = editorState.taglineEl.y,
+                    taglineScaleStep = editorState.taglineEl.scaleStep,
+                    showStats = editorState.statsEl.show,
+                    statsX = editorState.statsEl.x, statsY = editorState.statsEl.y,
+                    statsScaleStep = editorState.statsEl.scaleStep,
+                    nicknamePill = editorState.nicknameEl.pill,
+                    taglinePill = editorState.taglineEl.pill,
+                    statsPill = editorState.statsEl.pill,
+                    nicknameColor = editorState.nicknameEl.color,
+                    taglineColor = editorState.taglineEl.color,
+                    statsColor = editorState.statsEl.color,
                     textOutline = editorState.textOutline,
                 )
                 cardBgAsset = editorState.bgItems.firstOrNull { it.isSelected }?.imageAsset
                 cardCharAsset = editorState.charItems.firstOrNull { it.isSelected }?.imageAsset
-                cardFrameAsset = editorState.frameItems.firstOrNull { it.isSelected }?.imageAsset
             } else {
+                val saved = state.card
                 cardLayers = CardLayers(
                     nickname = state.cardNickname,
                     tagline = state.cardTagline,
@@ -235,24 +238,26 @@ fun HomeScreen(
                     charX = state.cardCharX,
                     charY = state.cardCharY,
                     charScale = state.cardCharScale,
-                    textStyle = state.cardTextStyle,
-                    textAlign = state.cardTextAlign,
-                    textX = state.cardTextX,
-                    textY = state.cardTextY,
-                    textScaleStep = state.cardTextScaleStep,
-                    showStats = state.cardShowStats,
-                    showText = state.cardShowText,
-                    nicknamePill = state.cardNicknamePill,
-                    taglinePill = state.cardTaglinePill,
-                    statsPill = state.cardStatsPill,
-                    nicknameColor = state.cardNicknameColor,
-                    taglineColor = state.cardTaglineColor,
-                    statsColor = state.cardStatsColor,
-                    textOutline = state.cardTextOutline,
+                    textStyle = saved?.textStyle ?: "REGULAR",
+                    showNickname = saved?.showNickname ?: true,
+                    nicknameX = saved?.nicknameX ?: 0.83f, nicknameY = saved?.nicknameY ?: 0.40f,
+                    nicknameScaleStep = saved?.nicknameScaleStep ?: 3,
+                    showTagline = saved?.showTagline ?: true,
+                    taglineX = saved?.taglineX ?: 0.83f, taglineY = saved?.taglineY ?: 0.57f,
+                    taglineScaleStep = saved?.taglineScaleStep ?: 3,
+                    showStats = saved?.showStats ?: true,
+                    statsX = saved?.statsX ?: 0.16f, statsY = saved?.statsY ?: 0.90f,
+                    statsScaleStep = saved?.statsScaleStep ?: 3,
+                    nicknamePill = saved?.nicknamePill ?: "WHITE",
+                    taglinePill = saved?.taglinePill ?: "NONE",
+                    statsPill = saved?.statsPill ?: "BLUR",
+                    nicknameColor = saved?.nicknameColor ?: "#FFFFFF",
+                    taglineColor = saved?.taglineColor ?: "#FFFFFF",
+                    statsColor = saved?.statsColor ?: "#00F5FF",
+                    textOutline = saved?.textOutline ?: false,
                 )
                 cardBgAsset = state.cardBgAsset
                 cardCharAsset = state.cardCharAsset
-                cardFrameAsset = state.cardFrameAsset
             }
 
             // 프로필 카드 — 공용 GlassBox 프레임(sheen·코너·그림자 통일). 내부 카드가 실제 아트.
@@ -285,7 +290,6 @@ fun HomeScreen(
                         layers = cardLayers,
                         bgAsset = cardBgAsset,
                         charAsset = cardCharAsset,
-                        frameAsset = cardFrameAsset,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
