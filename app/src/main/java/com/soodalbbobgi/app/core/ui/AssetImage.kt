@@ -46,16 +46,19 @@ private fun rememberAssetStore(): AssetStore {
 /**
  * Coil이 사용할 model 객체를 결정한다 — 로컬 에셋이 있으면 [java.io.File], 없으면 fallback URL.
  *
- * 첫 sync 전이거나 sync가 실패한 상태에서도 화면이 깨지지 않도록 네트워크로 자동 폴백한다.
+ * 서버 아이템의 imageAsset은 URL 기준 절대 경로("/assets/bg/bg_0.png")지만 로컬 매니페스트의
+ * path는 assets 루트 기준 상대 경로("bg/bg_0.png")다 — 접두사를 벗겨 로컬 캐시를 먼저 찾고,
+ * 없으면 네트워크로 폴백한다 (첫 sync 전/오프라인에서도 화면이 깨지지 않도록).
  *
  * @param assetStore 로컬 에셋 저장소 (Singleton)
- * @param imageAsset 매니페스트 기준 상대 경로 (예: "items/n_01.png"). null/공백이면 null 반환.
+ * @param imageAsset 서버 절대 경로("/assets/…") 또는 매니페스트 상대 경로. null/공백이면 null 반환.
  * @return 로컬 파일이 존재하면 [java.io.File], 아니면 `${ASSET_BASE_URL}${imageAsset}` 문자열,
  *         imageAsset이 null/blank면 null
  */
 fun resolveAssetModel(assetStore: AssetStore, imageAsset: String?): Any? {
     if (imageAsset.isNullOrBlank()) return null
-    val local = assetStore.fileFor(imageAsset)
+    val relativePath = imageAsset.removePrefix("/assets/").removePrefix("/")
+    val local = assetStore.fileFor(relativePath)
     return if (local.exists()) local else "${BuildConfig.ASSET_BASE_URL}$imageAsset"
 }
 
