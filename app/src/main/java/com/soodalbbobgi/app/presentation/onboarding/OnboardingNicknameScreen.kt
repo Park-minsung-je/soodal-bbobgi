@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -30,6 +31,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -63,8 +67,21 @@ fun OnboardingNicknameScreen(
         if (saveState is OnboardingSaveState.Success) onNext()
     }
 
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+
     // 자체 배경 필수 — 투명이면 슬라이드 전환 중 이전 화면과 겹쳐 보인다 (설정 화면과 동일 패턴).
-    Column(Modifier.fillMaxSize().soodalScreenBackdrop().statusBarsPadding().padding(24.dp)) {
+    // 빈 곳 탭 = 입력 포커스 해제 + 키보드 닫기 (자식이 소비한 탭에는 반응하지 않는다).
+    Column(
+        Modifier.fillMaxSize().soodalScreenBackdrop()
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = {
+                    focusManager.clearFocus()
+                    keyboard?.hide()
+                })
+            }
+            .statusBarsPadding().padding(24.dp),
+    ) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             Text("STEP 1 / 3", fontSize = 11.sp, fontWeight = FontWeight.Bold,
                 color = colors.accentBlue, letterSpacing = 1.5.sp)
