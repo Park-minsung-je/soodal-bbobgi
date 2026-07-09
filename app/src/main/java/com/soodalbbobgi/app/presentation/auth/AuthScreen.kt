@@ -38,6 +38,7 @@ import com.soodalbbobgi.app.R
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
+import com.soodalbbobgi.app.core.ui.soodalScreenBackdrop
 
 /**
  * 로그인 화면.
@@ -68,12 +69,13 @@ fun AuthScreen(
 
     // 자동 로그인 중이면 빈 화면 (깜빡임 방지)
     if (loadingProvider == "auto") {
-        Box(Modifier.fillMaxSize())
+        Box(Modifier.fillMaxSize().soodalScreenBackdrop())
         return
     }
 
+    // 자체 배경 필수 — 투명이면 슬라이드 전환 중 이전 화면과 겹쳐 보인다 (설정 화면과 동일 패턴).
     Column(
-        modifier = Modifier.fillMaxSize().statusBarsPadding(),
+        modifier = Modifier.fillMaxSize().soodalScreenBackdrop().statusBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(80.dp))

@@ -39,6 +39,7 @@ import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.SoodalTextField
+import com.soodalbbobgi.app.core.ui.soodalScreenBackdrop
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
@@ -62,7 +63,8 @@ fun OnboardingNicknameScreen(
         if (saveState is OnboardingSaveState.Success) onNext()
     }
 
-    Column(Modifier.fillMaxSize().statusBarsPadding().padding(24.dp)) {
+    // 자체 배경 필수 — 투명이면 슬라이드 전환 중 이전 화면과 겹쳐 보인다 (설정 화면과 동일 패턴).
+    Column(Modifier.fillMaxSize().soodalScreenBackdrop().statusBarsPadding().padding(24.dp)) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             Text("STEP 1 / 3", fontSize = 11.sp, fontWeight = FontWeight.Bold,
                 color = colors.accentBlue, letterSpacing = 1.5.sp)
