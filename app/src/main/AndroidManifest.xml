@@ -6,17 +6,12 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Health Connect 권한 -->
+    <!-- Health Connect 권한 — 앱은 HC에 기록을 쓰지 않으므로 읽기 전용만 선언 -->
     <uses-permission android:name="android.permission.health.READ_EXERCISE" />
-    <uses-permission android:name="android.permission.health.WRITE_EXERCISE" />
     <uses-permission android:name="android.permission.health.READ_DISTANCE" />
-    <uses-permission android:name="android.permission.health.WRITE_DISTANCE" />
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
-    <uses-permission android:name="android.permission.health.WRITE_HEART_RATE" />
     <uses-permission android:name="android.permission.health.READ_SPEED" />
-    <uses-permission android:name="android.permission.health.WRITE_SPEED" />
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
-    <uses-permission android:name="android.permission.health.WRITE_TOTAL_CALORIES_BURNED" />
     <!-- Health Connect 백그라운드 읽기, 30일 이전 데이터 읽기 -->
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
