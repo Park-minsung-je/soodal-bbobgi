@@ -203,7 +203,7 @@ fun Modifier.cardFrost(colors: SoodalColors, shape: Shape): Modifier {
             .hazeEffect(state = haze) {
                 backgroundColor = Color.White
                 // 카드 흰끼 조정 지점 — 낮을수록 유리 속 배경색이 진하게 비친다.
-                tints = listOf(HazeTint(Color.White.copy(alpha = 0.60f)))
+                tints = listOf(HazeTint(Color.White.copy(alpha = 0.55f)))
                 blurRadius = 45.dp
                 noiseFactor = 0f
             }
