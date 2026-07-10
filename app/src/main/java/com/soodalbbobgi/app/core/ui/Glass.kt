@@ -244,12 +244,14 @@ fun BoxScope.GlassSheen(shape: Shape) {
             Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
+                // 유리 윗면 하이라이트 — 영역(높이)은 원래대로 얇게, 진하기만 올린 값.
+                // 카드·시트·팝업·탭바가 모두 이 값을 공유한다.
                 .height(if (colors.isDark) 5.dp else 7.dp)
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            Color.White.copy(alpha = if (colors.isDark) 0.14f else 0.42f),
-                            Color.White.copy(alpha = if (colors.isDark) 0.04f else 0.10f),
+                            Color.White.copy(alpha = if (colors.isDark) 0.24f else 0.62f),
+                            Color.White.copy(alpha = if (colors.isDark) 0.08f else 0.18f),
                             Color.Transparent,
                         ),
                     ),
