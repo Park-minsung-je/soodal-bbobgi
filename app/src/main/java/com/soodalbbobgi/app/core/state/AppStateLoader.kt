@@ -320,6 +320,13 @@ private fun ServerProfileCard.toDomain(userId: String): ProfileCard {
         nicknameColor = nicknameColor,
         taglineColor = taglineColor,
         statsColor = statsColor,
+        // 요소별 글꼴/외곽선이 없는 구서버 응답이면 전역 값을 모든 요소에 적용한다
+        nicknameStyle = nicknameStyle ?: textStyle,
+        taglineStyle = taglineStyle ?: textStyle,
+        statsStyle = statsStyle ?: textStyle,
+        nicknameOutline = nicknameOutline ?: textOutline,
+        taglineOutline = taglineOutline ?: textOutline,
+        statsOutline = statsOutline ?: textOutline,
         textOutline = textOutline,
     )
 }

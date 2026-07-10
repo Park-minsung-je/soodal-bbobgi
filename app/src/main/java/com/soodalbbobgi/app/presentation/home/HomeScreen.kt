@@ -209,7 +209,12 @@ fun HomeScreen(
                     charX = editorState.charX,
                     charY = editorState.charY,
                     charScale = editorState.charScale,
-                    textStyle = editorState.textStyle,
+                    nicknameStyle = editorState.nicknameEl.style,
+                    taglineStyle = editorState.taglineEl.style,
+                    statsStyle = editorState.statsEl.style,
+                    nicknameOutline = editorState.nicknameEl.outline,
+                    taglineOutline = editorState.taglineEl.outline,
+                    statsOutline = editorState.statsEl.outline,
                     showNickname = editorState.nicknameEl.show,
                     nicknameX = editorState.nicknameEl.x, nicknameY = editorState.nicknameEl.y,
                     nicknameScaleStep = editorState.nicknameEl.scaleStep,
@@ -225,7 +230,6 @@ fun HomeScreen(
                     nicknameColor = editorState.nicknameEl.color,
                     taglineColor = editorState.taglineEl.color,
                     statsColor = editorState.statsEl.color,
-                    textOutline = editorState.textOutline,
                 )
                 cardBgAsset = editorState.bgItems.firstOrNull { it.isSelected }?.imageAsset
                 cardCharAsset = editorState.charItems.firstOrNull { it.isSelected }?.imageAsset
@@ -238,7 +242,12 @@ fun HomeScreen(
                     charX = state.cardCharX,
                     charY = state.cardCharY,
                     charScale = state.cardCharScale,
-                    textStyle = saved?.textStyle ?: "REGULAR",
+                    nicknameStyle = saved?.nicknameStyle ?: "REGULAR",
+                    taglineStyle = saved?.taglineStyle ?: "REGULAR",
+                    statsStyle = saved?.statsStyle ?: "REGULAR",
+                    nicknameOutline = saved?.nicknameOutline ?: false,
+                    taglineOutline = saved?.taglineOutline ?: false,
+                    statsOutline = saved?.statsOutline ?: false,
                     showNickname = saved?.showNickname ?: true,
                     nicknameX = saved?.nicknameX ?: 0.83f, nicknameY = saved?.nicknameY ?: 0.40f,
                     nicknameScaleStep = saved?.nicknameScaleStep ?: 3,
@@ -254,7 +263,6 @@ fun HomeScreen(
                     nicknameColor = saved?.nicknameColor ?: "#FFFFFF",
                     taglineColor = saved?.taglineColor ?: "#FFFFFF",
                     statsColor = saved?.statsColor ?: "#00F5FF",
-                    textOutline = saved?.textOutline ?: false,
                 )
                 cardBgAsset = state.cardBgAsset
                 cardCharAsset = state.cardCharAsset
