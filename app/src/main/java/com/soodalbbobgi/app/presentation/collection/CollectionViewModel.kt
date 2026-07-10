@@ -53,7 +53,10 @@ class CollectionViewModel @Inject constructor(
         appState.profileCard,
     ) { items, inventory, card ->
         val ownedIds = inventory.map { it.itemId }.toSet()
-        val equippedIds = setOfNotNull(card?.backgroundItemId, card?.characterItemId, card?.borderItemId)
+        // 카드 슬롯 값은 인벤토리 행 id다 (서버의 인벤토리 인다이렉션) —
+        // 아이템 마스터 id와 직접 비교하면 엉뚱한 칸에 착용 표시가 붙는다.
+        val equippedInvIds = setOfNotNull(card?.backgroundItemId, card?.characterItemId, card?.borderItemId)
+        val equippedIds = inventory.filter { it.id in equippedInvIds }.map { it.itemId }.toSet()
         val kindOrder = mapOf("char" to 0, "bg" to 1, "frame" to 2)
         CollectionUiState(
             entries = items.values
