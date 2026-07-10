@@ -239,7 +239,8 @@ fun EditorSheet(
                     SliderRow("↕ 상하", state.charY, 0f..1f) { vm.setCharY(it) }
                     SliderRow("⊕ 크기", state.charScale, 0.3f..1f) { vm.setCharScale(it) }
                 }
-                EditorCategory.Text -> {
+                EditorCategory.Nickname -> TextElementControls(TextElement.Nickname, state, vm)
+                EditorCategory.Tagline -> {
                     // 한글 IME 조합 중 글자 누락 방지: TextField의 value를 ViewModel StateFlow에
                     // 직접 묶으면 onValueChange→VM→flow 왕복 사이 IME 조합이 끊겨 글자가 사라진다.
                     // 로컬 상태를 즉시 갱신해 조합을 끊지 않고, 같은 콜백에서 VM에도 밀어넣어
@@ -258,135 +259,10 @@ fun EditorSheet(
                         placeholder = "한마디 입력 (최대 20자)",
                         maxLength = 20,
                     )
-
-                    // ── 편집 요소 선택 (닉네임/한마디/기록) — 아래 컨트롤이 이 요소에 적용된다 ──
                     Spacer(Modifier.height(spacing.s3))
-                    var element by rememberSaveable { mutableStateOf(TextElement.Nickname) }
-                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                        TextElement.entries.forEach { el ->
-                            SegmentChip(
-                                label = el.label,
-                                isActive = element == el,
-                                onClick = { element = el },
-                            )
-                        }
-                    }
-                    val elState = state.element(element)
-
-                    // -- 표시 토글 --
-                    Spacer(Modifier.height(spacing.s3))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text("${element.label} 표시", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
-                        Switch(
-                            checked = elState.show,
-                            onCheckedChange = { vm.setElementShow(element, it) },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = colors.btnPrimaryText,
-                                checkedTrackColor = SheetAccent,
-                                uncheckedTrackColor = colors.surface3,
-                            ),
-                        )
-                    }
-
-                    // -- 위치 (요소 중심 기준 이동) --
-                    Spacer(Modifier.height(spacing.s3))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text("위치", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
-                        Text(
-                            "초기화 ↺",
-                            fontSize = 11.sp,
-                            color = colors.textTertiary,
-                            modifier = Modifier.clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                            ) {
-                                when (element) {
-                                    TextElement.Nickname -> { vm.setElementX(element, 0.83f); vm.setElementY(element, 0.40f) }
-                                    TextElement.Tagline -> { vm.setElementX(element, 0.83f); vm.setElementY(element, 0.57f) }
-                                    TextElement.Stats -> { vm.setElementX(element, 0.16f); vm.setElementY(element, 0.90f) }
-                                }
-                            },
-                        )
-                    }
-                    Spacer(Modifier.height(spacing.s2))
-                    SliderRow("↔ 좌우", elState.x, 0f..1f) { vm.setElementX(element, it) }
-                    SliderRow("↕ 상하", elState.y, 0f..1f) { vm.setElementY(element, it) }
-
-                    // -- 크기 (5단계) --
-                    Spacer(Modifier.height(spacing.s3))
-                    Text("크기 단계", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
-                    Spacer(Modifier.height(spacing.s2))
-                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                        (1..5).forEach { step ->
-                            SegmentChip(
-                                label = step.toString(),
-                                isActive = elState.scaleStep == step,
-                                onClick = { vm.setElementScaleStep(element, step) },
-                            )
-                        }
-                    }
-
-                    // -- 배경 칩 스타일 --
-                    Spacer(Modifier.height(spacing.s3))
-                    PillStyleRow("배경 칩", elState.pill) { vm.setElementPill(element, it) }
-
-                    // -- 색상 --
-                    Spacer(Modifier.height(spacing.s3))
-                    ColorPaletteRow("색상", elState.color) { vm.setElementColor(element, it) }
-
-                    Spacer(Modifier.height(spacing.s3))
-                    Text(
-                        text = "폰트 스타일",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colors.textSecondary,
-                    )
-                    Spacer(Modifier.height(spacing.s2))
-                    // 굵게/기울임을 각각 켜고 끈다 — 둘 다 켜면 굵은 기울임. (둘 다 끄면 기본)
-                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                        val bold = textStyleHasBold(state.textStyle)
-                        val italic = textStyleHasItalic(state.textStyle)
-                        StyleToggleChip(
-                            label = "굵게",
-                            active = bold,
-                            boldText = true,
-                            onClick = { vm.setTextStyle(combineTextStyle(!bold, italic)) },
-                        )
-                        StyleToggleChip(
-                            label = "기울임",
-                            active = italic,
-                            italicText = true,
-                            onClick = { vm.setTextStyle(combineTextStyle(bold, !italic)) },
-                        )
-                    }
-
-                    // -- 글자 테두리(외곽선) 토글 --
-                    Spacer(Modifier.height(spacing.s3))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text("글자 테두리", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
-                        Switch(
-                            checked = state.textOutline,
-                            onCheckedChange = { vm.setTextOutline(it) },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = colors.btnPrimaryText,
-                                checkedTrackColor = SheetAccent,
-                                uncheckedTrackColor = colors.surface3,
-                            ),
-                        )
-                    }
+                    TextElementControls(TextElement.Tagline, state, vm)
                 }
+                EditorCategory.Stats -> TextElementControls(TextElement.Stats, state, vm)
             }
 
             Spacer(Modifier.height(spacing.s3))
@@ -429,6 +305,140 @@ fun EditorSheet(
         }
     }
     } // 글래스 표면 Box (sheen 포함)
+}
+
+/**
+ * 텍스트 요소(닉네임/한마디/기록) 탭의 편집 컨트롤 묶음.
+ *
+ * 맨 위 표시 토글은 항상 보이고, 표시가 꺼져 있으면 아래 편집 항목
+ * (위치/크기/배경 칩/색상/폰트 스타일/글자 테두리)은 전부 숨긴다.
+ * 스타일은 요소별 독립 — 다른 요소에 영향을 주지 않는다.
+ */
+@Composable
+private fun TextElementControls(
+    element: TextElement,
+    state: ProfileEditorUiState,
+    vm: ProfileEditorViewModel,
+) {
+    val colors = SoodalDesign.colors
+    val spacing = SoodalDesign.spacing
+    val elState = state.element(element)
+
+    // -- 표시 토글 (항상 노출) --
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("${element.label} 표시", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+        Switch(
+            checked = elState.show,
+            onCheckedChange = { vm.setElementShow(element, it) },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = colors.btnPrimaryText,
+                checkedTrackColor = SheetAccent,
+                uncheckedTrackColor = colors.surface3,
+            ),
+        )
+    }
+
+    if (!elState.show) {
+        Spacer(Modifier.height(spacing.s2))
+        Text(
+            "표시를 켜면 위치·크기·스타일을 수정할 수 있어요.",
+            fontSize = 11.sp,
+            color = colors.textTertiary,
+        )
+        return
+    }
+
+    // -- 위치 (요소 중심 기준 이동) --
+    Spacer(Modifier.height(spacing.s3))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("위치", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+        Text(
+            "초기화 ↺",
+            fontSize = 11.sp,
+            color = colors.textTertiary,
+            modifier = Modifier.clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+            ) {
+                when (element) {
+                    TextElement.Nickname -> { vm.setElementX(element, 0.83f); vm.setElementY(element, 0.40f) }
+                    TextElement.Tagline -> { vm.setElementX(element, 0.83f); vm.setElementY(element, 0.57f) }
+                    TextElement.Stats -> { vm.setElementX(element, 0.16f); vm.setElementY(element, 0.90f) }
+                }
+            },
+        )
+    }
+    Spacer(Modifier.height(spacing.s2))
+    SliderRow("↔ 좌우", elState.x, 0f..1f) { vm.setElementX(element, it) }
+    SliderRow("↕ 상하", elState.y, 0f..1f) { vm.setElementY(element, it) }
+
+    // -- 크기 (5단계) --
+    Spacer(Modifier.height(spacing.s3))
+    Text("크기 단계", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+    Spacer(Modifier.height(spacing.s2))
+    Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        (1..5).forEach { step ->
+            SegmentChip(
+                label = step.toString(),
+                isActive = elState.scaleStep == step,
+                onClick = { vm.setElementScaleStep(element, step) },
+            )
+        }
+    }
+
+    // -- 배경 칩 스타일 --
+    Spacer(Modifier.height(spacing.s3))
+    PillStyleRow("배경 칩", elState.pill) { vm.setElementPill(element, it) }
+
+    // -- 색상 --
+    Spacer(Modifier.height(spacing.s3))
+    ColorPaletteRow("색상", elState.color) { vm.setElementColor(element, it) }
+
+    // -- 폰트 스타일 (요소별 굵게/기울임) --
+    Spacer(Modifier.height(spacing.s3))
+    Text("폰트 스타일", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+    Spacer(Modifier.height(spacing.s2))
+    Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        StyleToggleChip(
+            label = "굵게",
+            active = elState.bold,
+            boldText = true,
+            onClick = { vm.setElementBold(element, !elState.bold) },
+        )
+        StyleToggleChip(
+            label = "기울임",
+            active = elState.italic,
+            italicText = true,
+            onClick = { vm.setElementItalic(element, !elState.italic) },
+        )
+    }
+
+    // -- 글자 테두리(외곽선) 토글 (요소별) --
+    Spacer(Modifier.height(spacing.s3))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("글자 테두리", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+        Switch(
+            checked = elState.outline,
+            onCheckedChange = { vm.setElementOutline(element, it) },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = colors.btnPrimaryText,
+                checkedTrackColor = SheetAccent,
+                uncheckedTrackColor = colors.surface3,
+            ),
+        )
+    }
 }
 
 /**

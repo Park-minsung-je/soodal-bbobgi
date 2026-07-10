@@ -56,5 +56,13 @@ data class ProfileCard(
     val nicknameColor: String = "#FFFFFF",
     val taglineColor: String = "#FFFFFF",
     val statsColor: String = "#00F5FF",
+    // ── 요소별 글꼴 스타일("REGULAR"|"BOLD"|"ITALIC"|"BOLD_ITALIC")과 외곽선 ──
+    // (구 전역 textStyle/textOutline은 구버전 호환용 — 신규 요소별 필드가 우선한다)
+    val nicknameStyle: String = "REGULAR",
+    val taglineStyle: String = "REGULAR",
+    val statsStyle: String = "REGULAR",
+    val nicknameOutline: Boolean = false,
+    val taglineOutline: Boolean = false,
+    val statsOutline: Boolean = false,
     val textOutline: Boolean = false,
 )

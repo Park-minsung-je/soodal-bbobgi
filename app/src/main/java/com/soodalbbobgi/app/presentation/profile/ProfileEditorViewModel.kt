@@ -36,14 +36,25 @@ enum class EditorCategory(val key: String, val label: String) {
     Background("bg", "배경"),
     Character("char", "캐릭터"),
     // 테두리(액자)는 보류 — 탭에서 제외 (장착 데이터는 보존, 추후 부활 가능).
-    Text("text", "텍스트"),
+    // 텍스트 요소는 각각 자기 탭을 가진다 — 표시/위치/크기/칩/색/글꼴 전부 요소별 독립.
+    Nickname("nickname", "닉네임"),
+    Tagline("tagline", "한마디"),
+    Stats("stats", "기록"),
 }
 
-/** 텍스트 탭에서 편집하는 카드 텍스트 요소. */
+/** 카드 텍스트 요소 식별자 — 탭과 1:1로 대응한다. */
 enum class TextElement(val label: String) {
     Nickname("닉네임"),
     Tagline("한마디"),
     Stats("기록"),
+}
+
+/** 텍스트 요소 탭 → 요소 식별자. 배경/캐릭터 탭은 null. */
+fun EditorCategory.textElementOrNull(): TextElement? = when (this) {
+    EditorCategory.Nickname -> TextElement.Nickname
+    EditorCategory.Tagline -> TextElement.Tagline
+    EditorCategory.Stats -> TextElement.Stats
+    else -> null
 }
 
 // 폰트 스타일을 굵게/이탤릭 독립 토글로 다룬다 — 저장은 기존 textStyle 문자열을 그대로 쓴다.
@@ -61,7 +72,7 @@ fun textStyleHasBold(style: String): Boolean = style == "BOLD" || style == "BOLD
 /** textStyle 문자열에 이탤릭이 포함됐는지. */
 fun textStyleHasItalic(style: String): Boolean = style == "ITALIC" || style == "BOLD_ITALIC"
 
-/** 텍스트 요소 하나의 편집 상태 — 표시/중심 위치(0~1)/크기 단계/알약/색. */
+/** 텍스트 요소 하나의 편집 상태 — 표시/중심 위치(0~1)/크기 단계/알약/색/글꼴/외곽선. */
 data class TextElementState(
     val show: Boolean = true,
     val x: Float = 0.83f,
@@ -69,7 +80,13 @@ data class TextElementState(
     val scaleStep: Int = 3,
     val pill: String = "WHITE",
     val color: String = "#FFFFFF",
-)
+    val bold: Boolean = false,
+    val italic: Boolean = false,
+    val outline: Boolean = false,
+) {
+    /** 굵게/기울임 토글 → 저장용 textStyle 문자열. */
+    val style: String get() = combineTextStyle(bold, italic)
+}
 
 data class ProfileEditorUiState(
     val activeTab: EditorCategory = EditorCategory.Background,
@@ -173,14 +190,20 @@ class ProfileEditorViewModel @Inject constructor(
                 nicknameEl = TextElementState(
                     show = savedCard.showNickname, x = savedCard.nicknameX, y = savedCard.nicknameY,
                     scaleStep = savedCard.nicknameScaleStep, pill = savedCard.nicknamePill, color = savedCard.nicknameColor,
+                    bold = textStyleHasBold(savedCard.nicknameStyle), italic = textStyleHasItalic(savedCard.nicknameStyle),
+                    outline = savedCard.nicknameOutline,
                 ),
                 taglineEl = TextElementState(
                     show = savedCard.showTagline, x = savedCard.taglineX, y = savedCard.taglineY,
                     scaleStep = savedCard.taglineScaleStep, pill = savedCard.taglinePill, color = savedCard.taglineColor,
+                    bold = textStyleHasBold(savedCard.taglineStyle), italic = textStyleHasItalic(savedCard.taglineStyle),
+                    outline = savedCard.taglineOutline,
                 ),
                 statsEl = TextElementState(
                     show = savedCard.showStats, x = savedCard.statsX, y = savedCard.statsY,
                     scaleStep = savedCard.statsScaleStep, pill = savedCard.statsPill, color = savedCard.statsColor,
+                    bold = textStyleHasBold(savedCard.statsStyle), italic = textStyleHasItalic(savedCard.statsStyle),
+                    outline = savedCard.statsOutline,
                 ),
                 textOutline = savedCard.textOutline,
                 initialized = true,
@@ -246,7 +269,7 @@ class ProfileEditorViewModel @Inject constructor(
         _editState.value = when (category) {
             EditorCategory.Background -> _editState.value.copy(selectedBgInventoryId = inventoryId)
             EditorCategory.Character -> _editState.value.copy(selectedCharInventoryId = inventoryId)
-            EditorCategory.Text -> _editState.value
+            else -> _editState.value // 텍스트 요소 탭엔 장착 아이템이 없다
         }
     }
     fun setCharX(v: Float) { _editState.value = _editState.value.copy(charX = v) }
@@ -271,9 +294,9 @@ class ProfileEditorViewModel @Inject constructor(
     fun setElementScaleStep(el: TextElement, v: Int) = updateElement(el) { it.copy(scaleStep = v.coerceIn(1, 5)) }
     fun setElementPill(el: TextElement, v: String) = updateElement(el) { it.copy(pill = v) }
     fun setElementColor(el: TextElement, v: String) = updateElement(el) { it.copy(color = v) }
-
-    /** 텍스트 외곽선(테두리) 표시 여부 설정. */
-    fun setTextOutline(v: Boolean) { _editState.value = _editState.value.copy(textOutline = v) }
+    fun setElementBold(el: TextElement, v: Boolean) = updateElement(el) { it.copy(bold = v) }
+    fun setElementItalic(el: TextElement, v: Boolean) = updateElement(el) { it.copy(italic = v) }
+    fun setElementOutline(el: TextElement, v: Boolean) = updateElement(el) { it.copy(outline = v) }
     fun clearSaveResult() { _editState.value = _editState.value.copy(saveSuccess = false, saveError = null) }
 
     /**
@@ -298,7 +321,8 @@ class ProfileEditorViewModel @Inject constructor(
                     characterY = s.charY.coerceIn(0f, 1f),
                     characterScale = s.charScale.coerceIn(0.3f, 1f),
                     customText = s.customText,
-                    textStyle = s.textStyle,
+                    // 구 전역 필드는 닉네임 값으로 채워 구버전 렌더 호환을 유지한다
+                    textStyle = s.nicknameEl.style,
                     textAlign = s.textAlign,
                     textX = s.textX.coerceIn(0f, 1f),
                     textY = s.textY.coerceIn(0f, 1f),
@@ -319,7 +343,13 @@ class ProfileEditorViewModel @Inject constructor(
                     nicknameColor = s.nicknameEl.color,
                     taglineColor = s.taglineEl.color,
                     statsColor = s.statsEl.color,
-                    textOutline = s.textOutline,
+                    nicknameStyle = s.nicknameEl.style,
+                    taglineStyle = s.taglineEl.style,
+                    statsStyle = s.statsEl.style,
+                    nicknameOutline = s.nicknameEl.outline,
+                    taglineOutline = s.taglineEl.outline,
+                    statsOutline = s.statsEl.outline,
+                    textOutline = s.nicknameEl.outline || s.taglineEl.outline || s.statsEl.outline,
                 )
                 // 메모리 즉시 반영
                 appStateLoader.applyProfileCardSaved(card)
@@ -353,6 +383,12 @@ class ProfileEditorViewModel @Inject constructor(
                     nicknameColor = card.nicknameColor,
                     taglineColor = card.taglineColor,
                     statsColor = card.statsColor,
+                    nicknameStyle = card.nicknameStyle,
+                    taglineStyle = card.taglineStyle,
+                    statsStyle = card.statsStyle,
+                    nicknameOutline = card.nicknameOutline,
+                    taglineOutline = card.taglineOutline,
+                    statsOutline = card.statsOutline,
                     textOutline = card.textOutline,
                 ))
                 _editState.value = _editState.value.copy(isSaving = false, saveSuccess = true)

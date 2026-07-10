@@ -52,8 +52,10 @@ data class CardLayers(
     val charX: Float = 0.5f,
     val charY: Float = 0.5f,
     val charScale: Float = 1.0f,
-    /** 텍스트 글꼴 스타일 ("REGULAR" | "BOLD" | "ITALIC"). 세 요소 전체에 적용. */
-    val textStyle: String = "REGULAR",
+    // ── 요소별 글꼴 스타일 ("REGULAR" | "BOLD" | "ITALIC" | "BOLD_ITALIC") ──
+    val nicknameStyle: String = "REGULAR",
+    val taglineStyle: String = "REGULAR",
+    val statsStyle: String = "REGULAR",
     // ── 요소별 표시/위치(중심 앵커 0~1)/크기 단계 — 닉네임·한마디·기록 독립 커스텀 ──
     val showNickname: Boolean = true,
     val nicknameX: Float = 0.83f,
@@ -80,8 +82,10 @@ data class CardLayers(
     val taglineColor: String = "#FFFFFF",
     /** 기록 줄 색상 ("#RRGGBB"). */
     val statsColor: String = "#00F5FF",
-    /** 텍스트 외곽선(테두리) 표시 여부. true면 세 줄 모두 글자 둘레에 스트로크를 그린다. */
-    val textOutline: Boolean = false,
+    // ── 요소별 글자 외곽선(테두리) — 알약 없음(NONE) 스타일에서만 그려진다 ──
+    val nicknameOutline: Boolean = false,
+    val taglineOutline: Boolean = false,
+    val statsOutline: Boolean = false,
 )
 
 /**
@@ -169,8 +173,8 @@ object ProfileCardRenderer {
         }
 
         // Layer 4: 이름표 — 디자인 신구조: 흰 알약(닉네임) + 아래 소개 텍스트.
-        // 위치(textX/textY 앵커)·크기 단계·표시여부는 기존 커스텀 값을 그대로 따른다.
-        val blockTypeface = when (layers.textStyle) {
+        // 글꼴 스타일은 요소별 값을 그릴 때마다 textPaint에 적용한다.
+        fun typefaceOf(style: String): Typeface = when (style) {
             "BOLD" -> Typeface.DEFAULT_BOLD
             "ITALIC" -> Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
             "BOLD_ITALIC" -> Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC)
@@ -178,7 +182,6 @@ object ProfileCardRenderer {
         }
         val textPaint = Paint().apply {
             isAntiAlias = true
-            typeface = blockTypeface
         }
 
         // 카드 해상도 대비 텍스트 크기 보정 — 기준폭 1472 대비 현재 폭 비율.
@@ -191,6 +194,7 @@ object ProfileCardRenderer {
          * 텍스트 요소 하나를 알약 스타일에 맞춰 그린다.
          *
          * @param style "NONE"(맨글자) | "BLACK" | "WHITE" | "BLUR"
+         * @param outline 글자 외곽선 표시 여부 — 알약 없음(NONE)에서만 그려진다
          * @return 그린 요소의 전체 높이(px)
          */
         fun drawElement(
@@ -201,6 +205,7 @@ object ProfileCardRenderer {
             colorRaw: Int,
             leftAligned: Boolean,
             anchor: Float,
+            outline: Boolean = false,
         ): Float {
             textPaint.textSize = textSize
             textPaint.textAlign = Paint.Align.LEFT
@@ -217,7 +222,7 @@ object ProfileCardRenderer {
                 // 알약 없음 — 맨글자 + 대비 그림자(옵션 시 외곽선).
                 val baseline = top + textSize
                 val x = (if (leftAligned) anchor else anchor - textW) - inkLeft
-                if (layers.textOutline) {
+                if (outline) {
                     textPaint.style = Paint.Style.STROKE
                     textPaint.strokeWidth = textSize * 0.09f
                     textPaint.color = outlineColor(colorRaw)
@@ -313,8 +318,13 @@ object ProfileCardRenderer {
             return if (style == "NONE") w else w + textSize * PILL_PAD_H * 2f
         }
 
-        /** 요소 하나를 중심 앵커(cx, cy — 0~1 비율) 기준으로 그린다. */
-        fun drawElementCentered(text: String, textSize: Float, style: String, colorRaw: Int, cx: Float, cy: Float) {
+        /** 요소 하나를 중심 앵커(cx, cy — 0~1 비율) 기준으로 그린다 — 글꼴/외곽선도 요소별 적용. */
+        fun drawElementCentered(
+            text: String, textSize: Float, style: String, colorRaw: Int,
+            cx: Float, cy: Float, fontStyle: String, outline: Boolean,
+        ) {
+            // 폭/높이 측정 전에 글꼴을 먼저 적용해야 기울임·굵기의 잉크 폭이 정확하다
+            textPaint.typeface = typefaceOf(fontStyle)
             val w = elementWidth(text, textSize, style)
             val h = elementHeight(textSize, style)
             drawElement(
@@ -323,10 +333,11 @@ object ProfileCardRenderer {
                 style = style, colorRaw = colorRaw,
                 leftAligned = true,
                 anchor = cx * CARD_WIDTH - w / 2f,
+                outline = outline,
             )
         }
 
-        // ── 텍스트 3요소 — 각각 표시/위치/크기/알약/색을 독립 커스텀 ──
+        // ── 텍스트 3요소 — 각각 표시/위치/크기/알약/색/글꼴/외곽선을 독립 커스텀 ──
         if (layers.showNickname) {
             drawElementCentered(
                 text = layers.nickname,
@@ -334,6 +345,7 @@ object ProfileCardRenderer {
                 style = layers.nicknamePill,
                 colorRaw = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.WHITE),
                 cx = layers.nicknameX, cy = layers.nicknameY,
+                fontStyle = layers.nicknameStyle, outline = layers.nicknameOutline,
             )
         }
         if (layers.showTagline) {
@@ -343,6 +355,7 @@ object ProfileCardRenderer {
                 style = layers.taglinePill,
                 colorRaw = parseColorOrDefault(layers.taglineColor, android.graphics.Color.WHITE),
                 cx = layers.taglineX, cy = layers.taglineY,
+                fontStyle = layers.taglineStyle, outline = layers.taglineOutline,
             )
         }
         if (layers.showStats) {
@@ -352,6 +365,7 @@ object ProfileCardRenderer {
                 style = layers.statsPill,
                 colorRaw = parseColorOrDefault(layers.statsColor, Color(0xFF00F5FF).toArgb()),
                 cx = layers.statsX, cy = layers.statsY,
+                fontStyle = layers.statsStyle, outline = layers.statsOutline,
             )
         }
 

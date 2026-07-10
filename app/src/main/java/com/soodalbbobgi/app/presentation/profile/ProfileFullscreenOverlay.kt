@@ -120,7 +120,12 @@ fun ProfileFullscreenOverlay(
         charX = cardState.charX,
         charY = cardState.charY,
         charScale = cardState.charScale,
-        textStyle = saved?.textStyle ?: "REGULAR",
+        nicknameStyle = saved?.nicknameStyle ?: "REGULAR",
+        taglineStyle = saved?.taglineStyle ?: "REGULAR",
+        statsStyle = saved?.statsStyle ?: "REGULAR",
+        nicknameOutline = saved?.nicknameOutline ?: false,
+        taglineOutline = saved?.taglineOutline ?: false,
+        statsOutline = saved?.statsOutline ?: false,
         showNickname = saved?.showNickname ?: true,
         nicknameX = saved?.nicknameX ?: 0.83f, nicknameY = saved?.nicknameY ?: 0.40f,
         nicknameScaleStep = saved?.nicknameScaleStep ?: 3,
@@ -136,7 +141,6 @@ fun ProfileFullscreenOverlay(
         nicknameColor = saved?.nicknameColor ?: "#FFFFFF",
         taglineColor = saved?.taglineColor ?: "#FFFFFF",
         statsColor = saved?.statsColor ?: "#00F5FF",
-        textOutline = saved?.textOutline ?: false,
     )
     val bitmap = remember(layers) { ProfileCardRenderer.renderCached(layers) }
 
