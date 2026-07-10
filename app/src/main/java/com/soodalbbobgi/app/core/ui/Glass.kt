@@ -244,8 +244,9 @@ fun BoxScope.GlassSheen(shape: Shape) {
             Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                // 유리 윗면 빛이 확실히 읽히는 강도 — 카드·시트·팝업·탭바가 모두 이 값을 공유한다.
-                .height(if (colors.isDark) 9.dp else 12.dp)
+                // 유리 윗면 하이라이트 — 영역(높이)은 원래대로 얇게, 진하기만 올린 값.
+                // 카드·시트·팝업·탭바가 모두 이 값을 공유한다.
+                .height(if (colors.isDark) 5.dp else 7.dp)
                 .background(
                     Brush.verticalGradient(
                         listOf(
