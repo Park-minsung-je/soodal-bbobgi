@@ -244,13 +244,13 @@ fun BoxScope.GlassSheen(shape: Shape) {
             Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                // 살짝 더 도드라지게 — 예전(과하던 시절)보다는 낮고, 직전(0.42/7dp)보다는 한 단계 위.
-                .height(if (colors.isDark) 7.dp else 10.dp)
+                // 유리 윗면 빛이 확실히 읽히는 강도 — 카드·시트·팝업·탭바가 모두 이 값을 공유한다.
+                .height(if (colors.isDark) 9.dp else 12.dp)
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            Color.White.copy(alpha = if (colors.isDark) 0.18f else 0.52f),
-                            Color.White.copy(alpha = if (colors.isDark) 0.06f else 0.14f),
+                            Color.White.copy(alpha = if (colors.isDark) 0.24f else 0.62f),
+                            Color.White.copy(alpha = if (colors.isDark) 0.08f else 0.18f),
                             Color.Transparent,
                         ),
                     ),
