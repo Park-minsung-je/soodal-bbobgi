@@ -92,6 +92,10 @@ object ProfileCardRenderer {
     const val CARD_WIDTH = 2752
     const val CARD_HEIGHT = 1536
 
+    // 배경 칩(알약) 내부 여백 — 글자 크기 대비 배율. 디자인 시안의 여유 있는 캡슐 비율 기준.
+    private const val PILL_PAD_H = 0.80f
+    private const val PILL_PAD_V = 0.45f
+
     // 텍스트·워터마크 px는 원래 1472폭 기준으로 튜닝됐다. 카드 해상도가 바뀌어도
     // 화면상 크기가 유지되도록 기준폭(1472) 대비 배율(u)로 환산해 그린다.
     private const val TEXT_REF_WIDTH = 1472f
@@ -228,8 +232,8 @@ object ProfileCardRenderer {
             }
 
             // ── 알약(캡슐) 계열 ──
-            val padH = textSize * 0.55f
-            val padV = textSize * 0.30f
+            val padH = textSize * PILL_PAD_H
+            val padV = textSize * PILL_PAD_V
             val pillW = textW + padH * 2f
             val pillH = textSize + padV * 2f
             val left = if (leftAligned) anchor else anchor - pillW
@@ -298,7 +302,7 @@ object ProfileCardRenderer {
 
         /** 스타일별 요소 높이 예측 (중심 앵커 배치용). */
         fun elementHeight(textSize: Float, style: String): Float =
-            if (style == "NONE") textSize * 1.15f else textSize * 1.60f
+            if (style == "NONE") textSize * 1.15f else textSize * (1f + PILL_PAD_V * 2f)
 
         /** 스타일별 요소 폭 예측 (중심 앵커 배치용) — 알약은 좌우 패딩 포함, 폭은 잉크 경계 기준. */
         fun elementWidth(text: String, textSize: Float, style: String): Float {
@@ -306,7 +310,7 @@ object ProfileCardRenderer {
             val ink = Rect()
             textPaint.getTextBounds(text, 0, text.length, ink)
             val w = ink.width().toFloat()
-            return if (style == "NONE") w else w + textSize * 0.55f * 2f
+            return if (style == "NONE") w else w + textSize * PILL_PAD_H * 2f
         }
 
         /** 요소 하나를 중심 앵커(cx, cy — 0~1 비율) 기준으로 그린다. */
