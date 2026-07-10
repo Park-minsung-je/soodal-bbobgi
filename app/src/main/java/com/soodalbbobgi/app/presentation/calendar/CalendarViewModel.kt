@@ -226,6 +226,27 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 세션 하나를 삭제한다 — 로컬 즉시 삭제(화면 자동 갱신) + 서버 정합은 Syncer가 처리.
+     * 이미 받은 조개는 회수되지 않으며, 같은 날짜 재등록 시 재지급도 서버가 차단한다.
+     *
+     * @param day 선택된 달의 일(day of month)
+     * @param logId 삭제할 세션의 swim_logs 행 id
+     */
+    fun deleteSession(day: Int, logId: Long) {
+        viewModelScope.launch {
+            try {
+                val ym = _yearMonth.value
+                val date = "%04d-%02d-%02d".format(ym.year, ym.monthValue, day)
+                val log = swimLogUseCase.getLogsForDate(date).find { it.id == logId } ?: return@launch
+                hcSwimSyncer.deleteSession(log)
+            } catch (e: Exception) {
+                Timber.w(e, "수영 기록 삭제 실패")
+                _registerError.value = "기록 삭제에 실패했어요"
+            }
+        }
+    }
+
     fun clearShellReward() { _shellReward.value = 0 }
 
     fun clearRegisterError() { _registerError.value = null }

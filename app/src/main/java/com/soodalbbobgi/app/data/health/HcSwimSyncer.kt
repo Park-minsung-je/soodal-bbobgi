@@ -37,10 +37,65 @@ class HcSwimSyncer @Inject constructor(
      * @return 이번 동기화로 서버가 지급한 조개 수
      */
     suspend fun sync(): Int {
+        retryPendingServerDeletes()
         syncChanges()
         val earned = pushUnsyncedDates()
         pullServerSwimLogs()
         return earned
+    }
+
+    /**
+     * 세션 하나를 삭제한다 — 캘린더의 세션 단위 삭제 진입점.
+     *
+     * 로컬 삭제는 즉시 확정하고(화면 반영), 서버 정합은 뒤따른다:
+     * 1. HC 유래 기록이면 hcRecordId를 블랙리스트에 등록 — 토큰 만료 폴백이나
+     *    HC 수정 이벤트로 같은 세션이 다시 와도 재수입하지 않는다.
+     * 2. 서버의 그 날짜 일 기록을 DELETE (soft-delete, 조개 미회수).
+     *    실패(오프라인 등)하면 대기 큐에 넣어 다음 [sync]에서 재시도하고,
+     *    그동안 [pullServerSwimLogs]가 그 날짜를 복원하지 않게 막는다.
+     * 3. 같은 날 잔여 세션이 있으면 미전송으로 되돌려 일 집계를 재전송한다
+     *    (같은 날짜 재등록의 조개 재지급은 서버가 차단).
+     */
+    suspend fun deleteSession(log: SwimLog) {
+        log.hcRecordId?.let { hcSyncPreferences.addDeletedHcRecordId(it) }
+        swimLogUseCase.deleteById(log.id)
+        reconcileServerAfterDelete(log.date)
+    }
+
+    /** 서버 삭제 대기 큐를 재시도한다 — 성공한 날짜는 큐에서 빠진다. */
+    private suspend fun retryPendingServerDeletes() {
+        for (date in hcSyncPreferences.getPendingServerDeletes()) {
+            reconcileServerAfterDelete(date)
+        }
+    }
+
+    /**
+     * 세션 삭제 후 서버 일 기록을 정합화한다 — DELETE 후 잔여 세션이 있으면 재전송.
+     * 서버의 명시적 4xx(이미 없음 등)는 성공으로 취급하고, 그 외 실패는 대기 큐에 남긴다.
+     */
+    private suspend fun reconcileServerAfterDelete(date: String) {
+        try {
+            soodalApi.deleteSwimLog(date)
+            hcSyncPreferences.removePendingServerDelete(date)
+        } catch (e: retrofit2.HttpException) {
+            if (e.code() in 400..499) {
+                // 서버에 이미 없음 등 명시적 거부 — 재시도 무의미, 성공 취급
+                hcSyncPreferences.removePendingServerDelete(date)
+            } else {
+                hcSyncPreferences.addPendingServerDelete(date)
+                Timber.w(e, "서버 수영 기록 삭제 실패(재시도 예약): $date")
+                return
+            }
+        } catch (e: Exception) {
+            hcSyncPreferences.addPendingServerDelete(date)
+            Timber.w(e, "서버 수영 기록 삭제 실패(재시도 예약): $date")
+            return
+        }
+        // 잔여 세션이 있으면 일 집계를 다시 보고한다 (조개 재지급은 서버가 방지)
+        if (swimLogUseCase.getLogsForDate(date).isNotEmpty()) {
+            swimLogUseCase.markUnsynced(date)
+            pushUnsyncedDates()
+        }
     }
 
     /**
@@ -130,6 +185,8 @@ class HcSwimSyncer @Inject constructor(
     }
 
     private suspend fun upsert(session: SwimSession) {
+        // 앱에서 삭제한 세션은 재수입하지 않는다 — 토큰 만료 폴백/HC 수정 이벤트 부활 차단
+        if (session.hcRecordId in hcSyncPreferences.getDeletedHcRecordIds()) return
         try {
             swimLogUseCase.syncSwimLog(userSession.userId, session.toLog())
         } catch (e: Exception) {
@@ -223,7 +280,10 @@ class HcSwimSyncer @Inject constructor(
                 endDate = today.toString(),
             )
             if (response.success && response.data != null) {
+                // 서버 삭제가 아직 반영 안 된 날짜는 복원 대상에서 제외 (삭제 의도 보존)
+                val pendingDeletes = hcSyncPreferences.getPendingServerDeletes()
                 for (serverLog in response.data.items) {
+                    if (serverLog.date in pendingDeletes) continue
                     swimLogUseCase.saveFromServer(
                         SwimLog(
                             userId = userSession.userId,

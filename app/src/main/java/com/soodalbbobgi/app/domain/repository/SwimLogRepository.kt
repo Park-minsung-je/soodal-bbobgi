@@ -21,9 +21,13 @@ interface SwimLogRepository {
     suspend fun updateFromHc(id: Long, log: SwimLog)
     /** 그 날짜 모든 행을 서버 보고 완료(synced)로 표시한다. */
     suspend fun markSynced(date: String)
+    /** 그 날짜 모든 행을 미전송으로 되돌린다 — 세션 삭제 후 일 집계 재전송용. */
+    suspend fun markUnsynced(date: String)
     /** 서버 보고가 안 된 행이 있는 날짜 목록. */
     suspend fun getUnsyncedDates(): List<String>
     suspend fun deleteByDate(date: String)
+    /** 세션 행 하나를 삭제한다 — 캘린더의 세션 단위 삭제용. */
+    suspend fun deleteById(id: Long)
     suspend fun deleteByHcRecordId(hcRecordId: String)
     /** 모든 수영 기록 삭제 — 로그아웃/계정 탈퇴 시 로컬 정리용. */
     suspend fun deleteAll()

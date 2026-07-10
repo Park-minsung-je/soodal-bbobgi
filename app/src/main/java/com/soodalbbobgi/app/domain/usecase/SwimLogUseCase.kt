@@ -88,6 +88,9 @@ class SwimLogUseCase @Inject constructor(
     /** 그 날짜 모든 행을 서버 보고 완료(synced)로 표시한다. */
     suspend fun markSynced(date: String) = swimLogRepo.markSynced(date)
 
+    /** 그 날짜 모든 행을 미전송으로 되돌린다 — 세션 삭제 후 일 집계 재전송용. */
+    suspend fun markUnsynced(date: String) = swimLogRepo.markUnsynced(date)
+
     /** 서버 보고가 안 된 행이 있는 날짜 목록 — 동기화 때 재전송 대상. */
     suspend fun getUnsyncedDates(): List<String> = swimLogRepo.getUnsyncedDates()
 
@@ -105,6 +108,9 @@ class SwimLogUseCase @Inject constructor(
 
     /** 날짜로 로컬 수영 기록을 삭제한다. */
     suspend fun deleteByDate(date: String) = swimLogRepo.deleteByDate(date)
+
+    /** 세션 행 하나를 삭제한다 — 캘린더의 세션 단위 삭제용. */
+    suspend fun deleteById(id: Long) = swimLogRepo.deleteById(id)
 
     /** HC 레코드 UID로 로컬 수영 기록을 삭제한다. */
     suspend fun deleteByHcRecordId(hcRecordId: String) = swimLogRepo.deleteByHcRecordId(hcRecordId)

@@ -17,6 +17,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -124,6 +125,8 @@ fun CalendarScreen(
 
     // 영법 비율 수정 시트 — 어느 날의 어느 세션을 수정 중인지.
     var editTarget by remember { mutableStateOf<Pair<Int, SwimSessionData>?>(null) }
+    // 삭제 확인 다이얼로그 — 세션 카드 길게 누르기로 연다.
+    var deleteTarget by remember { mutableStateOf<Pair<Int, SwimSessionData>?>(null) }
     // 심박 그래프 펼침 상태 — 세션/날짜 간 공유(한 번 열면 다른 기록으로 넘어가도 유지).
     var hrChartExpanded by remember { mutableStateOf(false) }
     // 수동 입력 시트 대상 날짜 (null이면 닫힘) — 기록 없는 과거 날짜에서 연다.
@@ -247,6 +250,7 @@ fun CalendarScreen(
                 day = state.selectedDay,
                 data = state.selectedDay?.let { state.swimData[it] },
                 onEdit = { session -> state.selectedDay?.let { editTarget = it to session } },
+                onDelete = { session -> state.selectedDay?.let { deleteTarget = it to session } },
                 chartExpanded = hrChartExpanded,
                 onToggleChart = { hrChartExpanded = !hrChartExpanded },
                 onManualEntry = if (canManualEntry) ({ manualDay = state.selectedDay }) else null,
@@ -311,6 +315,24 @@ fun CalendarScreen(
         }
 
         // ── 조개 획득 팝업 (그 날 첫 기록 등록 시) ─────────────────────────────
+        // ── 세션 삭제 확인 ───────────────────────────────────────────────
+        if (deleteTarget != null) {
+            AppOverlay {
+                com.soodalbbobgi.app.presentation.settings.ConfirmActionDialog(
+                    title = "기록 삭제",
+                    message = "이 수영 기록을 삭제할까요?\n이미 받은 조개는 회수되지 않지만, 같은 날짜에 다시 기록해도 조개는 다시 지급되지 않아요.",
+                    confirmText = "삭제",
+                    working = false,
+                    errorMessage = null,
+                    onConfirm = {
+                        deleteTarget?.let { (day, session) -> viewModel.deleteSession(day, session.logId) }
+                        deleteTarget = null
+                    },
+                    onDismiss = { deleteTarget = null },
+                )
+            }
+        }
+
         if (shellReward > 0) {
             AppOverlay {
                 ShellRewardPopup(
@@ -651,6 +673,8 @@ private fun DayDetailCard(
     day: Int?,
     data: SwimDayData?,
     onEdit: (SwimSessionData) -> Unit,
+    /** 세션 삭제 요청 — 세션 블록 길게 누르기. */
+    onDelete: (SwimSessionData) -> Unit,
     chartExpanded: Boolean,
     onToggleChart: () -> Unit,
     /** 기록 없는 날의 수동 입력 열기 — null이면 버튼 숨김 (미래 날짜 등). */
@@ -730,6 +754,7 @@ private fun DayDetailCard(
                 SessionDetail(
                     session = session,
                     onEdit = { onEdit(session) },
+                    onDelete = { onDelete(session) },
                     chartExpanded = chartExpanded,
                     onToggleChart = onToggleChart,
                 )
@@ -792,11 +817,20 @@ private fun formatSessionTimeRange(startEpochSec: Long, durationSec: Int): Strin
 private fun SessionDetail(
     session: SwimSessionData,
     onEdit: () -> Unit,
+    /** 세션 삭제 요청 — 블록의 빈 영역을 길게 누르면 호출된다. */
+    onDelete: () -> Unit,
     chartExpanded: Boolean,
     onToggleChart: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            // 빈 영역 길게 누르기 = 삭제 확인 (버튼·차트 토글 등 자식 클릭과 충돌하지 않음)
+            .pointerInput(Unit) {
+                detectTapGestures(onLongPress = { onDelete() })
+            },
+    ) {
         // 거리 / 시간 / 칼로리
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             MetricCol("거리", formatNumber(session.distanceM), "m", colors.accentBlue)

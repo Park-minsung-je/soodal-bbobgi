@@ -81,12 +81,20 @@ interface SwimLogDao {
     @Query("UPDATE swim_logs SET synced = 1 WHERE date = :date")
     suspend fun markSynced(date: String)
 
+    /** 그 날짜 모든 행을 미전송으로 되돌린다 — 세션 삭제 후 일 집계 재전송용. */
+    @Query("UPDATE swim_logs SET synced = 0 WHERE date = :date")
+    suspend fun markUnsynced(date: String)
+
     /** 서버 보고가 안 된 행이 있는 날짜 목록 — 동기화 때 재전송 대상. */
     @Query("SELECT DISTINCT date FROM swim_logs WHERE synced = 0 ORDER BY date ASC")
     suspend fun getUnsyncedDates(): List<String>
 
     @Query("DELETE FROM swim_logs WHERE date = :date")
     suspend fun deleteByDate(date: String)
+
+    /** 세션 행 하나를 삭제한다 — 캘린더의 세션 단위 삭제용. */
+    @Query("DELETE FROM swim_logs WHERE id = :id")
+    suspend fun deleteById(id: Long)
 
     @Query("DELETE FROM swim_logs WHERE hcRecordId = :hcRecordId")
     suspend fun deleteByHcRecordId(hcRecordId: String)
