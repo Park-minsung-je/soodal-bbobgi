@@ -328,6 +328,22 @@ private fun SalvageScene(
                 ),
         )
 
+        // ── 인양 진행률 (닻 내리기 → 감아올리기) — 룰렛의 중앙 상자 핸드오프와 공유 ──
+        val reel = remember { Animatable(0f) }
+        LaunchedEffect(phase, risingBox) {
+            if (phase == GachaPhase.Reeling && risingBox != null) {
+                reel.snapTo(0f)
+                reel.animateTo(1f, tween(REEL_DURATION_MS.toInt(), easing = LinearEasing))
+            } else if (phase == GachaPhase.Idle) {
+                reel.snapTo(0f)
+            }
+        }
+        val reeling = phase != GachaPhase.Idle && phase != GachaPhase.Spinning && risingBox != null
+        val reelP = if (phase == GachaPhase.Reeling) reel.value else 1f
+        // 닻이 상자에 닿아 걸리는 구간(0.18~0.28) — 인양 상자 페이드 인과
+        // 룰렛 중앙 상자 페이드 아웃이 같은 값으로 교차해 하나가 이어지는 것처럼 보인다.
+        val attachT = ((reelP - 0.18f) / 0.10f).coerceIn(0f, 1f)
+
         // ── 심해를 떠다니는 상자 줄 (룰렛) ──
         val stripAlpha by animateFloatAsState(
             targetValue = if (phase == GachaPhase.Idle || phase == GachaPhase.Spinning) 1f else 0.32f,
@@ -341,7 +357,7 @@ private fun SalvageScene(
         if (boxes.isNotEmpty()) {
             val slotW = ITEM_WIDTH_WITH_GAP
             val visibleSlots = (centerX / slotW).toInt() + 2
-            Box(Modifier.fillMaxSize().alpha(stripAlpha)) {
+            Box(Modifier.fillMaxSize()) {
                 for (di in -visibleSlots..visibleSlots) {
                     val i = ((offset / slotW).roundToInt()) + di
                     val boxIndex = ((i % boxes.size) + boxes.size) % boxes.size
@@ -349,12 +365,18 @@ private fun SalvageScene(
                     val x = centerX + (i * slotW - offset) - CHEST_W / 2f
                     val bobY = sin(bobT + boxIndex * 1.3f) * 2.5f
                     val bobRot = sin(bobT + boxIndex * 1.3f) * 1.2f
+                    // 중앙(멈춘) 상자는 딤 없이 유지하다가 닻이 걸리는 순간 사라진다 —
+                    // 같은 자리에서 페이드 인하는 인양 상자가 이어받아 "그 상자가 올라가는" 연출.
+                    val itemAlpha = if (reeling && di == 0) 1f - attachT else stripAlpha
 
                     Box(
                         Modifier
                             .offset(x = x.dp, y = (CHEST_CY - CHEST_W / 2f + bobY).dp)
                             .size(CHEST_W.dp)
-                            .graphicsLayer { rotationZ = bobRot },
+                            .graphicsLayer {
+                                rotationZ = bobRot
+                                alpha = itemAlpha
+                            },
                         contentAlignment = Alignment.Center,
                     ) {
                         if (!box.iconAsset.isNullOrBlank()) {
@@ -387,18 +409,6 @@ private fun SalvageScene(
                 .background(Brush.horizontalGradient(listOf(Color.Transparent, edgeColor))),
         )
 
-        // ── 인양 진행률 (닻 내리기 → 감아올리기) ──
-        val reel = remember { Animatable(0f) }
-        LaunchedEffect(phase, risingBox) {
-            if (phase == GachaPhase.Reeling && risingBox != null) {
-                reel.snapTo(0f)
-                reel.animateTo(1f, tween(REEL_DURATION_MS.toInt(), easing = LinearEasing))
-            } else if (phase == GachaPhase.Idle) {
-                reel.snapTo(0f)
-            }
-        }
-        val reeling = phase != GachaPhase.Idle && phase != GachaPhase.Spinning && risingBox != null
-
         // ── 수달 배치 기하 — 손 좌표 계산과 아래 수달 그리기가 공유한다 ──
         val otterH = 92f
         val otterScale = otterH / 365f          // 원본 px → dp
@@ -413,7 +423,6 @@ private fun SalvageScene(
         // ── 닻 위치: 손(대기) → 상자(내리기) → 수면 위(감아올리기) ──
         // 평소엔 수달이 닻을 들고 있고(이미지에 포함) 물밑엔 아무것도 없다.
         // 인양이 시작되면 닻 없는 수달로 바꾸고, 손에서 출발한 닻을 합성해 움직인다.
-        val reelP = if (phase == GachaPhase.Reeling) reel.value else 1f
         val anchorPos = if (!reeling) {
             Offset(handX, handY)
         } else if (reelP < REEL_DROP_FRAC) {
@@ -483,9 +492,8 @@ private fun SalvageScene(
             }
         }
 
-        // ── 닻에 걸려 올라오는 상자 ──
+        // ── 닻에 걸려 올라오는 상자 ── (attachT에 맞춰 페이드 인 — 룰렛 중앙 상자와 교차)
         if (reeling && risingBox != null) {
-            val attachT = ((reelP - 0.18f) / 0.10f).coerceIn(0f, 1f) // 닻이 닿을 즈음 페이드 인
             val liftT = ((reelP - REEL_DROP_FRAC) / (1f - REEL_DROP_FRAC)).coerceIn(0f, 1f)
             val chestScale = lerp(1f, 1.15f, liftT)
             val wiggle = sin(reelP * 18f) * (1f - liftT) * 2.2f
