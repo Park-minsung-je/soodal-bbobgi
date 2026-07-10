@@ -244,12 +244,13 @@ fun BoxScope.GlassSheen(shape: Shape) {
             Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .height(if (colors.isDark) 5.dp else 7.dp)
+                // 살짝 더 도드라지게 — 예전(과하던 시절)보다는 낮고, 직전(0.42/7dp)보다는 한 단계 위.
+                .height(if (colors.isDark) 7.dp else 10.dp)
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            Color.White.copy(alpha = if (colors.isDark) 0.14f else 0.42f),
-                            Color.White.copy(alpha = if (colors.isDark) 0.04f else 0.10f),
+                            Color.White.copy(alpha = if (colors.isDark) 0.18f else 0.52f),
+                            Color.White.copy(alpha = if (colors.isDark) 0.06f else 0.14f),
                             Color.Transparent,
                         ),
                     ),
