@@ -381,16 +381,22 @@ private fun DirectItemCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            // 보유 판정은 인벤토리 기준(owned) — 뽑기로 얻은 아이템도 보유 중으로 표시된다
-            if (item.owned) {
-                Text(
-                    text = "보유 중",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colors.success,
-                )
-            } else {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            // 보유 판정은 인벤토리 기준(owned) — 뽑기로 얻은 아이템도 보유 중으로 표시된다.
+            // 아이템은 1인 1개라 재고 라벨은 두지 않고, 보유 중 표시를 가격 행과 같은 높이로
+            // 맞춰 카드 높이가 보유 여부와 무관하게 일정하도록 한다.
+            Row(
+                modifier = Modifier.height(18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                if (item.owned) {
+                    Text(
+                        text = "보유 중",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.success,
+                    )
+                } else {
                     SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 11.dp)
                     Text(
                         text = "${item.price}",
@@ -399,15 +405,8 @@ private fun DirectItemCard(
                         color = colors.accentPurple,
                     )
                 }
-                limitLabel(item)?.let { label ->
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = label,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colors.textTertiary,
-                    )
-                }
+            }
+            if (!item.owned) {
                 saleRemainingLabel(item.endAt)?.let { label ->
                     Spacer(Modifier.height(2.dp))
                     Text(
