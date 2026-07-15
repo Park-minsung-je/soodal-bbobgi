@@ -25,6 +25,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +34,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -108,6 +111,14 @@ fun ManualEntrySheet(
     var flyText by remember { mutableStateOf("") }
     var kickText by remember { mutableStateOf("") }
     var step by remember { mutableIntStateOf(1) }
+    // 2단계 첫 인풋(자유형) 포커스 — [다음] 직후 포커스를 바로 이어받아
+    // 키보드가 내려갔다 올라오는 레이아웃 점프(오터치로 시트가 닫히는 원인)를 막는다.
+    val strokeFocus = remember { FocusRequester() }
+    LaunchedEffect(step) {
+        if (step == 2) {
+            runCatching { strokeFocus.requestFocus() }
+        }
+    }
 
     val distance = distanceText.toIntOrNull() ?: 0
     val duration = durationText.toIntOrNull() ?: 0
@@ -183,6 +194,7 @@ fun ManualEntrySheet(
                     StepStrokes(
                         dragModifier = dragModifier,
                         distance = distance,
+                        firstFieldFocus = strokeFocus,
                         freeText = freeText, onFree = { freeText = it },
                         breastText = breastText, onBreast = { breastText = it },
                         backText = backText, onBack = { backText = it },
@@ -256,6 +268,8 @@ private fun StepBasics(
 private fun StepStrokes(
     dragModifier: Modifier,
     distance: Int,
+    /** 첫 인풋(자유형)에 부착할 포커스 — 단계 진입 즉시 포커스를 받아 키보드를 유지한다. */
+    firstFieldFocus: FocusRequester,
     freeText: String, onFree: (String) -> Unit,
     breastText: String, onBreast: (String) -> Unit,
     backText: String, onBack: (String) -> Unit,
@@ -293,7 +307,7 @@ private fun StepStrokes(
             Spacer(Modifier.height(16.dp))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            NumberField(Modifier.weight(1f), "자유형", freeText, "m", onChange = onFree)
+            NumberField(Modifier.weight(1f), "자유형", freeText, "m", focusRequester = firstFieldFocus, onChange = onFree)
             NumberField(Modifier.weight(1f), "평영", breastText, "m", onChange = onBreast)
             NumberField(Modifier.weight(1f), "배영", backText, "m", onChange = onBack)
         }
@@ -377,6 +391,8 @@ private fun NumberField(
     isError: Boolean = false,
     placeholder: String = "0",
     visualTransformation: VisualTransformation = VisualTransformation.None,
+    /** 외부에서 포커스를 넘겨줄 때 사용 — 단계 전환 시 키보드를 유지한다. */
+    focusRequester: FocusRequester? = null,
     onChange: (String) -> Unit,
 ) {
     Column(
@@ -402,7 +418,13 @@ private fun NumberField(
                 singleLine = true,
                 cursorBrush = SolidColor(Color(0xFF38BDF8)),
                 visualTransformation = visualTransformation,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .then(
+                        if (focusRequester != null) {
+                            Modifier.focusRequester(focusRequester)
+                        } else Modifier,
+                    ),
                 decorationBox = { inner ->
                     Box {
                         if (value.isEmpty()) {
