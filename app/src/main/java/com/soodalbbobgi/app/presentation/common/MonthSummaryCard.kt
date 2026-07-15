@@ -52,11 +52,13 @@ fun strokeTextColorOf(name: String): Color = when (name) {
 
 /**
  * 월 수영 요약 카드 — 월/델타% 헤더 + 문장(주력 영법 포함) + 지난달 2줄 비교.
- * 홈(현재 달)과 캘린더(선택한 달)가 공유한다.
+ *
+ * 비교 기준은 지난달 '같은 기간'(1일~오늘 일자) 페이스다 — 진행 중인 달을 지난달
+ * 전체와 비교하면 월 중반엔 항상 뒤처져 보이기 때문. (기간 산출은 호출 측 담당)
  *
  * @param monthLabel 헤더 좌측 라벨 (예: "6월")
  * @param subjectLabel 문장 주어 (현재 달이면 "이번 달", 과거 달이면 "6월" 등)
- * @param lastMonthDistance 비교 기준 전월 거리(m). 0이면 델타% 미표시
+ * @param lastMonthDistance 비교 기준 지난달 같은 기간 거리(m). 0이면 델타% 미표시
  */
 @Composable
 fun MonthSummaryCard(
@@ -131,7 +133,7 @@ fun MonthSummaryCard(
             Spacer(Modifier.height(14.dp))
             Box(Modifier.fillMaxWidth().height(1.dp).background(colors.glassBorder))
             Spacer(Modifier.height(12.dp))
-            Text("지난달보다", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
+            Text("지난달 이맘때보다", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
             Spacer(Modifier.height(6.dp))
             Text(
                 text = buildAnnotatedString {

@@ -45,7 +45,7 @@ data class HomeUiState(
     val todayMaxHr: Int? = null,
     val todayMinHr: Int? = null,
     val todayAvgHr: Int? = null,
-    /** 지난달 통계 (이번달 비교용). */
+    /** 지난달 '같은 기간'(1일~오늘 일자) 통계 — 진행 중인 이번 달과 페이스 비교용. */
     val lastMonthDistance: Int = 0,
     val lastMonthSessions: Int = 0,
     val lastMonthKcal: Int = 0,
@@ -142,7 +142,12 @@ class HomeViewModel @Inject constructor(
         val todayDate = LocalDate.now()
         // 하루 여러 세션 가능 — 오늘 요약은 세션 합계로 표시
         val todayLogs = recentLogs.filter { it.date == todayDate.toString() }
-        val lastMonth = swimLogUseCase.getMonthStats(lastMonthStart(), lastMonthEnd())
+        // 이번 달은 진행 중이므로 지난달 전체가 아니라 '같은 기간'(1일~오늘 일자)의
+        // 페이스와 비교한다 — 월 중반에 항상 뒤처져 보이는 왜곡 방지.
+        val lastMonth = swimLogUseCase.getMonthStats(
+            lastMonthStart(),
+            lastMonthSamePeriodEnd(todayDate).toString(),
+        )
         val monthLogs = recentLogs.filter { it.date >= monthStart() && it.date <= monthEnd() }
         val topStroke = listOf(
             "자유형" to monthLogs.sumOf { it.strokeFreestyleM },
@@ -303,7 +308,6 @@ class HomeViewModel @Inject constructor(
     private fun monthStart(): String = YearMonth.now().atDay(1).toString()
     private fun monthEnd(): String = YearMonth.now().atEndOfMonth().toString()
     private fun lastMonthStart(): String = YearMonth.now().minusMonths(1).atDay(1).toString()
-    private fun lastMonthEnd(): String = YearMonth.now().minusMonths(1).atEndOfMonth().toString()
 
     /** 오늘 세션의 영법 분배를 로컬에 저장한다. */
     fun saveStrokes(logId: Long, free: Int, breast: Int, back: Int, fly: Int, kick: Int, mixed: Int) {
