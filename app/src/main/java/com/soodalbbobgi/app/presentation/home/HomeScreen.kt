@@ -78,6 +78,7 @@ import com.soodalbbobgi.app.presentation.profile.EditorSheet
 import com.soodalbbobgi.app.presentation.profile.ProfileCardBounds
 import com.soodalbbobgi.app.presentation.profile.ProfileCardComposite
 import com.soodalbbobgi.app.presentation.profile.ProfileEditorViewModel
+import kotlinx.coroutines.delay
 
 private fun Int.formatNumber(): String = String.format("%,d", this)
 
@@ -197,76 +198,92 @@ fun HomeScreen(
             Spacer(Modifier.height(10.dp))
 
             // ── Profile Card ────────────────────────────────────
-            // 편집 중이면 편집값(미저장)으로, 아니면 저장값으로 카드를 그린다. 카드 위치는 고정.
+            // 합성 카드(저장값)는 항상 아래에 깔아두고, 편집 중에는 GPU 프리뷰(편집값)를 위에
+            // 겹친다. 컴포저블을 통째로 교체하면 새로 마운트된 쪽이 준비될 때까지 빈 프레임이
+            // 보이므로(깜빡임), 프리뷰는 시트가 닫혀도 합성이 최신 저장값을 그려낼 때까지 유지한다.
             // (테두리 레이어는 보류 — frame 에셋을 전달하지 않는다)
-            val cardLayers: CardLayers
-            val cardBgAsset: String?
-            val cardCharAsset: String?
-            if (editorOpen) {
-                cardLayers = CardLayers(
-                    nickname = editorState.nickname,
-                    tagline = editorState.customText.ifEmpty { editorState.taglineFallback },
-                    stats = editorState.statsText,
-                    charX = editorState.charX,
-                    charY = editorState.charY,
-                    charScale = editorState.charScale,
-                    nicknameStyle = editorState.nicknameEl.style,
-                    taglineStyle = editorState.taglineEl.style,
-                    statsStyle = editorState.statsEl.style,
-                    nicknameOutline = editorState.nicknameEl.outline,
-                    taglineOutline = editorState.taglineEl.outline,
-                    statsOutline = editorState.statsEl.outline,
-                    showNickname = editorState.nicknameEl.show,
-                    nicknameX = editorState.nicknameEl.x, nicknameY = editorState.nicknameEl.y,
-                    nicknameScaleStep = editorState.nicknameEl.scaleStep,
-                    showTagline = editorState.taglineEl.show,
-                    taglineX = editorState.taglineEl.x, taglineY = editorState.taglineEl.y,
-                    taglineScaleStep = editorState.taglineEl.scaleStep,
-                    showStats = editorState.statsEl.show,
-                    statsX = editorState.statsEl.x, statsY = editorState.statsEl.y,
-                    statsScaleStep = editorState.statsEl.scaleStep,
-                    nicknamePill = editorState.nicknameEl.pill,
-                    taglinePill = editorState.taglineEl.pill,
-                    statsPill = editorState.statsEl.pill,
-                    nicknameColor = editorState.nicknameEl.color,
-                    taglineColor = editorState.taglineEl.color,
-                    statsColor = editorState.statsEl.color,
-                )
-                cardBgAsset = editorState.bgItems.firstOrNull { it.isSelected }?.imageAsset
-                cardCharAsset = editorState.charItems.firstOrNull { it.isSelected }?.imageAsset
-            } else {
-                val saved = state.card
-                cardLayers = CardLayers(
-                    nickname = state.cardNickname,
-                    tagline = state.cardTagline,
-                    stats = state.cardStats,
-                    charX = state.cardCharX,
-                    charY = state.cardCharY,
-                    charScale = state.cardCharScale,
-                    nicknameStyle = saved?.nicknameStyle ?: "REGULAR",
-                    taglineStyle = saved?.taglineStyle ?: "REGULAR",
-                    statsStyle = saved?.statsStyle ?: "REGULAR",
-                    nicknameOutline = saved?.nicknameOutline ?: false,
-                    taglineOutline = saved?.taglineOutline ?: false,
-                    statsOutline = saved?.statsOutline ?: false,
-                    showNickname = saved?.showNickname ?: true,
-                    nicknameX = saved?.nicknameX ?: 0.83f, nicknameY = saved?.nicknameY ?: 0.40f,
-                    nicknameScaleStep = saved?.nicknameScaleStep ?: 3,
-                    showTagline = saved?.showTagline ?: true,
-                    taglineX = saved?.taglineX ?: 0.83f, taglineY = saved?.taglineY ?: 0.57f,
-                    taglineScaleStep = saved?.taglineScaleStep ?: 3,
-                    showStats = saved?.showStats ?: true,
-                    statsX = saved?.statsX ?: 0.16f, statsY = saved?.statsY ?: 0.90f,
-                    statsScaleStep = saved?.statsScaleStep ?: 3,
-                    nicknamePill = saved?.nicknamePill ?: "WHITE",
-                    taglinePill = saved?.taglinePill ?: "NONE",
-                    statsPill = saved?.statsPill ?: "BLUR",
-                    nicknameColor = saved?.nicknameColor ?: "#FFFFFF",
-                    taglineColor = saved?.taglineColor ?: "#FFFFFF",
-                    statsColor = saved?.statsColor ?: "#00F5FF",
-                )
-                cardBgAsset = state.cardBgAsset
-                cardCharAsset = state.cardCharAsset
+            val editLayers = CardLayers(
+                nickname = editorState.nickname,
+                tagline = editorState.customText.ifEmpty { editorState.taglineFallback },
+                stats = editorState.statsText,
+                charX = editorState.charX,
+                charY = editorState.charY,
+                charScale = editorState.charScale,
+                nicknameStyle = editorState.nicknameEl.style,
+                taglineStyle = editorState.taglineEl.style,
+                statsStyle = editorState.statsEl.style,
+                nicknameOutline = editorState.nicknameEl.outline,
+                taglineOutline = editorState.taglineEl.outline,
+                statsOutline = editorState.statsEl.outline,
+                showNickname = editorState.nicknameEl.show,
+                nicknameX = editorState.nicknameEl.x, nicknameY = editorState.nicknameEl.y,
+                nicknameScaleStep = editorState.nicknameEl.scaleStep,
+                showTagline = editorState.taglineEl.show,
+                taglineX = editorState.taglineEl.x, taglineY = editorState.taglineEl.y,
+                taglineScaleStep = editorState.taglineEl.scaleStep,
+                showStats = editorState.statsEl.show,
+                statsX = editorState.statsEl.x, statsY = editorState.statsEl.y,
+                statsScaleStep = editorState.statsEl.scaleStep,
+                nicknamePill = editorState.nicknameEl.pill,
+                taglinePill = editorState.taglineEl.pill,
+                statsPill = editorState.statsEl.pill,
+                nicknameColor = editorState.nicknameEl.color,
+                taglineColor = editorState.taglineEl.color,
+                statsColor = editorState.statsEl.color,
+            )
+            val editBgAsset = editorState.bgItems.firstOrNull { it.isSelected }?.imageAsset
+            val editCharAsset = editorState.charItems.firstOrNull { it.isSelected }?.imageAsset
+
+            val saved = state.card
+            val savedLayers = CardLayers(
+                nickname = state.cardNickname,
+                tagline = state.cardTagline,
+                stats = state.cardStats,
+                charX = state.cardCharX,
+                charY = state.cardCharY,
+                charScale = state.cardCharScale,
+                nicknameStyle = saved?.nicknameStyle ?: "REGULAR",
+                taglineStyle = saved?.taglineStyle ?: "REGULAR",
+                statsStyle = saved?.statsStyle ?: "REGULAR",
+                nicknameOutline = saved?.nicknameOutline ?: false,
+                taglineOutline = saved?.taglineOutline ?: false,
+                statsOutline = saved?.statsOutline ?: false,
+                showNickname = saved?.showNickname ?: true,
+                nicknameX = saved?.nicknameX ?: 0.83f, nicknameY = saved?.nicknameY ?: 0.40f,
+                nicknameScaleStep = saved?.nicknameScaleStep ?: 3,
+                showTagline = saved?.showTagline ?: true,
+                taglineX = saved?.taglineX ?: 0.83f, taglineY = saved?.taglineY ?: 0.57f,
+                taglineScaleStep = saved?.taglineScaleStep ?: 3,
+                showStats = saved?.showStats ?: true,
+                statsX = saved?.statsX ?: 0.16f, statsY = saved?.statsY ?: 0.90f,
+                statsScaleStep = saved?.statsScaleStep ?: 3,
+                nicknamePill = saved?.nicknamePill ?: "WHITE",
+                taglinePill = saved?.taglinePill ?: "NONE",
+                statsPill = saved?.statsPill ?: "BLUR",
+                nicknameColor = saved?.nicknameColor ?: "#FFFFFF",
+                taglineColor = saved?.taglineColor ?: "#FFFFFF",
+                statsColor = saved?.statsColor ?: "#00F5FF",
+            )
+
+            // 합성 카드가 '현재 저장값'을 실제로 그리고 있는지 — 프리뷰를 내릴 타이밍의 근거.
+            var compositeUpToDate by remember { mutableStateOf(false) }
+            // 편집 프리뷰 표시 여부: 열리면 즉시 켜고, 닫힌 뒤에는 합성이 프리뷰와 같은 값을
+            // 그려낼 때까지 유지한다 — 저장 직후 저장값 전파가 늦어도 옛 카드가 비치지 않는다.
+            var showEditorPreview by remember { mutableStateOf(false) }
+            val layersMatch = savedLayers == editLayers &&
+                state.cardBgAsset == editBgAsset && state.cardCharAsset == editCharAsset
+            LaunchedEffect(editorOpen, compositeUpToDate, layersMatch) {
+                when {
+                    editorOpen -> showEditorPreview = true
+                    !showEditorPreview -> {}
+                    compositeUpToDate && layersMatch -> showEditorPreview = false
+                    else -> {
+                        // 저장값 파생 텍스트가 프리뷰와 끝내 일치하지 않는 예외 상황에서도
+                        // 프리뷰가 눌러앉지 않도록, 유예 후에는 합성 준비만 확인하고 내린다.
+                        delay(600)
+                        if (compositeUpToDate) showEditorPreview = false
+                    }
+                }
             }
 
             // 프로필 카드 — 공용 GlassBox 프레임(sheen·코너·그림자 통일). 내부 카드가 실제 아트.
@@ -295,20 +312,22 @@ fun HomeScreen(
                             onClick = onOpenFullscreen,
                         ),
                 ) {
-                    if (editorOpen) {
-                        // 편집 중엔 비트맵 재합성 없이 GPU 레이어로 그린다 — 슬라이더가 프레임 단위로 따라온다.
-                        // (BLUR 칩만 프로스트 폴백으로 보이고, 저장하면 진짜 블러로 합성된다)
+                    // 합성 카드(저장값) — 항상 마운트해 둔다. produceState가 직전 비트맵을
+                    // 유지하므로 저장값이 바뀌어도 빈 프레임 없이 새 카드로 이어진다.
+                    ProfileCardComposite(
+                        layers = savedLayers,
+                        bgAsset = state.cardBgAsset,
+                        charAsset = state.cardCharAsset,
+                        modifier = Modifier.fillMaxWidth(),
+                        onUpToDateChange = { compositeUpToDate = it },
+                    )
+                    if (showEditorPreview) {
+                        // 편집 중엔 비트맵 재합성 없이 GPU 레이어(오버레이)로 그린다 — 슬라이더가
+                        // 프레임 단위로 따라온다. (BLUR 칩만 프로스트 폴백, 저장하면 진짜 블러)
                         EditorCardPreview(
-                            layers = cardLayers,
-                            bgAsset = cardBgAsset,
-                            charAsset = cardCharAsset,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    } else {
-                        ProfileCardComposite(
-                            layers = cardLayers,
-                            bgAsset = cardBgAsset,
-                            charAsset = cardCharAsset,
+                            layers = editLayers,
+                            bgAsset = editBgAsset,
+                            charAsset = editCharAsset,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
