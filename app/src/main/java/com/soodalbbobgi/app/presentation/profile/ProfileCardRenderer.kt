@@ -2,6 +2,7 @@ package com.soodalbbobgi.app.presentation.profile
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
@@ -127,7 +128,9 @@ object ProfileCardRenderer {
     fun render(layers: CardLayers): Bitmap {
         val bitmap = Bitmap.createBitmap(CARD_WIDTH, CARD_HEIGHT, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        val paint = Paint().apply { isAntiAlias = false; isFilterBitmap = false }
+        // 에셋이 도트아트에서 일반 래스터로 전환됨 — 필터링(bilinear)을 켜야
+        // 배율이 안 맞는 축소/확대에서 경계가 계단지지 않는다.
+        val paint = Paint().apply { isAntiAlias = true; isFilterBitmap = true }
 
         // 이미지 레이어가 하나도 없으면(카드 데이터/에셋 로딩 전) 흰 베이스+텍스트만 그려져
         // 카드가 흰색으로 깜빡인다. 특히 produceState는 새 합성이 끝날 때까지 이 흰 결과를
@@ -164,6 +167,20 @@ object ProfileCardRenderer {
                 centerX + charSize / 2f,
                 centerY + charSize / 2f,
             )
+            // 캐릭터 그림자 — 실루엣(알파)을 블러+아래 오프셋으로 깔아 배경에서 살짝 떠 보이게.
+            // 약한 강도(알파 60)로 시안의 부유감을 낸다. 렌더는 캐시되므로 합성당 1회 비용.
+            val scale = CARD_WIDTH / TEXT_REF_WIDTH
+            val shadowPaint = Paint().apply {
+                isAntiAlias = true
+                isFilterBitmap = true
+                color = android.graphics.Color.argb(60, 0, 0, 0)
+                maskFilter = BlurMaskFilter(14f * scale, BlurMaskFilter.Blur.NORMAL)
+            }
+            val silhouette = layers.charBitmap.extractAlpha()
+            val shadowDst = RectF(dst).apply { offset(0f, 11f * scale) }
+            canvas.drawBitmap(silhouette, null, shadowDst, shadowPaint)
+            silhouette.recycle()
+
             canvas.drawBitmap(layers.charBitmap, null, dst, paint)
         }
 
