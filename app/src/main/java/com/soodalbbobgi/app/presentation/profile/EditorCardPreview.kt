@@ -44,11 +44,18 @@ fun EditorCardPreview(
     val bgBitmap = rememberAssetBitmap(bgAsset) ?: layers.bgBitmap
     val charBitmap = rememberAssetBitmap(charAsset) ?: layers.charBitmap
 
+    // 에셋 경로가 있는데 비트맵이 아직 로딩 전이면 아무것도 그리지 않는다(투명 유지).
+    // 이 프리뷰는 홈에서 항상 합성 카드 위에 겹쳐지므로, 로딩 전 흰 베이스가 아래 카드를
+    // 덮어 흰 깜빡임을 만들지 않고 아래 카드가 그대로 비쳐 보이게 한다.
+    val assetPending = (!bgAsset.isNullOrBlank() && bgBitmap == null) ||
+        (!charAsset.isNullOrBlank() && charBitmap == null)
+
     BoxWithConstraints(
         modifier
             .fillMaxWidth()
             .aspectRatio(ProfileCardRenderer.CARD_WIDTH.toFloat() / ProfileCardRenderer.CARD_HEIGHT.toFloat()),
     ) {
+        if (assetPending) return@BoxWithConstraints
         val density = LocalDensity.current
         val widthPx = with(density) { maxWidth.toPx() }
         val heightPx = with(density) { maxHeight.toPx() }

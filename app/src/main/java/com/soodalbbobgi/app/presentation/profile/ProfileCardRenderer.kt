@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -658,6 +659,11 @@ fun ProfileCardComposite(
      * 화질 차이는 보이지 않는다.
      */
     resolutionScale: Float = 1f,
+    /**
+     * 현재 입력(layers/에셋)에 해당하는 비트맵을 실제로 표시 중인지 알림.
+     * 홈 카드가 편집 프리뷰 오버레이를 내릴 타이밍(합성 준비 완료) 판단에 쓴다.
+     */
+    onUpToDateChange: ((Boolean) -> Unit)? = null,
 ) {
     val bgBitmap = rememberAssetBitmap(bgAsset) ?: layers.bgBitmap
     val charBitmap = rememberAssetBitmap(charAsset) ?: layers.charBitmap
@@ -695,6 +701,14 @@ fun ProfileCardComposite(
         .fillMaxWidth()
         .aspectRatio(ProfileCardRenderer.CARD_WIDTH.toFloat() / ProfileCardRenderer.CARD_HEIGHT.toFloat())
     val current = bitmap
+
+    // 표시 중인 비트맵이 현재 입력의 합성 결과와 동일 인스턴스인지로 최신 여부를 판정한다.
+    // (produceState는 키가 바뀌어도 직전 비트맵을 유지하므로 null 아님만으로는 부족)
+    val upToDate = current != null && hasAnyImage && !assetPending &&
+        ProfileCardRenderer.peek(finalLayers, resolutionScale) === current
+    val onUpToDate by rememberUpdatedState(onUpToDateChange)
+    LaunchedEffect(upToDate) { onUpToDate?.invoke(upToDate) }
+
     if (current != null && hasAnyImage && !assetPending) {
         Image(
             bitmap = current.asImageBitmap(),
