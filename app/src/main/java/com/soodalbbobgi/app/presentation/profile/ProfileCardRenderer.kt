@@ -101,6 +101,45 @@ object ProfileCardRenderer {
     private const val PILL_PAD_H = 0.80f
     private const val PILL_PAD_V = 0.45f
 
+    // 텍스트 요소 기준 크기(px, 1472폭 기준) — 카드 합성과 GPU 프리뷰가 공유한다.
+    const val NICKNAME_BASE_SIZE = 60f
+    const val TAGLINE_BASE_SIZE = 32f
+    const val STATS_BASE_SIZE = 30f
+
+    // 캐릭터 부유 그림자(엘리베이션) 파라미터 — 캐릭터 크기 대비 비율.
+    /** 실루엣 블러가 밖으로 번질 여유 (소스 크기 대비) — 블러 반경도 이 값에 비례한다. */
+    const val SHADOW_MARGIN_FRAC = 0.07f
+    /** 그림자 세로 오프셋 — 살짝 아래로 떨어져 부유감을 만든다. */
+    const val SHADOW_OFFSET_FRAC = 0.035f
+    /** 그림자 진하기 (0~255). */
+    private const val SHADOW_ALPHA = 60
+
+    // 캐릭터 비트맵 → 블러 실루엣 그림자 캐시. 같은 캐릭터면 재계산하지 않는다.
+    private val shadowCache = LruMemoizer<Bitmap, Bitmap>(maxSize = 6)
+
+    /**
+     * 캐릭터 비트맵의 부유 그림자(크게 블러된 실루엣)를 만든다 — 카드 합성과 GPU 프리뷰 공용.
+     * 결과 비트맵은 소스보다 사방 [SHADOW_MARGIN_FRAC]만큼 큰 캔버스에 그려진다
+     * (배치 시 같은 비율로 확장해서 그리면 스케일이 일치한다).
+     *
+     * @param src 캐릭터 비트맵 (투명 배경 전제)
+     */
+    fun elevationShadowOf(src: Bitmap): Bitmap = shadowCache.getOrPut(src) { bmp ->
+        val margin = (bmp.width * SHADOW_MARGIN_FRAC).toInt().coerceAtLeast(8)
+        val out = Bitmap.createBitmap(bmp.width + margin * 2, bmp.height + margin * 2, Bitmap.Config.ARGB_8888)
+        val c = Canvas(out)
+        val silhouette = bmp.extractAlpha()
+        val p = Paint().apply {
+            isAntiAlias = true
+            color = android.graphics.Color.argb(SHADOW_ALPHA, 0, 0, 0)
+            // 반경을 마진에 맞춰 크게 — 캐릭터 모양이 은은하게 뭉개져 elevation처럼 읽힌다
+            maskFilter = BlurMaskFilter(margin * 0.85f, BlurMaskFilter.Blur.NORMAL)
+        }
+        c.drawBitmap(silhouette, margin.toFloat(), margin.toFloat(), p)
+        silhouette.recycle()
+        out
+    }
+
     // 텍스트·워터마크 px는 원래 1472폭 기준으로 튜닝됐다. 카드 해상도가 바뀌어도
     // 화면상 크기가 유지되도록 기준폭(1472) 대비 배율(u)로 환산해 그린다.
     private const val TEXT_REF_WIDTH = 1472f
@@ -177,21 +216,15 @@ object ProfileCardRenderer {
                 centerX + charSize / 2f,
                 centerY + charSize / 2f,
             )
-            // 캐릭터 발밑 타원 그림자 — 부드럽게 퍼지는 캡슐형으로 배경에서 살짝 떠 보이게.
-            // (실루엣 그림자 대신 — 모양 독립적이고 합성 비용도 훨씬 싸다)
-            val su = CARD_WIDTH / TEXT_REF_WIDTH
-            val shadowHalfW = charSize * 0.34f
-            val shadowHalfH = charSize * 0.055f
-            val shadowCy = dst.bottom - charSize * 0.015f
-            val shadowPaint = Paint().apply {
-                isAntiAlias = true
-                color = android.graphics.Color.argb(55, 0, 0, 0)
-                maskFilter = BlurMaskFilter(16f * su, BlurMaskFilter.Blur.NORMAL)
+            // 캐릭터 부유 그림자(엘리베이션) — 실루엣을 크게 블러해 캐릭터가 배경에서
+            // 살짝 떠 보이게 강조한다. 블러 비트맵은 캐릭터 비트맵 단위로 캐시(합성마다 재계산 없음).
+            val shadow = elevationShadowOf(layers.charBitmap)
+            val expand = charSize * SHADOW_MARGIN_FRAC
+            val shadowDst = RectF(dst).apply {
+                inset(-expand, -expand)
+                offset(0f, charSize * SHADOW_OFFSET_FRAC)
             }
-            canvas.drawOval(
-                RectF(centerX - shadowHalfW, shadowCy - shadowHalfH, centerX + shadowHalfW, shadowCy + shadowHalfH),
-                shadowPaint,
-            )
+            canvas.drawBitmap(shadow, null, shadowDst, paint)
 
             canvas.drawBitmap(layers.charBitmap, null, dst, paint)
         }
@@ -202,150 +235,9 @@ object ProfileCardRenderer {
         }
 
         // Layer 4: 이름표 — 디자인 신구조: 흰 알약(닉네임) + 아래 소개 텍스트.
-        // 글꼴 스타일은 요소별 값을 그릴 때마다 textPaint에 적용한다.
-        fun typefaceOf(style: String): Typeface = when (style) {
-            "BOLD" -> Typeface.DEFAULT_BOLD
-            "ITALIC" -> Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
-            "BOLD_ITALIC" -> Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC)
-            else -> Typeface.DEFAULT
-        }
-        val textPaint = Paint().apply {
-            isAntiAlias = true
-        }
-
-        // 카드 해상도 대비 텍스트 크기 보정 — 기준폭 1472 대비 현재 폭 비율.
+        // 요소 드로잉은 오브젝트 레벨 [drawElementOn]을 사용한다 (GPU 프리뷰의 요소 비트맵과 공유).
+        val textPaint = Paint().apply { isAntiAlias = true }
         val u = CARD_WIDTH / TEXT_REF_WIDTH
-        // 요소 크기 단계(1~5) → 배율. 3이 기준(1.2).
-        fun scaleMulOf(step: Int): Float =
-            floatArrayOf(0.8f, 1.0f, 1.2f, 1.5f, 1.8f)[(step - 1).coerceIn(0, 4)]
-
-        /**
-         * 텍스트 요소 하나를 알약 스타일에 맞춰 그린다.
-         *
-         * @param style "NONE"(맨글자) | "BLACK" | "WHITE" | "BLUR"
-         * @param outline 글자 외곽선 표시 여부 — 알약 없음(NONE)에서만 그려진다
-         * @return 그린 요소의 전체 높이(px)
-         */
-        fun drawElement(
-            text: String,
-            textSize: Float,
-            top: Float,
-            style: String,
-            colorRaw: Int,
-            leftAligned: Boolean,
-            anchor: Float,
-            outline: Boolean = false,
-        ): Float {
-            textPaint.textSize = textSize
-            textPaint.textAlign = Paint.Align.LEFT
-            textPaint.style = Paint.Style.FILL
-            textPaint.clearShadowLayer()
-            // 기울임(이탤릭)은 글자가 진행 폭(measureText) 밖으로 기울어 나가 우측 여백이
-            // 좁아 보인다 — 실제 잉크 경계로 폭을 재고 좌측 오프셋을 보정해 양쪽을 맞춘다.
-            val ink = Rect()
-            textPaint.getTextBounds(text, 0, text.length, ink)
-            val textW = ink.width().toFloat()
-            val inkLeft = ink.left.toFloat()
-
-            if (style == "NONE") {
-                // 알약 없음 — 맨글자 + 대비 그림자(옵션 시 외곽선).
-                val baseline = top + textSize
-                val x = (if (leftAligned) anchor else anchor - textW) - inkLeft
-                if (outline) {
-                    textPaint.style = Paint.Style.STROKE
-                    textPaint.strokeWidth = textSize * 0.09f
-                    textPaint.color = outlineColor(colorRaw)
-                    canvas.drawText(text, x, baseline, textPaint)
-                    textPaint.style = Paint.Style.FILL
-                }
-                textPaint.color = colorRaw
-                textPaint.setShadowLayer(7f * u, 0f, 2f * u, contrastShadow(colorRaw))
-                canvas.drawText(text, x, baseline, textPaint)
-                textPaint.clearShadowLayer()
-                return textSize * 1.15f
-            }
-
-            // ── 알약(캡슐) 계열 ──
-            val padH = textSize * PILL_PAD_H
-            val padV = textSize * PILL_PAD_V
-            val pillW = textW + padH * 2f
-            val pillH = textSize + padV * 2f
-            val left = if (leftAligned) anchor else anchor - pillW
-            val rect = RectF(left, top, left + pillW, top + pillH)
-            val radius = pillH / 2f
-
-            when (style) {
-                "BLACK" -> {
-                    val pillPaint = Paint().apply {
-                        isAntiAlias = true
-                        color = android.graphics.Color.argb(210, 31, 42, 55)
-                        setShadowLayer(10f * u, 0f, 3f * u, android.graphics.Color.argb(70, 0, 20, 40))
-                    }
-                    canvas.drawRoundRect(rect, radius, radius, pillPaint)
-                    // 사용자가 고른 색 그대로 — 검정 칩+검정 글자 같은 조합도 허용한다.
-                    textPaint.color = colorRaw
-                }
-                "BLUR" -> {
-                    // 이미 합성된 카드(배경/캐릭터)를 영역 블러 → 진짜 프로스트 알약.
-                    val shadowPaint = Paint().apply {
-                        isAntiAlias = true
-                        color = android.graphics.Color.TRANSPARENT
-                        setShadowLayer(10f * u, 0f, 3f * u, android.graphics.Color.argb(60, 0, 20, 40))
-                    }
-                    canvas.drawRoundRect(rect, radius, radius, shadowPaint)
-                    val blurred = blurRegion(bitmap, rect, (14f * u).toInt().coerceAtLeast(8))
-                    if (blurred != null) {
-                        val save = canvas.save()
-                        val clip = Path().apply { addRoundRect(rect, radius, radius, Path.Direction.CW) }
-                        canvas.clipPath(clip)
-                        canvas.drawBitmap(blurred, null, rect, paint)
-                        canvas.drawRect(rect, Paint().apply { color = android.graphics.Color.argb(115, 255, 255, 255) })
-                        canvas.restoreToCount(save)
-                    } else {
-                        // 영역이 카드 밖 등으로 잘리면 흰 반투명 폴백.
-                        canvas.drawRoundRect(rect, radius, radius, Paint().apply {
-                            isAntiAlias = true
-                            color = android.graphics.Color.argb(180, 255, 255, 255)
-                        })
-                    }
-                    // 유리 하이라이트 보더. (this.style — 함수 파라미터 style이 가리므로 명시)
-                    canvas.drawRoundRect(rect, radius, radius, Paint().apply {
-                        isAntiAlias = true
-                        this.style = Paint.Style.STROKE
-                        strokeWidth = 2.2f * u
-                        color = android.graphics.Color.argb(165, 255, 255, 255)
-                    })
-                    textPaint.color = colorRaw
-                }
-                else -> { // WHITE
-                    val pillPaint = Paint().apply {
-                        isAntiAlias = true
-                        color = android.graphics.Color.argb(230, 255, 255, 255)
-                        setShadowLayer(10f * u, 0f, 3f * u, android.graphics.Color.argb(70, 0, 20, 40))
-                    }
-                    canvas.drawRoundRect(rect, radius, radius, pillPaint)
-                    // 사용자가 고른 색 그대로 — 흰 칩+흰 글자 같은 조합도 허용한다.
-                    textPaint.color = colorRaw
-                }
-            }
-
-            val baseline = top + padV + textSize - textPaint.descent() * 0.35f
-            canvas.drawText(text, left + padH - inkLeft, baseline, textPaint)
-            return pillH
-        }
-
-        /** 스타일별 요소 높이 예측 (중심 앵커 배치용). */
-        fun elementHeight(textSize: Float, style: String): Float =
-            if (style == "NONE") textSize * 1.15f else textSize * (1f + PILL_PAD_V * 2f)
-
-        /** 스타일별 요소 폭 예측 (중심 앵커 배치용) — 알약은 좌우 패딩 포함, 폭은 잉크 경계 기준. */
-        fun elementWidth(text: String, textSize: Float, style: String): Float {
-            textPaint.textSize = textSize
-            val ink = Rect()
-            textPaint.getTextBounds(text, 0, text.length, ink)
-            val w = ink.width().toFloat()
-            return if (style == "NONE") w else w + textSize * PILL_PAD_H * 2f
-        }
 
         /** 요소 하나를 중심 앵커(cx, cy — 0~1 비율) 기준으로 그린다 — 글꼴/외곽선도 요소별 적용. */
         fun drawElementCentered(
@@ -354,9 +246,11 @@ object ProfileCardRenderer {
         ) {
             // 폭/높이 측정 전에 글꼴을 먼저 적용해야 기울임·굵기의 잉크 폭이 정확하다
             textPaint.typeface = typefaceOf(fontStyle)
-            val w = elementWidth(text, textSize, style)
-            val h = elementHeight(textSize, style)
-            drawElement(
+            val w = measureElementWidth(textPaint, text, textSize, style)
+            val h = elementHeightOf(textSize, style)
+            drawElementOn(
+                canvas = canvas, textPaint = textPaint, u = u,
+                backdrop = bitmap, backdropScale = resolutionScale,
                 text = text, textSize = textSize,
                 top = cy * CARD_HEIGHT - h / 2f,
                 style = style, colorRaw = colorRaw,
@@ -370,7 +264,7 @@ object ProfileCardRenderer {
         if (layers.showNickname) {
             drawElementCentered(
                 text = layers.nickname,
-                textSize = 60f * u * scaleMulOf(layers.nicknameScaleStep),
+                textSize = NICKNAME_BASE_SIZE * u * scaleMulOf(layers.nicknameScaleStep),
                 style = layers.nicknamePill,
                 colorRaw = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.WHITE),
                 cx = layers.nicknameX, cy = layers.nicknameY,
@@ -380,7 +274,7 @@ object ProfileCardRenderer {
         if (layers.showTagline) {
             drawElementCentered(
                 text = layers.tagline,
-                textSize = 32f * u * scaleMulOf(layers.taglineScaleStep),
+                textSize = TAGLINE_BASE_SIZE * u * scaleMulOf(layers.taglineScaleStep),
                 style = layers.taglinePill,
                 colorRaw = parseColorOrDefault(layers.taglineColor, android.graphics.Color.WHITE),
                 cx = layers.taglineX, cy = layers.taglineY,
@@ -390,7 +284,7 @@ object ProfileCardRenderer {
         if (layers.showStats) {
             drawElementCentered(
                 text = layers.stats,
-                textSize = 30f * u * scaleMulOf(layers.statsScaleStep),
+                textSize = STATS_BASE_SIZE * u * scaleMulOf(layers.statsScaleStep),
                 style = layers.statsPill,
                 colorRaw = parseColorOrDefault(layers.statsColor, Color(0xFF00F5FF).toArgb()),
                 cx = layers.statsX, cy = layers.statsY,
@@ -430,6 +324,204 @@ object ProfileCardRenderer {
         } else {
             android.graphics.Color.argb(200, 255, 255, 255)
         }
+    }
+
+    /** 요소 글꼴 스타일 문자열 → Typeface. */
+    private fun typefaceOf(style: String): Typeface = when (style) {
+        "BOLD" -> Typeface.DEFAULT_BOLD
+        "ITALIC" -> Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
+        "BOLD_ITALIC" -> Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC)
+        else -> Typeface.DEFAULT
+    }
+
+    /** 요소 크기 단계(1~5) → 배율. 3이 기준(1.2). */
+    private fun scaleMulOf(step: Int): Float =
+        floatArrayOf(0.8f, 1.0f, 1.2f, 1.5f, 1.8f)[(step - 1).coerceIn(0, 4)]
+
+    /** 스타일별 요소 높이 예측 (중심 앵커 배치용). */
+    private fun elementHeightOf(textSize: Float, style: String): Float =
+        if (style == "NONE") textSize * 1.15f else textSize * (1f + PILL_PAD_V * 2f)
+
+    /** 스타일별 요소 폭 예측 — 알약은 좌우 패딩 포함, 폭은 잉크 경계 기준. typeface가 설정된 페인트 필요. */
+    private fun measureElementWidth(textPaint: Paint, text: String, textSize: Float, style: String): Float {
+        textPaint.textSize = textSize
+        val ink = Rect()
+        textPaint.getTextBounds(text, 0, text.length, ink)
+        val w = ink.width().toFloat()
+        return if (style == "NONE") w else w + textSize * PILL_PAD_H * 2f
+    }
+
+    /**
+     * 텍스트 요소 하나를 알약 스타일에 맞춰 [canvas]에 그린다 — 카드 합성과 요소 비트맵이 공유하는 단일 구현.
+     *
+     * @param u 기준폭(1472) 대비 배율 — 그림자/보더 두께 환산용
+     * @param backdrop BLUR 칩이 샘플할 합성 중 카드 비트맵. null이면 반투명 프로스트 폴백으로 그린다.
+     * @param backdropScale [backdrop]의 해상도 배율 — 사용자 좌표(rect)를 backdrop 픽셀 좌표로 변환
+     * @param style "NONE"(맨글자) | "BLACK" | "WHITE" | "BLUR"
+     * @param outline 글자 외곽선 표시 여부 — 알약 없음(NONE)에서만 그려진다
+     * @return 그린 요소의 전체 높이(px)
+     */
+    private fun drawElementOn(
+        canvas: Canvas,
+        textPaint: Paint,
+        u: Float,
+        backdrop: Bitmap?,
+        backdropScale: Float,
+        text: String,
+        textSize: Float,
+        top: Float,
+        style: String,
+        colorRaw: Int,
+        leftAligned: Boolean,
+        anchor: Float,
+        outline: Boolean,
+    ): Float {
+        textPaint.textSize = textSize
+        textPaint.textAlign = Paint.Align.LEFT
+        textPaint.style = Paint.Style.FILL
+        textPaint.clearShadowLayer()
+        // 기울임(이탤릭)은 글자가 진행 폭(measureText) 밖으로 기울어 나가 우측 여백이
+        // 좁아 보인다 — 실제 잉크 경계로 폭을 재고 좌측 오프셋을 보정해 양쪽을 맞춘다.
+        val ink = Rect()
+        textPaint.getTextBounds(text, 0, text.length, ink)
+        val textW = ink.width().toFloat()
+        val inkLeft = ink.left.toFloat()
+
+        if (style == "NONE") {
+            // 알약 없음 — 맨글자 + 대비 그림자(옵션 시 외곽선).
+            val baseline = top + textSize
+            val x = (if (leftAligned) anchor else anchor - textW) - inkLeft
+            if (outline) {
+                textPaint.style = Paint.Style.STROKE
+                textPaint.strokeWidth = textSize * 0.09f
+                textPaint.color = outlineColor(colorRaw)
+                canvas.drawText(text, x, baseline, textPaint)
+                textPaint.style = Paint.Style.FILL
+            }
+            textPaint.color = colorRaw
+            textPaint.setShadowLayer(7f * u, 0f, 2f * u, contrastShadow(colorRaw))
+            canvas.drawText(text, x, baseline, textPaint)
+            textPaint.clearShadowLayer()
+            return textSize * 1.15f
+        }
+
+        // ── 알약(캡슐) 계열 ──
+        val padH = textSize * PILL_PAD_H
+        val padV = textSize * PILL_PAD_V
+        val pillW = textW + padH * 2f
+        val pillH = textSize + padV * 2f
+        val left = if (leftAligned) anchor else anchor - pillW
+        val rect = RectF(left, top, left + pillW, top + pillH)
+        val radius = pillH / 2f
+
+        when (style) {
+            "BLACK" -> {
+                val pillPaint = Paint().apply {
+                    isAntiAlias = true
+                    color = android.graphics.Color.argb(210, 31, 42, 55)
+                    setShadowLayer(10f * u, 0f, 3f * u, android.graphics.Color.argb(70, 0, 20, 40))
+                }
+                canvas.drawRoundRect(rect, radius, radius, pillPaint)
+                // 사용자가 고른 색 그대로 — 검정 칩+검정 글자 같은 조합도 허용한다.
+                textPaint.color = colorRaw
+            }
+            "BLUR" -> {
+                // 이미 합성된 카드(배경/캐릭터)를 영역 블러 → 진짜 프로스트 알약.
+                val shadowPaint = Paint().apply {
+                    isAntiAlias = true
+                    color = android.graphics.Color.TRANSPARENT
+                    setShadowLayer(10f * u, 0f, 3f * u, android.graphics.Color.argb(60, 0, 20, 40))
+                }
+                canvas.drawRoundRect(rect, radius, radius, shadowPaint)
+                // backdrop이 저해상도 합성본이면 픽셀 좌표계로 변환해 샘플한다
+                val sampleRect = if (backdropScale == 1f) rect else RectF(
+                    rect.left * backdropScale, rect.top * backdropScale,
+                    rect.right * backdropScale, rect.bottom * backdropScale,
+                )
+                val blurred = backdrop?.let {
+                    blurRegion(it, sampleRect, (14f * u * backdropScale).toInt().coerceAtLeast(8))
+                }
+                if (blurred != null) {
+                    val save = canvas.save()
+                    val clip = Path().apply { addRoundRect(rect, radius, radius, Path.Direction.CW) }
+                    canvas.clipPath(clip)
+                    canvas.drawBitmap(blurred, null, rect, Paint().apply { isFilterBitmap = true })
+                    canvas.drawRect(rect, Paint().apply { color = android.graphics.Color.argb(115, 255, 255, 255) })
+                    canvas.restoreToCount(save)
+                } else {
+                    // 배경 샘플 불가(요소 단독 렌더/영역이 카드 밖) — 흰 반투명 프로스트 폴백.
+                    canvas.drawRoundRect(rect, radius, radius, Paint().apply {
+                        isAntiAlias = true
+                        color = android.graphics.Color.argb(180, 255, 255, 255)
+                    })
+                }
+                // 유리 하이라이트 보더. (this.style — 함수 파라미터 style이 가리므로 명시)
+                canvas.drawRoundRect(rect, radius, radius, Paint().apply {
+                    isAntiAlias = true
+                    this.style = Paint.Style.STROKE
+                    strokeWidth = 2.2f * u
+                    color = android.graphics.Color.argb(165, 255, 255, 255)
+                })
+                textPaint.color = colorRaw
+            }
+            else -> { // WHITE
+                val pillPaint = Paint().apply {
+                    isAntiAlias = true
+                    color = android.graphics.Color.argb(230, 255, 255, 255)
+                    setShadowLayer(10f * u, 0f, 3f * u, android.graphics.Color.argb(70, 0, 20, 40))
+                }
+                canvas.drawRoundRect(rect, radius, radius, pillPaint)
+                // 사용자가 고른 색 그대로 — 흰 칩+흰 글자 같은 조합도 허용한다.
+                textPaint.color = colorRaw
+            }
+        }
+
+        val baseline = top + padV + textSize - textPaint.descent() * 0.35f
+        canvas.drawText(text, left + padH - inkLeft, baseline, textPaint)
+        return pillH
+    }
+
+    /** [renderElementBitmap] 결과의 사방 여백(px, 카드 좌표) — 칩/글자 그림자가 잘리지 않을 여유. */
+    val ELEMENT_BITMAP_MARGIN = 16f * (CARD_WIDTH / TEXT_REF_WIDTH)
+
+    /**
+     * 텍스트 요소 하나를 자체 비트맵으로 렌더한다 — GPU 편집 프리뷰가 Compose 레이어로 배치한다.
+     * 요소 중심 = 비트맵 중심(여백이 사방 동일). 크기는 카드(2752×1536) 픽셀 기준.
+     * BLUR 칩은 배경 샘플이 불가능하므로 반투명 프로스트 폴백으로 그려진다(저장 시 진짜 블러로 대체).
+     *
+     * @param baseSize 기준 글자 크기 ([NICKNAME_BASE_SIZE] 등, 1472폭 기준 px)
+     */
+    fun renderElementBitmap(
+        text: String,
+        baseSize: Float,
+        scaleStep: Int,
+        pill: String,
+        colorRaw: Int,
+        fontStyle: String,
+        outline: Boolean,
+    ): Bitmap {
+        val u = CARD_WIDTH / TEXT_REF_WIDTH
+        val textSize = baseSize * u * scaleMulOf(scaleStep)
+        val textPaint = Paint().apply {
+            isAntiAlias = true
+            typeface = typefaceOf(fontStyle)
+        }
+        val w = measureElementWidth(textPaint, text, textSize, pill)
+        val h = elementHeightOf(textSize, pill)
+        val margin = ELEMENT_BITMAP_MARGIN
+        val bmp = Bitmap.createBitmap(
+            (w + margin * 2).toInt().coerceAtLeast(1),
+            (h + margin * 2).toInt().coerceAtLeast(1),
+            Bitmap.Config.ARGB_8888,
+        )
+        drawElementOn(
+            canvas = Canvas(bmp), textPaint = textPaint, u = u,
+            backdrop = null, backdropScale = 1f,
+            text = text, textSize = textSize, top = margin,
+            style = pill, colorRaw = colorRaw,
+            leftAligned = true, anchor = margin, outline = outline,
+        )
+        return bmp
     }
 
     /**

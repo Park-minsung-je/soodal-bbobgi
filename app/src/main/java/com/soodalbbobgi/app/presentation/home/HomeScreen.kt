@@ -73,6 +73,7 @@ import com.soodalbbobgi.app.presentation.calendar.SwimSessionData
 import com.soodalbbobgi.app.presentation.common.MonthSummaryCard
 import com.soodalbbobgi.app.presentation.common.WeeklyActivityCard
 import com.soodalbbobgi.app.presentation.profile.CardLayers
+import com.soodalbbobgi.app.presentation.profile.EditorCardPreview
 import com.soodalbbobgi.app.presentation.profile.EditorSheet
 import com.soodalbbobgi.app.presentation.profile.ProfileCardBounds
 import com.soodalbbobgi.app.presentation.profile.ProfileCardComposite
@@ -294,14 +295,23 @@ fun HomeScreen(
                             onClick = onOpenFullscreen,
                         ),
                 ) {
-                    ProfileCardComposite(
-                        layers = cardLayers,
-                        bgAsset = cardBgAsset,
-                        charAsset = cardCharAsset,
-                        modifier = Modifier.fillMaxWidth(),
-                        // 편집 중엔 절반 해상도로 합성 — 슬라이더 라이브 프리뷰의 버벅임을 줄인다.
-                        resolutionScale = if (editorOpen) 0.5f else 1f,
-                    )
+                    if (editorOpen) {
+                        // 편집 중엔 비트맵 재합성 없이 GPU 레이어로 그린다 — 슬라이더가 프레임 단위로 따라온다.
+                        // (BLUR 칩만 프로스트 폴백으로 보이고, 저장하면 진짜 블러로 합성된다)
+                        EditorCardPreview(
+                            layers = cardLayers,
+                            bgAsset = cardBgAsset,
+                            charAsset = cardCharAsset,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        ProfileCardComposite(
+                            layers = cardLayers,
+                            bgAsset = cardBgAsset,
+                            charAsset = cardCharAsset,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
 
