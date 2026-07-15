@@ -108,7 +108,7 @@ object ProfileCardRenderer {
 
     // 캐릭터 부유 그림자(엘리베이션) 파라미터 — 캐릭터 크기 대비 비율.
     /** 실루엣 블러가 밖으로 번질 여유 (소스 크기 대비) — 블러 반경도 이 값에 비례한다. */
-    const val SHADOW_MARGIN_FRAC = 0.09f
+    const val SHADOW_MARGIN_FRAC = 0.05f
     /** 그림자 세로 오프셋 — 아래로 떨어뜨려 "떠 있는" 부유감을 만든다. */
     const val SHADOW_OFFSET_FRAC = 0.03f
     /** 그림자 진하기 (0~255) — 시안의 또렷한 부유감 기준. */
