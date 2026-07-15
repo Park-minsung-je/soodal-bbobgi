@@ -108,11 +108,11 @@ object ProfileCardRenderer {
 
     // 캐릭터 부유 그림자(엘리베이션) 파라미터 — 캐릭터 크기 대비 비율.
     /** 실루엣 블러가 밖으로 번질 여유 (소스 크기 대비) — 블러 반경도 이 값에 비례한다. */
-    const val SHADOW_MARGIN_FRAC = 0.05f
+    const val SHADOW_MARGIN_FRAC = 0.035f
     /** 그림자 세로 오프셋 — 0이면 캐릭터 바로 뒤에서 사방으로 균일하게 비친다. */
     const val SHADOW_OFFSET_FRAC = 0f
-    /** 그림자 진하기 (0~255) — 시안의 또렷한 부유감 기준. */
-    private const val SHADOW_ALPHA = 100
+    /** 그림자 진하기 (0~255) — 좁고 진한 윤곽으로 캐릭터를 또렷하게 띄운다. */
+    private const val SHADOW_ALPHA = 140
 
     // 캐릭터 비트맵 → 블러 실루엣 그림자 캐시. 같은 캐릭터면 재계산하지 않는다.
     private val shadowCache = LruMemoizer<Bitmap, Bitmap>(maxSize = 6)
