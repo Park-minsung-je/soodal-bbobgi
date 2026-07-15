@@ -85,6 +85,32 @@ internal fun speedBasedActiveSeconds(distanceM: Int, avgSpeedMps: Double): Int? 
     else Math.round(distanceM / avgSpeedMps).toInt()
 
 /**
+ * 시간 구간이 겹치는 레코드를 한 벌만 남기고 값을 합산한다 — 거리/칼로리 이중 기록 방어.
+ *
+ * HC에는 같은 수영의 거리/칼로리가 총계 레코드 + 랩별 레코드로 함께 저장되거나
+ * 복수 소스(워치/폰)가 각각 기록해 이중으로 존재할 수 있다 — 단순 합산은 값이 두 배가 된다.
+ * 시작시각 순으로 훑으며 직전 채택 구간과 겹치는 레코드는 이중 기록으로 보고 건너뛴다.
+ * 같은 시작이면 긴 구간 우선(총계+랩 공존 시 총계 한 벌만 남음),
+ * 랩 경계의 1초 이하 겹침은 기록 노이즈로 보고 겹침으로 치지 않는다.
+ *
+ * @param intervals (시작, 끝, 값) 목록
+ * @return 겹침 제거 후 값 합계
+ */
+internal fun sumNonOverlapping(intervals: List<Triple<Instant, Instant, Double>>): Double {
+    val sorted = intervals.sortedWith(
+        compareBy<Triple<Instant, Instant, Double>> { it.first }.thenByDescending { it.second },
+    )
+    var sum = 0.0
+    var lastEnd: Instant? = null
+    for ((start, end, value) in sorted) {
+        if (lastEnd != null && start < lastEnd.minusSeconds(1)) continue
+        sum += value
+        if (lastEnd == null || end > lastEnd) lastEnd = end
+    }
+    return sum
+}
+
+/**
  * 심박 샘플을 차트용으로 다운샘플한다 — 구간 평균으로 최대 [maxPoints]개의 (오프셋초, bpm) 포인트.
  */
 internal fun downsampleHr(samples: List<Pair<Instant, Long>>, maxPoints: Int = 120): List<Pair<Int, Int>> {
@@ -263,106 +289,25 @@ class HealthConnectManager @Inject constructor(
      */
     suspend fun readSwimSessions(startTime: Instant, endTime: Instant): List<SwimSession> {
         return try {
-            val sessionsResponse = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = ExerciseSessionRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
+            // 세션 목록은 페이지 단위(기본 1000건)로 끊겨 올 수 있다 — pageToken을 따라 전부 읽는다.
+            val sessions = mutableListOf<ExerciseSessionRecord>()
+            var pageToken: String? = null
+            do {
+                val response = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = ExerciseSessionRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
+                        pageToken = pageToken,
+                    )
                 )
-            )
+                sessions += response.records
+                pageToken = response.pageToken
+            } while (pageToken != null)
 
-            val swimSessions = sessionsResponse.records.filter {
-                it.exerciseType == ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_POOL ||
-                        it.exerciseType == ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_OPEN_WATER
-            }
-
-            if (swimSessions.isEmpty()) return emptyList()
-
-            // 같은 시간 범위의 거리/칼로리 레코드를 일괄 조회한다
-            val distanceRecords = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = DistanceRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
-                )
-            ).records
-
-            val calorieRecords = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = TotalCaloriesBurnedRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
-                )
-            ).records
-
-            // 심박/속도 레코드 — 권한이 없거나 실패해도 세션 수집은 계속한다.
-            val heartRateRecords = readHeartRateRecords(startTime, endTime)
-            val speedRecords = readSpeedRecords(startTime, endTime)
-
-            swimSessions.map { session ->
-                val duration = Duration.between(session.startTime, session.endTime)
-
-                // 세션 시간 범위에 겹치는 거리 레코드의 합산
-                val totalDistanceM = distanceRecords
-                    .filter { it.startTime >= session.startTime && it.endTime <= session.endTime }
-                    .sumOf { it.distance.inMeters }
-                    .toInt()
-
-                // 세션 시간 범위에 겹치는 칼로리 레코드의 합산
-                val totalCalories = calorieRecords
-                    .filter { it.startTime >= session.startTime && it.endTime <= session.endTime }
-                    .sumOf { it.energy.inKilocalories }
-                    .toInt()
-
-                // 세션 시간 범위 내 심박 샘플 (시각+bpm — 최대/최소와 심박추정 양쪽에 사용)
-                val hrSamples = heartRateRecords.asSequence()
-                    .flatMap { it.samples }
-                    .filter { it.time >= session.startTime && it.time <= session.endTime }
-                    .map { it.time to it.beatsPerMinute }
-                    .toList()
-                val bpm = hrSamples.map { it.second }
-
-                // 세션 시간 범위 내 속도 샘플 평균 (세그먼트/랩 없을 때 실운동시간 폴백)
-                val speedSamples = speedRecords.asSequence()
-                    .flatMap { it.samples }
-                    .filter { it.time >= session.startTime && it.time <= session.endTime }
-                    .map { it.speed.inMetersPerSecond }
-                    .filter { it > 0 }
-                    .toList()
-                val avgSpeed = if (speedSamples.isEmpty()) 0.0 else speedSamples.average()
-
-                // 실운동시간: 세그먼트/랩 → 속도 → 심박추정 순 폴백
-                val hrPts = hrPoints(hrSamples)
-                val hrEstimate = estimateActive(hrPts, totalDistanceM, totalCalories)
-                val fromStructure = computeActiveSeconds(session.segments, session.laps)
-                val fromSpeed = speedBasedActiveSeconds(totalDistanceM, avgSpeed)
-                val activeSeconds = fromStructure ?: fromSpeed ?: hrEstimate?.activeSeconds
-                // 진단: 워치가 세그먼트/랩/심박/속도를 실제로 써주는지 + 실운동시간 출처 확인용.
-                Timber.d(
-                    "수영 세션 %s: segments=%d, laps=%d, hr샘플=%d, 속도샘플=%d, 경과=%d초, 실운동=%s초(%s)",
-                    session.startTime.atZone(ZoneId.systemDefault()).toLocalDate(),
-                    session.segments.size, session.laps.size, bpm.size, speedSamples.size,
-                    duration.seconds, activeSeconds?.toString() ?: "없음",
-                    when {
-                        fromStructure != null -> "세그먼트/랩"
-                        fromSpeed != null -> "속도"
-                        hrEstimate != null -> "심박추정"
-                        else -> "-"
-                    },
-                )
-
-                SwimSession(
-                    date = session.startTime.atZone(ZoneId.systemDefault())
-                        .toLocalDate().toString(),
-                    startEpochSec = session.startTime.epochSecond,
-                    distanceMeters = totalDistanceM,
-                    durationSeconds = duration.seconds.toInt(),
-                    calories = totalCalories,
-                    hcRecordId = session.metadata.id,
-                    maxHr = bpm.maxOrNull()?.toInt(),
-                    minHr = bpm.minOrNull()?.toInt(),
-                    activeSeconds = activeSeconds,
-                    hrSeries = downsampleHr(hrSamples).takeIf { it.isNotEmpty() }
-                        ?.let { encodeHrSeries(it, hrEstimate?.restRanges ?: emptyList()) },
-                )
-            }
+            // 세션별 상세는 일일 동기화와 같은 [buildSwimSession]으로 계산한다 — 세션 시간
+            // 범위로 HC에 직접 질의하므로(겹침 기준) 경계에 걸친 레코드가 누락되지 않고,
+            // 긴 범위 일괄 조회의 페이지 절단으로 거리가 0이 되는 문제도 없다.
+            sessions.filter { isSwimmingSession(it) }.mapNotNull { buildSwimSession(it) }
         } catch (e: Exception) {
             Timber.e(e, "Health Connect 수영 세션 읽기 실패")
             emptyList()
@@ -475,13 +420,19 @@ class HealthConnectManager @Inject constructor(
             val duration = Duration.between(session.startTime, session.endTime)
             val timeFilter = TimeRangeFilter.between(session.startTime, session.endTime)
 
-            val distanceM = healthConnectClient.readRecords(
-                ReadRecordsRequest(DistanceRecord::class, timeFilter)
-            ).records.sumOf { it.distance.inMeters }.toInt()
+            // 총계+랩 공존이나 복수 소스(워치/폰) 이중 기록으로 값이 두 배가 되지 않게
+            // 시간이 겹치는 레코드는 한 벌만 합산한다.
+            val distanceM = sumNonOverlapping(
+                healthConnectClient.readRecords(
+                    ReadRecordsRequest(DistanceRecord::class, timeFilter)
+                ).records.map { Triple(it.startTime, it.endTime, it.distance.inMeters) }
+            ).toInt()
 
-            val calories = healthConnectClient.readRecords(
-                ReadRecordsRequest(TotalCaloriesBurnedRecord::class, timeFilter)
-            ).records.sumOf { it.energy.inKilocalories }.toInt()
+            val calories = sumNonOverlapping(
+                healthConnectClient.readRecords(
+                    ReadRecordsRequest(TotalCaloriesBurnedRecord::class, timeFilter)
+                ).records.map { Triple(it.startTime, it.endTime, it.energy.inKilocalories) }
+            ).toInt()
 
             val hrSamples = readHeartRateRecords(session.startTime, session.endTime)
                 .flatMap { it.samples }
