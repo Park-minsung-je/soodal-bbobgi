@@ -299,6 +299,8 @@ fun HomeScreen(
                         bgAsset = cardBgAsset,
                         charAsset = cardCharAsset,
                         modifier = Modifier.fillMaxWidth(),
+                        // 편집 중엔 절반 해상도로 합성 — 슬라이더 라이브 프리뷰의 버벅임을 줄인다.
+                        resolutionScale = if (editorOpen) 0.5f else 1f,
                     )
                 }
             }

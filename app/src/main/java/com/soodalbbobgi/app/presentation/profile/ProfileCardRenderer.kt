@@ -105,29 +105,39 @@ object ProfileCardRenderer {
     // 화면상 크기가 유지되도록 기준폭(1472) 대비 배율(u)로 환산해 그린다.
     private const val TEXT_REF_WIDTH = 1472f
 
-    // 합성 비트맵 캐시 — 같은 입력(CardLayers)이면 재합성 없이 재사용한다.
+    // 합성 비트맵 캐시 — 같은 입력(CardLayers×해상도)이면 재합성 없이 재사용한다.
     // 홈↔편집↔전체보기 재진입·탭 전환마다 2752×1536 비트맵을 다시 그리는 끊김을 막는다.
     // 편집 라이브 프리뷰와 홈 카드가 같은 입력이면 캐시를 공유하므로, 저장 후 복귀 시에도 재합성이 없다.
-    private val cache = LruMemoizer<CardLayers, Bitmap>(maxSize = 4)
+    private val cache = LruMemoizer<Pair<CardLayers, Float>, Bitmap>(maxSize = 4)
 
     /**
-     * [render] 결과를 [CardLayers] 단위로 캐시해 돌려준다. 같은 입력이면 재합성하지 않는다.
+     * [render] 결과를 (CardLayers, 해상도 배율) 단위로 캐시해 돌려준다. 같은 입력이면 재합성하지 않는다.
      *
      * @param layers 합성에 쓸 4레이어 데이터(캐시 키)
+     * @param resolutionScale 합성 해상도 배율 (1 = 2752×1536). 편집 라이브 프리뷰는 낮춰서
+     *   슬라이더 틱마다의 재합성 비용을 줄인다.
      */
-    fun renderCached(layers: CardLayers): Bitmap = cache.getOrPut(layers) { render(it) }
+    fun renderCached(layers: CardLayers, resolutionScale: Float = 1f): Bitmap =
+        cache.getOrPut(layers to resolutionScale) { (l, s) -> render(l, s) }
 
     /**
      * 캐시에 합성 결과가 있으면 즉시 반환하고, 없으면 null을 반환한다(새로 합성하지 않음).
      * 백그라운드 합성 전 직전 결과를 즉시 보여주는 용도.
      *
      * @param layers 합성에 쓸 4레이어 데이터(캐시 키)
+     * @param resolutionScale 합성 해상도 배율 — [renderCached]와 같은 키로 조회한다
      */
-    fun peek(layers: CardLayers): Bitmap? = cache.get(layers)
+    fun peek(layers: CardLayers, resolutionScale: Float = 1f): Bitmap? = cache.get(layers to resolutionScale)
 
-    fun render(layers: CardLayers): Bitmap {
-        val bitmap = Bitmap.createBitmap(CARD_WIDTH, CARD_HEIGHT, Bitmap.Config.ARGB_8888)
+    fun render(layers: CardLayers, resolutionScale: Float = 1f): Bitmap {
+        val bitmap = Bitmap.createBitmap(
+            (CARD_WIDTH * resolutionScale).toInt().coerceAtLeast(1),
+            (CARD_HEIGHT * resolutionScale).toInt().coerceAtLeast(1),
+            Bitmap.Config.ARGB_8888,
+        )
         val canvas = Canvas(bitmap)
+        // 좌표계는 항상 2752×1536 기준 — 저해상도 합성 시 캔버스 스케일로 흡수한다.
+        if (resolutionScale != 1f) canvas.scale(resolutionScale, resolutionScale)
         // 에셋이 도트아트에서 일반 래스터로 전환됨 — 필터링(bilinear)을 켜야
         // 배율이 안 맞는 축소/확대에서 경계가 계단지지 않는다.
         val paint = Paint().apply { isAntiAlias = true; isFilterBitmap = true }
@@ -167,19 +177,21 @@ object ProfileCardRenderer {
                 centerX + charSize / 2f,
                 centerY + charSize / 2f,
             )
-            // 캐릭터 그림자 — 실루엣(알파)을 블러+아래 오프셋으로 깔아 배경에서 살짝 떠 보이게.
-            // 약한 강도(알파 60)로 시안의 부유감을 낸다. 렌더는 캐시되므로 합성당 1회 비용.
-            val scale = CARD_WIDTH / TEXT_REF_WIDTH
+            // 캐릭터 발밑 타원 그림자 — 부드럽게 퍼지는 캡슐형으로 배경에서 살짝 떠 보이게.
+            // (실루엣 그림자 대신 — 모양 독립적이고 합성 비용도 훨씬 싸다)
+            val su = CARD_WIDTH / TEXT_REF_WIDTH
+            val shadowHalfW = charSize * 0.34f
+            val shadowHalfH = charSize * 0.055f
+            val shadowCy = dst.bottom - charSize * 0.015f
             val shadowPaint = Paint().apply {
                 isAntiAlias = true
-                isFilterBitmap = true
-                color = android.graphics.Color.argb(60, 0, 0, 0)
-                maskFilter = BlurMaskFilter(14f * scale, BlurMaskFilter.Blur.NORMAL)
+                color = android.graphics.Color.argb(55, 0, 0, 0)
+                maskFilter = BlurMaskFilter(16f * su, BlurMaskFilter.Blur.NORMAL)
             }
-            val silhouette = layers.charBitmap.extractAlpha()
-            val shadowDst = RectF(dst).apply { offset(0f, 11f * scale) }
-            canvas.drawBitmap(silhouette, null, shadowDst, shadowPaint)
-            silhouette.recycle()
+            canvas.drawOval(
+                RectF(centerX - shadowHalfW, shadowCy - shadowHalfH, centerX + shadowHalfW, shadowCy + shadowHalfH),
+                shadowPaint,
+            )
 
             canvas.drawBitmap(layers.charBitmap, null, dst, paint)
         }
@@ -548,6 +560,12 @@ fun ProfileCardComposite(
     charAsset: String? = null,
     frameAsset: String? = null,
     modifier: Modifier = Modifier,
+    /**
+     * 합성 해상도 배율 — 편집 라이브 프리뷰처럼 입력이 빠르게 바뀌는 화면은 0.5로 낮춰
+     * 슬라이더 틱마다의 재합성 비용(픽셀 수)을 1/4로 줄인다. 표시 크기가 프리뷰 수준이면
+     * 화질 차이는 보이지 않는다.
+     */
+    resolutionScale: Float = 1f,
 ) {
     val bgBitmap = rememberAssetBitmap(bgAsset) ?: layers.bgBitmap
     val charBitmap = rememberAssetBitmap(charAsset) ?: layers.charBitmap
@@ -574,10 +592,11 @@ fun ProfileCardComposite(
     // 캐시에 있으면 즉시 표시(initialValue)하고, 없으면 새 비트맵이 나올 때까지 직전 비트맵을
     // 유지해 카드가 흰색으로 깜빡이지 않게 한다. finalLayers가 바뀌면 그 사이 이전 카드를 보여준다.
     val bitmap by produceState<Bitmap?>(
-        initialValue = ProfileCardRenderer.peek(finalLayers),
+        initialValue = ProfileCardRenderer.peek(finalLayers, resolutionScale),
         finalLayers,
+        resolutionScale,
     ) {
-        value = withContext(Dispatchers.Default) { ProfileCardRenderer.renderCached(finalLayers) }
+        value = withContext(Dispatchers.Default) { ProfileCardRenderer.renderCached(finalLayers, resolutionScale) }
     }
 
     val cardModifier = modifier
