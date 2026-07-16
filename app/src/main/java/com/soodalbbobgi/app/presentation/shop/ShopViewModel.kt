@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -102,6 +103,8 @@ class ShopViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _local.update { it.copy(isLoading = true) }
+            // 응답이 순식간에 와도 로딩 딤이 깜빡 스치지 않게 최소 표시 시간을 유지 (홈 동기화와 동일 패턴).
+            val startedAt = System.currentTimeMillis()
             try {
                 appStateLoader.refreshCurrency()
                 appStateLoader.refreshShop()
@@ -111,6 +114,8 @@ class ShopViewModel @Inject constructor(
                 Timber.w(e, "상점 새로고침 실패")
                 _local.update { it.copy(error = "상점을 불러오지 못했어요") }
             } finally {
+                val elapsed = System.currentTimeMillis() - startedAt
+                if (elapsed < MIN_LOADING_INDICATOR_MS) delay(MIN_LOADING_INDICATOR_MS - elapsed)
                 _local.update { it.copy(isLoading = false) }
             }
         }
@@ -200,5 +205,10 @@ class ShopViewModel @Inject constructor(
             canBuy = canBuy,
             owned = productType == "item" && product.id in ownedItemIds,
         )
+    }
+
+    companion object {
+        /** 로딩 딤 최소 유지 시간(ms) — 순간 응답 시 오버레이가 깜빡 스치는 것 방지. */
+        private const val MIN_LOADING_INDICATOR_MS = 600L
     }
 }

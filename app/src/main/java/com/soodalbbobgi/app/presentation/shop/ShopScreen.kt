@@ -211,6 +211,11 @@ fun ShopScreen(
                 )
             }
         }
+
+        // ── 최신 정보 로딩 오버레이 — 진열/잔액 새로고침 동안 화면을 딤 처리 (홈 동기화와 동일 패턴) ──
+        if (state.isLoading) {
+            com.soodalbbobgi.app.core.ui.SyncLoadingOverlay("최신 상점 정보를 불러오는 중이에요...")
+        }
     }
 }
 
