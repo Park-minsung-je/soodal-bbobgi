@@ -105,10 +105,8 @@ fun ShopScreen(
                 Spacer(Modifier.height(spacing.s4))
 
                 val boxListings = state.listings.filter { it.productType == "box" }
-                // 아이템은 등급 내림차순(전설→일반) — 동급은 서버 목록 순서 유지.
-                val itemListings = state.listings
-                    .filter { it.productType == "item" }
-                    .sortedByDescending { it.grade?.ordinal ?: -1 }
+                // 배치는 관리자가 지정한 서버 순서(sortOrder) 그대로 — 클라이언트 재정렬 없음.
+                val itemListings = state.listings.filter { it.productType == "item" }
 
                 // -- Boxes Section --
                 if (boxListings.isNotEmpty()) {
