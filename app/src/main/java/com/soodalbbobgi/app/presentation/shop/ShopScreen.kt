@@ -23,10 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,7 +37,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.AssetImage
@@ -52,7 +48,6 @@ import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.GlassSheen
 import com.soodalbbobgi.app.core.ui.LocalHazeContent
 import com.soodalbbobgi.app.core.ui.SoodalCard
-import com.soodalbbobgi.app.core.ui.glass
 import com.soodalbbobgi.app.core.ui.glassFrost
 import com.soodalbbobgi.app.core.ui.glassShadow
 import com.soodalbbobgi.app.core.ui.SoodalIcon
@@ -69,8 +64,6 @@ fun ShopScreen(
     val state by viewModel.uiState.collectAsState()
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
-    // 아이템 카테고리 필터 탭 상태 ("all" = 전체) — 화면 회전에도 유지
-    var itemTab by rememberSaveable { mutableStateOf("all") }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -112,8 +105,16 @@ fun ShopScreen(
                 Spacer(Modifier.height(spacing.s4))
 
                 val boxListings = state.listings.filter { it.productType == "box" }
-                // 아이템 순서는 관리자가 지정한 서버 배치(sortOrder) 그대로 — 클라이언트 재정렬 없음.
+                // 아이템은 종류(캐릭터/배경/액자)별 섹션으로 나눠 아래로 이어 보여주고,
+                // 각 섹션 안의 순서는 관리자가 지정한 서버 배치(sortOrder) 그대로 유지한다.
                 val itemListings = state.listings.filter { it.productType == "item" }
+                val knownCategories = setOf("char", "bg", "frame")
+                val itemSections = listOf(
+                    Triple("캐릭터", SoodalIcons.Otter, itemListings.filter { it.category == "char" }),
+                    Triple("배경", SoodalIcons.Aurora, itemListings.filter { it.category == "bg" }),
+                    Triple("액자", SoodalIcons.Frame, itemListings.filter { it.category == "frame" }),
+                    Triple("아이템", SoodalIcons.Gift, itemListings.filter { it.category !in knownCategories }),
+                ).filter { it.third.isNotEmpty() }
 
                 // -- Boxes Section --
                 if (boxListings.isNotEmpty()) {
@@ -151,71 +152,22 @@ fun ShopScreen(
                     Spacer(Modifier.height(spacing.s5))
                 }
 
-                // -- Direct Items Section (카테고리 필터 탭 + 3열 그리드) --
-                if (itemListings.isNotEmpty()) {
+                // -- Direct Items Sections (종류별: 캐릭터/배경/액자/기타, 아래로 이어짐) --
+                itemSections.forEachIndexed { sectionIndex, (title, icon, sectionItems) ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        SoodalIcon(icon = SoodalIcons.Gift, size = 18.dp)
+                        SoodalIcon(icon = icon, size = 18.dp)
                         Text(
-                            text = "아이템",
+                            text = title,
                             style = SoodalDesign.typography.md,
                             color = colors.textPrimary,
                         )
                     }
                     Spacer(Modifier.height(spacing.s3))
 
-                    // 카테고리 필터 탭 — 도감(컬렉션)과 동일한 칩 스타일
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        listOf(
-                            "all" to "전체",
-                            "char" to "캐릭터",
-                            "bg" to "배경",
-                            "frame" to "액자",
-                        ).forEach { (id, label) ->
-                            val on = itemTab == id
-                            val count = if (id == "all") itemListings.size
-                            else itemListings.count { it.category == id }
-                            val tabShape = RoundedCornerShape(14.dp)
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(tabShape)
-                                    .then(
-                                        if (on) Modifier.background(colors.accentPurple)
-                                        else Modifier.glass(colors, 14.dp, tabShape),
-                                    )
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null,
-                                    ) { itemTab = id }
-                                    .padding(vertical = 10.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                Text(
-                                    label,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = if (on) Color.White else colors.textSecondary,
-                                )
-                                Spacer(Modifier.height(2.dp))
-                                Text(
-                                    "$count",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = JetBrainsMonoFamily,
-                                    color = if (on) Color.White.copy(alpha = 0.85f) else colors.textTertiary,
-                                )
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(spacing.s3))
-
-                    val visibleItems =
-                        if (itemTab == "all") itemListings
-                        else itemListings.filter { it.category == itemTab }
-                    val itemRows = visibleItems.chunked(3)
+                    val itemRows = sectionItems.chunked(3)
                     itemRows.forEachIndexed { rowIndex, rowItems ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -233,13 +185,7 @@ fun ShopScreen(
                         }
                         if (rowIndex < itemRows.size - 1) Spacer(Modifier.height(spacing.s3))
                     }
-                    if (visibleItems.isEmpty()) {
-                        Text(
-                            "이 카테고리에는 판매 중인 아이템이 없어요.",
-                            fontSize = 12.sp,
-                            color = colors.textTertiary,
-                        )
-                    }
+                    if (sectionIndex < itemSections.size - 1) Spacer(Modifier.height(spacing.s5))
                 }
                 Spacer(Modifier.height(TabBarClearance))
             }
