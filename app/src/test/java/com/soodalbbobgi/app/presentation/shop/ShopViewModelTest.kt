@@ -79,7 +79,7 @@ class ShopViewModelTest {
         val item = ShopItem(
             shopListingId = 1L, productType = "item", name = "X", description = "",
             icon = com.soodalbbobgi.app.core.ui.SoodalIcons.Otter, imageAsset = null,
-            grade = Grade.N, price = 5, maxPerUser = 1, purchasedTotal = 1,
+            grade = Grade.N, category = "char", price = 5, maxPerUser = 1, purchasedTotal = 1,
             maxPerPeriod = null, periodType = null, purchasedThisPeriod = 0,
             periodResetAt = null, isLimited = false, canBuy = false,
         )
@@ -130,6 +130,37 @@ class ShopViewModelTest {
         advanceUntilIdle()
 
         assertThat(appState.currency.value.pearlBalance).isEqualTo(45)
+    }
+
+    @Test
+    fun `아이템 구매 성공 시 구매한 상품으로 결과 팝업을 띄운다`() = runTest(testDispatcher) {
+        appState.applyCurrency(Currency(pearlBalance = 50))
+        appState.applyShopListings(listOf(sampleListing(id = 1, category = "char", price = 5)))
+        coEvery { api.shopPurchase(any<ShopPurchaseRequest>()) } returns ApiResponse(
+            success = true,
+            data = ShopPurchaseData(
+                shopListingId = 1L, productType = "item",
+                inventoryItemId = 9000L, gachaHistoryId = null,
+                acquiredItems = null, // 아이템 구매 응답엔 결과 목록이 없다 — 클라이언트가 구성
+                currency = ServerCurrency(shellBalance = 0, pearlBalance = 45, pityCounter = 0),
+            ),
+            error = null,
+        )
+
+        val vm = ShopViewModel(UserSession(), appState, loader, api)
+        startCollect(vm)
+        advanceUntilIdle()
+
+        vm.selectForPurchase(vm.uiState.value.listings[0])
+        vm.confirmPurchase()
+        advanceUntilIdle()
+
+        val results = vm.uiState.value.boxResults
+        assertThat(results).hasSize(1)
+        assertThat(results[0].name).isEqualTo("Item1")
+        assertThat(results[0].kind).isEqualTo("char")
+        assertThat(results[0].isNew).isTrue()
+        assertThat(results[0].pearlsEarned).isEqualTo(0)
     }
 
     @Test

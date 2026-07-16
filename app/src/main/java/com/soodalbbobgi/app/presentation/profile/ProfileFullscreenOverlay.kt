@@ -34,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -56,6 +57,7 @@ import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.GlassSheen
 import com.soodalbbobgi.app.core.ui.ProfileFrameCorner
 import com.soodalbbobgi.app.core.ui.SoodalIcon
+import com.soodalbbobgi.app.core.ui.soodalScreenBackdrop
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.motion.Motion
 import kotlinx.coroutines.launch
@@ -258,14 +260,29 @@ fun ProfileFullscreenOverlay(
                         }
                     },
             ) {
+                // 검은 배경에선 비칠 게 없어 반투명 유리가 죽어 보인다 — 홈과 같은 톤의 앱 배경을
+                // 프레임 안에 직접 그리고 홈 카드와 같은 프로스트 틴트(흰 0.55)를 얹어
+                // '홈 배경 위 유리 카드'의 모습을 통째로 구워 넣는다.
                 Box(
                     modifier = Modifier
                         .matchParentSize()
                         .graphicsLayer { alpha = progress.value }
                         .clip(frameShape)
-                        .background(Color.White.copy(alpha = 0.10f))
-                        .border(1.dp, Color.White.copy(alpha = 0.18f), frameShape),
+                        .border(1.dp, colors.glassBorder, frameShape),
                 ) {
+                    // 배경(그라데이션+블롭)을 프레임에 채우고 블러 — 홈 카드 프로스트의 젖빛 질감 재현
+                    // (blur는 API 31+에서만 동작하지만, 배경 자체가 이미 부드러워 미만에서도 자연스럽다)
+                    Box(
+                        Modifier
+                            .matchParentSize()
+                            .blur(24.dp)
+                            .soodalScreenBackdrop(),
+                    )
+                    Box(
+                        Modifier
+                            .matchParentSize()
+                            .background(if (colors.isDark) colors.glassBg else Color.White.copy(alpha = 0.55f)),
+                    )
                     GlassSheen(frameShape)
                 }
                 ProfileCardComposite(
