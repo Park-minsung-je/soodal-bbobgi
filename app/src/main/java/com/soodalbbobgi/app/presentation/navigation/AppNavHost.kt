@@ -26,6 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -61,6 +63,20 @@ import com.soodalbbobgi.app.presentation.settings.SettingsScreen
 import com.soodalbbobgi.app.presentation.shop.ShopScreen
 import com.soodalbbobgi.app.presentation.splash.SplashDestination
 import com.soodalbbobgi.app.presentation.splash.SplashScreen
+
+/**
+ * 전환 애니메이션 도중의 연타로 같은 목적지가 백스택에 여러 번 쌓이는 것을 막는다.
+ *
+ * 화면 전환이 진행되는 동안 출발 화면은 RESUMED에서 내려오므로, 현재 최상단 항목이
+ * RESUMED일 때(= 전환이 없을 때)만 navigate를 수행한다.
+ *
+ * @param route 이동할 목적지 라우트
+ */
+private fun NavController.navigateOnce(route: String) {
+    if (currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
+        navigate(route)
+    }
+}
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
@@ -166,13 +182,13 @@ fun AppNavHost(navController: NavHostController) {
                         )
                     }
                     composable(Screen.OnboardingNickname.route) {
-                        OnboardingNicknameScreen(onNext = { navController.navigate(Screen.OnboardingPermission.route) })
+                        OnboardingNicknameScreen(onNext = { navController.navigateOnce(Screen.OnboardingPermission.route) })
                     }
                     composable(Screen.OnboardingPermission.route) {
                         // HC 권한 단계 다음은 알림 설정 단계 — 둘 다 알림 단계로 넘긴다.
                         OnboardingPermissionScreen(
-                            onConnect = { navController.navigate(Screen.OnboardingNotification.route) },
-                            onSkip = { navController.navigate(Screen.OnboardingNotification.route) },
+                            onConnect = { navController.navigateOnce(Screen.OnboardingNotification.route) },
+                            onSkip = { navController.navigateOnce(Screen.OnboardingNotification.route) },
                         )
                     }
                     composable(Screen.OnboardingNotification.route) {
@@ -183,8 +199,8 @@ fun AppNavHost(navController: NavHostController) {
                     composable(Screen.Home.route) {
                         HomeScreen(
                             onNavigateToTab = onSelectTab,
-                            onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                            onNavigateToCollection = { navController.navigate(Screen.Collection.route) },
+                            onNavigateToSettings = { navController.navigateOnce(Screen.Settings.route) },
+                            onNavigateToCollection = { navController.navigateOnce(Screen.Collection.route) },
                             onOpenFullscreen = { cardOverlayReady = false; fullscreenOpen = true },
                             hideCard = cardOverlayReady,
                             editorOpen = homeEditorOpen,
@@ -208,7 +224,7 @@ fun AppNavHost(navController: NavHostController) {
                                     popUpTo(0) { inclusive = true }
                                 }
                             },
-                            onOpenLicenses = { navController.navigate(Screen.Licenses.route) },
+                            onOpenLicenses = { navController.navigateOnce(Screen.Licenses.route) },
                         )
                     }
                     composable(Screen.Licenses.route) {
