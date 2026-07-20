@@ -110,11 +110,11 @@ fun ShopScreen(
                 val itemListings = state.listings.filter { it.productType == "item" }
                 val knownCategories = setOf("char", "bg", "frame")
                 val itemSections = listOf(
-                    Triple("캐릭터", SoodalIcons.Otter, itemListings.filter { it.category == "char" }),
-                    Triple("배경", SoodalIcons.Aurora, itemListings.filter { it.category == "bg" }),
-                    Triple("액자", SoodalIcons.Frame, itemListings.filter { it.category == "frame" }),
-                    Triple("아이템", SoodalIcons.Gift, itemListings.filter { it.category !in knownCategories }),
-                ).filter { it.third.isNotEmpty() }
+                    "캐릭터" to itemListings.filter { it.category == "char" },
+                    "배경" to itemListings.filter { it.category == "bg" },
+                    "액자" to itemListings.filter { it.category == "frame" },
+                    "아이템" to itemListings.filter { it.category !in knownCategories },
+                ).filter { it.second.isNotEmpty() }
 
                 // -- Boxes Section --
                 if (boxListings.isNotEmpty()) {
@@ -153,18 +153,12 @@ fun ShopScreen(
                 }
 
                 // -- Direct Items Sections (종류별: 캐릭터/배경/액자/기타, 아래로 이어짐) --
-                itemSections.forEachIndexed { sectionIndex, (title, icon, sectionItems) ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        SoodalIcon(icon = icon, size = 18.dp)
-                        Text(
-                            text = title,
-                            style = SoodalDesign.typography.md,
-                            color = colors.textPrimary,
-                        )
-                    }
+                itemSections.forEachIndexed { sectionIndex, (title, sectionItems) ->
+                    Text(
+                        text = title,
+                        style = SoodalDesign.typography.md,
+                        color = colors.textPrimary,
+                    )
                     Spacer(Modifier.height(spacing.s3))
 
                     val itemRows = sectionItems.chunked(3)
