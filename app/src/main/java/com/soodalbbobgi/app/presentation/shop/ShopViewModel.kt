@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -32,6 +33,8 @@ data class ShopItem(
     val icon: SoodalIcons,
     val imageAsset: String?,
     val grade: Grade?,
+    /** 상품 카테고리 (char/bg/frame) — 구매 결과 팝업의 종류 라벨에 사용. */
+    val category: String?,
     val price: Int,
     val maxPerUser: Int?,
     val purchasedTotal: Int,
@@ -54,7 +57,7 @@ data class ShopUiState(
     val confirmItem: ShopItem? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
-    /** 박스 구매 결과 — 비어있지 않으면 결과 오버레이를 띄운다. */
+    /** 구매 결과(박스 뽑기·아이템 공용) — 비어있지 않으면 결과 오버레이를 띄운다. */
     val boxResults: List<GachaResultItem> = emptyList(),
 )
 
@@ -102,6 +105,8 @@ class ShopViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _local.update { it.copy(isLoading = true) }
+            // 응답이 순식간에 와도 로딩 딤이 깜빡 스치지 않게 최소 표시 시간을 유지 (홈 동기화와 동일 패턴).
+            val startedAt = System.currentTimeMillis()
             try {
                 appStateLoader.refreshCurrency()
                 appStateLoader.refreshShop()
@@ -111,6 +116,8 @@ class ShopViewModel @Inject constructor(
                 Timber.w(e, "상점 새로고침 실패")
                 _local.update { it.copy(error = "상점을 불러오지 못했어요") }
             } finally {
+                val elapsed = System.currentTimeMillis() - startedAt
+                if (elapsed < MIN_LOADING_INDICATOR_MS) delay(MIN_LOADING_INDICATOR_MS - elapsed)
                 _local.update { it.copy(isLoading = false) }
             }
         }
@@ -123,7 +130,7 @@ class ShopViewModel @Inject constructor(
     fun cancelPurchase() { _local.update { it.copy(confirmItem = null) } }
     fun clearError() { _local.update { it.copy(error = null) } }
 
-    /** 박스 구매 결과 오버레이 닫기. */
+    /** 구매 결과 오버레이 닫기 (박스·아이템 공용). */
     fun dismissBoxResults() { _local.update { it.copy(boxResults = emptyList()) } }
 
     fun confirmPurchase() {
@@ -153,6 +160,18 @@ class ShopViewModel @Inject constructor(
                             )
                         }
                         _local.update { it.copy(boxResults = results, confirmItem = null) }
+                    } else if (item.productType == "item") {
+                        // 아이템 직접 구매 — 응답에 아이템 정보가 없으므로 구매한 상품 정보로
+                        // 박스와 같은 결과 팝업을 띄운다 (구매 완료 피드백).
+                        val result = GachaResultItem(
+                            name = item.name,
+                            grade = item.grade ?: Grade.N,
+                            kind = item.category ?: "",
+                            isNew = true,
+                            pearlsEarned = 0,
+                            imageAsset = item.imageAsset,
+                        )
+                        _local.update { it.copy(boxResults = listOf(result), confirmItem = null) }
                     } else {
                         _local.update { it.copy(confirmItem = null) }
                     }
@@ -188,6 +207,7 @@ class ShopViewModel @Inject constructor(
             icon = icon,
             imageAsset = product.imageAsset ?: product.iconAsset,
             grade = product.grade,
+            category = product.category,
             price = pearlPrice,
             maxPerUser = maxPerUser,
             purchasedTotal = purchasedTotal,
@@ -200,5 +220,10 @@ class ShopViewModel @Inject constructor(
             canBuy = canBuy,
             owned = productType == "item" && product.id in ownedItemIds,
         )
+    }
+
+    companion object {
+        /** 로딩 딤 최소 유지 시간(ms) — 순간 응답 시 오버레이가 깜빡 스치는 것 방지. */
+        private const val MIN_LOADING_INDICATOR_MS = 600L
     }
 }

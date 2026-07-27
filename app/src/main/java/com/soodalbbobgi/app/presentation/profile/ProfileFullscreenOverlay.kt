@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -33,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -52,7 +54,10 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
+import com.soodalbbobgi.app.core.ui.GlassSheen
+import com.soodalbbobgi.app.core.ui.ProfileFrameCorner
 import com.soodalbbobgi.app.core.ui.SoodalIcon
+import com.soodalbbobgi.app.core.ui.soodalScreenBackdrop
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.motion.Motion
 import kotlinx.coroutines.launch
@@ -186,7 +191,12 @@ fun ProfileFullscreenOverlay(
     val screenHpx = with(density) { config.screenHeightDp.dp.toPx() }
     val cardWpx = with(density) { cardWidthDp.toPx() }
     val cardHpx = with(density) { cardHeightDp.toPx() }
-    val fullscreenScale = fullscreenCardScale(cardWpx, cardHpx, screenWpx, screenHpx)
+    // 홈 카드와 같은 유리 매트 프레임 두께 — 배율은 프레임 포함 크기로 계산해
+    // 전체화면에서 프레임이 화면 밖으로 잘리지 않게 한다.
+    val frameDp = 6.dp
+    val framePx = with(density) { frameDp.toPx() }
+    val fullscreenScale =
+        fullscreenCardScale(cardWpx + framePx * 2, cardHpx + framePx * 2, screenWpx, screenHpx)
 
     var overlayCenter by remember { mutableStateOf<Offset?>(null) }
 
@@ -217,11 +227,14 @@ fun ProfileFullscreenOverlay(
         )
 
         // 단일 카드: 홈 카드와 같은 크기로 그려 progress=0에서 홈 카드와 픽셀 일치.
+        // 홈처럼 라운드 + 유리 매트 프레임 — 프레임은 progress로 페이드 인해서 진입 시점엔
+        // 뒤에 남아 있는 홈 GlassBox 프레임과 자연스럽게 교차된다. 검은 배경 위라 배경 블러
+        // 대신 반투명 흰 유리를 직접 그린다 (어두운 유리 매트로 읽힘).
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            ProfileCardComposite(
-                layers = layers,
+            val frameShape = RoundedCornerShape(ProfileFrameCorner)
+            Box(
                 modifier = Modifier
-                    .size(cardWidthDp, cardHeightDp)
+                    .size(cardWidthDp + frameDp * 2, cardHeightDp + frameDp * 2)
                     .onGloballyPositioned { overlayCenter = it.boundsInWindow().center }
                     .graphicsLayer {
                         val home = ProfileCardBounds.homeCardCenter
@@ -246,7 +259,40 @@ fun ProfileFullscreenOverlay(
                             translationY = t.translationY
                         }
                     },
-            )
+            ) {
+                // 검은 배경에선 비칠 게 없어 반투명 유리가 죽어 보인다 — 홈과 같은 톤의 앱 배경을
+                // 프레임 안에 직접 그리고 홈 카드와 같은 프로스트 틴트(흰 0.55)를 얹어
+                // '홈 배경 위 유리 카드'의 모습을 통째로 구워 넣는다.
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .graphicsLayer { alpha = progress.value }
+                        .clip(frameShape)
+                        .border(1.dp, colors.glassBorder, frameShape),
+                ) {
+                    // 배경(그라데이션+블롭)을 프레임에 채우고 블러 — 홈 카드 프로스트의 젖빛 질감 재현
+                    // (blur는 API 31+에서만 동작하지만, 배경 자체가 이미 부드러워 미만에서도 자연스럽다)
+                    Box(
+                        Modifier
+                            .matchParentSize()
+                            .blur(24.dp)
+                            .soodalScreenBackdrop(),
+                    )
+                    Box(
+                        Modifier
+                            .matchParentSize()
+                            .background(if (colors.isDark) colors.glassBg else Color.White.copy(alpha = 0.55f)),
+                    )
+                    GlassSheen(frameShape)
+                }
+                ProfileCardComposite(
+                    layers = layers,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(cardWidthDp, cardHeightDp)
+                        .clip(RoundedCornerShape(ProfileFrameCorner - frameDp)),
+                )
+            }
         }
 
         // 하단 컨트롤: 카드와 달리 progress로 함께 페이드.

@@ -105,10 +105,16 @@ fun ShopScreen(
                 Spacer(Modifier.height(spacing.s4))
 
                 val boxListings = state.listings.filter { it.productType == "box" }
-                // 아이템은 등급 내림차순(전설→일반) — 동급은 서버 목록 순서 유지.
-                val itemListings = state.listings
-                    .filter { it.productType == "item" }
-                    .sortedByDescending { it.grade?.ordinal ?: -1 }
+                // 아이템은 종류(캐릭터/배경/액자)별 섹션으로 나눠 아래로 이어 보여주고,
+                // 각 섹션 안의 순서는 관리자가 지정한 서버 배치(sortOrder) 그대로 유지한다.
+                val itemListings = state.listings.filter { it.productType == "item" }
+                val knownCategories = setOf("char", "bg", "frame")
+                val itemSections = listOf(
+                    "캐릭터" to itemListings.filter { it.category == "char" },
+                    "배경" to itemListings.filter { it.category == "bg" },
+                    "액자" to itemListings.filter { it.category == "frame" },
+                    "아이템" to itemListings.filter { it.category !in knownCategories },
+                ).filter { it.second.isNotEmpty() }
 
                 // -- Boxes Section --
                 if (boxListings.isNotEmpty()) {
@@ -146,22 +152,16 @@ fun ShopScreen(
                     Spacer(Modifier.height(spacing.s5))
                 }
 
-                // -- Direct Items Section --
-                if (itemListings.isNotEmpty()) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        SoodalIcon(icon = SoodalIcons.Gift, size = 18.dp)
-                        Text(
-                            text = "아이템",
-                            style = SoodalDesign.typography.md,
-                            color = colors.textPrimary,
-                        )
-                    }
+                // -- Direct Items Sections (종류별: 캐릭터/배경/액자/기타, 아래로 이어짐) --
+                itemSections.forEachIndexed { sectionIndex, (title, sectionItems) ->
+                    Text(
+                        text = title,
+                        style = SoodalDesign.typography.md,
+                        color = colors.textPrimary,
+                    )
                     Spacer(Modifier.height(spacing.s3))
 
-                    val itemRows = itemListings.chunked(3)
+                    val itemRows = sectionItems.chunked(3)
                     itemRows.forEachIndexed { rowIndex, rowItems ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -179,6 +179,7 @@ fun ShopScreen(
                         }
                         if (rowIndex < itemRows.size - 1) Spacer(Modifier.height(spacing.s3))
                     }
+                    if (sectionIndex < itemSections.size - 1) Spacer(Modifier.height(spacing.s5))
                 }
                 Spacer(Modifier.height(TabBarClearance))
             }
@@ -210,6 +211,11 @@ fun ShopScreen(
                     onClose = { viewModel.dismissBoxResults() },
                 )
             }
+        }
+
+        // ── 최신 정보 로딩 오버레이 — 진열/잔액 새로고침 동안 화면을 딤 처리 (홈 동기화와 동일 패턴) ──
+        if (state.isLoading) {
+            com.soodalbbobgi.app.core.ui.SyncLoadingOverlay("최신 상점 정보를 불러오는 중이에요...")
         }
     }
 }
