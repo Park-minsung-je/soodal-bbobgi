@@ -25,6 +25,8 @@ data class ProfileCard(
     val characterX: Float = 0.5f,
     val characterY: Float = 0.5f,
     val characterScale: Float = 1.0f,
+    /** 캐릭터 부유 그림자(엘리베이션) 표시 여부. */
+    val characterShadow: Boolean = true,
     val customText: String = "",
     val textStyle: String = "REGULAR",
     // ── 구 블록 단위 필드 (서버/구버전 호환용 — 신규 요소별 필드의 기본값 유도에만 사용) ──

@@ -238,6 +238,24 @@ fun EditorSheet(
                     SliderRow("↔ 좌우", state.charX, 0f..1f) { vm.setCharX(it) }
                     SliderRow("↕ 상하", state.charY, 0f..1f) { vm.setCharY(it) }
                     SliderRow("⊕ 크기", state.charScale, 0.3f..1f) { vm.setCharScale(it) }
+                    // -- 배경 그림자(엘리베이션) 표시 토글 --
+                    Spacer(Modifier.height(spacing.s2))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("배경 그림자", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+                        Switch(
+                            checked = state.charShadow,
+                            onCheckedChange = { vm.setCharShadow(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = colors.btnPrimaryText,
+                                checkedTrackColor = SheetAccent,
+                                uncheckedTrackColor = colors.surface3,
+                            ),
+                        )
+                    }
                 }
                 EditorCategory.Nickname -> TextElementControls(TextElement.Nickname, state, vm)
                 EditorCategory.Tagline -> {

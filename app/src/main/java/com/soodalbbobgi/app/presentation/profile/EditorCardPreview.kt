@@ -90,17 +90,19 @@ fun EditorCardPreview(
                     transformOrigin = TransformOrigin(0.5f, 0.5f)
                 }
             // 그림자 비트맵은 사방 SHADOW_MARGIN_FRAC 만큼 큰 캔버스 — 같은 비율로 확대해 스케일을 맞춘다
-            Image(
-                bitmap = shadow.asImageBitmap(),
-                contentDescription = null,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(baseSizeDp)
-                    .then(charLayer(
-                        extraScale = 1f + ProfileCardRenderer.SHADOW_MARGIN_FRAC * 2f,
-                        extraOffsetYFrac = ProfileCardRenderer.SHADOW_OFFSET_FRAC,
-                    )),
-            )
+            if (layers.showShadow) {
+                Image(
+                    bitmap = shadow.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(baseSizeDp)
+                        .then(charLayer(
+                            extraScale = 1f + ProfileCardRenderer.SHADOW_MARGIN_FRAC * 2f,
+                            extraOffsetYFrac = ProfileCardRenderer.SHADOW_OFFSET_FRAC,
+                        )),
+                )
+            }
             Image(
                 bitmap = charBitmap.asImageBitmap(),
                 contentDescription = null,
@@ -119,7 +121,7 @@ fun EditorCardPreview(
                 color = layers.nicknameColor, fontStyle = layers.nicknameStyle,
                 outline = layers.nicknameOutline,
                 cx = layers.nicknameX, cy = layers.nicknameY,
-                widthPx = widthPx, heightPx = heightPx, s = s,
+                widthPx = widthPx, heightPx = heightPx, s = s, bgBitmap = bgBitmap,
             )
         }
         if (layers.showTagline) {
@@ -129,7 +131,7 @@ fun EditorCardPreview(
                 color = layers.taglineColor, fontStyle = layers.taglineStyle,
                 outline = layers.taglineOutline,
                 cx = layers.taglineX, cy = layers.taglineY,
-                widthPx = widthPx, heightPx = heightPx, s = s,
+                widthPx = widthPx, heightPx = heightPx, s = s, bgBitmap = bgBitmap,
             )
         }
         if (layers.showStats) {
@@ -139,7 +141,7 @@ fun EditorCardPreview(
                 color = layers.statsColor, fontStyle = layers.statsStyle,
                 outline = layers.statsOutline,
                 cx = layers.statsX, cy = layers.statsY,
-                widthPx = widthPx, heightPx = heightPx, s = s,
+                widthPx = widthPx, heightPx = heightPx, s = s, bgBitmap = bgBitmap,
             )
         }
     }
@@ -163,6 +165,7 @@ private fun BoxScope.ElementLayer(
     widthPx: Float,
     heightPx: Float,
     s: Float,
+    bgBitmap: Bitmap?,
 ) {
     val colorRaw = remember(color) {
         try {
@@ -171,8 +174,12 @@ private fun BoxScope.ElementLayer(
             android.graphics.Color.WHITE
         }
     }
-    val bmp: Bitmap = remember(text, baseSize, scaleStep, pill, colorRaw, fontStyle, outline) {
-        ProfileCardRenderer.renderElementBitmap(text, baseSize, scaleStep, pill, colorRaw, fontStyle, outline)
+    // BLUR 칩은 편집 프리뷰에서 실배경 블러가 불가하므로, 칩 뒤 배경 근사색으로 프로스트를 입힌다.
+    val blurFallback = remember(pill, bgBitmap, cx, cy) {
+        if (pill == "BLUR" && bgBitmap != null) ProfileCardRenderer.sampleBgColor(bgBitmap, cx, cy) else null
+    }
+    val bmp: Bitmap = remember(text, baseSize, scaleStep, pill, colorRaw, fontStyle, outline, blurFallback) {
+        ProfileCardRenderer.renderElementBitmap(text, baseSize, scaleStep, pill, colorRaw, fontStyle, outline, blurFallback)
     }
     val density = LocalDensity.current
     val wDp = with(density) { (bmp.width * s).toDp() }

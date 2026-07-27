@@ -295,6 +295,7 @@ private fun ServerProfileCard.toDomain(userId: String): ProfileCard {
         characterX = characterX,
         characterY = characterY,
         characterScale = characterScale,
+        characterShadow = characterShadow ?: true,
         customText = customText ?: "",
         textStyle = textStyle,
         textAlign = textAlign,

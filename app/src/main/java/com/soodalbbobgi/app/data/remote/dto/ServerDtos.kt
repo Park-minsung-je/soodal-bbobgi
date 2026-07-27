@@ -10,6 +10,8 @@ data class ServerProfileCard(
     val characterX: Float = 0.5f,
     val characterY: Float = 0.5f,
     val characterScale: Float = 1.0f,
+    /** 캐릭터 부유 그림자 표시 여부 — 구서버 응답엔 없을 수 있어 nullable (없으면 true). */
+    val characterShadow: Boolean? = null,
     val customText: String? = null,
     val textStyle: String = "REGULAR",
     val textAlign: String = "RIGHT",
