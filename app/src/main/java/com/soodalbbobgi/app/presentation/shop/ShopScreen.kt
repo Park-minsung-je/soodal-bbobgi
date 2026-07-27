@@ -214,7 +214,9 @@ fun ShopScreen(
         }
 
         // ── 최신 정보 로딩 오버레이 — 진열/잔액 새로고침 동안 화면을 딤 처리 (홈 동기화와 동일 패턴) ──
-        if (state.isLoading) {
+        // 구매 확인/결과 팝업이 떠 있을 땐 로딩 딤을 겹치지 않는다. 구매 직후 refresh()의 로딩 딤이
+        // 결과 팝업 딤 위에 얹혀 잠깐 더 진해졌다 연해지는 이중 딤을 방지한다.
+        if (state.isLoading && state.boxResults.isEmpty() && state.confirmItem == null) {
             com.soodalbbobgi.app.core.ui.SyncLoadingOverlay("최신 상점 정보를 불러오는 중이에요...")
         }
     }
