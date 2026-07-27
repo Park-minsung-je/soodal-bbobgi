@@ -413,12 +413,12 @@ private fun SalvageScene(
         val otterH = 92f
         val otterScale = otterH / 365f          // 원본 px → dp
         val otterW = 356f * otterScale
-        // 왼손의 닻이 왼쪽으로 튀어나온 에셋이라 몸통 중심은 비트맵 가로 63% 지점
-        val otterX = centerX - otterW * 0.63f
+        // 닻/꼬리가 좌우로 뻗은 에셋이라 몸통 중심은 비트맵 가로 50.6% 지점
+        val otterX = centerX - otterW * 0.506f
         val otterTopY = SURFACE_Y - 5f - otterH + 3f
-        // 손에 쥔 로프 매듭이 끝나는 지점 (원본 px 47, 194) — 인양 로프가 여기서 시작한다
-        val handX = otterX + 47f * otterScale
-        val handY = otterTopY + 194f * otterScale
+        // 손에 쥔 로프 매듭이 끝나는 지점 (356×365 프레임 px 62, 150) — 인양 로프가 여기서 시작한다
+        val handX = otterX + 62f * otterScale
+        val handY = otterTopY + 150f * otterScale
 
         // ── 닻 위치: 손(대기) → 상자(내리기) → 수면 위(감아올리기) ──
         // 평소엔 수달이 닻을 들고 있고(이미지에 포함) 물밑엔 아무것도 없다.
