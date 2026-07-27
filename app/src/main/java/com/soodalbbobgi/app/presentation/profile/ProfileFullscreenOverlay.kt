@@ -125,6 +125,7 @@ fun ProfileFullscreenOverlay(
         charX = cardState.charX,
         charY = cardState.charY,
         charScale = cardState.charScale,
+        showShadow = saved?.characterShadow ?: true,
         nicknameStyle = saved?.nicknameStyle ?: "REGULAR",
         taglineStyle = saved?.taglineStyle ?: "REGULAR",
         statsStyle = saved?.statsStyle ?: "REGULAR",
@@ -147,7 +148,8 @@ fun ProfileFullscreenOverlay(
         taglineColor = saved?.taglineColor ?: "#FFFFFF",
         statsColor = saved?.statsColor ?: "#00F5FF",
     )
-    val bitmap = remember(layers) { ProfileCardRenderer.renderCached(layers) }
+    // 저장/공유 이미지엔 전체보기와 같은 유리 매트 베젤을 둘러 담는다.
+    val bitmap = remember(layers) { ProfileCardRenderer.renderFramed(layers) }
 
     // 진입 시 0→1, 닫기 시 1→0. 한 progress로 회전·확대·이동·페이드를 모두 구동.
     // 진입 애니는 오버레이 카드 위치가 측정된 뒤 시작한다(아래 LaunchedEffect) — 미측정 첫 프레임에

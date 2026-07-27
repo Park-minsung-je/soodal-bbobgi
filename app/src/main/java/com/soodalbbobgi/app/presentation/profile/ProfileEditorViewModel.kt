@@ -97,6 +97,7 @@ data class ProfileEditorUiState(
     val charX: Float = 0.5f,
     val charY: Float = 0.5f,
     val charScale: Float = 1.0f,
+    val charShadow: Boolean = true,
     val customText: String = "",
     val textStyle: String = "REGULAR",
     /** 요소별 편집 상태 — 닉네임/한마디/기록. */
@@ -149,6 +150,7 @@ class ProfileEditorViewModel @Inject constructor(
         val charX: Float = 0.5f,
         val charY: Float = 0.5f,
         val charScale: Float = 1.0f,
+        val charShadow: Boolean = true,
         val customText: String = "",
         val textStyle: String = "REGULAR",
         // 구 블록 필드 — UI에선 안 쓰고 저장 호환용으로만 보존.
@@ -181,6 +183,7 @@ class ProfileEditorViewModel @Inject constructor(
                 charX = savedCard.characterX,
                 charY = savedCard.characterY,
                 charScale = savedCard.characterScale,
+                charShadow = savedCard.characterShadow,
                 customText = savedCard.customText,
                 textStyle = savedCard.textStyle,
                 textAlign = savedCard.textAlign,
@@ -228,6 +231,7 @@ class ProfileEditorViewModel @Inject constructor(
             charX = state.charX,
             charY = state.charY,
             charScale = state.charScale,
+            charShadow = state.charShadow,
             customText = state.customText,
             textStyle = state.textStyle,
             nicknameEl = state.nicknameEl,
@@ -275,6 +279,7 @@ class ProfileEditorViewModel @Inject constructor(
     fun setCharX(v: Float) { _editState.value = _editState.value.copy(charX = v) }
     fun setCharY(v: Float) { _editState.value = _editState.value.copy(charY = v) }
     fun setCharScale(v: Float) { _editState.value = _editState.value.copy(charScale = v) }
+    fun setCharShadow(v: Boolean) { _editState.value = _editState.value.copy(charShadow = v) }
     fun setCustomText(v: String) { _editState.value = _editState.value.copy(customText = v) }
     fun setTextStyle(v: String) { _editState.value = _editState.value.copy(textStyle = v) }
 
@@ -320,6 +325,7 @@ class ProfileEditorViewModel @Inject constructor(
                     characterX = s.charX.coerceIn(0f, 1f),
                     characterY = s.charY.coerceIn(0f, 1f),
                     characterScale = s.charScale.coerceIn(0.3f, 1f),
+                    characterShadow = s.charShadow,
                     customText = s.customText,
                     // 구 전역 필드는 닉네임 값으로 채워 구버전 렌더 호환을 유지한다
                     textStyle = s.nicknameEl.style,
@@ -361,6 +367,7 @@ class ProfileEditorViewModel @Inject constructor(
                     characterX = card.characterX,
                     characterY = card.characterY,
                     characterScale = card.characterScale,
+                    characterShadow = card.characterShadow,
                     customText = card.customText.ifEmpty { null },
                     textStyle = card.textStyle,
                     textAlign = card.textAlign,

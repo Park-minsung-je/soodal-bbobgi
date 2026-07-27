@@ -54,6 +54,8 @@ data class CardLayers(
     val charX: Float = 0.5f,
     val charY: Float = 0.5f,
     val charScale: Float = 1.0f,
+    /** 캐릭터 부유 그림자(엘리베이션) 표시 여부. */
+    val showShadow: Boolean = true,
     // ── 요소별 글꼴 스타일 ("REGULAR" | "BOLD" | "ITALIC" | "BOLD_ITALIC") ──
     val nicknameStyle: String = "REGULAR",
     val taglineStyle: String = "REGULAR",
@@ -169,6 +171,61 @@ object ProfileCardRenderer {
      */
     fun peek(layers: CardLayers, resolutionScale: Float = 1f): Bitmap? = cache.get(layers to resolutionScale)
 
+    /**
+     * 카드 둘레에 유리 매트 베젤(전체보기 프레임과 같은 톤)을 두른 저장/공유용 비트맵.
+     *
+     * 전체보기에서 보이는 프레임을 갤러리 저장 이미지에도 그대로 담기 위한 것.
+     * 라이브 배경 블러 대신 밝은 파스텔 그라데이션 + 흰 틴트로 프로스트 유리 느낌을 근사한다.
+     *
+     * @param layers 카드 레이어
+     * @return 카드 + 베젤 프레임이 합쳐진 비트맵 (사방 여백 포함)
+     */
+    fun renderFramed(layers: CardLayers): Bitmap {
+        val card = renderCached(layers)
+        val margin = (CARD_HEIGHT * 0.05f)
+        val outW = (card.width + margin * 2f).toInt()
+        val outH = (card.height + margin * 2f).toInt()
+        val out = Bitmap.createBitmap(outW, outH, Bitmap.Config.ARGB_8888)
+        val c = Canvas(out)
+        val frameCorner = CARD_HEIGHT * 0.10f
+        val cardCorner = frameCorner - margin
+        val frameRect = RectF(0f, 0f, outW.toFloat(), outH.toFloat())
+
+        // 프레임 바탕 — 앱 라이트 배경과 같은 파스텔 그라데이션(165°)
+        val framePaint = Paint().apply {
+            isAntiAlias = true
+            shader = android.graphics.LinearGradient(
+                outW * 0.16f, 0f, outW * 0.84f, outH.toFloat(),
+                intArrayOf(0xFFCFE9FA.toInt(), 0xFFD6F0E6.toInt(), 0xFFE4DCF8.toInt()),
+                floatArrayOf(0f, 0.5f, 1f), android.graphics.Shader.TileMode.CLAMP,
+            )
+        }
+        c.drawRoundRect(frameRect, frameCorner, frameCorner, framePaint)
+        // 흰 유리 틴트 — 프로스트 매트 느낌
+        c.drawRoundRect(frameRect, frameCorner, frameCorner, Paint().apply {
+            isAntiAlias = true
+            color = android.graphics.Color.argb(120, 255, 255, 255)
+        })
+
+        // 카드 — 라운드 클립 후 여백만큼 안쪽에 배치
+        val cardLeft = margin
+        val cardTop = margin
+        val cardRect = RectF(cardLeft, cardTop, cardLeft + card.width, cardTop + card.height)
+        val save = c.save()
+        c.clipPath(Path().apply { addRoundRect(cardRect, cardCorner, cardCorner, Path.Direction.CW) })
+        c.drawBitmap(card, cardLeft, cardTop, Paint().apply { isFilterBitmap = true })
+        c.restoreToCount(save)
+
+        // 유리 하이라이트 보더
+        c.drawRoundRect(frameRect, frameCorner, frameCorner, Paint().apply {
+            isAntiAlias = true
+            style = Paint.Style.STROKE
+            strokeWidth = 3f
+            color = android.graphics.Color.argb(150, 255, 255, 255)
+        })
+        return out
+    }
+
     fun render(layers: CardLayers, resolutionScale: Float = 1f): Bitmap {
         val bitmap = Bitmap.createBitmap(
             (CARD_WIDTH * resolutionScale).toInt().coerceAtLeast(1),
@@ -219,13 +276,15 @@ object ProfileCardRenderer {
             )
             // 캐릭터 부유 그림자(엘리베이션) — 실루엣을 크게 블러해 캐릭터가 배경에서
             // 살짝 떠 보이게 강조한다. 블러 비트맵은 캐릭터 비트맵 단위로 캐시(합성마다 재계산 없음).
-            val shadow = elevationShadowOf(layers.charBitmap)
-            val expand = charSize * SHADOW_MARGIN_FRAC
-            val shadowDst = RectF(dst).apply {
-                inset(-expand, -expand)
-                offset(0f, charSize * SHADOW_OFFSET_FRAC)
+            if (layers.showShadow) {
+                val shadow = elevationShadowOf(layers.charBitmap)
+                val expand = charSize * SHADOW_MARGIN_FRAC
+                val shadowDst = RectF(dst).apply {
+                    inset(-expand, -expand)
+                    offset(0f, charSize * SHADOW_OFFSET_FRAC)
+                }
+                canvas.drawBitmap(shadow, null, shadowDst, paint)
             }
-            canvas.drawBitmap(shadow, null, shadowDst, paint)
 
             canvas.drawBitmap(layers.charBitmap, null, dst, paint)
         }
@@ -376,6 +435,8 @@ object ProfileCardRenderer {
         leftAligned: Boolean,
         anchor: Float,
         outline: Boolean,
+        /** BLUR 칩에 backdrop이 없을 때(편집 프리뷰) 프로스트 틴트로 쓸 배경 근사색. null이면 흰색. */
+        blurFallbackColor: Int? = null,
     ): Float {
         textPaint.textSize = textSize
         textPaint.textAlign = Paint.Align.LEFT
@@ -450,10 +511,22 @@ object ProfileCardRenderer {
                     canvas.drawRect(rect, Paint().apply { color = android.graphics.Color.argb(115, 255, 255, 255) })
                     canvas.restoreToCount(save)
                 } else {
-                    // 배경 샘플 불가(요소 단독 렌더/영역이 카드 밖) — 흰 반투명 프로스트 폴백.
+                    // 배경 샘플 불가(요소 단독 렌더/영역이 카드 밖) — 프로스트 폴백.
+                    // 편집 프리뷰는 칩 뒤 배경 근사색(blurFallbackColor)을 흰색과 섞어 젖빛 유리처럼
+                    // 보이게 한다(무지 흰 칩 대신). 근사색이 없으면 흰 반투명.
+                    val frost = if (blurFallbackColor != null) {
+                        android.graphics.Color.argb(
+                            205,
+                            (android.graphics.Color.red(blurFallbackColor) + 255) / 2,
+                            (android.graphics.Color.green(blurFallbackColor) + 255) / 2,
+                            (android.graphics.Color.blue(blurFallbackColor) + 255) / 2,
+                        )
+                    } else {
+                        android.graphics.Color.argb(180, 255, 255, 255)
+                    }
                     canvas.drawRoundRect(rect, radius, radius, Paint().apply {
                         isAntiAlias = true
-                        color = android.graphics.Color.argb(180, 255, 255, 255)
+                        color = frost
                     })
                 }
                 // 유리 하이라이트 보더. (this.style — 함수 파라미터 style이 가리므로 명시)
@@ -486,6 +559,32 @@ object ProfileCardRenderer {
     val ELEMENT_BITMAP_MARGIN = 16f * (CARD_WIDTH / TEXT_REF_WIDTH)
 
     /**
+     * 배경 비트맵의 (cx, cy) 지점(0~1 비율) 주변 작은 영역 평균색 — 편집 프리뷰 BLUR 칩 틴트용.
+     *
+     * @param bg 배경 비트맵
+     * @param cx 가로 위치 비율 (0~1)
+     * @param cy 세로 위치 비율 (0~1)
+     */
+    fun sampleBgColor(bg: Bitmap, cx: Float, cy: Float): Int {
+        val px = (cx * bg.width).toInt().coerceIn(0, bg.width - 1)
+        val py = (cy * bg.height).toInt().coerceIn(0, bg.height - 1)
+        val r = (minOf(bg.width, bg.height) * 0.05f).toInt().coerceAtLeast(1)
+        var sr = 0L; var sg = 0L; var sb = 0L; var n = 0L
+        var y = (py - r).coerceAtLeast(0)
+        while (y <= (py + r).coerceAtMost(bg.height - 1)) {
+            var x = (px - r).coerceAtLeast(0)
+            while (x <= (px + r).coerceAtMost(bg.width - 1)) {
+                val c = bg.getPixel(x, y)
+                sr += android.graphics.Color.red(c); sg += android.graphics.Color.green(c); sb += android.graphics.Color.blue(c)
+                n++; x += 3
+            }
+            y += 3
+        }
+        if (n == 0L) return android.graphics.Color.WHITE
+        return android.graphics.Color.rgb((sr / n).toInt(), (sg / n).toInt(), (sb / n).toInt())
+    }
+
+    /**
      * 텍스트 요소 하나를 자체 비트맵으로 렌더한다 — GPU 편집 프리뷰가 Compose 레이어로 배치한다.
      * 요소 중심 = 비트맵 중심(여백이 사방 동일). 크기는 카드(2752×1536) 픽셀 기준.
      * BLUR 칩은 배경 샘플이 불가능하므로 반투명 프로스트 폴백으로 그려진다(저장 시 진짜 블러로 대체).
@@ -500,6 +599,8 @@ object ProfileCardRenderer {
         colorRaw: Int,
         fontStyle: String,
         outline: Boolean,
+        /** BLUR 칩 프로스트 폴백 틴트에 쓸 배경 근사색(편집 프리뷰). null이면 흰색. */
+        blurFallbackColor: Int? = null,
     ): Bitmap {
         val u = CARD_WIDTH / TEXT_REF_WIDTH
         val textSize = baseSize * u * scaleMulOf(scaleStep)
@@ -521,6 +622,7 @@ object ProfileCardRenderer {
             text = text, textSize = textSize, top = margin,
             style = pill, colorRaw = colorRaw,
             leftAligned = true, anchor = margin, outline = outline,
+            blurFallbackColor = blurFallbackColor,
         )
         return bmp
     }
@@ -613,7 +715,10 @@ object ProfileCardRenderer {
 fun rememberAssetBitmap(imageAsset: String?): Bitmap? {
     if (imageAsset.isNullOrBlank()) return null
     val context = LocalContext.current
-    var bmp by remember(imageAsset) { mutableStateOf<Bitmap?>(null) }
+    // 경로가 바뀌어도 상태를 리셋하지 않는다(remember 키에 imageAsset 없음). 새 비트맵이
+    // 로드되기 전까지 직전 비트맵을 유지해, 편집 중 배경/캐릭터 교체 시 미리보기가 잠깐
+    // 비면서 아래 저장 카드(옛 값)가 비쳐 카드 전체가 깜빡이던 현상을 막는다.
+    var bmp by remember { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(imageAsset) {
         try {
             val assetStore = EntryPointAccessors
@@ -627,7 +732,8 @@ fun rememberAssetBitmap(imageAsset: String?): Bitmap? {
                 .allowHardware(false)
                 .build()
             val result = loader.execute(request)
-            bmp = (result.drawable as? BitmapDrawable)?.bitmap
+            // 새 비트맵이 준비된 순간에만 교체 (로딩 중엔 이전 비트맵 유지 → 깜빡임 없음)
+            (result.drawable as? BitmapDrawable)?.bitmap?.let { bmp = it }
         } catch (e: Exception) {
             Timber.w(e, "에셋 비트맵 로딩 실패: $imageAsset")
         }
