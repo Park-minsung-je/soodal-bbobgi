@@ -473,7 +473,8 @@ private fun SalvageScene(
                                     // 0.54 = 타일 안에서 줄 중심 위치
                                     dstOffset = IntOffset((prev.x - ropeW * 0.54f).roundToInt(), prev.y.roundToInt()),
                                     dstSize = IntSize(ropeW.roundToInt(), segLen.roundToInt().coerceAtLeast(1)),
-                                    filterQuality = FilterQuality.None,
+                                    // 래스터 에셋 — 부드럽게 축소되도록 필터링을 켠다
+                                    filterQuality = FilterQuality.Medium,
                                 )
                             }
                         }
@@ -648,7 +649,7 @@ private fun SalvageScene(
         Image(
             bitmap = otterBitmap,
             contentDescription = "인양꾼 수달",
-            filterQuality = FilterQuality.None, // 도트가 뭉개지지 않게
+            filterQuality = FilterQuality.Medium, // 래스터 에셋 — 축소 시 경계가 계단지지 않게
             modifier = Modifier
                 .offset(
                     x = otterX.dp,
