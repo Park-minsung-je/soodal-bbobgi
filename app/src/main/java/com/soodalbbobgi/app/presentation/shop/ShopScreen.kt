@@ -308,11 +308,12 @@ private fun BoxGridItem(
             }
             limitLabel(item)?.let { label ->
                 Spacer(Modifier.height(2.dp))
+                // 살 수 있는 상품(재고 있음)은 눈에 띄게 — 3차 회색이면 품절보다도 덜 보였다.
                 Text(
                     text = label,
                     fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (item.canBuy) colors.textTertiary else colors.warn,
+                    fontWeight = if (item.canBuy) FontWeight.ExtraBold else FontWeight.SemiBold,
+                    color = if (item.canBuy) colors.success else colors.warn,
                 )
             }
             saleRemainingLabel(item.endAt)?.let { label ->
