@@ -15,15 +15,15 @@
 ## 브랜치 전략
 
 ```
-feature/*  ──►  dev  ──►  release/YYYY-MM-DD  ──►  (배포)  ──►  master
+feature/*  ──►  dev  ──►  release/YYYY-MM-DD  ──►  (배포)  ──►  main
    작업          개발 통합        배포 스냅샷                    배포된 상태
 ```
 
 | 브랜치 | 역할 | 규칙 |
 |---|---|---|
-| `master` | **실제 배포된 상태**만 담는다 | 개발분을 직접 머지하지 않는다. 배포 완료된 release 브랜치만 머지 |
+| `main` | **실제 배포된 상태**만 담는다 | 개발분을 직접 머지하지 않는다. 배포 완료된 release 브랜치만 머지 |
 | `dev` | 개발 통합 브랜치 | 모든 `feature/*`·`fix/*`를 여기로 머지 |
-| `release/YYYY-MM-DD` | 배포 시점 **기록용 스냅샷** | 배포일 날짜로 명명. `dev`에서 따고, 배포 후 `master`로 머지 |
+| `release/YYYY-MM-DD` | 배포 시점 **기록용 스냅샷** | 배포일 날짜로 명명. `dev`에서 따고, 배포 후 `main`로 머지 |
 | `feature/*`, `fix/*` | 단일 기능/수정 작업 | 기능별로 반드시 분리 |
 
 ### 작업 흐름
@@ -43,9 +43,9 @@ feature/*  ──►  dev  ──►  release/YYYY-MM-DD  ──►  (배포)  �
    git checkout dev
    git checkout -b release/2026-08-25
    ```
-4. **배포 후**: release 브랜치를 `master`에 머지해 "배포된 상태"를 갱신한다
+4. **배포 후**: release 브랜치를 `main`에 머지해 "배포된 상태"를 갱신한다
    ```bash
-   git checkout master
+   git checkout main
    git merge --no-ff release/2026-08-25
    ```
 
