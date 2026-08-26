@@ -8,13 +8,16 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.soodalbbobgi.app.core.notify.SoodalNotifier
+import com.soodalbbobgi.app.core.notify.shouldSendNewRecordNotice
 import com.soodalbbobgi.app.data.health.HcSyncPreferences
 import com.soodalbbobgi.app.data.health.HealthConnectManager
+import com.soodalbbobgi.app.data.local.db.SwimLogDao
 import com.soodalbbobgi.app.data.notify.NotificationPrefs
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
+import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -25,6 +28,9 @@ import javax.inject.Singleton
  * 저장된 HC 변경 토큰으로 **변경 존재 여부만** 확인하고, 있으면 "앱을 열어 조개를 받으세요"
  * 알림을 띄운다. 실제 동기화/조개 지급은 앱을 열었을 때 기존 흐름이 처리한다 —
  * 그래서 토큰은 절대 소비하지 않으며, 같은 토큰 상태에는 한 번만 알린다.
+ *
+ * 오늘 기록이 이미 로컬에 등록됐다면(=조개 지급 완료) 알리지 않는다. 동기화 후 워치/헬스 앱이
+ * 같은 세션을 수정해 변경 이벤트가 다시 생겨도 "새 기록"으로 오인해 알리던 문제를 막는다.
  */
 @HiltWorker
 class HcChangeCheckWorker @AssistedInject constructor(
@@ -33,17 +39,21 @@ class HcChangeCheckWorker @AssistedInject constructor(
     private val prefs: NotificationPrefs,
     private val hcSyncPreferences: HcSyncPreferences,
     private val healthConnectManager: HealthConnectManager,
+    private val swimLogDao: SwimLogDao,
     private val notifier: SoodalNotifier,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
         if (!prefs.newRecordEnabled) return Result.success()
         val token = hcSyncPreferences.getChangesToken() ?: return Result.success()
-        if (prefs.notifiedChangeToken == token) return Result.success() // 이 상태는 이미 알림
+        val alreadyNotified = prefs.notifiedChangeToken == token
+        // 이미 알린 토큰 상태면 HC 질의 없이 끝낸다 (판단 자체는 아래 조건 함수가 다시 검증)
+        if (alreadyNotified) return Result.success()
 
         try {
-            val hasChanges = healthConnectManager.hasSwimChanges(token)
-            if (hasChanges == true) {
+            val hasChanges = healthConnectManager.hasSwimChanges(token) == true
+            val hasLocalToday = swimLogDao.getByDateOnce(LocalDate.now().toString()).isNotEmpty()
+            if (shouldSendNewRecordNotice(hasChanges, hasLocalToday, alreadyNotified)) {
                 notifier.showNewSwimRecord()
                 prefs.notifiedChangeToken = token
             }
