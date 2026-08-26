@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -261,14 +263,18 @@ fun BoxScope.GlassSheen(shape: Shape) {
 }
 
 /**
- * 상단바 통화 칩 — 공용 글래스(sheen 포함) + 아이콘 + 값. 홈/인양소/상점 헤더 공용.
+ * 상단바 정보 패널 — 조개·진주·연속일처럼 **읽기만 하는 값**을 하나의 유리 바에 묶는다.
+ * 홈/인양소/상점 헤더 공용이며, 그림자·보더·sheen이 패널 단위로 한 번만 적용돼
+ * 작은 유리 조각이 여럿 흩어질 때보다 상단이 덜 산만하다.
  *
- * @param icon 통화 아이콘 (조개/진주)
- * @param value 표시 값
- * @param tint 아이콘·값 색 (통화 색)
+ * 반대로 **액션 버튼은 묶지 않는다** — 서로 다른 동작이라 각자 눌리는 낱개 유리로 둔다.
+ * 하나의 바에 담으면 단일 컨트롤처럼 보인다.
+ *
+ * 안쪽 여백 5dp는 세그먼트 자체 여백 8dp와 합쳐 낱개 칩 시절의 가장자리 13dp를 그대로 맞춘다
+ * — 좁힌 건 세그먼트 사이(32dp → 16dp)뿐이다.
  */
 @Composable
-fun GlassCurrencyChip(icon: SoodalIcons, value: String, tint: Color) {
+fun GlassInfoGroup(content: @Composable RowScope.() -> Unit) {
     val colors = SoodalDesign.colors
     val shape = RoundedCornerShape(GlassCornerSmall)
     Box(
@@ -276,14 +282,30 @@ fun GlassCurrencyChip(icon: SoodalIcons, value: String, tint: Color) {
         contentAlignment = Alignment.Center,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 13.dp),
+            modifier = Modifier.fillMaxHeight().padding(horizontal = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            SoodalIcon(icon = icon, tint = tint, size = 16.dp)
-            Text(value, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = tint)
-        }
+            content = content,
+        )
         GlassSheen(shape)
+    }
+}
+
+/**
+ * [GlassInfoGroup] 안의 값 세그먼트 — 아이콘 + 값. 세그먼트 경계는 여백으로만 구분한다.
+ *
+ * @param icon 값 아이콘 (조개/진주/연속일)
+ * @param value 표시 값
+ * @param tint 아이콘·값 색
+ */
+@Composable
+fun GlassInfoSegment(icon: SoodalIcons, value: String, tint: Color) {
+    Row(
+        modifier = Modifier.padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        SoodalIcon(icon = icon, tint = tint, size = 16.dp)
+        Text(value, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = tint)
     }
 }
 
