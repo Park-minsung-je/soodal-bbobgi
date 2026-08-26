@@ -26,15 +26,22 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.health.connect.client.PermissionController
@@ -45,6 +52,7 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.soodalScreenBackdrop
+import com.soodalbbobgi.app.core.ui.topFadeEdge
 import com.soodalbbobgi.app.core.ui.AppOverlay
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.SoodalIcon
@@ -52,6 +60,10 @@ import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.domain.model.Grade
 import com.soodalbbobgi.app.presentation.gacha.GachaResultItem
 import com.soodalbbobgi.app.presentation.gacha.GachaResultOverlay
+import kotlin.math.roundToInt
+
+/** 설정 헤더가 스크롤에 따라 위로 올라갔다 멈추는 최대 거리. */
+private val SettingsHeaderShift = 16.dp
 
 /** Health Connect 백그라운드 읽기 권한 — 새 기록 알림 워커용. */
 private const val HC_BG_READ_PERMISSION = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
@@ -145,25 +157,46 @@ fun SettingsScreen(
         }
     }
 
+    val scrollState = rememberScrollState()
+    val maxHeaderShiftPx = with(LocalDensity.current) { SettingsHeaderShift.toPx() }
+
+    // 헤더가 접힌 정도(0 = 펼침, -maxHeaderShiftPx = 다 접힘).
+    // layout 단계에서만 읽어 스크롤 중 리컴포지션이 일어나지 않게 한다.
+    val headerShift = remember { mutableFloatStateOf(0f) }
+    // 목록보다 헤더가 먼저 스크롤을 먹는다 — 헤더가 다 접히기 전엔 목록이 움직이지 않는다.
+    val headerCollapse = remember(maxHeaderShiftPx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val before = headerShift.floatValue
+                val after = (before + available.y).coerceIn(-maxHeaderShiftPx, 0f)
+                headerShift.floatValue = after
+                return Offset(0f, after - before)
+            }
+        }
+    }
+
     Box(Modifier.fillMaxSize().soodalScreenBackdrop()) {
     Column(
         modifier = Modifier
-            .fillMaxSize(),
+            .fillMaxSize()
+            .statusBarsPadding()
+            .nestedScroll(headerCollapse),
     ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                // 상태바 인셋을 스크롤되는 콘텐츠 패딩으로 — 전역 페이드 스크림과 함께
-                // 콘텐츠가 상태바 밑으로 자연스럽게 사라진다.
-                .statusBarsPadding()
-                .padding(horizontal = spacing.s4, vertical = spacing.s4),
-        ) {
-            // -- Header --
+            // -- Header (고정) --
+            // 스크롤을 시작하면 [SettingsHeaderShift]만큼만 위로 올라간 뒤 그 자리에 멈춘다.
+            // 목록을 끝까지 내려도 돌아가기 버튼이 계속 보여야 하기 때문.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        val shift = (-headerShift.floatValue).roundToInt()
+                        layout(placeable.width, placeable.height - shift) {
+                            placeable.place(0, -shift)
+                        }
+                    }
+                    .padding(horizontal = spacing.s4)
+                    .padding(top = spacing.s4 + 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
@@ -191,6 +224,16 @@ fun SettingsScreen(
                 Spacer(Modifier.width(80.dp))
             }
 
+        // -- 목록 (헤더 아래에서만 스크롤) --
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                // 헤더 경계에서 항목이 뚝 잘리지 않게 알파 마스크로 사라지게 한다.
+                .topFadeEdge()
+                .verticalScroll(scrollState)
+                .padding(horizontal = spacing.s4)
+                .padding(bottom = spacing.s4),
+        ) {
             Spacer(Modifier.height(spacing.s5))
 
             // -- 계정 Section --
