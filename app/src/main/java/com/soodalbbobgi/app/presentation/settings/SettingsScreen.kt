@@ -307,20 +307,6 @@ fun SettingsScreen(
                             null -> Text("확인 중…", fontSize = 12.sp, color = colors.textTertiary)
                         }
                     }
-                    SettingsDivider()
-                    SettingsRow(
-                        label = "수동 입력 모드",
-                        trailing = null,
-                        labelColor = colors.textTertiary,
-                        onClick = {},
-                    ) {
-                        Text(
-                            text = "준비 중",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = colors.textTertiary,
-                        )
-                    }
                 }
             }
 
