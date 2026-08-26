@@ -34,8 +34,7 @@ import com.soodalbbobgi.app.R
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.ui.soodalScreenBackdrop
 import com.soodalbbobgi.app.core.ui.SoodalCard
-import com.soodalbbobgi.app.core.ui.SoodalIcon
-import com.soodalbbobgi.app.core.ui.SoodalIcons
+import com.soodalbbobgi.app.core.ui.BackLink
 
 /**
  * 오픈소스 라이선스 목록 화면 — AboutLibraries가 빌드 시 수집한
@@ -70,20 +69,7 @@ fun LicensesScreen(onBack: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Row(
-                modifier = Modifier
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onBack,
-                    )
-                    .padding(vertical = 8.dp, horizontal = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                SoodalIcon(icon = SoodalIcons.ArrowLeft, tint = colors.textSecondary, size = 14.dp)
-                Text("돌아가기", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
-            }
+            BackLink(onBack)
             Text("오픈소스 라이선스", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
             Spacer(Modifier.width(80.dp))
         }
