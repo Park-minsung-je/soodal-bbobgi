@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -6,6 +8,31 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.aboutlibraries)
 }
+
+// 서버 주소·OAuth 키는 소스에 박지 않는다 — git 미추적 local.properties(또는 환경변수)에서 읽는다.
+// 키 목록과 형식은 local.properties.sample 참고.
+val localProps = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+/**
+ * 빌드 설정값을 local.properties → 환경변수 순으로 찾는다.
+ *
+ * @param key 설정 키
+ * @return 찾은 값. 없으면 빌드를 즉시 실패시킨다 (빈 값으로 잘못 빌드되는 것보다 낫다)
+ */
+fun buildSecret(key: String): String = localProps.getProperty(key)
+    ?: System.getenv(key)
+    ?: throw GradleException(
+        "빌드 설정 '$key'를 찾을 수 없습니다. " +
+            "local.properties.sample을 local.properties로 복사한 뒤 값을 채우세요.",
+    )
+
+val soodalBaseUrl = buildSecret("SOODAL_BASE_URL")
+val soodalAssetBaseUrl = buildSecret("SOODAL_ASSET_BASE_URL")
+val soodalKakaoNativeAppKey = buildSecret("SOODAL_KAKAO_NATIVE_APP_KEY")
+val soodalGoogleWebClientId = buildSecret("SOODAL_GOOGLE_WEB_CLIENT_ID")
 
 android {
     namespace = "com.soodalbbobgi.app"
@@ -18,19 +45,19 @@ android {
         versionCode = 1
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "BASE_URL", "\"https://bbobgi.soodal.ilf.kr/v1/\"")
-        buildConfigField("String", "ASSET_BASE_URL", "\"https://bbobgi.soodal.ilf.kr\"")
-        buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"ff9ecdb8cae1ebf2c9541f3aee571cca\"")
-        manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = "ff9ecdb8cae1ebf2c9541f3aee571cca"
+        buildConfigField("String", "BASE_URL", "\"$soodalBaseUrl\"")
+        buildConfigField("String", "ASSET_BASE_URL", "\"$soodalAssetBaseUrl\"")
+        buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"$soodalKakaoNativeAppKey\"")
+        manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = soodalKakaoNativeAppKey
         // Google Sign-In: idToken의 audience(aud) 클레임이 이 값으로 박힌다.
         // 서버 검증 시 audience 비교용 ID. Android client ID(SHA-1 매칭용)는 코드에 안 들어감.
-        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"338800630296-qrm3niallrtf804gi2n12qbcu2e0gg40.apps.googleusercontent.com\"")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$soodalGoogleWebClientId\"")
     }
 
     buildTypes {
         debug {
-            buildConfigField("String", "BASE_URL", "\"https://bbobgi.soodal.ilf.kr/v1/\"")
-            buildConfigField("String", "ASSET_BASE_URL", "\"https://bbobgi.soodal.ilf.kr\"")
+            buildConfigField("String", "BASE_URL", "\"$soodalBaseUrl\"")
+            buildConfigField("String", "ASSET_BASE_URL", "\"$soodalAssetBaseUrl\"")
         }
         release {
             isMinifyEnabled = true

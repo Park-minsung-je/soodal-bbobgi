@@ -1,0 +1,14 @@
+# local.properties 예시 — 이 파일을 local.properties로 복사한 뒤 실제 값을 채운다.
+# local.properties는 .gitignore에 걸려 있어 커밋되지 않는다.
+
+# Android SDK 경로 (Android Studio가 자동으로 넣어준다)
+sdk.dir=/path/to/Android/Sdk
+
+# API 서버 베이스 URL — 끝에 / 포함
+SOODAL_BASE_URL=https://api.example.com/v1/
+# 에셋 다운로드 베이스 URL — 끝에 / 없음
+SOODAL_ASSET_BASE_URL=https://api.example.com
+# Kakao 네이티브 앱 키 (Kakao Developers > 내 애플리케이션 > 앱 키)
+SOODAL_KAKAO_NATIVE_APP_KEY=your-kakao-native-app-key
+# Google Sign-In 웹 클라이언트 ID — idToken의 audience 클레임에 박히는 값
+SOODAL_GOOGLE_WEB_CLIENT_ID=000000000000-xxxxxxxx.apps.googleusercontent.com

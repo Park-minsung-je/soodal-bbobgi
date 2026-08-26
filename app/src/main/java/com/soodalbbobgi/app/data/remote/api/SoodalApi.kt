@@ -15,7 +15,7 @@ import retrofit2.http.Streaming
 
 /**
  * 수달 뽑기 서버 REST API 인터페이스.
- * Base URL: https://bbobgi.soodal.ilf.kr/v1/
+ * Base URL은 `BuildConfig.BASE_URL` — local.properties의 `SOODAL_BASE_URL`에서 주입된다.
  */
 interface SoodalApi {
 
