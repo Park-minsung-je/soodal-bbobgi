@@ -4,10 +4,12 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -17,6 +19,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -57,8 +60,9 @@ import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.ChipColor
 import com.soodalbbobgi.app.core.ui.GlassBox
 import com.soodalbbobgi.app.core.ui.GlassCornerSmall
+import com.soodalbbobgi.app.core.ui.GlassInfoGroup
+import com.soodalbbobgi.app.core.ui.GlassInfoSegment
 import com.soodalbbobgi.app.core.ui.ProfileFrameCorner
-import com.soodalbbobgi.app.core.ui.GlassCurrencyChip
 import com.soodalbbobgi.app.core.ui.GlassSheen
 import com.soodalbbobgi.app.core.ui.glass
 import com.soodalbbobgi.app.core.ui.SoodalCard
@@ -160,21 +164,20 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                GlassCurrencyChip(SoodalIcons.Shell, state.shells.formatNumber(), colors.accentGold)
-                GlassCurrencyChip(SoodalIcons.Pearl, state.pearls.formatNumber(), colors.accentPurple)
-                // 연속 스트릭: 값이 있을 때만 등장(애니메이션과 함께).
+            // 재화·스트릭을 한 패널로 묶는다 — 작은 유리 조각이 여러 개 흩어지는 대신 하나로.
+            GlassInfoGroup {
+                GlassInfoSegment(SoodalIcons.Shell, state.shells.formatNumber(), colors.accentGold)
+                GlassInfoSegment(SoodalIcons.Pearl, state.pearls.formatNumber(), colors.accentPurple)
+                // 연속 스트릭: 값이 있을 때만 등장 — 패널 폭이 가로로 늘고 줄어든다.
                 AnimatedVisibility(
                     visible = state.streak > 0,
-                    enter = fadeIn() + slideInVertically { -it / 2 },
-                    exit = fadeOut() + slideOutVertically { -it / 2 },
+                    enter = fadeIn() + expandHorizontally(clip = false),
+                    exit = fadeOut() + shrinkHorizontally(clip = false),
                 ) {
-                    TopStreakChip(state.streak)
+                    GlassInfoSegment(SoodalIcons.Fire, "${state.streak}일", colors.accentBlue)
                 }
             }
+            // 액션 버튼은 묶지 않는다 — 서로 다른 동작이라 각자 눌리는 낱개 버튼으로 보여야 한다.
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -491,28 +494,7 @@ fun HomeScreen(
     } // Box
 }
 
-/** 상단바 연속 스트릭 칩 — 통화 칩과 동일한 글래스(sheen 포함) 스타일. 값>0일 때만 조건부 등장. */
-@Composable
-private fun TopStreakChip(streak: Int) {
-    val colors = SoodalDesign.colors
-    val shape = RoundedCornerShape(GlassCornerSmall)
-    Box(
-        modifier = Modifier.height(38.dp).glass(colors, GlassCornerSmall, shape),
-        contentAlignment = Alignment.Center,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 13.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            SoodalIcon(icon = SoodalIcons.Fire, tint = colors.accentBlue, size = 15.dp)
-            Text("${streak}일", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue)
-        }
-        GlassSheen(shape)
-    }
-}
-
-/** 상단바 글래스 아이콘 버튼 (편집/설정) — 공용 글래스(sheen 포함). */
+/** 상단바 글래스 아이콘 버튼 (직접 기록/편집/설정) — 공용 글래스(sheen 포함). */
 @Composable
 private fun GlassIconButton(icon: SoodalIcons, tint: Color, onClick: () -> Unit) {
     val colors = SoodalDesign.colors

@@ -74,7 +74,8 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
 import com.soodalbbobgi.app.core.ui.AppOverlay
 import com.soodalbbobgi.app.core.ui.AssetImage
-import com.soodalbbobgi.app.core.ui.GlassCurrencyChip
+import com.soodalbbobgi.app.core.ui.GlassInfoGroup
+import com.soodalbbobgi.app.core.ui.GlassInfoSegment
 import com.soodalbbobgi.app.core.ui.LocalHazeContent
 import dev.chrisbanes.haze.hazeSource
 import com.soodalbbobgi.app.core.ui.SoodalIcon
@@ -133,10 +134,10 @@ fun GachaScreen(
                             modifier = Modifier.padding(top = 4.dp),
                         )
                     }
-                    // 통화 클러스터 — 홈/상점과 동일한 글래스 칩 (조개 + 진주)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        GlassCurrencyChip(SoodalIcons.Shell, state.shells.toString(), colors.accentGold)
-                        GlassCurrencyChip(SoodalIcons.Pearl, state.pearls.toString(), colors.accentPurple)
+                    // 통화 패널 — 홈/상점과 동일하게 한 유리 바에 묶는다.
+                    GlassInfoGroup {
+                        GlassInfoSegment(SoodalIcons.Shell, state.shells.toString(), colors.accentGold)
+                        GlassInfoSegment(SoodalIcons.Pearl, state.pearls.toString(), colors.accentPurple)
                     }
                 }
 
