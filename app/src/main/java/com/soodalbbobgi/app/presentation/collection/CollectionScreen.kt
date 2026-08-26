@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -47,7 +48,7 @@ import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.ui.AssetImage
 import com.soodalbbobgi.app.core.ui.GlassBox
 import com.soodalbbobgi.app.core.ui.GlassCorner
-import com.soodalbbobgi.app.core.ui.GlassSheen
+import com.soodalbbobgi.app.core.ui.BackLink
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.displayLabel
@@ -90,27 +91,19 @@ fun CollectionScreen(
     Box(Modifier.fillMaxSize().soodalScreenBackdrop()) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             // ── 헤더: 뒤로가기 + 타이틀 ─────────────────────────
+            // 설정·라이선스와 같은 서브 화면 헤더 — 유리 버튼 없이 텍스트 링크 + 가운데 제목.
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp)
+                    .padding(top = 8.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                val backShape = RoundedCornerShape(13.dp)
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .glass(colors, 13.dp, backShape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onBack,
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    SoodalIcon(icon = SoodalIcons.ArrowLeft, tint = colors.textPrimary, size = 18.dp)
-                    GlassSheen(backShape)
-                }
-                Text("내 컬렉션", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+                BackLink(onBack)
+                Text("내 컬렉션", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+                // 제목을 화면 가운데로 맞추기 위한 뒤로가기 링크 폭 상쇄분.
+                Spacer(Modifier.width(80.dp))
             }
 
             Column(
