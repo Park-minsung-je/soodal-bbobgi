@@ -67,6 +67,19 @@ app/
 └── presentation/   Compose 화면 (onboarding, home, calendar, gacha, shop, profile, settings)
 ```
 
+## 빌드 설정
+
+서버 주소와 OAuth 키는 소스에 두지 않는다. `local.properties.sample`을 `local.properties`로 복사한 뒤 값을 채운다 (`local.properties`는 git 미추적).
+
+| 키 | 내용 |
+|---|---|
+| `SOODAL_BASE_URL` | API 서버 베이스 URL (끝에 `/` 포함) |
+| `SOODAL_ASSET_BASE_URL` | 에셋 다운로드 베이스 URL (끝에 `/` 없음) |
+| `SOODAL_KAKAO_NATIVE_APP_KEY` | Kakao 네이티브 앱 키 |
+| `SOODAL_GOOGLE_WEB_CLIENT_ID` | Google Sign-In 웹 클라이언트 ID |
+
+빌드 시 `BuildConfig` 필드와 매니페스트 플레이스홀더로 주입된다. 값이 없으면 Gradle이 즉시 실패한다 — 빈 값으로 잘못 빌드되는 것을 막기 위해서다. CI에서는 동일한 이름의 환경변수로도 넣을 수 있다.
+
 ## 빌드 & 테스트
 
 ```bash
