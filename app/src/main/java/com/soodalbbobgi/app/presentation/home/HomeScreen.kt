@@ -69,6 +69,7 @@ import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.AppOverlay
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.TabBarClearance
+import com.soodalbbobgi.app.core.ui.topFadeEdge
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.motion.Motion
@@ -83,6 +84,12 @@ import com.soodalbbobgi.app.presentation.profile.ProfileCardBounds
 import com.soodalbbobgi.app.presentation.profile.ProfileCardComposite
 import com.soodalbbobgi.app.presentation.profile.ProfileEditorViewModel
 import kotlinx.coroutines.delay
+
+/**
+ * 상단바 ~ 프로필 카드 간격. 설정 화면 목록과 같은 값이라 경계 페이드(20dp)가 끝난 뒤에
+ * 카드가 시작한다 — 정지 상태에서 카드 윗변이 마스크에 닿지 않는다.
+ */
+private val HomeTopGap = 24.dp
 
 private fun Int.formatNumber(): String = String.format("%,d", this)
 
@@ -119,11 +126,11 @@ fun HomeScreen(
         if (editorOpen) homeScrollState.animateScrollTo(0)
     }
 
-    // 카드 아래 지점(dp) 계산: 위패딩16 + 헤더46 + 간격16 = 78, + 카드 높이, + 카드-시트 간격 8.
+    // 카드 아래 지점(dp) 계산: 위패딩16 + 헤더46 = 62, + 카드 위 간격, + 카드 높이, + 카드-시트 간격 14.
     val config = LocalConfiguration.current
     // 카드는 화면폭-32dp(좌우 16 여백)에서 카드 비율(2752×1536)로 높이가 정해진다.
     val cardHeightDp = (config.screenWidthDp - 32f) * 1536f / 2752f
-    val sheetTopDp = 78f + cardHeightDp + 8f
+    val sheetTopDp = 62f + HomeTopGap.value + cardHeightDp + 14f
 
     // 시스템 뒤로가기 → 시트 닫기(취소): 미저장 변경 폐기.
     BackHandler(enabled = editorOpen) {
@@ -194,11 +201,15 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                // 설정 화면 목록과 완전히 같은 처리 — 같은 마스크, 같은 길이(20dp).
+                // 첫 요소까지의 여백([HomeTopGap])이 페이드보다 길어야 정지 상태에서
+                // 카드가 마스크에 닿지 않는다.
+                .topFadeEdge()
                 .verticalScroll(homeScrollState)
                 .padding(horizontal = spacing.s4),
         ) {
-            // 상단바 ~ 프로필 카드 간격 (App Canvas ≈ 10px)
-            Spacer(Modifier.height(10.dp))
+            // 상단바 ~ 프로필 카드 간격 — 경계 페이드가 이 안에서 끝난다.
+            Spacer(Modifier.height(HomeTopGap))
 
             // ── Profile Card ────────────────────────────────────
             // 합성 카드(저장값)는 항상 아래에 깔아두고, 편집 중에는 GPU 프리뷰(편집값)를 위에
