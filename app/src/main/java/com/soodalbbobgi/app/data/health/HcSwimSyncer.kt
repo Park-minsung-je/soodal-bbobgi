@@ -3,6 +3,7 @@ package com.soodalbbobgi.app.data.health
 import com.soodalbbobgi.app.core.session.UserSession
 import com.soodalbbobgi.app.core.state.AppStateLoader
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
+import com.soodalbbobgi.app.data.remote.dto.UpdateStrokesRequest
 import com.soodalbbobgi.app.data.remote.dto.SwimLogRequest
 import com.soodalbbobgi.app.domain.model.SwimLog
 import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
@@ -191,6 +192,40 @@ class HcSwimSyncer @Inject constructor(
             swimLogUseCase.syncSwimLog(userSession.userId, session.toLog())
         } catch (e: Exception) {
             Timber.w(e, "수영 세션 저장 실패: ${session.date}")
+        }
+    }
+
+    /**
+     * 그 날의 영법 분배를 서버에 반영한다.
+     *
+     * 서버 기록은 일 단위라 그 날 모든 세션의 합계를 보낸다. 실패해도 로컬 저장은 그대로 두고
+     * 조용히 넘어간다 — 영법은 다음 동기화에서 다시 맞춰진다.
+     *
+     * @param date 대상 날짜 (`YYYY-MM-DD`)
+     * @return 영법을 처음 채워 받은 조개 수. 못 받았거나 전송에 실패하면 0
+     */
+    suspend fun pushStrokes(date: String): Int {
+        return try {
+            val rows = swimLogUseCase.getLogsForDate(date)
+            if (rows.isEmpty()) return 0
+            val res = soodalApi.updateSwimLogStrokes(
+                date,
+                UpdateStrokesRequest(
+                    strokeFreestyleM = rows.sumOf { it.strokeFreestyleM },
+                    strokeBreastM = rows.sumOf { it.strokeBreastM },
+                    strokeBackM = rows.sumOf { it.strokeBackM },
+                    strokeFlyM = rows.sumOf { it.strokeFlyM },
+                    strokeMixedM = rows.sumOf { it.strokeMixedM },
+                    strokeKickM = rows.sumOf { it.strokeKickM },
+                ),
+            )
+            val reward = res.data?.shellReward ?: return 0
+            // 잔액은 서버가 준 값을 그대로 쓴다 — 화면 재조회 없이 헤더가 바로 맞는다.
+            appStateLoader.applyShellBalance(reward.newBalance)
+            reward.earned
+        } catch (e: Exception) {
+            Timber.w(e, "영법 수정 서버 반영 실패 — 로컬에만 저장됨: $date")
+            0
         }
     }
 

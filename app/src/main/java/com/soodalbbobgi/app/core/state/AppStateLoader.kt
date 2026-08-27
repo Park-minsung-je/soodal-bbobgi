@@ -157,6 +157,16 @@ class AppStateLoader @Inject constructor(
 
     // ─── Write-side 즉시 반영 ─────────────────────────────────
 
+    /**
+     * 조개 잔액만 서버가 준 값으로 바꾼다 — 진주·천장 카운터는 건드리지 않는다.
+     * 조개만 오가는 응답(영법 보너스 등)에서 화면 재조회 없이 헤더를 맞추는 용도.
+     *
+     * @param shellBalance 서버가 알려준 새 조개 잔액
+     */
+    fun applyShellBalance(shellBalance: Int) {
+        appState.applyCurrency(appState.currency.value.copy(shellBalance = shellBalance))
+    }
+
     fun applyServerCurrency(c: ServerCurrency) {
         appState.applyCurrency(Currency(
             shellBalance = c.shellBalance,

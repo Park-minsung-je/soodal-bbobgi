@@ -309,10 +309,17 @@ class HomeViewModel @Inject constructor(
     private fun monthEnd(): String = YearMonth.now().atEndOfMonth().toString()
     private fun lastMonthStart(): String = YearMonth.now().minusMonths(1).atDay(1).toString()
 
-    /** 오늘 세션의 영법 분배를 로컬에 저장한다. */
+    /**
+     * 오늘 세션의 영법 분배를 로컬에 저장하고 서버에도 반영한다.
+     *
+     * 서버 반영은 캘린더와 같은 경로를 쓴다 — 예전엔 홈에서 고친 영법이 로컬에만 남아
+     * 기기를 바꾸면 사라졌다. 오늘 기록을 처음 채우면 서버가 조개 1개를 얹어 준다.
+     */
     fun saveStrokes(logId: Long, free: Int, breast: Int, back: Int, fly: Int, kick: Int, mixed: Int) {
         viewModelScope.launch {
             swimLogUseCase.updateStrokes(logId, free, breast, back, fly, mixed, kick)
+            val earned = hcSwimSyncer.pushStrokes(LocalDate.now().toString())
+            if (earned > 0) _shellReward.value = earned
         }
     }
 }

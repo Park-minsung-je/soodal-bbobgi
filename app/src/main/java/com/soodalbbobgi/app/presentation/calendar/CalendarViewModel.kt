@@ -8,8 +8,6 @@ import com.soodalbbobgi.app.core.util.decodeHrRestRanges
 import com.soodalbbobgi.app.core.util.decodeHrSeries
 import com.soodalbbobgi.app.data.health.HcSwimSyncer
 import com.soodalbbobgi.app.data.health.HealthConnectManager
-import com.soodalbbobgi.app.data.remote.api.SoodalApi
-import com.soodalbbobgi.app.data.remote.dto.UpdateStrokesRequest
 import com.soodalbbobgi.app.domain.model.SwimLog
 import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
 import com.soodalbbobgi.app.presentation.common.WeeklyActivity
@@ -100,7 +98,6 @@ data class CalendarUiState(
 class CalendarViewModel @Inject constructor(
     private val userSession: UserSession,
     private val swimLogUseCase: SwimLogUseCase,
-    private val soodalApi: SoodalApi,
     private val hcSwimSyncer: HcSwimSyncer,
     private val appStateLoader: AppStateLoader,
     private val healthConnectManager: HealthConnectManager,
@@ -262,24 +259,10 @@ class CalendarViewModel @Inject constructor(
         val date = "%04d-%02d-%02d".format(ym.year, ym.monthValue, day)
         viewModelScope.launch {
             swimLogUseCase.updateStrokes(logId, free, breast, back, fly, mixed, kick)
-            // 서버에도 반영 — 로컬 DB가 초기화돼도 분배가 보존되게. 서버는 일 단위라
-            // 그 날 모든 세션의 합계를 보낸다. 실패해도 로컬 저장은 유지된다.
-            try {
-                val dayLogs = swimLogUseCase.getLogsForDate(date)
-                soodalApi.updateSwimLogStrokes(
-                    date,
-                    UpdateStrokesRequest(
-                        strokeFreestyleM = dayLogs.sumOf { it.strokeFreestyleM },
-                        strokeBreastM = dayLogs.sumOf { it.strokeBreastM },
-                        strokeBackM = dayLogs.sumOf { it.strokeBackM },
-                        strokeFlyM = dayLogs.sumOf { it.strokeFlyM },
-                        strokeMixedM = dayLogs.sumOf { it.strokeMixedM },
-                        strokeKickM = dayLogs.sumOf { it.strokeKickM },
-                    ),
-                )
-            } catch (e: Exception) {
-                Timber.w(e, "영법 수정 서버 반영 실패 — 로컬에만 저장됨: $date")
-            }
+            // 서버에도 반영 — 로컬 DB가 초기화돼도 분배가 보존되게.
+            // 오늘 기록을 처음 채운 경우 서버가 조개 1개를 얹어 준다.
+            val earned = hcSwimSyncer.pushStrokes(date)
+            if (earned > 0) _shellReward.value = earned
         }
     }
 }

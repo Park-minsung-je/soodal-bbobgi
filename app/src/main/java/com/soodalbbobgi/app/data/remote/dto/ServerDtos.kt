@@ -271,6 +271,8 @@ data class UpdateStrokesRequest(
 /** PATCH /swim-logs/by-date/:date/strokes 응답 */
 data class UpdateStrokesData(
     val swimLog: ServerSwimLog,
+    /** 영법을 처음 채운 보상 — 지급됐을 때만 실린다 (기록당 1회, 오늘·새벽 유예 한정). */
+    val shellReward: ShellRewardData? = null,
 )
 
 /** DELETE /swim-logs/by-date/:date 응답 */
