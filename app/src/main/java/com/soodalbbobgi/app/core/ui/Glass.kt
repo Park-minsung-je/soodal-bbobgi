@@ -282,7 +282,7 @@ fun GlassInfoGroup(content: @Composable RowScope.() -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Row(
-            modifier = Modifier.fillMaxHeight().padding(horizontal = 4.dp),
+            modifier = Modifier.fillMaxHeight().padding(horizontal = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
             content = content,
         )
@@ -300,9 +300,11 @@ fun GlassInfoGroup(content: @Composable RowScope.() -> Unit) {
 @Composable
 fun GlassInfoSegment(icon: SoodalIcons, value: String, tint: Color) {
     Row(
+        // 세그먼트 자체 여백 4 + 패널 여백 9 = 가장자리 13dp(낱개 칩 시절 값), 값 사이 8dp.
         modifier = Modifier.padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        // 아이콘과 숫자는 한 덩어리로 읽혀야 해서 세그먼트 사이보다 훨씬 좁게 붙인다.
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         SoodalIcon(icon = icon, tint = tint, size = 16.dp)
         Text(value, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = tint)
