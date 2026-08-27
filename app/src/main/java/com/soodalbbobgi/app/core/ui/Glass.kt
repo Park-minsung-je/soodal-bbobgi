@@ -325,6 +325,7 @@ fun GlassBox(
     cornerDp: Dp = GlassCorner,
     contentPadding: Dp = 16.dp,
     shadow: Boolean = true,
+    onClick: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val colors = SoodalDesign.colors
@@ -335,7 +336,10 @@ fun GlassBox(
         modifier = m
             // 프로스트(블러 배경) 채움 — 반투명 채움 대신 진짜 젖빛 유리 질감.
             .cardFrost(colors, shape)
-            .border(1.dp, colors.glassBorder, shape),
+            .border(1.dp, colors.glassBorder, shape)
+            // 탭은 **프로스트가 클립된 뒤** 붙인다 — 누름 스크림이 카드 모서리를 따라 잘린다.
+            // 호출부가 modifier로 clickable을 넘기면 클립 밖이라 사각형으로 덮인다.
+            .then(if (onClick != null) Modifier.pressable(onClick = onClick) else Modifier),
     ) {
         Box(Modifier.padding(contentPadding), content = content)
         GlassSheen(shape)

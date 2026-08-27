@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -49,6 +50,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
+import com.soodalbbobgi.app.core.ui.pressable
 import com.soodalbbobgi.app.core.ui.SoodalBottomSheet
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
@@ -291,11 +293,7 @@ private fun StepStrokes(
                         .clip(RoundedCornerShape(9.dp))
                         .background(Color.White)
                         .border(1.dp, FieldBorder, RoundedCornerShape(9.dp))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onPrev,
-                        ),
+                        .pressable(onClick = onPrev),
                     contentAlignment = Alignment.Center,
                 ) {
                     SoodalIcon(icon = SoodalIcons.ArrowLeft, tint = FieldTxt1, size = 13.dp)
@@ -365,7 +363,7 @@ private fun PrimaryButton(modifier: Modifier, label: String, enabled: Boolean, o
             )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                indication = LocalIndication.current,
                 enabled = enabled,
                 onClick = onClick,
             ),

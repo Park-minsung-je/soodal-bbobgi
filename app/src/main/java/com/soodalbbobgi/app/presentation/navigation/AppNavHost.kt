@@ -33,7 +33,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.soodalbbobgi.app.core.theme.SoodalDesign
+import androidx.compose.foundation.LocalIndication
 import com.soodalbbobgi.app.core.ui.LocalHazeContent
+import com.soodalbbobgi.app.core.ui.rememberPressTint
 import com.soodalbbobgi.app.core.ui.LocalOverlayHost
 import com.soodalbbobgi.app.core.ui.LocalTabBarDim
 import com.soodalbbobgi.app.core.ui.OverlayHostState
@@ -107,6 +109,8 @@ fun AppNavHost(navController: NavHostController) {
     // 배경만 블러, 탭바/팝업=모든 소스(배경+카드) 블러. 어떤 이펙트도 다른 소스의
     // 녹화물 '안'에 갇히지 않아 전부 실시간으로 렌더된다.
     val hazeState = remember { HazeState() }
+    // 누름 피드백(테마별 스크림) — 아래 CompositionLocalProvider로 화면 전체에 깐다.
+    val pressTint = rememberPressTint()
     // 팝업/시트를 콘텐츠 소스 밖(탭바 레이어)에서 그리게 하는 호스트 — 소스 안에서는
     // hazeEffect가 재귀 드로잉이라 불가하므로, 오버레이는 전부 여기로 호이스팅한다.
     val overlayHost = remember { OverlayHostState() }
@@ -140,6 +144,8 @@ fun AppNavHost(navController: NavHostController) {
         // 화면 안 풀스크린 dim 팝업이 DimTabBarWhileVisible()로 탭바 dim을 켤 수 있게 제공한다.
         CompositionLocalProvider(
             LocalTabBarDim provides tabBarDim,
+            // 기본 리플 대신 앱 공용 누름 틴트 — indication을 명시하지 않는 clickable에 적용된다.
+            LocalIndication provides pressTint,
             LocalHazeContent provides hazeState,
             LocalOverlayHost provides overlayHost,
         ) {
@@ -265,6 +271,8 @@ fun AppNavHost(navController: NavHostController) {
         // 호이스팅된 팝업/시트 — 콘텐츠 소스 밖(탭바 위)에서 그려 hazeEffect(콘텐츠 블러)가 동작한다.
         CompositionLocalProvider(
             LocalTabBarDim provides tabBarDim,
+            // 기본 리플 대신 앱 공용 누름 틴트 — indication을 명시하지 않는 clickable에 적용된다.
+            LocalIndication provides pressTint,
             LocalHazeContent provides hazeState,
         ) {
             overlayHost.entries.entries.sortedBy { it.key }.forEach { (_, overlay) -> overlay() }

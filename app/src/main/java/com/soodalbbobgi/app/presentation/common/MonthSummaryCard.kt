@@ -1,5 +1,6 @@
 package com.soodalbbobgi.app.presentation.common
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.StrokePalette
+import com.soodalbbobgi.app.core.ui.pressable
 import com.soodalbbobgi.app.core.ui.SoodalCard
 
 /** 문장 속 거리 강조 파랑 — 디자인 v3 가독성 개정: accentBlue보다 진한 본문 강조색. */
@@ -77,11 +79,7 @@ fun MonthSummaryCard(
     val countDelta = sessions - lastMonthSessions
     val pct = if (lastMonthDistance > 0) Math.round(distanceDelta.toFloat() / lastMonthDistance * 100) else 0
     val tapModifier = if (onClick != null) {
-        Modifier.clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null,
-            onClick = onClick,
-        )
+        Modifier.pressable(onClick = onClick)
     } else {
         Modifier
     }

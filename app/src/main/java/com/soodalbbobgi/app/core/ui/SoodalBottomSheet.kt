@@ -4,6 +4,7 @@ import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -169,6 +170,7 @@ fun SoodalBottomSheet(
                 .background(Color.Black.copy(alpha = SoodalDimAlpha * shown))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
+                    // 딤은 컨트롤이 아니다 — 누름 틴트를 얹으면 닫히는 중에도 깜빡인다.
                     indication = null,
                 ) { close(onDismiss) },
         )
@@ -197,7 +199,7 @@ fun SoodalBottomSheet(
                 // 시트 내부 빈 영역 탭이 뒤의 스크림(닫기)으로 새지 않게 소비한다.
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
+                    indication = LocalIndication.current,
                 ) {},
         ) {
             GlassSheen(sheetShape)

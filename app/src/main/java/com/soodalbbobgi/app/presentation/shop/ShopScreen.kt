@@ -1,5 +1,6 @@
 ﻿package com.soodalbbobgi.app.presentation.shop
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -306,13 +307,9 @@ private fun BoxGridItem(
 ) {
     val colors = SoodalDesign.colors
     SoodalCard(
-        modifier = modifier
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            ),
+        modifier = modifier,
         contentPadding = 10.dp,
+        onClick = onClick,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -391,14 +388,10 @@ private fun DirectItemCard(
     val bgAlpha = if (!item.canBuy || item.owned) 0.5f else 1f
 
     SoodalCard(
-        modifier = modifier
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-                enabled = item.canBuy && !item.owned,
-            ),
+        modifier = modifier,
         contentPadding = 10.dp,
+        // 살 수 없는 상품은 눌러도 반응하지 않는다 (품절·보유 중).
+        onClick = if (item.canBuy && !item.owned) onClick else null,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),

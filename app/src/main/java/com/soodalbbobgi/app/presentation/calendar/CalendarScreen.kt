@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -68,6 +69,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
+import com.soodalbbobgi.app.core.ui.pressable
 import com.soodalbbobgi.app.core.ui.AppOverlay
 import com.soodalbbobgi.app.core.ui.GlassBox
 import com.soodalbbobgi.app.core.ui.GlassCorner
@@ -368,11 +370,7 @@ private fun CalNavButton(icon: SoodalIcons, onClick: () -> Unit) {
         modifier = Modifier
             .size(36.dp)
             .glass(colors, 12.dp, shape)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            ),
+            .pressable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         SoodalIcon(icon = icon, tint = colors.textSecondary, size = 16.dp)
@@ -581,7 +579,7 @@ private fun DayCell(
             .border(borderWidth, borderColor, shape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                indication = LocalIndication.current,
                 enabled = inMonth,
                 onClick = onClick,
             )
@@ -713,11 +711,7 @@ private fun DayDetailCard(
                         modifier = Modifier
                             .clip(RoundedCornerShape(7.dp))
                             .background(colors.accentBlue.copy(alpha = 0.12f))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = onManualEntry,
-                            )
+                            .pressable(onClick = onManualEntry)
                             .padding(horizontal = 10.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -878,11 +872,7 @@ private fun SessionDetail(
                 modifier = Modifier
                     .clip(RoundedCornerShape(7.dp))
                     .background(colors.accentBlue.copy(alpha = 0.12f))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onEdit,
-                    )
+                    .pressable(onClick = onEdit)
                     .padding(horizontal = 10.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -1218,11 +1208,7 @@ private fun VitalsRow(
                 size = 18.dp,
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onToggleChart,
-                    )
+                    .pressable(onClick = onToggleChart)
                     .padding(4.dp)
                     .rotate(arrowRotation),
             )
