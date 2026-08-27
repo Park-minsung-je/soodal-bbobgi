@@ -557,7 +557,8 @@ private fun PurchaseConfirmOverlay(
                         modifier = when (artStyle) {
                             PurchaseArtStyle.Padded -> Modifier.size(PurchaseArtSize)
                             // 정사각에 가두지 않는다 — 팝업 안쪽 폭을 다 쓰고 높이는 비율대로 따라온다.
-                            PurchaseArtStyle.Wide -> Modifier.fillMaxWidth()
+                            // 모서리는 버튼과 같은 12dp — 24dp 패널에서 12dp 안쪽이라 곡률이 이어진다.
+                            PurchaseArtStyle.Wide -> Modifier.fillMaxWidth().clip(SoodalShape.md)
                         },
                     )
                 } else {
@@ -623,9 +624,12 @@ private fun PurchaseConfirmOverlay(
                         color = colors.warn,
                     )
                 }
+                }
 
                 Spacer(Modifier.height(14.dp))
 
+                // 버튼은 안쪽 글자 블록의 추가 여백을 받지 않는다 — 팝업 기준 좌우·하단 여백이
+                // 12dp로 같아야 버튼이 한쪽으로 몰려 보이지 않는다.
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(spacing.s3),
@@ -647,7 +651,6 @@ private fun PurchaseConfirmOverlay(
                         enabled = canAfford,
                         modifier = Modifier.weight(1f),
                     )
-                }
                 }
             }
         }
