@@ -391,9 +391,11 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Made with ", fontSize = 11.sp, color = colors.textTertiary)
-                SoodalIcon(icon = SoodalIcons.Otter, size = 12.dp)
-                Text(" · 수달 뽑기 v${BuildConfig.VERSION_NAME}", fontSize = 11.sp, color = colors.textTertiary)
+                Text(
+                    "Made with 클로드 코드, 안티그래비티 · 수달 뽑기 v${BuildConfig.VERSION_NAME}",
+                    fontSize = 11.sp,
+                    color = colors.textTertiary,
+                )
             }
 
             Spacer(Modifier.height(spacing.s4))
