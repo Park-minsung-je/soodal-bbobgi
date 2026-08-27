@@ -15,6 +15,24 @@ import androidx.compose.ui.unit.dp
 val FadeEdgeHeight: Dp = 20.dp
 
 /**
+ * 페이드 알파 곡선 — smoothstep(3t²−2t³).
+ *
+ * 직선 알파는 위쪽 끝까지 같은 속도로 떨어지다 0에 부딪혀, 다 사라지기 직전에 확 꺼지는
+ * 느낌이 난다. 이 곡선은 양 끝의 기울기가 0이라 나타날 때도 사라질 때도 스르륵 넘어간다.
+ */
+private val FadeCurve: Array<Pair<Float, Color>> = arrayOf(
+    0.000f to Color.Transparent,
+    0.125f to Color.Black.copy(alpha = 0.043f),
+    0.250f to Color.Black.copy(alpha = 0.156f),
+    0.375f to Color.Black.copy(alpha = 0.316f),
+    0.500f to Color.Black.copy(alpha = 0.500f),
+    0.625f to Color.Black.copy(alpha = 0.684f),
+    0.750f to Color.Black.copy(alpha = 0.844f),
+    0.875f to Color.Black.copy(alpha = 0.957f),
+    1.000f to Color.Black,
+)
+
+/**
  * 스크롤 영역 위쪽 경계를 **알파 마스크로 흐려** 콘텐츠가 잘리지 않고 사라지게 한다.
  *
  * 배경색으로 덮는 그라데이션과 달리 마스크(`DstIn`)라서 배경이 이미지든 그라데이션이든
@@ -31,7 +49,7 @@ fun Modifier.topFadeEdge(height: Dp = FadeEdgeHeight): Modifier = this
         drawContent()
         drawRect(
             brush = Brush.verticalGradient(
-                colors = listOf(Color.Transparent, Color.Black),
+                colorStops = FadeCurve,
                 startY = 0f,
                 endY = height.toPx(),
             ),
