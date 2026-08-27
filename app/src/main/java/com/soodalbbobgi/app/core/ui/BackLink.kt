@@ -1,15 +1,14 @@
 package com.soodalbbobgi.app.core.ui
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,13 +27,12 @@ fun BackLink(onBack: () -> Unit) {
     val colors = SoodalDesign.colors
     Row(
         modifier = Modifier
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onBack,
-            )
-            // 글자만 있는 링크라 탭 영역을 여백으로 넓혀 준다.
-            .padding(vertical = 8.dp, horizontal = 4.dp),
+            // 면이 없는 텍스트 링크라 누름 스크림이 사각형으로 보인다 — 알약 모양으로 잘라
+            // 글자를 감싸는 형태로 만든다.
+            .clip(RoundedCornerShape(999.dp))
+            .pressable(onClick = onBack)
+            // 글자만 있는 링크라 탭 영역을 여백으로 넓혀 준다. 스크림 모양도 이 여백을 따른다.
+            .padding(vertical = 8.dp, horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {

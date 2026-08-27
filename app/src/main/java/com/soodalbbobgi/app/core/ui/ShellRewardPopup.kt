@@ -9,6 +9,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -106,6 +107,7 @@ fun ShellRewardPopup(
             .alpha(bgAlpha)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
+                // 딤은 컨트롤이 아니다 — 누름 틴트를 얹으면 닫히는 중에도 깜빡인다.
                 indication = null,
                 onClick = {
                     visible = false
@@ -209,11 +211,7 @@ fun ShellRewardPopup(
                 Row(
                     modifier = Modifier
                         .background(colors.accentBlue.copy(alpha = 0.14f), RoundedCornerShape(10.dp))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onEditStrokes,
-                        )
+                        .pressable(onClick = onEditStrokes)
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),

@@ -1,5 +1,6 @@
 package com.soodalbbobgi.app.presentation.calendar
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -58,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
 import com.soodalbbobgi.app.core.theme.StrokePalette
+import com.soodalbbobgi.app.core.ui.pressable
 import com.soodalbbobgi.app.core.ui.SoodalBottomSheet
 
 // 시트는 항상 화이트(라이트) — 앱 테마와 무관하게 디자인 고정값 사용.
@@ -205,7 +207,7 @@ fun StrokeEditSheet(
                     .background(Brush.linearGradient(listOf(Color(0xFF38BDF8), Color(0xFF2563EB))))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
+                        indication = LocalIndication.current,
                     ) {
                         // 저장 시 시트를 먼저 내린 뒤 콜백 (부드러운 닫힘).
                         close { onSave(free, breast, back, fly, kick, medley) }
@@ -403,11 +405,7 @@ private fun StepButton(glyph: String, enabled: Boolean, onClick: () -> Unit) {
             // 캡처해 버튼이 한 번만 먹히는 버그가 있었다.
             .then(
                 if (enabled) {
-                    Modifier.clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onClick,
-                    )
+                    Modifier.pressable(onClick = onClick)
                 } else {
                     Modifier
                 },

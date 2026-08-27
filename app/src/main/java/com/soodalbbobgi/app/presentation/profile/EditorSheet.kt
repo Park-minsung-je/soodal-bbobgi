@@ -1,6 +1,7 @@
 package com.soodalbbobgi.app.presentation.profile
 
 import androidx.compose.animation.core.animate
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
+import com.soodalbbobgi.app.core.ui.pressable
 import com.soodalbbobgi.app.core.ui.AssetImage
 import com.soodalbbobgi.app.core.ui.ButtonStyle
 import com.soodalbbobgi.app.core.ui.GlassSheen
@@ -164,11 +166,7 @@ fun EditorSheet(
                         .then(
                             if (isActive) Modifier.background(colors.gradBlue) else Modifier
                         )
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { vm.setActiveTab(tab) },
-                        )
+                        .pressable(onClick = { vm.setActiveTab(tab) })
                         .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -226,7 +224,7 @@ fun EditorSheet(
                             color = colors.textTertiary,
                             modifier = Modifier.clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
+                                indication = LocalIndication.current,
                             ) {
                                 vm.setCharX(0.5f)
                                 vm.setCharY(0.5f)
@@ -311,11 +309,7 @@ fun EditorSheet(
                     .height(52.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .background(Brush.linearGradient(listOf(Color(0xFF38BDF8), Color(0xFF2563EB))))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onApply,
-                    ),
+                    .pressable(onClick = onApply),
                 contentAlignment = Alignment.Center,
             ) {
                 Text("저장", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, letterSpacing = 0.3.sp)
@@ -384,7 +378,7 @@ private fun TextElementControls(
             color = colors.textTertiary,
             modifier = Modifier.clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                indication = LocalIndication.current,
             ) {
                 when (element) {
                     TextElement.Nickname -> { vm.setElementX(element, 0.83f); vm.setElementY(element, 0.40f) }
@@ -550,11 +544,7 @@ private fun NoneGridCell(
                 .clip(SoodalShape.md)
                 .background(if (isSelected) colors.accentBlueSoft else sheetControlBg(colors))
                 .border(borderWidth, borderColor, SoodalShape.md)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
-                )
+                .pressable(onClick = onClick)
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -601,11 +591,7 @@ private fun ItemGridCell(
                 .clip(SoodalShape.md)
                 .background(if (item.isSelected) colors.accentBlueSoft else sheetControlBg(colors))
                 .border(borderWidth, borderColor, SoodalShape.md)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
-                )
+                .pressable(onClick = onClick)
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -725,11 +711,7 @@ private fun SegmentChip(
                 if (isActive) Modifier.border(1.dp, SheetAccent.copy(alpha = 0.45f), SoodalShape.md)
                 else Modifier
             )
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            )
+            .pressable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 8.dp),
     ) {
         Text(
@@ -767,11 +749,7 @@ private fun StyleToggleChip(
                 if (active) Modifier.border(1.dp, SheetAccent.copy(alpha = 0.45f), SoodalShape.md)
                 else Modifier,
             )
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            )
+            .pressable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         Text(
@@ -822,11 +800,7 @@ private fun ColorPaletteRow(
                             color = if (isSelected) SheetAccent else colors.cardBorder,
                             shape = CircleShape,
                         )
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { onSelect(hex) },
-                        ),
+                        .pressable(onClick = { onSelect(hex) }),
                 )
             }
         }

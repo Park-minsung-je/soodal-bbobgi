@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -57,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
+import com.soodalbbobgi.app.core.ui.pressable
 import com.soodalbbobgi.app.core.ui.ChipColor
 import com.soodalbbobgi.app.core.ui.GlassBox
 import com.soodalbbobgi.app.core.ui.GlassCornerSmall
@@ -322,7 +324,7 @@ fun HomeScreen(
                         // 편집 중에는 카드 탭으로 전체화면(저장값) 진입을 막는다 — 미저장 편집값과 어긋나기 때문.
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
+                            indication = LocalIndication.current,
                             enabled = !editorOpen,
                             onClick = onOpenFullscreen,
                         ),
@@ -513,11 +515,7 @@ private fun GlassIconButton(icon: SoodalIcons, tint: Color, onClick: () -> Unit)
         modifier = Modifier
             .size(38.dp)
             .glass(colors, GlassCornerSmall, shape)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            ),
+            .pressable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         SoodalIcon(icon = icon, tint = tint, size = 18.dp)
@@ -537,13 +535,8 @@ private fun DexCollectionCard(
     val totalOwned = charOwned + bgOwned + frameOwned
     val totalAll = charTotal + bgTotal + frameTotal
     SoodalCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            ),
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
     ) {
         Column(Modifier.fillMaxWidth()) {
             Row(
@@ -641,10 +634,7 @@ private fun StatCard(
     onClick: () -> Unit = {},
 ) {
     val colors = SoodalDesign.colors
-    SoodalCard(modifier = modifier.clickable(
-        interactionSource = remember { MutableInteractionSource() },
-        indication = null, onClick = onClick,
-    )) {
+    SoodalCard(modifier = modifier, onClick = onClick) {
         Column {
             Text(label, fontSize = 10.sp, color = colors.textSecondary,
                 fontWeight = FontWeight.SemiBold, letterSpacing = 0.4.sp)
@@ -672,13 +662,8 @@ private fun TodayCard(
 ) {
     val colors = SoodalDesign.colors
     SoodalCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            ),
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             TodayMetric(Modifier.weight(1f), "거리", distanceM.formatNumber(), "m", colors.accentBlue)

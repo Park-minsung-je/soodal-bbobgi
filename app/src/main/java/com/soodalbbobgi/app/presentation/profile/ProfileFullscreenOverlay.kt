@@ -8,6 +8,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -54,6 +55,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.SoodalShape
+import com.soodalbbobgi.app.core.ui.pressable
 import com.soodalbbobgi.app.core.ui.GlassSheen
 import com.soodalbbobgi.app.core.ui.ProfileFrameCorner
 import com.soodalbbobgi.app.core.ui.SoodalIcon
@@ -320,11 +322,7 @@ fun ProfileFullscreenOverlay(
                             .clip(SoodalShape.md)
                             .background(colors.glassBg, SoodalShape.md)
                             .border(1.dp, colors.glassBorder, SoodalShape.md)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { viewModel.saveToGallery(bitmap) },
-                            )
+                            .pressable(onClick = { viewModel.saveToGallery(bitmap) })
                             .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -338,11 +336,7 @@ fun ProfileFullscreenOverlay(
                             .clip(SoodalShape.md)
                             .background(colors.glassBg, SoodalShape.md)
                             .border(1.dp, colors.glassBorder, SoodalShape.md)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { viewModel.share(bitmap) },
-                            )
+                            .pressable(onClick = { viewModel.share(bitmap) })
                             .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -355,11 +349,7 @@ fun ProfileFullscreenOverlay(
                     modifier = Modifier
                         .height(36.dp)
                         .clip(SoodalShape.md)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = close,
-                        )
+                        .pressable(onClick = close)
                         .padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),

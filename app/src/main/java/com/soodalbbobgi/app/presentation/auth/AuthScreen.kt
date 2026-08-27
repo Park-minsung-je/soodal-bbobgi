@@ -1,5 +1,6 @@
 ﻿package com.soodalbbobgi.app.presentation.auth
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -36,6 +37,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soodalbbobgi.app.R
 import com.soodalbbobgi.app.core.theme.SoodalDesign
+import com.soodalbbobgi.app.core.ui.pressable
 import com.soodalbbobgi.app.core.ui.SoodalIcon
 import com.soodalbbobgi.app.core.ui.SoodalIcons
 import com.soodalbbobgi.app.core.ui.soodalScreenBackdrop
@@ -104,11 +106,7 @@ fun AuthScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { viewModel.clearError() },
-                        ),
+                        .pressable(onClick = { viewModel.clearError() }),
                 )
             }
 
@@ -125,7 +123,7 @@ fun AuthScreen(
                     .clickable(
                         enabled = !isLoading,
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
+                        indication = LocalIndication.current,
                         onClick = { viewModel.loginWithKakao(activity) },
                     ),
             )
@@ -162,7 +160,7 @@ private fun AuthButton(
             .background(if (enabled) bgColor else bgColor.copy(alpha = 0.5f))
             .then(if (borderColor != null) Modifier.border(1.dp, borderColor, shape) else Modifier)
             .clickable(enabled = enabled, interactionSource = remember { MutableInteractionSource() },
-                indication = null, onClick = onClick)
+                indication = LocalIndication.current, onClick = onClick)
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,

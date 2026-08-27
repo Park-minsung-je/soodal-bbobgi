@@ -3,6 +3,7 @@ package com.soodalbbobgi.app.core.ui
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -189,6 +190,7 @@ fun SoodalTabBar(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
+                        // 탭바는 누름 틴트를 쓰지 않는다 — 선택 pill 이동이 이미 피드백이다.
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,

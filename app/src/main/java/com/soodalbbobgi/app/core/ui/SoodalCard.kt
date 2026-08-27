@@ -18,11 +18,14 @@ import androidx.compose.ui.unit.dp
 fun SoodalCard(
     modifier: Modifier = Modifier,
     contentPadding: Dp = 16.dp,
+    /** 탭 동작. modifier로 clickable을 넘기지 말고 이 값을 쓴다 — 누름 스크림이 모서리에 맞는다. */
+    onClick: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     GlassBox(
         modifier = modifier,
         contentPadding = contentPadding,
+        onClick = onClick,
         content = content,
     )
 }

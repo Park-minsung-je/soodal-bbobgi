@@ -1,5 +1,6 @@
 package com.soodalbbobgi.app.presentation.common
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -25,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.core.theme.StrokePalette
+import com.soodalbbobgi.app.core.ui.pressable
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.presentation.calendar.sortedStrokeSegments
 
@@ -70,11 +72,7 @@ fun WeeklyActivityCard(weekly: WeeklyActivity, trendPercent: Int? = null, onTap:
     val chartHeight = 84.dp
 
     val tapModifier = if (onTap != null) {
-        Modifier.clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null,
-            onClick = onTap,
-        )
+        Modifier.pressable(onClick = onTap)
     } else {
         Modifier
     }

@@ -1,5 +1,6 @@
 package com.soodalbbobgi.app.core.ui
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -101,7 +102,7 @@ fun SoodalButton(
             .clickable(
                 enabled = enabled,
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                indication = LocalIndication.current,
                 onClick = onClick,
             )
             .padding(horizontal = when (style) {
