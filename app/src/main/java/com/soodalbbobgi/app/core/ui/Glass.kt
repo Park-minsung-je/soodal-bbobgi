@@ -282,7 +282,7 @@ fun GlassInfoGroup(content: @Composable RowScope.() -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Row(
-            modifier = Modifier.fillMaxHeight().padding(horizontal = 5.dp),
+            modifier = Modifier.fillMaxHeight().padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             content = content,
         )
@@ -300,7 +300,7 @@ fun GlassInfoGroup(content: @Composable RowScope.() -> Unit) {
 @Composable
 fun GlassInfoSegment(icon: SoodalIcons, value: String, tint: Color) {
     Row(
-        modifier = Modifier.padding(horizontal = 8.dp),
+        modifier = Modifier.padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {

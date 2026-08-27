@@ -86,10 +86,10 @@ import com.soodalbbobgi.app.presentation.profile.ProfileEditorViewModel
 import kotlinx.coroutines.delay
 
 /**
- * 상단바 ~ 프로필 카드 간격. 설정 화면 목록과 같은 값이라 경계 페이드(20dp)가 끝난 뒤에
- * 카드가 시작한다 — 정지 상태에서 카드 윗변이 마스크에 닿지 않는다.
+ * 상단바 ~ 프로필 카드 간격. 아래 카드들끼리의 간격(14dp)과 같은 값으로 맞춘다.
+ * 경계 페이드도 같은 길이를 써서, 페이드가 끝나는 지점에서 곧바로 카드가 시작한다.
  */
-private val HomeTopGap = 24.dp
+private val HomeTopGap = 14.dp
 
 private fun Int.formatNumber(): String = String.format("%,d", this)
 
@@ -126,11 +126,11 @@ fun HomeScreen(
         if (editorOpen) homeScrollState.animateScrollTo(0)
     }
 
-    // 카드 아래 지점(dp) 계산: 위패딩16 + 헤더46 = 62, + 카드 위 간격, + 카드 높이, + 카드-시트 간격 14.
+    // 카드 아래 지점(dp) 계산: 위패딩16 + 헤더38 = 54, + 카드 위 간격, + 카드 높이, + 카드-시트 간격 14.
     val config = LocalConfiguration.current
     // 카드는 화면폭-32dp(좌우 16 여백)에서 카드 비율(2752×1536)로 높이가 정해진다.
     val cardHeightDp = (config.screenWidthDp - 32f) * 1536f / 2752f
-    val sheetTopDp = 62f + HomeTopGap.value + cardHeightDp + 14f
+    val sheetTopDp = 54f + HomeTopGap.value + cardHeightDp + 14f
 
     // 시스템 뒤로가기 → 시트 닫기(취소): 미저장 변경 폐기.
     BackHandler(enabled = editorOpen) {
@@ -167,7 +167,7 @@ fun HomeScreen(
                 .fillMaxWidth()
                 .padding(horizontal = spacing.s4)
                 .padding(top = spacing.s4)
-                .height(46.dp),
+                .height(38.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -201,10 +201,9 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                // 설정 화면 목록과 완전히 같은 처리 — 같은 마스크, 같은 길이(20dp).
-                // 첫 요소까지의 여백([HomeTopGap])이 페이드보다 길어야 정지 상태에서
-                // 카드가 마스크에 닿지 않는다.
-                .topFadeEdge()
+                // 설정 화면 목록과 같은 마스크. 길이는 카드 간격에 맞춘다 — 여백보다 길면
+                // 정지 상태에서 카드 윗변이 마스크에 걸린다.
+                .topFadeEdge(HomeTopGap)
                 .verticalScroll(homeScrollState)
                 .padding(horizontal = spacing.s4),
         ) {
