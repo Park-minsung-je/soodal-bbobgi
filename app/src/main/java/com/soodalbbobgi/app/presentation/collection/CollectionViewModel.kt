@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.soodalbbobgi.app.core.state.AppState
 import com.soodalbbobgi.app.domain.model.Grade
+import com.soodalbbobgi.app.domain.model.Item
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +28,7 @@ data class CollectionEntry(
 )
 
 data class CollectionUiState(
-    /** 카테고리 순(char→bg→frame), 카테고리 안에서는 id 순 정렬. */
+    /** [collectionOrder] 기준 정렬 — 카테고리 → 등급 낮은 순 → 번호 순. */
     val entries: List<CollectionEntry> = emptyList(),
 ) {
     val ownedCount: Int get() = entries.count { it.owned }
@@ -38,6 +39,20 @@ data class CollectionUiState(
 
     fun ofKind(kind: String): List<CollectionEntry> = entries.filter { it.kind == kind }
 }
+
+/** 도감 카테고리 진열 순서 — 캐릭터 → 배경 → 액자. 목록에 없는 카테고리는 맨 뒤. */
+private val KIND_ORDER = mapOf("char" to 0, "bg" to 1, "frame" to 2)
+
+/**
+ * 도감 진열 순서 — 카테고리 → **등급 낮은 순(N→R→SR→SSR)** → 번호 순.
+ *
+ * 상점은 관리자가 배치를 직접 정하지만 도감은 카탈로그 전체를 그대로 보여주므로,
+ * 흔한 것부터 귀한 것으로 올라가며 수집 진행을 따라가게 둔다.
+ */
+internal fun collectionOrder(): Comparator<Item> =
+    compareBy<Item> { KIND_ORDER[it.category] ?: KIND_ORDER.size }
+        .thenBy { it.grade.ordinal }
+        .thenBy { it.id }
 
 /**
  * 내 컬렉션(도감) 화면 — 아이템 카탈로그 전체에 보유/장착 상태를 얹어 노출한다.
@@ -57,10 +72,10 @@ class CollectionViewModel @Inject constructor(
         // 아이템 마스터 id와 직접 비교하면 엉뚱한 칸에 착용 표시가 붙는다.
         val equippedInvIds = setOfNotNull(card?.backgroundItemId, card?.characterItemId, card?.borderItemId)
         val equippedIds = inventory.filter { it.id in equippedInvIds }.map { it.itemId }.toSet()
-        val kindOrder = mapOf("char" to 0, "bg" to 1, "frame" to 2)
+
         CollectionUiState(
             entries = items.values
-                .sortedWith(compareBy({ kindOrder[it.category] ?: 3 }, { it.id }))
+                .sortedWith(collectionOrder())
                 .map {
                     CollectionEntry(
                         id = it.id,
