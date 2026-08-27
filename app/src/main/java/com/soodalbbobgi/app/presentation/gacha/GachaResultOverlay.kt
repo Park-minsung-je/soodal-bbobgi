@@ -250,7 +250,14 @@ private fun ResultSingle(
 
         if (!isLast && results.size > 1) {
             Spacer(Modifier.height(14.dp))
-            SoodalButton("전체 결과 보기", onClick = onShowAll, style = ButtonStyle.Ghost)
+            // 이 버튼만 유리 패널 밖, 어둡게 깔린 인양 씬 위에 놓인다 —
+            // Ghost 기본 회색은 그 위에서 거의 안 보여 흰색으로 바꾼다.
+            SoodalButton(
+                "전체 결과 보기",
+                onClick = onShowAll,
+                style = ButtonStyle.Ghost,
+                textColorOverride = Color.White,
+            )
         }
     }
 }

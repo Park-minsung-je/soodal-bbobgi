@@ -44,6 +44,8 @@ fun SoodalButton(
     heightOverride: Dp? = null,
     /** 스타일 기본 배경 대신 쓸 채움 — 흰 패널 위 Secondary처럼 배경 대비가 필요할 때. */
     backgroundOverride: Brush? = null,
+    /** 스타일 기본 글자색 대신 쓸 색 — 채움 없는 Ghost가 어두운 씬 위에 놓일 때처럼. */
+    textColorOverride: Color? = null,
 ) {
     val colors = SoodalDesign.colors
     val background = backgroundOverride ?: when (style) {
@@ -53,7 +55,7 @@ fun SoodalButton(
         ButtonStyle.Warn -> SolidColor(colors.warn)
         else -> null
     }
-    val textColor = when (style) {
+    val textColor = textColorOverride ?: when (style) {
         ButtonStyle.Primary -> colors.btnPrimaryText
         ButtonStyle.Gold -> colors.btnGoldText
         ButtonStyle.Purple -> colors.btnPurpleText
