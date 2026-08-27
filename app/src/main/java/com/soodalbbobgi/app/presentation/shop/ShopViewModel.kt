@@ -102,8 +102,17 @@ class ShopViewModel @Inject constructor(
         // 화면이 진입할 때마다 [refresh]를 부른다 (ShopScreen).
     }
 
-    /** 진열 + 잔액 새로고침. */
-    fun refresh() {
+    /** 마지막으로 새로고침을 끝낸 시각 — 탭을 오갈 때마다 같은 요청이 반복되지 않게 한다. */
+    private var lastRefreshedAt = 0L
+
+    /**
+     * 진열 + 잔액 새로고침.
+     *
+     * @param force true면 [REFRESH_INTERVAL_MS]와 무관하게 무조건 다시 불러온다 (구매 직후 등).
+     */
+    fun refresh(force: Boolean = false) {
+        // 탭을 잠깐 스쳐 지나가는 동안 같은 요청을 여러 번 보내지 않는다.
+        if (!force && System.currentTimeMillis() - lastRefreshedAt < REFRESH_INTERVAL_MS) return
         viewModelScope.launch {
             _local.update { it.copy(isLoading = true) }
             // 응답이 순식간에 와도 로딩 딤이 깜빡 스치지 않게 최소 표시 시간을 유지 (홈 동기화와 동일 패턴).
@@ -113,6 +122,7 @@ class ShopViewModel @Inject constructor(
                 appStateLoader.refreshShop()
                 // 보유 중 표시용 — 다른 기기에서의 획득도 반영되도록 인벤토리도 갱신
                 appStateLoader.refreshInventory()
+                lastRefreshedAt = System.currentTimeMillis()
             } catch (e: Exception) {
                 Timber.w(e, "상점 새로고침 실패")
                 _local.update { it.copy(error = "상점을 불러오지 못했어요") }
@@ -176,9 +186,12 @@ class ShopViewModel @Inject constructor(
                     } else {
                         _local.update { it.copy(confirmItem = null) }
                     }
-                    refresh()
+                    refresh(force = true)
                 } else {
+                    // 서버가 거절한 경우 — 화면이 오래된 진열을 들고 있었을 수 있다
+                    // (판매 중지·기간 종료·한도 초과). 서버 메시지를 그대로 보여주고 진열을 새로 받는다.
                     _local.update { it.copy(error = res.error?.message ?: "구매에 실패했어요", confirmItem = null) }
+                    refresh(force = true)
                 }
             } catch (e: Exception) {
                 Timber.w(e, "상점 구매 실패")
@@ -226,5 +239,11 @@ class ShopViewModel @Inject constructor(
     companion object {
         /** 로딩 딤 최소 유지 시간(ms) — 순간 응답 시 오버레이가 깜빡 스치는 것 방지. */
         private const val MIN_LOADING_INDICATOR_MS = 600L
+
+        /**
+         * 같은 요청을 다시 보내기까지의 최소 간격(ms).
+         * 탭을 오갈 때마다 서버를 두드리지 않으면서도, 진열이 바뀌면 곧 반영되는 선.
+         */
+        private const val REFRESH_INTERVAL_MS = 30_000L
     }
 }
