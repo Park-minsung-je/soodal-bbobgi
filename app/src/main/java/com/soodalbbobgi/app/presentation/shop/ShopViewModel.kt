@@ -98,7 +98,8 @@ class ShopViewModel @Inject constructor(
     init {
         // 프로세스 사망 후 이 탭으로 복원됐을 수 있으니 먼저 전체 재수화
         viewModelScope.launch { appStateLoader.ensureHydrated() }
-        refresh()
+        // 진열 새로고침은 여기서 하지 않는다 — 탭이 saveState로 보존돼 이 블록은 첫 진입에만 돈다.
+        // 화면이 진입할 때마다 [refresh]를 부른다 (ShopScreen).
     }
 
     /** 진열 + 잔액 새로고침. */

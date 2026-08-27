@@ -21,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -110,6 +111,10 @@ fun ShopScreen(
     val state by viewModel.uiState.collectAsState()
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
+
+    // 탭에 들어올 때마다 진열·잔액을 다시 불러온다. 탭은 saveState로 보존돼 ViewModel이 살아
+    // 있으므로 init에서 한 번 부르면 재진입 때 옛 진열이 그대로 보인다.
+    LaunchedEffect(Unit) { viewModel.refresh() }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
