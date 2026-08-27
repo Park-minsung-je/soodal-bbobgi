@@ -49,6 +49,7 @@ import com.soodalbbobgi.app.core.ui.SoodalButton
 import com.soodalbbobgi.app.core.ui.GlassSheen
 import com.soodalbbobgi.app.core.ui.LocalHazeContent
 import com.soodalbbobgi.app.core.ui.SoodalCard
+import com.soodalbbobgi.app.core.ui.topFadeEdge
 import com.soodalbbobgi.app.core.ui.glassFrost
 import com.soodalbbobgi.app.core.ui.glassShadow
 import com.soodalbbobgi.app.core.ui.SoodalIcon
@@ -57,6 +58,50 @@ import com.soodalbbobgi.app.core.ui.TabBarClearance
 import com.soodalbbobgi.app.core.ui.motion.rememberPopupEnter
 import com.soodalbbobgi.app.domain.model.Grade
 import com.soodalbbobgi.app.presentation.gacha.GachaResultOverlay
+
+/** 헤더 ~ 첫 섹션 간격. 홈과 같이 카드끼리의 간격(14dp)에 맞추고, 경계 페이드도 같은 길이를 쓴다. */
+private val ShopTopGap = 14.dp
+
+/**
+ * 구매 확인 팝업의 정사각 그림 영역 한 변.
+ *
+ * 제목("구매 확인")을 빼고, 이름·설명·가격 글자를 줄이고, 요소 사이 상하 공백까지 압축해
+ * 확보한 세로 공간(≈74dp)을 전부 그림에 넘긴 값이다 — 팝업 높이는 그대로면서 아이템만 커진다.
+ */
+private val PurchaseArtSize = 132.dp
+
+/**
+ * 구매 팝업에서 아이템 그림을 담는 방식 — 에셋이 자기 여백을 갖고 있는지에 따라 갈린다.
+ */
+private enum class PurchaseArtStyle {
+    /**
+     * 정사각 영역을 꽉 채우고 아래 여백은 두지 않는다.
+     * 캐릭터·상자처럼 **에셋 안에 이미 투명 여백이 들어 있는** 그림용.
+     */
+    Padded,
+
+    /**
+     * 정사각에 가두지 않고 팝업 안쪽 폭(상하 여백과 같은 좌우 여백을 남긴 폭)을 다 쓴 뒤
+     * 비율대로 눕히고, 아래에만 여백을 준다.
+     * 배경처럼 **여백 없이 꽉 찬** 그림용 — 정사각에 넣으면 위아래가 비어 작아 보인다.
+     */
+    Wide,
+}
+
+/**
+ * 상품에 맞는 그림 표현 방식을 고른다.
+ *
+ * 여백 없이 꽉 찬 가로형 에셋만 [PurchaseArtStyle.Wide]를 쓴다 — 지금은 배경 아이템뿐이다.
+ * **상자는 내용물이 배경이라 `category`가 `bg`여도 그림 자체는 상자**이고 투명 여백이
+ * 있으므로 [PurchaseArtStyle.Padded]다. 그래서 카테고리만 보지 않고 상품 종류를 함께 본다.
+ * 액자가 같은 성격이면 여기에 추가하면 된다.
+ */
+private fun purchaseArtStyle(item: ShopItem): PurchaseArtStyle =
+    if (item.productType == "item" && item.category == "bg") {
+        PurchaseArtStyle.Wide
+    } else {
+        PurchaseArtStyle.Padded
+    }
 
 @Composable
 fun ShopScreen(
@@ -100,10 +145,13 @@ fun ShopScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    // 홈과 같은 처리 — 고정 헤더 경계에서 콘텐츠를 알파 마스크로 사라지게 한다.
+                    // 길이는 헤더 아래 여백과 같아야 정지 상태에서 첫 카드가 마스크에 걸리지 않는다.
+                    .topFadeEdge(ShopTopGap)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = spacing.s4),
             ) {
-                Spacer(Modifier.height(spacing.s4))
+                Spacer(Modifier.height(ShopTopGap))
 
                 val boxListings = state.listings.filter { it.productType == "box" }
                 // 아이템은 종류(캐릭터/배경/액자)별 섹션으로 나눠 아래로 이어 보여주고,
@@ -119,17 +167,12 @@ fun ShopScreen(
 
                 // -- Boxes Section --
                 if (boxListings.isNotEmpty()) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        SoodalIcon(icon = SoodalIcons.Box, size = 18.dp)
-                        Text(
-                            text = "상자",
-                            style = SoodalDesign.typography.md,
-                            color = colors.textPrimary,
-                        )
-                    }
+                    // 아이템 섹션들과 마찬가지로 제목만 둔다 — 아이콘은 붙이지 않는다.
+                    Text(
+                        text = "상자",
+                        style = SoodalDesign.typography.md,
+                        color = colors.textPrimary,
+                    )
                     Spacer(Modifier.height(spacing.s3))
 
                     val boxRows = boxListings.chunked(3)
@@ -498,84 +541,90 @@ private fun PurchaseConfirmOverlay(
         ) {
             GlassSheen(panelShape)
             Column(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                // 사방 12dp — 가로형 그림이 상하 여백과 같은 좌우 여백을 갖게 한다.
+                // 요소 사이 간격은 바짝 붙여 남은 세로 공간을 전부 아이템 그림에 넘긴다.
+                modifier = Modifier.fillMaxWidth().padding(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(
-                    text = "구매 확인",
-                    style = SoodalDesign.typography.md,
-                    color = colors.textPrimary,
-                )
-
-                Spacer(Modifier.height(spacing.s4))
-
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(SoodalShape.lg)
-                        .background(colors.surface2),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    // 목록 셀과 동일하게 에셋 우선, 없으면 아이콘 폴백
-                    if (!item.imageAsset.isNullOrBlank()) {
-                        AssetImage(
-                            imageAsset = item.imageAsset,
-                            contentDescription = item.name,
-                            modifier = Modifier.fillMaxSize().padding(6.dp),
-                        )
-                    } else {
-                        SoodalIcon(icon = item.icon, tint = colors.textTertiary, size = 32.dp)
+                // 제목("구매 확인") 없음 — 무엇을 사는지는 아래 아이템 자체가 말해준다.
+                // 대신 그만큼 그림을 키워 팝업 높이는 그대로 두고 아이템을 크게 보여준다.
+                // 배경 타일도 없앤다 — 에셋이 타일 안에 갇히지 않고 영역을 다 쓴다.
+                val artStyle = purchaseArtStyle(item)
+                if (!item.imageAsset.isNullOrBlank()) {
+                    AssetImage(
+                        imageAsset = item.imageAsset,
+                        contentDescription = item.name,
+                        modifier = when (artStyle) {
+                            PurchaseArtStyle.Padded -> Modifier.size(PurchaseArtSize)
+                            // 정사각에 가두지 않는다 — 팝업 안쪽 폭을 다 쓰고 높이는 비율대로 따라온다.
+                            PurchaseArtStyle.Wide -> Modifier.fillMaxWidth()
+                        },
+                    )
+                } else {
+                    // 에셋이 없으면 아이콘 폴백 — 표현 방식과 무관하게 정사각 중앙.
+                    Box(
+                        modifier = Modifier.size(PurchaseArtSize),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        SoodalIcon(icon = item.icon, tint = colors.textTertiary, size = PurchaseArtSize / 2)
                     }
                 }
 
-                Spacer(Modifier.height(spacing.s3))
+                // 여백 없는 그림만 글자와 띄운다. 캐릭터 에셋은 자기 투명 여백이 있어 붙여도 된다.
+                if (artStyle == PurchaseArtStyle.Wide) Spacer(Modifier.height(8.dp))
 
+                Column(
+                    // 바깥 12dp에 더해 글자·버튼만 예전과 같은 좌우 16dp를 갖는다.
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                 if (item.grade != null) {
                     GradeBadge(grade = item.grade)
-                    Spacer(Modifier.height(spacing.s2))
+                    Spacer(Modifier.height(5.dp))
                 }
 
                 Text(
                     text = item.name,
-                    style = SoodalDesign.typography.md,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     color = colors.textPrimary,
                 )
 
                 if (item.description.isNotBlank()) {
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(2.dp))
                     Text(
                         text = item.description,
-                        fontSize = 13.sp,
+                        fontSize = 11.5.sp,
                         color = colors.textSecondary,
                         textAlign = TextAlign.Center,
                     )
                 }
 
-                Spacer(Modifier.height(spacing.s2))
+                Spacer(Modifier.height(5.dp))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
-                    SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 16.dp)
+                    SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 14.dp)
                     Text(
                         text = "${item.price} 진주",
-                        fontSize = 15.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.accentPurple,
                     )
                 }
 
                 if (!canAfford) {
-                    Spacer(Modifier.height(spacing.s2))
+                    Spacer(Modifier.height(5.dp))
                     Text(
                         text = "진주가 부족합니다 (보유: ${pearls}개)",
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         color = colors.warn,
                     )
                 }
 
-                Spacer(Modifier.height(spacing.s5))
+                Spacer(Modifier.height(14.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -598,6 +647,7 @@ private fun PurchaseConfirmOverlay(
                         enabled = canAfford,
                         modifier = Modifier.weight(1f),
                     )
+                }
                 }
             }
         }
