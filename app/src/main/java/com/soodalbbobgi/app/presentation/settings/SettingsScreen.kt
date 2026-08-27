@@ -392,7 +392,7 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "Made with 클로드 코드, 안티그래비티 · 수달 뽑기 v${BuildConfig.VERSION_NAME}",
+                    "Made with Claude Code, Antigravity · 수달 뽑기 v${BuildConfig.VERSION_NAME}",
                     fontSize = 11.sp,
                     color = colors.textTertiary,
                 )
