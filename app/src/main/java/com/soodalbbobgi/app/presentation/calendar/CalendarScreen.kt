@@ -42,6 +42,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
+import kotlin.math.roundToInt
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -696,11 +700,26 @@ private fun DayDetailCard(
 ) {
     val colors = SoodalDesign.colors
 
+    // 심박 차트 펼침 진행값 — 차트 높이와 카드 높이를 이 값 하나로 움직인다.
+    // 차트를 AnimatedVisibility로 따로 움직이면 animateContentSize가 그 변화를 한 번 더
+    // 스무딩해서 카드가 늦게 따라오고, 차트를 즉시 넣으면 카드 중간이라 툭 튀어나온다.
+    val chartFraction by animateFloatAsState(
+        targetValue = if (chartExpanded) 1f else 0f,
+        animationSpec = tween(220),
+        label = "hrChartReveal",
+    )
+    val chartAnimating = chartFraction > 0f && chartFraction < 1f
+
     // 기록 있는 날 ↔ 없는 날을 오갈 때 카드 높이가 탁 바뀌지 않고 부드럽게 변한다.
     // animateContentSize는 콘텐츠를 클립하므로 카드 바깥이 아니라 안쪽 Column에 둔다
     // (바깥에 두면 카드 그림자가 잘린다).
+    // 단 차트가 움직이는 동안은 뗀다 — 프레임마다 변하는 높이를 다시 스무딩하면 지연만 생긴다.
     SoodalCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth().animateContentSize(tween(220))) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (chartAnimating) Modifier else Modifier.animateContentSize(tween(220))),
+        ) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
@@ -766,6 +785,7 @@ private fun DayDetailCard(
                     onEdit = { onEdit(session) },
                     onDelete = { onDelete(session) },
                     chartExpanded = chartExpanded,
+                    chartFraction = chartFraction,
                     onToggleChart = onToggleChart,
                 )
             }
@@ -830,6 +850,8 @@ private fun SessionDetail(
     /** 세션 삭제 요청 — 블록의 빈 영역을 길게 누르면 호출된다. */
     onDelete: () -> Unit,
     chartExpanded: Boolean,
+    /** 차트 펼침 진행값 (0~1) — 카드와 같은 값으로 움직여 높이가 정확히 동기화된다. */
+    chartFraction: Float,
     onToggleChart: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
@@ -865,13 +887,24 @@ private fun SessionDetail(
             )
         }
 
-        // 세션 심박 곡선 — 화살표로 펼쳤을 때만.
-        // AnimatedVisibility로 따로 펼치지 않는다. 그러면 차트와 카드가 각자 다른 시간으로
-        // 커져 카드가 뒤늦게 따라오는 것처럼 보인다. 카드의 animateContentSize 하나가
-        // 높이를 맡고, 차트는 그 클립 안에서 그대로 드러난다.
-        if (hasChart && chartExpanded) {
-            Spacer(Modifier.height(8.dp))
-            HrChart(points = session.hrSeries, restRanges = session.hrRestRanges)
+        // 세션 심박 곡선 — 진행값만큼 위에서부터 잘라 드러낸다.
+        // 카드도 같은 진행값으로 커지므로 (그동안 animateContentSize는 떼어져 있다)
+        // 차트와 카드 높이가 프레임 단위로 일치한다.
+        if (hasChart && chartFraction > 0f) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clipToBounds()
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        val height = (placeable.height * chartFraction).roundToInt()
+                        layout(placeable.width, height) { placeable.place(0, 0) }
+                    }
+                    .graphicsLayer { alpha = chartFraction },
+            ) {
+                Spacer(Modifier.height(8.dp))
+                HrChart(points = session.hrSeries, restRanges = session.hrRestRanges)
+            }
         }
 
         Spacer(Modifier.height(16.dp))
