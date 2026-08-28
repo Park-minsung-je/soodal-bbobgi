@@ -421,7 +421,8 @@ fun HomeScreen(
     }
 
     // ── 조개 획득 팝업 (오버레이 레이어로 호이스팅 — 패널이 뒤 콘텐츠를 진짜 블러) ──
-    if (shellReward > 0) {
+    // 영법 수정 시트가 열려 있는 동안은 숨긴다 — 시트 뒤에 팝업이 비쳐 보일 이유가 없다.
+    if (shellReward > 0 && editToday == null) {
         AppOverlay {
             ShellRewardPopup(
                 shellCount = shellReward,

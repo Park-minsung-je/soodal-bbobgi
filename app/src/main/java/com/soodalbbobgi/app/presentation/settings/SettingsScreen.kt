@@ -411,7 +411,7 @@ fun SettingsScreen(
                         SettingsDivider()
                         // 심박·활동시간은 서버에 없어 로컬을 잃으면 HC에서만 되살릴 수 있다.
                         SettingsRow(
-                            label = "심박 복구 — HC 최근 60일 다시 읽기",
+                            label = "심박 복구 — HC 전체 기간 다시 읽기",
                             trailing = "♡",
                             onClick = { viewModel.resyncFromHealthConnect() },
                         )

@@ -289,4 +289,5 @@ sealed interface AccountActionState {
 private const val DEV_RESET_DAYS = 1
 
 /** HC 재읽기 범위 — Health Connect가 허용하는 과거 조회 한도(약 2개월)에 맞춘다. */
-private const val HC_RESYNC_DAYS = 60
+// HC가 보관 중인 전 기간을 사실상 다 덮는 범위 — 60일로는 5월 시작 데이터에 못 미쳤다.
+private const val HC_RESYNC_DAYS = 365

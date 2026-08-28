@@ -82,6 +82,10 @@ fun ShellRewardPopup(
     onEditStrokes: (() -> Unit)? = null,
     onDismiss: () -> Unit,
 ) {
+    // 0개 팝업은 존재 이유가 없다 — 보상 상태가 지워지는 프레임에 오버레이 램다가
+    // 한 박자 늦게 남아 "+0"으로 그려지는 것을 원천 차단한다.
+    if (shellCount <= 0) return
+
     val colors = SoodalDesign.colors
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }

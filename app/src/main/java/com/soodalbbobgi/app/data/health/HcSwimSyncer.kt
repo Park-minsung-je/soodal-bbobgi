@@ -378,6 +378,8 @@ class HcSwimSyncer @Inject constructor(
                 val pendingDeletes = hcSyncPreferences.getPendingServerDeletes()
                 for (serverLog in response.data.items) {
                     if (serverLog.date in pendingDeletes) continue
+                    // 행 하나의 실패가 나머지 복원을 막지 않게 날짜 단위로 격리한다
+                    try {
                     swimLogUseCase.saveFromServer(
                         SwimLog(
                             userId = userSession.userId,
@@ -400,6 +402,9 @@ class HcSwimSyncer @Inject constructor(
                             synced = true, // 서버에서 온 기록 — 되돌려 보낼 필요 없음
                         )
                     )
+                    } catch (e: Exception) {
+                        Timber.w(e, "서버 기록 복원 실패(계속 진행): ${serverLog.date}")
+                    }
                 }
                 Timber.d("서버 수영 기록 pull 완료: ${response.data.items.size}개")
             }

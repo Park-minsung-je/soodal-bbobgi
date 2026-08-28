@@ -340,7 +340,8 @@ fun CalendarScreen(
             }
         }
 
-        if (shellReward > 0) {
+        // 영법 수정 시트가 열려 있는 동안은 숨긴다 — 시트 뒤에 팝업이 비쳐 보일 이유가 없다.
+        if (shellReward > 0 && editTarget == null) {
             AppOverlay {
                 // 오늘 세션 중 영법이 비어 있는 게 있으면 홈과 똑같이 입력을 권한다.
                 // 캘린더는 과거 날짜도 다루지만 보너스는 오늘 기록에만 붙으므로 오늘만 본다.
