@@ -43,6 +43,7 @@ interface SwimLogDao {
         "UPDATE swim_logs SET hcRecordId = :hcRecordId, startEpochSec = :startEpochSec, " +
             "distanceMeters = :distance, durationSeconds = :duration, calories = :calories, " +
             "maxHr = COALESCE(:maxHr, maxHr), minHr = COALESCE(:minHr, minHr), " +
+            "avgHr = COALESCE(:avgHr, avgHr), " +
             "activeSeconds = COALESCE(:activeSeconds, activeSeconds), hrSeries = COALESCE(:hrSeries, hrSeries), " +
             "strokeMixedM = CASE WHEN strokeFreestyleM = 0 AND strokeBreastM = 0 AND strokeBackM = 0 " +
             "AND strokeFlyM = 0 AND strokeKickM = 0 THEN :distance ELSE strokeMixedM END " +
@@ -57,6 +58,7 @@ interface SwimLogDao {
         calories: Int,
         maxHr: Int?,
         minHr: Int?,
+        avgHr: Int?,
         activeSeconds: Int?,
         hrSeries: String?,
     )

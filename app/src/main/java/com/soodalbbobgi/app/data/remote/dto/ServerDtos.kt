@@ -223,6 +223,11 @@ data class SwimLogRequest(
     val strokeMixedM: Int,
     val strokeKickM: Int,
     val source: String,
+    /** 하루치로 합친 심박. 기록에 심박이 없으면 null — 서버는 null 필드를 건너뛴다. */
+    val maxHr: Int? = null,
+    val minHr: Int? = null,
+    val avgHr: Int? = null,
+    val hrSeries: String? = null,
 )
 
 /** POST /swim-logs 응답 */
@@ -254,8 +259,23 @@ data class ServerSwimLog(
     val strokeMixedM: Int,
     val strokeKickM: Int,
     val source: String,
+    val maxHr: Int? = null,
+    val minHr: Int? = null,
+    val avgHr: Int? = null,
+    val hrSeries: String? = null,
     val shellsEarned: Int,
     val createdAt: Long,
+)
+
+/**
+ * PATCH /swim-logs/by-date/:date/vitals 요청 — 이미 서버에 있는 기록의 빈 심박을 채운다.
+ * 서버는 값이 있는 필드를 덮어쓰지 않으므로 여러 번 보내도 안전하다.
+ */
+data class UpdateVitalsRequest(
+    val maxHr: Int? = null,
+    val minHr: Int? = null,
+    val avgHr: Int? = null,
+    val hrSeries: String? = null,
 )
 
 /** PATCH /swim-logs/by-date/:date/strokes 요청 — 영법별 거리(m), 합계는 총 거리와 일치해야 함 */

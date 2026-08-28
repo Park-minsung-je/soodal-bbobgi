@@ -42,6 +42,7 @@ class SwimLogRepositoryImpl @Inject constructor(
             calories = log.calories,
             maxHr = log.maxHr,
             minHr = log.minHr,
+            avgHr = log.avgHr,
             activeSeconds = log.activeSeconds,
             hrSeries = log.hrSeries,
         )

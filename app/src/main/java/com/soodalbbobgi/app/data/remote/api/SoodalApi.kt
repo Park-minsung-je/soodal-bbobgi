@@ -99,11 +99,11 @@ interface SoodalApi {
     @POST("swim-logs")
     suspend fun addSwimLog(@Body request: SwimLogRequest): ApiResponse<SwimLogResponseData>
 
-    /** 수영 기록 목록 조회 */
+    /** 수영 기록 목록 조회 — 기간을 비우면 전체 이력을 받는다 (재설치·데이터 손실 복원용). */
     @GET("swim-logs")
     suspend fun getSwimLogs(
-        @Query("startDate") startDate: String,
-        @Query("endDate") endDate: String,
+        @Query("startDate") startDate: String? = null,
+        @Query("endDate") endDate: String? = null,
     ): ApiResponse<SwimLogsData>
 
     /** 영법별 거리 보정 (총 거리는 유지, 분배만 갱신) */
@@ -112,6 +112,13 @@ interface SoodalApi {
         @Path("date") date: String,
         @Body request: UpdateStrokesRequest,
     ): ApiResponse<UpdateStrokesData>
+
+    /** 이미 서버에 있는 기록의 빈 심박 채우기 — 심박 컬럼 도입 전 기록 복구용 */
+    @PATCH("swim-logs/by-date/{date}/vitals")
+    suspend fun updateSwimLogVitals(
+        @Path("date") date: String,
+        @Body request: UpdateVitalsRequest,
+    ): ApiResponse<SwimLogResponseData>
 
     /** 수영 기록 삭제 (soft-delete, 조개 미회수) */
     @DELETE("swim-logs/by-date/{date}")

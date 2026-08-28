@@ -4,7 +4,10 @@ import com.soodalbbobgi.app.core.session.UserSession
 import com.soodalbbobgi.app.core.state.AppStateLoader
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
 import com.soodalbbobgi.app.data.remote.dto.UpdateStrokesRequest
+import com.soodalbbobgi.app.core.util.averageHr
+import com.soodalbbobgi.app.core.util.decodeHrSeries
 import com.soodalbbobgi.app.data.remote.dto.SwimLogRequest
+import com.soodalbbobgi.app.data.remote.dto.UpdateVitalsRequest
 import com.soodalbbobgi.app.domain.model.SwimLog
 import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
 import timber.log.Timber
@@ -266,7 +269,9 @@ class HcSwimSyncer @Inject constructor(
                 }
             } catch (e: retrofit2.HttpException) {
                 if (e.code() in 400..499) {
-                    // 서버의 명시적 거부(409 중복 등) — 재시도 무의미, 전송됨 처리
+                    // 서버의 명시적 거부(409 중복 등) — 재시도 무의미, 전송됨 처리.
+                    // 다만 심박은 아직 비어 있을 수 있으니 그것만 따로 채운다.
+                    if (e.code() == 409) backfillVitals(date)
                     swimLogUseCase.markSynced(date)
                     Timber.w("수영 기록 전송 거부(HTTP %d) — 전송됨 처리: %s", e.code(), date)
                 } else {
@@ -287,6 +292,7 @@ class HcSwimSyncer @Inject constructor(
     private suspend fun postDayAggregate(date: String, rows: List<SwimLog>): Int {
         // 영법은 행에 저장된 값을 그대로 합산한다 — 수동 입력의 영법 구성이 서버에도 보존된다.
         // (HC 행은 저장 시 혼영=거리로 들어가므로 합계는 항상 거리와 일치한다)
+        val dayHr = aggregateDayHr(rows)
         val response = soodalApi.addSwimLog(
             SwimLogRequest(
                 date = date,
@@ -300,6 +306,10 @@ class HcSwimSyncer @Inject constructor(
                 strokeMixedM = rows.sumOf { it.strokeMixedM },
                 strokeKickM = rows.sumOf { it.strokeKickM },
                 source = if (rows.all { it.source == "manual" }) "manual" else "health_connect",
+                maxHr = dayHr.maxHr,
+                minHr = dayHr.minHr,
+                avgHr = dayHr.avgHr,
+                hrSeries = dayHr.hrSeries,
             )
         )
         swimLogUseCase.markSynced(date)
@@ -311,6 +321,32 @@ class HcSwimSyncer @Inject constructor(
         }
         response.data.shellReward?.newBalance?.let { appStateLoader.applyShellReward(it) }
         return earned
+    }
+
+    /**
+     * 이미 서버에 있는 날짜의 빈 심박만 채운다.
+     * 심박 컬럼이 생기기 전에 올라간 기록은 POST가 409로 막혀 심박을 올릴 길이 없다.
+     * 서버는 값이 있는 필드를 덮어쓰지 않으므로 실패해도 다음 동기화에 다시 시도하면 된다.
+     */
+    private suspend fun backfillVitals(date: String) {
+        try {
+            val dayHr = aggregateDayHr(swimLogUseCase.getLogsForDate(date))
+            if (dayHr.maxHr == null && dayHr.minHr == null &&
+                dayHr.avgHr == null && dayHr.hrSeries == null
+            ) return
+            soodalApi.updateSwimLogVitals(
+                date,
+                UpdateVitalsRequest(
+                    maxHr = dayHr.maxHr,
+                    minHr = dayHr.minHr,
+                    avgHr = dayHr.avgHr,
+                    hrSeries = dayHr.hrSeries,
+                ),
+            )
+            Timber.d("심박 백필 완료: $date")
+        } catch (e: Exception) {
+            Timber.w(e, "심박 백필 실패: $date")
+        }
     }
 
     private suspend fun processDeletedRecords(deletedRecordIds: List<String>) {
@@ -329,14 +365,14 @@ class HcSwimSyncer @Inject constructor(
         }
     }
 
-    /** HC가 못 채운 날짜만 서버 백업에서 복원한다. */
+    /**
+     * HC가 못 채운 날짜만 서버 백업에서 복원한다.
+     * 기간을 지정하지 않아 전체 이력을 받는다 — 재설치·데이터 손실 뒤에는 최근 며칠이
+     * 아니라 있는 기록 전부가 돌아와야 한다.
+     */
     private suspend fun pullServerSwimLogs() {
         try {
-            val today = LocalDate.now()
-            val response = soodalApi.getSwimLogs(
-                startDate = today.minusDays(30).toString(),
-                endDate = today.toString(),
-            )
+            val response = soodalApi.getSwimLogs()
             if (response.success && response.data != null) {
                 // 서버 삭제가 아직 반영 안 된 날짜는 복원 대상에서 제외 (삭제 의도 보존)
                 val pendingDeletes = hcSyncPreferences.getPendingServerDeletes()
@@ -356,6 +392,10 @@ class HcSwimSyncer @Inject constructor(
                             strokeMixedM = serverLog.strokeMixedM,
                             strokeKickM = serverLog.strokeKickM,
                             source = serverLog.source,
+                            maxHr = serverLog.maxHr,
+                            minHr = serverLog.minHr,
+                            avgHr = serverLog.avgHr,
+                            hrSeries = serverLog.hrSeries,
                             shellsEarned = serverLog.shellsEarned,
                             synced = true, // 서버에서 온 기록 — 되돌려 보낼 필요 없음
                         )
@@ -380,6 +420,9 @@ class HcSwimSyncer @Inject constructor(
         hcRecordId = hcRecordId,
         maxHr = maxHr,
         minHr = minHr,
+        // 평균은 저장 시점에 한 번 계산해 둔다 — 화면에서 매번 시계열을 훑지 않아도 되고,
+        // 시계열 없이 서버에서 복원된 행에도 평균이 남는다.
+        avgHr = averageHr(decodeHrSeries(hrSeries)),
         activeSeconds = activeSeconds,
         hrSeries = hrSeries,
     )
