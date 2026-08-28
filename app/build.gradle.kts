@@ -2,6 +2,7 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.baselineprofile)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
@@ -83,7 +84,14 @@ ksp {
     arg("room.schemaLocation", "${projectDir}/schemas")
 }
 
+// 스타트업 프로파일 기반 dex 배치 최적화 — 시작 경로 클래스를 앞쪽 dex에 모은다
+baselineProfile {
+    dexLayoutOptimization = true
+}
+
 dependencies {
+    implementation(libs.androidx.profileinstaller)
+    "baselineProfile"(project(":baselineprofile"))
     val composeBom = platform(libs.compose.bom)
     implementation(composeBom)
     implementation(libs.compose.ui)
