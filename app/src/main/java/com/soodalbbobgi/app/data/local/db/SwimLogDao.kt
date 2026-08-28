@@ -63,6 +63,23 @@ interface SwimLogDao {
         hrSeries: String?,
     )
 
+    /**
+     * 그 날짜 행의 **비어 있는** 심박만 채운다 — 서버 백업에서 복원할 때 쓴다.
+     * 로컬에 값이 있으면 그대로 둔다. 서버 값은 하루치를 합친 것이라 로컬 세션 값이 더 정확하다.
+     */
+    @Query(
+        "UPDATE swim_logs SET maxHr = COALESCE(maxHr, :maxHr), minHr = COALESCE(minHr, :minHr), " +
+            "avgHr = COALESCE(avgHr, :avgHr), hrSeries = COALESCE(hrSeries, :hrSeries) " +
+            "WHERE date = :date",
+    )
+    suspend fun fillMissingVitals(
+        date: String,
+        maxHr: Int?,
+        minHr: Int?,
+        avgHr: Int?,
+        hrSeries: String?,
+    )
+
     /** 같은 날짜 모든 행의 영법 갱신 — 서버 일 단위 치유용 (단일 세션 날에만 호출). */
     @Query(
         "UPDATE swim_logs SET strokeFreestyleM = :free, strokeBreastM = :breast, " +

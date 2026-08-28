@@ -58,6 +58,17 @@ class SwimLogUseCase @Inject constructor(
             swimLogRepo.updateShellsEarned(log.date, log.shellsEarned)
         }
         val single = existing.singleOrNull() ?: return
+
+        // 심박은 로컬에 없을 때만 서버 값으로 채운다. 서버 값은 하루치를 합친 것이라
+        // 세션별 로컬 값이 더 정확하고, 하루에 세션이 여럿이면 아예 손대지 않는다
+        // (위의 singleOrNull이 그 경우를 이미 걸러낸다).
+        val localHasNoVitals = single.maxHr == null && single.minHr == null &&
+            single.avgHr == null && single.hrSeries == null
+        val serverHasVitals = log.maxHr != null || log.minHr != null ||
+            log.avgHr != null || log.hrSeries != null
+        if (localHasNoVitals && serverHasVitals) {
+            swimLogRepo.fillMissingVitals(log.date, log.maxHr, log.minHr, log.avgHr, log.hrSeries)
+        }
         val localUntouched = single.strokeFreestyleM == 0 && single.strokeBreastM == 0 &&
             single.strokeBackM == 0 && single.strokeFlyM == 0 && single.strokeKickM == 0
         val strokesDiffer = single.strokeFreestyleM != log.strokeFreestyleM ||

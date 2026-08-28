@@ -113,6 +113,51 @@ class SwimLogUseCaseTest {
     }
 
     @Test
+    fun `saveFromServer는 로컬에 없는 심박을 서버 값으로 채운다`() = runTest {
+        coEvery { swimLogRepo.getLogsForDateOnce("2026-05-25") } returns listOf(testLog.copy(id = 4))
+        val server = testLog.copy(maxHr = 168, minHr = 96, avgHr = 132, hrSeries = "0:120,60:140")
+
+        useCase.saveFromServer(server)
+
+        coVerify(exactly = 1) { swimLogRepo.fillMissingVitals("2026-05-25", 168, 96, 132, "0:120,60:140") }
+    }
+
+    @Test
+    fun `saveFromServer는 로컬에 심박이 있으면 건드리지 않는다`() = runTest {
+        // 로컬이 더 정확하다 — 서버는 하루치로 합친 값이라 세션별 값을 덮으면 손해다
+        coEvery { swimLogRepo.getLogsForDateOnce("2026-05-25") } returns
+            listOf(testLog.copy(id = 4, maxHr = 170, minHr = 90, avgHr = 130, hrSeries = "0:130"))
+        val server = testLog.copy(maxHr = 168, minHr = 96, avgHr = 132, hrSeries = "0:120,60:140")
+
+        useCase.saveFromServer(server)
+
+        coVerify(exactly = 0) { swimLogRepo.fillMissingVitals(any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `saveFromServer는 서버에 심박이 없으면 채우지 않는다`() = runTest {
+        coEvery { swimLogRepo.getLogsForDateOnce("2026-05-25") } returns listOf(testLog.copy(id = 4))
+
+        useCase.saveFromServer(testLog)
+
+        coVerify(exactly = 0) { swimLogRepo.fillMissingVitals(any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `saveFromServer는 하루에 세션이 여럿이면 심박을 건드리지 않는다`() = runTest {
+        // 서버 값은 하루를 합친 것이라 개별 세션 행에 그대로 넣으면 틀린다
+        coEvery { swimLogRepo.getLogsForDateOnce("2026-05-25") } returns listOf(
+            testLog.copy(id = 4, hcRecordId = "hc-1"),
+            testLog.copy(id = 5, hcRecordId = "hc-2"),
+        )
+        val server = testLog.copy(maxHr = 168, avgHr = 132)
+
+        useCase.saveFromServer(server)
+
+        coVerify(exactly = 0) { swimLogRepo.fillMissingVitals(any(), any(), any(), any(), any()) }
+    }
+
+    @Test
     fun `saveFromServer는 로컬에서 편집한 영법 분배를 덮어쓰지 않는다`() = runTest {
         coEvery { swimLogRepo.getLogsForDateOnce("2026-05-25") } returns
             listOf(testLog.copy(id = 1, strokeFreestyleM = 600, strokeMixedM = 900))
