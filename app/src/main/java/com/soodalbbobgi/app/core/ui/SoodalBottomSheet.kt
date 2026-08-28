@@ -4,7 +4,6 @@ import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,7 +22,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -123,8 +126,24 @@ fun SoodalBottomSheet(
         }
     }
 
+    // 드래그 영역을 누르는 동안 참 — 인디케이터 막대만 밝혀서 "여기가 끌 수 있는 곳"임을
+    // 알린다. 시트 표면 전체에 누름 틴트를 주면 시트 자체가 버튼처럼 보이기 때문.
+    var dragAreaPressed by remember { mutableStateOf(false) }
+
     // 아래로 끌어서 닫기 — 핸들 기본 적용 + 콘텐츠가 자기 헤더 영역에도 달 수 있게 전달한다.
-    val dragToDismiss = Modifier.pointerInput(sheetHeight) {
+    // 앞의 pointerInput은 소비 없이 누름만 관찰한다 (드래그 제스처와 충돌하지 않음).
+    val dragToDismiss = Modifier.pointerInput(Unit) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false)
+            dragAreaPressed = true
+            var pressed = true
+            while (pressed) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                pressed = event.changes.any { it.pressed }
+            }
+            dragAreaPressed = false
+        }
+    }.pointerInput(sheetHeight) {
         detectVerticalDragGestures(
             onDragEnd = {
                 if (sheetHeight > 0 && offsetY.value > sheetHeight * 0.28f) {
@@ -197,9 +216,11 @@ fun SoodalBottomSheet(
                 .glassFrost(colors, sheetShape, LocalHazeContent.current)
                 .border(1.dp, colors.glassBorder, sheetShape)
                 // 시트 내부 빈 영역 탭이 뒤의 스크림(닫기)으로 새지 않게 소비한다.
+                // 시트 표면은 컨트롤이 아니므로 누름 틴트를 주지 않는다 — 피드백은
+                // 드래그 영역을 눌렀을 때 인디케이터 막대에만 준다.
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = LocalIndication.current,
+                    indication = null,
                 ) {},
         ) {
             GlassSheen(sheetShape)
@@ -212,11 +233,23 @@ fun SoodalBottomSheet(
                         .padding(top = 10.dp, bottom = 6.dp),
                     contentAlignment = Alignment.Center,
                 ) {
+                    // 드래그 영역을 누르는 동안 진해지며 살짝 넓어진다 — 시트에서 유일한 누름 피드백.
+                    val handleAlpha by animateFloatAsState(
+                        targetValue = if (dragAreaPressed) 0.55f else 0.28f,
+                        animationSpec = tween(120),
+                        label = "sheetHandleAlpha",
+                    )
+                    val handleScale by animateFloatAsState(
+                        targetValue = if (dragAreaPressed) 1.25f else 1f,
+                        animationSpec = tween(120),
+                        label = "sheetHandleScale",
+                    )
                     Box(
                         Modifier
                             .size(width = 40.dp, height = 4.dp)
+                            .graphicsLayer { scaleX = handleScale }
                             .clip(RoundedCornerShape(999.dp))
-                            .background(Color(0xFF12263F).copy(alpha = 0.28f)),
+                            .background(Color(0xFF12263F).copy(alpha = handleAlpha)),
                     )
                 }
                 content(close, dragToDismiss)
