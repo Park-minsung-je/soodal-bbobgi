@@ -6,8 +6,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -115,9 +120,23 @@ fun EditorSheet(
     GlassSheen(sheetShape)
     Column(Modifier.fillMaxSize()) {
         // -- 드래그 핸들 + 제목 --
+        // 누르는 동안 인디케이터 막대만 밝힌다 — 공용 바텀시트와 같은 언어 (시트 표면은 무반응).
+        var dragAreaPressed by remember { mutableStateOf(false) }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        dragAreaPressed = true
+                        var pressed = true
+                        while (pressed) {
+                            val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                            pressed = event.changes.any { it.pressed }
+                        }
+                        dragAreaPressed = false
+                    }
+                }
                 .draggable(
                     orientation = Orientation.Vertical,
                     state = rememberDraggableState { delta ->
@@ -130,13 +149,24 @@ fun EditorSheet(
                 ),
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                val handleAlpha by animateFloatAsState(
+                    targetValue = if (dragAreaPressed) 0.55f else 0.28f,
+                    animationSpec = tween(120),
+                    label = "editorHandleAlpha",
+                )
+                val handleScale by animateFloatAsState(
+                    targetValue = if (dragAreaPressed) 1.25f else 1f,
+                    animationSpec = tween(120),
+                    label = "editorHandleScale",
+                )
                 Box(
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
                         .size(width = 36.dp, height = 4.dp)
+                        .graphicsLayer { scaleX = handleScale }
                         .clip(RoundedCornerShape(2.dp))
                         // 프로스트 위에서도 또렷한 잉크 틴트 핸들.
-                        .background(Color(0xFF27384B).copy(alpha = 0.28f)),
+                        .background(Color(0xFF27384B).copy(alpha = handleAlpha)),
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
