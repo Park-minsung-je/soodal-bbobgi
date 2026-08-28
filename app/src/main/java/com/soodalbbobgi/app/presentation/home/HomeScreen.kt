@@ -69,6 +69,7 @@ import com.soodalbbobgi.app.core.ui.GlassSheen
 import com.soodalbbobgi.app.core.ui.glass
 import com.soodalbbobgi.app.core.ui.SoodalCard
 import com.soodalbbobgi.app.core.ui.AppOverlay
+import com.soodalbbobgi.app.core.ui.ShellRewardKind
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.TabBarClearance
 import com.soodalbbobgi.app.core.ui.topFadeEdge
@@ -108,6 +109,7 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val shellReward by viewModel.shellReward.collectAsState()
+    val shellRewardKind by viewModel.shellRewardKind.collectAsState()
     val syncError by viewModel.syncError.collectAsState()
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
@@ -423,11 +425,15 @@ fun HomeScreen(
         AppOverlay {
             ShellRewardPopup(
                 shellCount = shellReward,
+                kind = shellRewardKind,
                 distanceM = state.todayDistanceM.takeIf { it > 0 },
                 durationMin = state.todayDurationMin.takeIf { it > 0 },
-                onEditStrokes = state.todaySessions.lastOrNull()?.let { s ->
-                    { viewModel.clearShellReward(); editToday = s }
-                },
+                // 영법을 아직 안 채운 오늘 세션이 있을 때만 유도한다 — 이미 채웠으면
+                // 더 받을 게 없고, 영법 보너스로 뜬 팝업에서 또 권하면 무한 루프처럼 보인다.
+                onEditStrokes = state.todaySessions
+                    .lastOrNull { it.strokesEmpty }
+                    ?.takeIf { shellRewardKind == ShellRewardKind.SwimRecord }
+                    ?.let { s -> { viewModel.clearShellReward(); editToday = s } },
                 onDismiss = { viewModel.clearShellReward() },
             )
         }

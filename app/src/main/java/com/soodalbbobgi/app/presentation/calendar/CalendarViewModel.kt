@@ -2,6 +2,7 @@ package com.soodalbbobgi.app.presentation.calendar
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.soodalbbobgi.app.core.ui.ShellRewardKind
 import com.soodalbbobgi.app.core.session.UserSession
 import com.soodalbbobgi.app.core.state.AppStateLoader
 import com.soodalbbobgi.app.core.util.decodeHrRestRanges
@@ -62,7 +63,11 @@ data class SwimSessionData(
     val hrSeries: List<Pair<Int, Int>> = emptyList(),
     /** 휴식으로 계산된 구간 (오프셋초 범위) — 동기화 때 원본 해상도로 분류된 값. */
     val hrRestRanges: List<IntRange> = emptyList(),
-)
+) {
+    /** 영법이 하나도 안 채워진 세션인지 — 영법 입력 보너스를 권할지 판단하는 기준. */
+    val strokesEmpty: Boolean
+        get() = freeM == 0 && breastM == 0 && backM == 0 && flyM == 0 && mixedM == 0 && kickM == 0
+}
 
 /**
  * 하루치 수영 데이터 — 하루 여러 세션 전제.
@@ -110,6 +115,10 @@ class CalendarViewModel @Inject constructor(
     /** 수동 등록/동기화로 지급된 조개 수 — 0보다 크면 보상 팝업 표시. */
     private val _shellReward = MutableStateFlow(0)
     val shellReward: StateFlow<Int> = _shellReward
+
+    /** 조개를 받은 계기 — 팝업 문구를 가른다. [_shellReward]와 항상 같이 바뀐다. */
+    private val _shellRewardKind = MutableStateFlow(ShellRewardKind.SwimRecord)
+    val shellRewardKind: StateFlow<ShellRewardKind> = _shellRewardKind
 
     /** 수동 등록/동기화 실패 안내 문구 — null이면 표시 없음. */
     private val _registerError = MutableStateFlow<String?>(null)
@@ -183,6 +192,7 @@ class CalendarViewModel @Inject constructor(
                 }
                 val earned = hcSwimSyncer.sync()
                 appStateLoader.refreshCurrency()
+                _shellRewardKind.value = ShellRewardKind.SwimRecord
                 _shellReward.value = earned
             } catch (e: Exception) {
                 Timber.e(e, "캘린더 수동 동기화 실패")
@@ -215,6 +225,7 @@ class CalendarViewModel @Inject constructor(
                     strokeBackM = input.backM, strokeFlyM = input.flyM, strokeKickM = input.kickM,
                 )
                 appStateLoader.refreshCurrency()
+                _shellRewardKind.value = ShellRewardKind.SwimRecord
                 _shellReward.value = earned
             } catch (e: Exception) {
                 Timber.e(e, "캘린더 수동 기록 등록 실패: $date")
@@ -262,7 +273,10 @@ class CalendarViewModel @Inject constructor(
             // 서버에도 반영 — 로컬 DB가 초기화돼도 분배가 보존되게.
             // 오늘 기록을 처음 채운 경우 서버가 조개 1개를 얹어 준다.
             val earned = hcSwimSyncer.pushStrokes(date)
-            if (earned > 0) _shellReward.value = earned
+            if (earned > 0) {
+                _shellRewardKind.value = ShellRewardKind.StrokeBonus
+                _shellReward.value = earned
+            }
         }
     }
 }

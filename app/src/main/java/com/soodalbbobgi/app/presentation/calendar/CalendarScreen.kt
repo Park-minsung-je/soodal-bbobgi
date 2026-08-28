@@ -74,6 +74,7 @@ import com.soodalbbobgi.app.core.ui.AppOverlay
 import com.soodalbbobgi.app.core.ui.GlassBox
 import com.soodalbbobgi.app.core.ui.GlassCorner
 import com.soodalbbobgi.app.core.ui.GlassSheen
+import com.soodalbbobgi.app.core.ui.ShellRewardKind
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.glass
 import com.soodalbbobgi.app.core.ui.SoodalCard
@@ -136,6 +137,7 @@ fun CalendarScreen(
     // 방금 수동 등록한 거리/시간 — 조개 보상 팝업 표시용.
     var manualSubmitted by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     val shellReward by viewModel.shellReward.collectAsState()
+    val shellRewardKind by viewModel.shellRewardKind.collectAsState()
     val registerError by viewModel.registerError.collectAsState()
     val syncing by viewModel.syncing.collectAsState()
     val context = LocalContext.current
@@ -337,10 +339,25 @@ fun CalendarScreen(
 
         if (shellReward > 0) {
             AppOverlay {
+                // 오늘 세션 중 영법이 비어 있는 게 있으면 홈과 똑같이 입력을 권한다.
+                // 캘린더는 과거 날짜도 다루지만 보너스는 오늘 기록에만 붙으므로 오늘만 본다.
+                val today = LocalDate.now()
+                val todayPending = state.swimData[today.dayOfMonth]
+                    ?.takeIf { state.year == today.year && state.month == today.monthValue }
+                    ?.sessions?.lastOrNull { it.strokesEmpty }
+                    ?.takeIf { shellRewardKind == ShellRewardKind.SwimRecord }
+
                 ShellRewardPopup(
                     shellCount = shellReward,
+                    kind = shellRewardKind,
                     distanceM = manualSubmitted?.first,
                     durationMin = manualSubmitted?.second,
+                    onEditStrokes = todayPending?.let { s ->
+                        {
+                            viewModel.clearShellReward()
+                            editTarget = today.dayOfMonth to s
+                        }
+                    },
                     onDismiss = { viewModel.clearShellReward() },
                 )
             }
