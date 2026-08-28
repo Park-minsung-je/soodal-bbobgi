@@ -1,7 +1,6 @@
 package com.soodalbbobgi.app.core.ui
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -50,12 +49,6 @@ import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import kotlinx.coroutines.delay
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
-
-// 디자인의 shell-fly 이징 — 살짝 튕기는 오버슈트.
-private val ShellFlyEasing = CubicBezierEasing(0.34f, 1.56f, 0.64f, 1f)
 
 /** 조개를 받은 계기 — 팝업 문구가 이 값에 따라 갈린다. */
 enum class ShellRewardKind {
@@ -197,24 +190,16 @@ fun ShellRewardPopup(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp),
             ) {
-                ShellBurst(shellCount)
+                ShellStack(shellCount)
                 Column {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            text = "+$shellCount",
-                            fontSize = 42.sp,
-                            fontWeight = FontWeight.Black,
-                            color = colors.accentGold,
-                            letterSpacing = (-0.8).sp,
-                        )
-                        Text(
-                            text = "조개",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.textSecondary,
-                            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
-                        )
-                    }
+                    // 옆에 조개 그림이 이미 쌓여 있으므로 "조개"라고 덧붙이지 않는다.
+                    Text(
+                        text = "+$shellCount",
+                        fontSize = 42.sp,
+                        fontWeight = FontWeight.Black,
+                        color = colors.accentGold,
+                        letterSpacing = (-0.8).sp,
+                    )
                     // 기록 요약
                     if (distanceM != null && durationMin != null) {
                         Spacer(Modifier.height(4.dp))
@@ -245,9 +230,13 @@ fun ShellRewardPopup(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(5.dp),
                 ) {
+                    Text(
+                        "영법을 수정하고",
+                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary,
+                    )
                     SoodalIcon(icon = SoodalIcons.Shell, tint = colors.accentGold, size = 14.dp)
                     Text(
-                        "영법을 채우면 조개를 하나 더 받아요",
+                        "을 하나 더 받을 수 있어요",
                         fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary,
                     )
                 }
@@ -280,12 +269,24 @@ fun ShellRewardPopup(
     }
 }
 
-/** 가운데 큰 조개 + 방사형으로 날아가는 작은 조개들 + 골드 글로우 펄스. */
+/** 한 화면에 겹쳐 보여줄 조개 최대 개수 — 정확한 수는 옆의 "+N"이 말해준다. */
+private const val MAX_STACKED_SHELLS = 5
+
+/** 큰 조개 한 개 크기. */
+private val StackedShellSize = 56.dp
+
+/**
+ * 받은 개수만큼 큰 조개를 겹쳐 쌓아 보여준다 + 골드 글로우 펄스.
+ *
+ * 조개가 하나씩 시차를 두고 튀어나와 개수가 눈으로 세어진다.
+ * 많이 받아도 폭이 넘치지 않도록 겹치는 간격을 줄이고, [MAX_STACKED_SHELLS]까지만 그린다.
+ */
 @Composable
-private fun ShellBurst(shellCount: Int) {
+private fun ShellStack(shellCount: Int) {
     val gold = SoodalDesign.colors.accentGold
-    // 1개여도 여러 개가 흩어지는 느낌이 나도록 최소 3개 버스트.
-    val bursts = shellCount.coerceAtLeast(3)
+    val shown = shellCount.coerceIn(1, MAX_STACKED_SHELLS)
+    // 그룹 전체 폭이 상자(112dp) 안에 들어오도록 개수가 늘면 간격을 좁힌다.
+    val step = if (shown <= 1) 0.dp else minOf(16.dp, 56.dp / (shown - 1))
 
     Box(modifier = Modifier.size(112.dp), contentAlignment = Alignment.Center) {
         // 글로우 펄스
@@ -305,35 +306,23 @@ private fun ShellBurst(shellCount: Int) {
                 ),
         )
 
-        // 작은 조개들 — 시차를 두고 바깥으로 튕겨 나간다.
-        repeat(bursts) { i ->
+        repeat(shown) { i ->
             key(i) {
-                val progress = remember { Animatable(0f) }
+                val popIn = remember { Animatable(0f) }
                 LaunchedEffect(Unit) {
-                    delay(180L + i * 60L)
-                    progress.animateTo(1f, tween(durationMillis = 500, easing = ShellFlyEasing))
+                    delay(100L + i * 90L)
+                    popIn.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 380f))
                 }
-                val angle = (i.toFloat() / bursts) * 2f * PI.toFloat() - PI.toFloat() / 2f
-                val xDp = 44.dp * cos(angle)
-                val yDp = 44.dp * sin(angle)
+                // 그룹의 가운데가 상자 중앙에 오도록 좌우로 반씩 민다.
+                val xOffset = step * (i - (shown - 1) / 2f)
                 Box(
                     modifier = Modifier
-                        .offset { IntOffset((xDp * progress.value).roundToPx(), (yDp * progress.value).roundToPx()) }
-                        .alpha(progress.value.coerceIn(0f, 1f)),
+                        .offset { IntOffset(xOffset.roundToPx(), 0) }
+                        .scale(popIn.value),
                 ) {
-                    SoodalIcon(icon = SoodalIcons.Shell, tint = gold, size = 20.dp)
+                    SoodalIcon(icon = SoodalIcons.Shell, tint = gold, size = StackedShellSize)
                 }
             }
-        }
-
-        // 가운데 큰 조개 — 스프링 팝.
-        val centerScale = remember { Animatable(0f) }
-        LaunchedEffect(Unit) {
-            delay(100)
-            centerScale.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 380f))
-        }
-        Box(modifier = Modifier.scale(centerScale.value)) {
-            SoodalIcon(icon = SoodalIcons.Shell, tint = gold, size = 56.dp)
         }
     }
 }
