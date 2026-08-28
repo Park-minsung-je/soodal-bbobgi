@@ -431,7 +431,7 @@ fun HomeScreen(
                 // 영법을 아직 안 채운 오늘 세션이 있을 때만 유도한다 — 이미 채웠으면
                 // 더 받을 게 없고, 영법 보너스로 뜬 팝업에서 또 권하면 무한 루프처럼 보인다.
                 onEditStrokes = state.todaySessions
-                    .lastOrNull { it.strokesEmpty }
+                    .lastOrNull { it.strokesUnset }
                     ?.takeIf { shellRewardKind == ShellRewardKind.SwimRecord }
                     ?.let { s -> { viewModel.clearShellReward(); editToday = s } },
                 onDismiss = { viewModel.clearShellReward() },

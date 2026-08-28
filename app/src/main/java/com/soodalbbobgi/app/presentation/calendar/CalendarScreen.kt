@@ -344,7 +344,7 @@ fun CalendarScreen(
                 val today = LocalDate.now()
                 val todayPending = state.swimData[today.dayOfMonth]
                     ?.takeIf { state.year == today.year && state.month == today.monthValue }
-                    ?.sessions?.lastOrNull { it.strokesEmpty }
+                    ?.sessions?.lastOrNull { it.strokesUnset }
                     ?.takeIf { shellRewardKind == ShellRewardKind.SwimRecord }
 
                 ShellRewardPopup(

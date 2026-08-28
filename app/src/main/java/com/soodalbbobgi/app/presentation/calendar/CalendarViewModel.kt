@@ -64,9 +64,15 @@ data class SwimSessionData(
     /** 휴식으로 계산된 구간 (오프셋초 범위) — 동기화 때 원본 해상도로 분류된 값. */
     val hrRestRanges: List<IntRange> = emptyList(),
 ) {
-    /** 영법이 하나도 안 채워진 세션인지 — 영법 입력 보너스를 권할지 판단하는 기준. */
-    val strokesEmpty: Boolean
-        get() = freeM == 0 && breastM == 0 && backM == 0 && flyM == 0 && mixedM == 0 && kickM == 0
+    /**
+     * 아직 영법을 나누지 않은 세션인지 — 영법 입력 보너스를 권할지 판단하는 기준.
+     *
+     * Health Connect에서 들어온 기록은 **총 거리가 전부 혼영에 들어간 상태**로 시작한다
+     * (`strokeMixedM = distanceMeters`). 그래서 "전부 0"으로 보면 HC 기록은 영원히
+     * 손대지 않은 것으로 안 잡힌다 — 혼영만 남아 있는 그 초기 상태를 미입력으로 본다.
+     */
+    val strokesUnset: Boolean
+        get() = freeM == 0 && breastM == 0 && backM == 0 && flyM == 0 && kickM == 0
 }
 
 /**
