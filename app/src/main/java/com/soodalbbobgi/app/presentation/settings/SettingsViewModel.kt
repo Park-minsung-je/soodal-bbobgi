@@ -161,6 +161,20 @@ class SettingsViewModel @Inject constructor(
     fun sendTestNewRecord() = notifier.showNewSwimRecord()
 
     /**
+     * (개발자 전용) 동기화 상태를 처음으로 되돌린다 — 변경 토큰·삭제 블랙리스트·로컬 기록.
+     *
+     * 지운 기록은 블랙리스트에 남아 Health Connect에서 다시 들어오지 않는다.
+     * 보상 흐름을 처음부터 다시 보려면 그걸 잊게 해야 해서, 앱 데이터를 통째로
+     * 지우는 대신 여기서 초기화한다. 다음 동기화가 HC를 전체 범위로 다시 읽는다.
+     */
+    fun resetSyncState() {
+        viewModelScope.launch {
+            hcSyncPreferences.clearAll()
+            swimLogRepository.deleteAll()
+        }
+    }
+
+    /**
      * 로그아웃 — 서버 토큰 무효화는 실패해도 진행하고, 로컬 토큰/메모리/Room을 정리한다.
      * 로컬 수영 기록도 삭제한다 (다른 계정 재로그인 시 데이터 혼입 방지,
      * 같은 계정은 HC 재동기화로 복구).

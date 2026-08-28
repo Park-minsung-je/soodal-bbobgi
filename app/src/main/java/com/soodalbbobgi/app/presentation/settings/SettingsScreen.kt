@@ -386,6 +386,21 @@ fun SettingsScreen(
                         SettingsRow(label = "리마인더 알림 보내기", trailing = "🔔", onClick = { viewModel.sendTestReminder() })
                         SettingsDivider()
                         SettingsRow(label = "새 기록 알림 보내기", trailing = "🔔", onClick = { viewModel.sendTestNewRecord() })
+                        SettingsDivider()
+                        // 지운 기록은 블랙리스트에 남아 HC에서 다시 안 들어온다 — 보상 흐름을
+                        // 처음부터 다시 보려면 이걸 눌러 잊게 한 뒤 캘린더에서 동기화한다.
+                        SettingsRow(
+                            label = "동기화 상태 초기화 (토큰·삭제이력·로컬기록)",
+                            trailing = "↺",
+                            onClick = {
+                                viewModel.resetSyncState()
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "초기화했어요. 캘린더에서 동기화하세요",
+                                    android.widget.Toast.LENGTH_LONG,
+                                ).show()
+                            },
+                        )
                     }
                 }
             }
