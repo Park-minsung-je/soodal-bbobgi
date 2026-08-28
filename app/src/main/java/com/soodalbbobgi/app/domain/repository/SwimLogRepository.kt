@@ -19,6 +19,9 @@ interface SwimLogRepository {
     suspend fun updateStrokesById(id: Long, free: Int, breast: Int, back: Int, fly: Int, mixed: Int, kick: Int)
     /** HC 재동기화로 기존 행([id])의 핵심 필드를 [log] 값으로 갱신한다. 편집된 영법은 보존. */
     suspend fun updateFromHc(id: Long, log: SwimLog)
+
+    /** 그 날짜 행의 비어 있는 심박만 채운다 (서버 복원용 — 로컬 값이 있으면 유지). */
+    suspend fun fillMissingVitals(date: String, maxHr: Int?, minHr: Int?, avgHr: Int?, hrSeries: String?)
     /** 그 날짜 모든 행을 서버 보고 완료(synced)로 표시한다. */
     suspend fun markSynced(date: String)
     /** 그 날짜 모든 행을 미전송으로 되돌린다 — 세션 삭제 후 일 집계 재전송용. */

@@ -2,6 +2,7 @@ package com.soodalbbobgi.app.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.soodalbbobgi.app.core.ui.ShellRewardKind
 import com.soodalbbobgi.app.core.session.UserSession
 import com.soodalbbobgi.app.core.state.AppState
 import com.soodalbbobgi.app.core.state.AppStateLoader
@@ -105,6 +106,10 @@ class HomeViewModel @Inject constructor(
     private val _shellReward = MutableStateFlow(0)
     val shellReward: StateFlow<Int> = _shellReward
 
+    /** 조개를 받은 계기 — 팝업 문구를 가른다. [_shellReward]와 항상 같이 바뀐다. */
+    private val _shellRewardKind = MutableStateFlow(ShellRewardKind.SwimRecord)
+    val shellRewardKind: StateFlow<ShellRewardKind> = _shellRewardKind
+
     private val _syncing = MutableStateFlow(false)
     private val _syncError = MutableStateFlow<String?>(null)
     val syncError: StateFlow<String?> = _syncError
@@ -114,7 +119,10 @@ class HomeViewModel @Inject constructor(
     init {
         // 스플래시에서 누적된 조개 보상 팝업으로 표시
         val pending = appState.consumePendingShellReward()
-        if (pending > 0) _shellReward.value = pending
+        if (pending > 0) {
+            _shellRewardKind.value = ShellRewardKind.SwimRecord
+            _shellReward.value = pending
+        }
 
         // 프로세스 사망 후 Splash를 거치지 않고 복원된 경우 메모리 상태를 재수화한다.
         viewModelScope.launch { appStateLoader.ensureHydrated() }
@@ -254,6 +262,7 @@ class HomeViewModel @Inject constructor(
                 }
                 val totalEarned = hcSwimSyncer.sync()
                 appStateLoader.refreshCurrency()
+                _shellRewardKind.value = ShellRewardKind.SwimRecord
                 _shellReward.value = totalEarned
             } catch (e: Exception) {
                 Timber.e(e, "Health Connect 동기화 실패")
@@ -290,6 +299,7 @@ class HomeViewModel @Inject constructor(
                     strokeBackM = input.backM, strokeFlyM = input.flyM, strokeKickM = input.kickM,
                 )
                 appStateLoader.refreshCurrency()
+                _shellRewardKind.value = ShellRewardKind.SwimRecord
                 _shellReward.value = earned
             } catch (e: Exception) {
                 Timber.e(e, "수동 기록 등록 실패")
@@ -309,10 +319,20 @@ class HomeViewModel @Inject constructor(
     private fun monthEnd(): String = YearMonth.now().atEndOfMonth().toString()
     private fun lastMonthStart(): String = YearMonth.now().minusMonths(1).atDay(1).toString()
 
-    /** 오늘 세션의 영법 분배를 로컬에 저장한다. */
+    /**
+     * 오늘 세션의 영법 분배를 로컬에 저장하고 서버에도 반영한다.
+     *
+     * 서버 반영은 캘린더와 같은 경로를 쓴다 — 예전엔 홈에서 고친 영법이 로컬에만 남아
+     * 기기를 바꾸면 사라졌다. 오늘 기록을 처음 채우면 서버가 조개 1개를 얹어 준다.
+     */
     fun saveStrokes(logId: Long, free: Int, breast: Int, back: Int, fly: Int, kick: Int, mixed: Int) {
         viewModelScope.launch {
             swimLogUseCase.updateStrokes(logId, free, breast, back, fly, mixed, kick)
+            val earned = hcSwimSyncer.pushStrokes(LocalDate.now().toString())
+            if (earned > 0) {
+                _shellRewardKind.value = ShellRewardKind.StrokeBonus
+                _shellReward.value = earned
+            }
         }
     }
 }

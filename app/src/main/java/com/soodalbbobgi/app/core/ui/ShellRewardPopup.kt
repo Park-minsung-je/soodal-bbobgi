@@ -1,7 +1,6 @@
 package com.soodalbbobgi.app.core.ui
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -50,29 +49,43 @@ import androidx.compose.ui.unit.sp
 import com.soodalbbobgi.app.core.theme.JetBrainsMonoFamily
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import kotlinx.coroutines.delay
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
-// 디자인의 shell-fly 이징 — 살짝 튕기는 오버슈트.
-private val ShellFlyEasing = CubicBezierEasing(0.34f, 1.56f, 0.64f, 1f)
+/** 조개를 받은 계기 — 팝업 문구가 이 값에 따라 갈린다. */
+enum class ShellRewardKind {
+    /** 수영 기록이 들어와 받은 조개 (동기화·수동 등록). */
+    SwimRecord,
+
+    /** 영법별 거리를 채워 받은 보너스 조개. */
+    StrokeBonus,
+}
 
 /**
- * 조개 보상 팝업 (디자인 확정) — Health Connect 동기화로 받은 조개를 축하 연출과 함께 보여준다.
- * 2.6초 후 자동 닫힘, 탭하면 즉시 닫힘. 색은 테마 토큰을 따라 라이트/다크 자동 전환된다.
+ * 조개 보상 팝업 (디자인 확정) — 받은 조개를 축하 연출과 함께 보여준다.
+ * 색은 테마 토큰을 따라 라이트/다크 자동 전환된다.
+ *
+ * **닫힘 방식이 두 가지다.** [onEditStrokes]가 있으면 사용자에게 선택을 요구하므로
+ * 자동으로 닫지 않는다 — 고르기 전에 사라지면 안 되기 때문. 없으면 2.6초 뒤 자동으로 닫힌다.
+ * 어느 쪽이든 바깥을 탭하면 닫힌다.
  *
  * @param shellCount 획득한 조개 수
+ * @param kind 조개를 받은 계기 — 제목·설명 문구가 달라진다
  * @param distanceM 기록 요약에 보여줄 거리(m). null이면 요약 줄 생략
  * @param durationMin 기록 요약에 보여줄 시간(분). null이면 요약 줄 생략
+ * @param onEditStrokes 영법 입력으로 넘어가는 동작. null이면 유도 문구와 버튼을 숨기고 자동 닫힘
  */
 @Composable
 fun ShellRewardPopup(
     shellCount: Int,
+    kind: ShellRewardKind = ShellRewardKind.SwimRecord,
     distanceM: Int? = null,
     durationMin: Int? = null,
     onEditStrokes: (() -> Unit)? = null,
     onDismiss: () -> Unit,
 ) {
+    // 0개 팝업은 존재 이유가 없다 — 보상 상태가 지워지는 프레임에 오버레이 램다가
+    // 한 박자 늦게 남아 "+0"으로 그려지는 것을 원천 차단한다.
+    if (shellCount <= 0) return
+
     val colors = SoodalDesign.colors
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
@@ -93,11 +106,14 @@ fun ShellRewardPopup(
     // 백키 = 팝업 닫기 우선 (오버레이가 화면보다 나중에 컴포즈되므로 이 핸들러가 우선한다).
     androidx.activity.compose.BackHandler { visible = false; onDismiss() }
 
-    LaunchedEffect(Unit) {
-        delay(2600)
-        visible = false
-        delay(400)
-        onDismiss()
+    // 고를 게 있으면 저절로 닫지 않는다 — 버튼을 누르기도 전에 사라지면 선택지가 아니다.
+    if (onEditStrokes == null) {
+        LaunchedEffect(Unit) {
+            delay(2600)
+            visible = false
+            delay(400)
+            onDismiss()
+        }
     }
 
     Box(
@@ -152,13 +168,25 @@ fun ShellRewardPopup(
                     .padding(horizontal = 12.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                SoodalIcon(icon = SoodalIcons.Sync, tint = colors.accentBlue, size = 13.dp)
+                SoodalIcon(
+                    icon = if (kind == ShellRewardKind.StrokeBonus) SoodalIcons.Edit else SoodalIcons.Sync,
+                    tint = colors.accentBlue,
+                    size = 13.dp,
+                )
                 Spacer(Modifier.size(6.dp))
-                Text("수영 기록 동기화", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue, letterSpacing = 0.3.sp)
+                Text(
+                    if (kind == ShellRewardKind.StrokeBonus) "영법 보너스" else "수영 기록 동기화",
+                    fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                    color = colors.accentBlue, letterSpacing = 0.3.sp,
+                )
             }
 
             Spacer(Modifier.height(10.dp))
-            Text("수영 기록 도착!", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary, letterSpacing = (-0.1).sp)
+            Text(
+                if (kind == ShellRewardKind.StrokeBonus) "영법 입력 완료!" else "수영 기록 도착!",
+                fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                color = colors.textPrimary, letterSpacing = (-0.1).sp,
+            )
 
             // 버스트(왼쪽) + 획득량/기록 요약(오른쪽) — 세로로 길어지지 않게 가로 배치
             Spacer(Modifier.height(4.dp))
@@ -166,24 +194,16 @@ fun ShellRewardPopup(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp),
             ) {
-                ShellBurst(shellCount)
+                ShellStack(shellCount)
                 Column {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            text = "+$shellCount",
-                            fontSize = 42.sp,
-                            fontWeight = FontWeight.Black,
-                            color = colors.accentGold,
-                            letterSpacing = (-0.8).sp,
-                        )
-                        Text(
-                            text = "조개",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.textSecondary,
-                            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
-                        )
-                    }
+                    // 옆에 조개 그림이 이미 쌓여 있으므로 "조개"라고 덧붙이지 않는다.
+                    Text(
+                        text = "+$shellCount",
+                        fontSize = 42.sp,
+                        fontWeight = FontWeight.Black,
+                        color = colors.accentGold,
+                        letterSpacing = (-0.8).sp,
+                    )
                     // 기록 요약
                     if (distanceM != null && durationMin != null) {
                         Spacer(Modifier.height(4.dp))
@@ -207,32 +227,70 @@ fun ShellRewardPopup(
             }
 
             if (onEditStrokes != null) {
-                Spacer(Modifier.height(12.dp))
+                // 영법을 채우면 조개가 하나 더 붙는다는 걸 여기서 알린다 — 안 그러면
+                // 사용자가 이 버튼을 눌러야 할 이유를 알 방법이 없다.
+                Spacer(Modifier.height(14.dp))
                 Row(
-                    modifier = Modifier
-                        .background(colors.accentBlue.copy(alpha = 0.14f), RoundedCornerShape(10.dp))
-                        .pressable(onClick = onEditStrokes)
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(5.dp),
                 ) {
-                    SoodalIcon(icon = SoodalIcons.Edit, tint = colors.accentBlue, size = 14.dp)
-                    Text("영법 수정", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.accentBlue)
+                    Text(
+                        "영법을 수정하고",
+                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary,
+                    )
+                    SoodalIcon(icon = SoodalIcons.Shell, tint = colors.accentGold, size = 14.dp)
+                    Text(
+                        "을 하나 더 받을 수 있어요",
+                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary,
+                    )
                 }
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                ) {
+                    SoodalButton(
+                        text = "나중에",
+                        onClick = { visible = false; onDismiss() },
+                        style = ButtonStyle.Secondary,
+                        modifier = Modifier.weight(1f),
+                        heightOverride = 44.dp,
+                    )
+                    SoodalButton(
+                        text = "입력하고 받기",
+                        onClick = onEditStrokes,
+                        style = ButtonStyle.Primary,
+                        modifier = Modifier.weight(1f),
+                        heightOverride = 44.dp,
+                    )
+                }
+            } else {
+                Spacer(Modifier.height(10.dp))
+                Text("탭하면 닫혀요", fontSize = 11.sp, color = colors.textTertiary, letterSpacing = 0.3.sp)
             }
-            Spacer(Modifier.height(10.dp))
-            Text("탭하면 닫혀요", fontSize = 11.sp, color = colors.textTertiary, letterSpacing = 0.3.sp)
         }
         } // 글래스 패널 Box
     }
 }
 
-/** 가운데 큰 조개 + 방사형으로 날아가는 작은 조개들 + 골드 글로우 펄스. */
+/** 한 화면에 겹쳐 보여줄 조개 최대 개수 — 정확한 수는 옆의 "+N"이 말해준다. */
+private const val MAX_STACKED_SHELLS = 5
+
+/** 큰 조개 한 개 크기. */
+private val StackedShellSize = 56.dp
+
+/**
+ * 받은 개수만큼 큰 조개를 겹쳐 쌓아 보여준다 + 골드 글로우 펄스.
+ *
+ * 조개가 하나씩 시차를 두고 튀어나와 개수가 눈으로 세어진다.
+ * 많이 받아도 폭이 넘치지 않도록 겹치는 간격을 줄이고, [MAX_STACKED_SHELLS]까지만 그린다.
+ */
 @Composable
-private fun ShellBurst(shellCount: Int) {
+private fun ShellStack(shellCount: Int) {
     val gold = SoodalDesign.colors.accentGold
-    // 1개여도 여러 개가 흩어지는 느낌이 나도록 최소 3개 버스트.
-    val bursts = shellCount.coerceAtLeast(3)
+    val shown = shellCount.coerceIn(1, MAX_STACKED_SHELLS)
+    // 그룹 전체 폭이 상자(112dp) 안에 들어오도록 개수가 늘면 간격을 좁힌다.
+    val step = if (shown <= 1) 0.dp else minOf(16.dp, 56.dp / (shown - 1))
 
     Box(modifier = Modifier.size(112.dp), contentAlignment = Alignment.Center) {
         // 글로우 펄스
@@ -252,35 +310,23 @@ private fun ShellBurst(shellCount: Int) {
                 ),
         )
 
-        // 작은 조개들 — 시차를 두고 바깥으로 튕겨 나간다.
-        repeat(bursts) { i ->
+        repeat(shown) { i ->
             key(i) {
-                val progress = remember { Animatable(0f) }
+                val popIn = remember { Animatable(0f) }
                 LaunchedEffect(Unit) {
-                    delay(180L + i * 60L)
-                    progress.animateTo(1f, tween(durationMillis = 500, easing = ShellFlyEasing))
+                    delay(100L + i * 90L)
+                    popIn.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 380f))
                 }
-                val angle = (i.toFloat() / bursts) * 2f * PI.toFloat() - PI.toFloat() / 2f
-                val xDp = 44.dp * cos(angle)
-                val yDp = 44.dp * sin(angle)
+                // 그룹의 가운데가 상자 중앙에 오도록 좌우로 반씩 민다.
+                val xOffset = step * (i - (shown - 1) / 2f)
                 Box(
                     modifier = Modifier
-                        .offset { IntOffset((xDp * progress.value).roundToPx(), (yDp * progress.value).roundToPx()) }
-                        .alpha(progress.value.coerceIn(0f, 1f)),
+                        .offset { IntOffset(xOffset.roundToPx(), 0) }
+                        .scale(popIn.value),
                 ) {
-                    SoodalIcon(icon = SoodalIcons.Shell, tint = gold, size = 20.dp)
+                    SoodalIcon(icon = SoodalIcons.Shell, tint = gold, size = StackedShellSize)
                 }
             }
-        }
-
-        // 가운데 큰 조개 — 스프링 팝.
-        val centerScale = remember { Animatable(0f) }
-        LaunchedEffect(Unit) {
-            delay(100)
-            centerScale.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 380f))
-        }
-        Box(modifier = Modifier.scale(centerScale.value)) {
-            SoodalIcon(icon = SoodalIcons.Shell, tint = gold, size = 56.dp)
         }
     }
 }

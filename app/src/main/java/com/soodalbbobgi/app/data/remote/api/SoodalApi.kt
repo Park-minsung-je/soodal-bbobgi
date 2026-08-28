@@ -99,11 +99,11 @@ interface SoodalApi {
     @POST("swim-logs")
     suspend fun addSwimLog(@Body request: SwimLogRequest): ApiResponse<SwimLogResponseData>
 
-    /** 수영 기록 목록 조회 */
+    /** 수영 기록 목록 조회 — 기간을 비우면 전체 이력을 받는다 (재설치·데이터 손실 복원용). */
     @GET("swim-logs")
     suspend fun getSwimLogs(
-        @Query("startDate") startDate: String,
-        @Query("endDate") endDate: String,
+        @Query("startDate") startDate: String? = null,
+        @Query("endDate") endDate: String? = null,
     ): ApiResponse<SwimLogsData>
 
     /** 영법별 거리 보정 (총 거리는 유지, 분배만 갱신) */
@@ -113,9 +113,23 @@ interface SoodalApi {
         @Body request: UpdateStrokesRequest,
     ): ApiResponse<UpdateStrokesData>
 
+    /** 이미 서버에 있는 기록의 빈 심박 채우기 — 심박 컬럼 도입 전 기록 복구용 */
+    @PATCH("swim-logs/by-date/{date}/vitals")
+    suspend fun updateSwimLogVitals(
+        @Path("date") date: String,
+        @Body request: UpdateVitalsRequest,
+    ): ApiResponse<SwimLogResponseData>
+
     /** 수영 기록 삭제 (soft-delete, 조개 미회수) */
     @DELETE("swim-logs/by-date/{date}")
     suspend fun deleteSwimLog(@Path("date") date: String): ApiResponse<DeleteSwimLogData>
+
+    /**
+     * (개발자 전용) 최근 수영 기록과 그 지급 이력을 서버에서 되돌린다 — 보상 흐름 재테스트용.
+     * 서버가 `ALLOW_DEV_RESET`으로 열어둔 경우에만 응답하며, 꺼져 있으면 404다.
+     */
+    @POST("dev/reset-swim-logs")
+    suspend fun devResetSwimLogs(@Body body: DevResetRequest): ApiResponse<DevResetData>
 
     /** 수영 통계 조회 */
     @GET("swim-logs/stats")

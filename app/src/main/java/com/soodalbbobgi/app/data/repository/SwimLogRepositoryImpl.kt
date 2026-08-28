@@ -42,9 +42,14 @@ class SwimLogRepositoryImpl @Inject constructor(
             calories = log.calories,
             maxHr = log.maxHr,
             minHr = log.minHr,
+            avgHr = log.avgHr,
             activeSeconds = log.activeSeconds,
             hrSeries = log.hrSeries,
         )
+    override suspend fun fillMissingVitals(
+        date: String, maxHr: Int?, minHr: Int?, avgHr: Int?, hrSeries: String?,
+    ) = dao.fillMissingVitals(date, maxHr, minHr, avgHr, hrSeries)
+
     override suspend fun deleteByDate(date: String) = dao.deleteByDate(date)
     override suspend fun deleteById(id: Long) = dao.deleteById(id)
     override suspend fun deleteByHcRecordId(hcRecordId: String) = dao.deleteByHcRecordId(hcRecordId)

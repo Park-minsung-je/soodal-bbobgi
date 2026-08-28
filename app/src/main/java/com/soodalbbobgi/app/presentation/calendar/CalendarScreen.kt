@@ -1,7 +1,6 @@
 ﻿package com.soodalbbobgi.app.presentation.calendar
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -43,6 +42,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
+import kotlin.math.roundToInt
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -74,6 +77,7 @@ import com.soodalbbobgi.app.core.ui.AppOverlay
 import com.soodalbbobgi.app.core.ui.GlassBox
 import com.soodalbbobgi.app.core.ui.GlassCorner
 import com.soodalbbobgi.app.core.ui.GlassSheen
+import com.soodalbbobgi.app.core.ui.ShellRewardKind
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.glass
 import com.soodalbbobgi.app.core.ui.SoodalCard
@@ -136,6 +140,7 @@ fun CalendarScreen(
     // 방금 수동 등록한 거리/시간 — 조개 보상 팝업 표시용.
     var manualSubmitted by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     val shellReward by viewModel.shellReward.collectAsState()
+    val shellRewardKind by viewModel.shellRewardKind.collectAsState()
     val registerError by viewModel.registerError.collectAsState()
     val syncing by viewModel.syncing.collectAsState()
     val context = LocalContext.current
@@ -335,12 +340,28 @@ fun CalendarScreen(
             }
         }
 
-        if (shellReward > 0) {
+        // 영법 수정 시트가 열려 있는 동안은 숨긴다 — 시트 뒤에 팝업이 비쳐 보일 이유가 없다.
+        if (shellReward > 0 && editTarget == null) {
             AppOverlay {
+                // 오늘 세션 중 영법이 비어 있는 게 있으면 홈과 똑같이 입력을 권한다.
+                // 캘린더는 과거 날짜도 다루지만 보너스는 오늘 기록에만 붙으므로 오늘만 본다.
+                val today = LocalDate.now()
+                val todayPending = state.swimData[today.dayOfMonth]
+                    ?.takeIf { state.year == today.year && state.month == today.monthValue }
+                    ?.sessions?.lastOrNull { it.strokesUnset }
+                    ?.takeIf { shellRewardKind == ShellRewardKind.SwimRecord }
+
                 ShellRewardPopup(
                     shellCount = shellReward,
+                    kind = shellRewardKind,
                     distanceM = manualSubmitted?.first,
                     durationMin = manualSubmitted?.second,
+                    onEditStrokes = todayPending?.let { s ->
+                        {
+                            viewModel.clearShellReward()
+                            editTarget = today.dayOfMonth to s
+                        }
+                    },
                     onDismiss = { viewModel.clearShellReward() },
                 )
             }
@@ -680,11 +701,26 @@ private fun DayDetailCard(
 ) {
     val colors = SoodalDesign.colors
 
+    // 심박 차트 펼침 진행값 — 차트 높이와 카드 높이를 이 값 하나로 움직인다.
+    // 차트를 AnimatedVisibility로 따로 움직이면 animateContentSize가 그 변화를 한 번 더
+    // 스무딩해서 카드가 늦게 따라오고, 차트를 즉시 넣으면 카드 중간이라 툭 튀어나온다.
+    val chartFraction by animateFloatAsState(
+        targetValue = if (chartExpanded) 1f else 0f,
+        animationSpec = tween(220),
+        label = "hrChartReveal",
+    )
+    val chartAnimating = chartFraction > 0f && chartFraction < 1f
+
     // 기록 있는 날 ↔ 없는 날을 오갈 때 카드 높이가 탁 바뀌지 않고 부드럽게 변한다.
     // animateContentSize는 콘텐츠를 클립하므로 카드 바깥이 아니라 안쪽 Column에 둔다
     // (바깥에 두면 카드 그림자가 잘린다).
+    // 단 차트가 움직이는 동안은 뗀다 — 프레임마다 변하는 높이를 다시 스무딩하면 지연만 생긴다.
     SoodalCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth().animateContentSize(tween(220))) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (chartAnimating) Modifier else Modifier.animateContentSize(tween(220))),
+        ) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
@@ -750,6 +786,7 @@ private fun DayDetailCard(
                     onEdit = { onEdit(session) },
                     onDelete = { onDelete(session) },
                     chartExpanded = chartExpanded,
+                    chartFraction = chartFraction,
                     onToggleChart = onToggleChart,
                 )
             }
@@ -814,6 +851,8 @@ private fun SessionDetail(
     /** 세션 삭제 요청 — 블록의 빈 영역을 길게 누르면 호출된다. */
     onDelete: () -> Unit,
     chartExpanded: Boolean,
+    /** 차트 펼침 진행값 (0~1) — 카드와 같은 값으로 움직여 높이가 정확히 동기화된다. */
+    chartFraction: Float,
     onToggleChart: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
@@ -849,13 +888,23 @@ private fun SessionDetail(
             )
         }
 
-        // 세션 심박 곡선 — 화살표로 펼쳤을 때만
-        if (hasChart) {
-            AnimatedVisibility(visible = chartExpanded) {
-                Column {
-                    Spacer(Modifier.height(8.dp))
-                    HrChart(points = session.hrSeries, restRanges = session.hrRestRanges)
-                }
+        // 세션 심박 곡선 — 진행값만큼 위에서부터 잘라 드러낸다.
+        // 카드도 같은 진행값으로 커지므로 (그동안 animateContentSize는 떼어져 있다)
+        // 차트와 카드 높이가 프레임 단위로 일치한다.
+        if (hasChart && chartFraction > 0f) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clipToBounds()
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        val height = (placeable.height * chartFraction).roundToInt()
+                        layout(placeable.width, height) { placeable.place(0, 0) }
+                    }
+                    .graphicsLayer { alpha = chartFraction },
+            ) {
+                Spacer(Modifier.height(8.dp))
+                HrChart(points = session.hrSeries, restRanges = session.hrRestRanges)
             }
         }
 

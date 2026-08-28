@@ -52,6 +52,7 @@ import com.soodalbbobgi.app.BuildConfig
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.core.ui.pressable
+import com.soodalbbobgi.app.core.ui.ShellRewardKind
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.soodalScreenBackdrop
 import com.soodalbbobgi.app.core.ui.topFadeEdge
@@ -96,6 +97,7 @@ fun SettingsScreen(
     // 로그아웃/탈퇴 완료 → Auth로
     LaunchedEffect(signedOut) { if (signedOut) onSignedOut() }
 
+
     // 닉네임 저장 성공 → 다이얼로그 닫기
     LaunchedEffect(nicknameState) {
         if (nicknameState is NicknameSaveState.Success) {
@@ -116,6 +118,19 @@ fun SettingsScreen(
     val reminderEnabled by viewModel.reminderEnabled.collectAsStateWithLifecycle()
     val reminderTime by viewModel.reminderTime.collectAsStateWithLifecycle()
     val newRecordEnabled by viewModel.newRecordEnabled.collectAsStateWithLifecycle()
+
+    // 개발자 초기화 결과 — 서버까지 지워졌는지 눈으로 확인해야 다음 단계로 넘어갈 수 있다.
+    val devResetResult by viewModel.devResetResult.collectAsStateWithLifecycle()
+    LaunchedEffect(devResetResult) {
+        devResetResult?.let {
+            android.widget.Toast.makeText(
+                context,
+                "$it · 캘린더에서 동기화하세요",
+                android.widget.Toast.LENGTH_LONG,
+            ).show()
+            viewModel.clearDevResetResult()
+        }
+    }
 
     // HC 백그라운드 읽기 권한 — 새 기록 알림용. 거부돼도 토글은 유지 (워커가 조용히 스킵).
     val hcBgPermissionLauncher = rememberLauncherForActivityResult(
@@ -372,7 +387,11 @@ fun SettingsScreen(
                 Spacer(Modifier.height(12.dp))
                 SoodalCard(modifier = Modifier.fillMaxWidth(), contentPadding = 0.dp) {
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        SettingsRow(label = "조개 지급 팝업 미리보기", trailing = "→", onClick = { devPopup = "shell" })
+                        SettingsRow(label = "조개 지급 팝업 (영법 유도)", trailing = "→", onClick = { devPopup = "shell" })
+                        SettingsDivider()
+                        SettingsRow(label = "조개 지급 팝업 (유도 없음)", trailing = "→", onClick = { devPopup = "shellPlain" })
+                        SettingsDivider()
+                        SettingsRow(label = "영법 보너스 팝업", trailing = "→", onClick = { devPopup = "strokeBonus" })
                         SettingsDivider()
                         SettingsRow(label = "뽑기 결과 팝업 (1개)", trailing = "→", onClick = { devPopup = "gacha1" })
                         SettingsDivider()
@@ -381,6 +400,21 @@ fun SettingsScreen(
                         SettingsRow(label = "리마인더 알림 보내기", trailing = "🔔", onClick = { viewModel.sendTestReminder() })
                         SettingsDivider()
                         SettingsRow(label = "새 기록 알림 보내기", trailing = "🔔", onClick = { viewModel.sendTestNewRecord() })
+                        SettingsDivider()
+                        // 지운 기록은 블랙리스트에 남아 HC에서 다시 안 들어온다 — 보상 흐름을
+                        // 처음부터 다시 보려면 이걸 눌러 잊게 한 뒤 캘린더에서 동기화한다.
+                        SettingsRow(
+                            label = "오늘 기록 초기화 (서버 + 앱)",
+                            trailing = "↺",
+                            onClick = { viewModel.resetSyncState() },
+                        )
+                        SettingsDivider()
+                        // 심박·활동시간은 서버에 없어 로컬을 잃으면 HC에서만 되살릴 수 있다.
+                        SettingsRow(
+                            label = "심박 복구 — HC 전체 기간 다시 읽기",
+                            trailing = "♡",
+                            onClick = { viewModel.resyncFromHealthConnect() },
+                        )
                     }
                 }
             }
@@ -449,11 +483,24 @@ fun SettingsScreen(
     if (devPopup != null) {
         AppOverlay {
     when (devPopup) {
+        // 유도 있음 — 자동으로 닫히지 않고 두 버튼이 뜬다 (오늘 영법이 비어 있는 경우).
         "shell" -> ShellRewardPopup(
             shellCount = 3,
             distanceM = 1250,
             durationMin = 42,
             onEditStrokes = { devPopup = null },
+            onDismiss = { devPopup = null },
+        )
+        // 유도 없음 — 2.6초 뒤 자동으로 닫힌다 (영법을 이미 채운 경우).
+        "shellPlain" -> ShellRewardPopup(
+            shellCount = 2,
+            distanceM = 1250,
+            durationMin = 42,
+            onDismiss = { devPopup = null },
+        )
+        "strokeBonus" -> ShellRewardPopup(
+            shellCount = 1,
+            kind = ShellRewardKind.StrokeBonus,
             onDismiss = { devPopup = null },
         )
         "gacha1" -> GachaResultOverlay(results = devGachaResults(1), onClose = { devPopup = null })

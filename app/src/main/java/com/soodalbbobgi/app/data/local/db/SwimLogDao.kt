@@ -43,6 +43,7 @@ interface SwimLogDao {
         "UPDATE swim_logs SET hcRecordId = :hcRecordId, startEpochSec = :startEpochSec, " +
             "distanceMeters = :distance, durationSeconds = :duration, calories = :calories, " +
             "maxHr = COALESCE(:maxHr, maxHr), minHr = COALESCE(:minHr, minHr), " +
+            "avgHr = COALESCE(:avgHr, avgHr), " +
             "activeSeconds = COALESCE(:activeSeconds, activeSeconds), hrSeries = COALESCE(:hrSeries, hrSeries), " +
             "strokeMixedM = CASE WHEN strokeFreestyleM = 0 AND strokeBreastM = 0 AND strokeBackM = 0 " +
             "AND strokeFlyM = 0 AND strokeKickM = 0 THEN :distance ELSE strokeMixedM END " +
@@ -57,7 +58,25 @@ interface SwimLogDao {
         calories: Int,
         maxHr: Int?,
         minHr: Int?,
+        avgHr: Int?,
         activeSeconds: Int?,
+        hrSeries: String?,
+    )
+
+    /**
+     * 그 날짜 행의 **비어 있는** 심박만 채운다 — 서버 백업에서 복원할 때 쓴다.
+     * 로컬에 값이 있으면 그대로 둔다. 서버 값은 하루치를 합친 것이라 로컬 세션 값이 더 정확하다.
+     */
+    @Query(
+        "UPDATE swim_logs SET maxHr = COALESCE(maxHr, :maxHr), minHr = COALESCE(minHr, :minHr), " +
+            "avgHr = COALESCE(avgHr, :avgHr), hrSeries = COALESCE(hrSeries, :hrSeries) " +
+            "WHERE date = :date",
+    )
+    suspend fun fillMissingVitals(
+        date: String,
+        maxHr: Int?,
+        minHr: Int?,
+        avgHr: Int?,
         hrSeries: String?,
     )
 

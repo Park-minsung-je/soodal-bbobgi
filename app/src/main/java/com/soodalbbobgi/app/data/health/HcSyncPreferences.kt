@@ -61,6 +61,20 @@ class HcSyncPreferences @Inject constructor(
             .apply()
     }
 
+    /**
+     * 동기화 상태를 전부 잊는다 — 변경 토큰 · 삭제 블랙리스트 · 서버 삭제 대기 큐.
+     *
+     * 한 번 지운 기록은 블랙리스트 때문에 Health Connect에서 다시 들어오지 않는데,
+     * 그걸 되돌릴 방법이 없어 테스트할 때마다 앱 데이터를 지워야 했다. 디버그 전용.
+     */
+    fun clearAll() {
+        prefs.edit()
+            .remove(KEY_CHANGES_TOKEN)
+            .remove(KEY_DELETED_HC_IDS)
+            .remove(KEY_PENDING_DELETES)
+            .apply()
+    }
+
     companion object {
         private const val KEY_CHANGES_TOKEN = "hc_changes_token"
         private const val KEY_DELETED_HC_IDS = "deleted_hc_record_ids"

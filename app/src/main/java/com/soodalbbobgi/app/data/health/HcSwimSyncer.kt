@@ -3,7 +3,11 @@ package com.soodalbbobgi.app.data.health
 import com.soodalbbobgi.app.core.session.UserSession
 import com.soodalbbobgi.app.core.state.AppStateLoader
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
+import com.soodalbbobgi.app.data.remote.dto.UpdateStrokesRequest
+import com.soodalbbobgi.app.core.util.averageHr
+import com.soodalbbobgi.app.core.util.decodeHrSeries
 import com.soodalbbobgi.app.data.remote.dto.SwimLogRequest
+import com.soodalbbobgi.app.data.remote.dto.UpdateVitalsRequest
 import com.soodalbbobgi.app.domain.model.SwimLog
 import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
 import timber.log.Timber
@@ -195,6 +199,63 @@ class HcSwimSyncer @Inject constructor(
     }
 
     /**
+     * Health Connect를 지정 기간만큼 **처음부터 다시 읽어** 로컬 기록을 채운다.
+     *
+     * 심박·활동시간은 로컬에만 있고 서버에는 없다. 그래서 로컬을 지우고 서버에서 되돌려
+     * 받으면 그 값들이 비어버리는데, HC를 다시 읽으면 같은 날짜의 서버산 행을 찾아
+     * 덮어쓰며 복구된다([SwimLogUseCase.syncSwimLog]).
+     *
+     * @param days 오늘부터 거슬러 다시 읽을 일수
+     * @return 새로 추가된 세션 수 (기존 행 갱신은 세지 않는다)
+     */
+    suspend fun resyncRange(days: Int): Int {
+        val zone = java.time.ZoneId.systemDefault()
+        val end = java.time.LocalDate.now().plusDays(1).atStartOfDay(zone).toInstant()
+        val start = java.time.LocalDate.now().minusDays(days.toLong()).atStartOfDay(zone).toInstant()
+        var added = 0
+        for (session in healthConnectManager.readSwimSessions(start, end)) {
+            val before = swimLogUseCase.getLogsForDate(session.date).size
+            upsert(session)
+            if (swimLogUseCase.getLogsForDate(session.date).size > before) added++
+        }
+        return added
+    }
+
+    /**
+     * 그 날의 영법 분배를 서버에 반영한다.
+     *
+     * 서버 기록은 일 단위라 그 날 모든 세션의 합계를 보낸다. 실패해도 로컬 저장은 그대로 두고
+     * 조용히 넘어간다 — 영법은 다음 동기화에서 다시 맞춰진다.
+     *
+     * @param date 대상 날짜 (`YYYY-MM-DD`)
+     * @return 영법을 처음 채워 받은 조개 수. 못 받았거나 전송에 실패하면 0
+     */
+    suspend fun pushStrokes(date: String): Int {
+        return try {
+            val rows = swimLogUseCase.getLogsForDate(date)
+            if (rows.isEmpty()) return 0
+            val res = soodalApi.updateSwimLogStrokes(
+                date,
+                UpdateStrokesRequest(
+                    strokeFreestyleM = rows.sumOf { it.strokeFreestyleM },
+                    strokeBreastM = rows.sumOf { it.strokeBreastM },
+                    strokeBackM = rows.sumOf { it.strokeBackM },
+                    strokeFlyM = rows.sumOf { it.strokeFlyM },
+                    strokeMixedM = rows.sumOf { it.strokeMixedM },
+                    strokeKickM = rows.sumOf { it.strokeKickM },
+                ),
+            )
+            val reward = res.data?.shellReward ?: return 0
+            // 잔액은 서버가 준 값을 그대로 쓴다 — 화면 재조회 없이 헤더가 바로 맞는다.
+            appStateLoader.applyShellBalance(reward.newBalance)
+            reward.earned
+        } catch (e: Exception) {
+            Timber.w(e, "영법 수정 서버 반영 실패 — 로컬에만 저장됨: $date")
+            0
+        }
+    }
+
+    /**
      * 서버에 아직 보고 안 된(synced=false) 행이 있는 날짜의 일 집계를 전송한다.
      * 네트워크 실패면 미전송으로 남아 다음 동기화에 자동 재시도된다.
      */
@@ -208,7 +269,9 @@ class HcSwimSyncer @Inject constructor(
                 }
             } catch (e: retrofit2.HttpException) {
                 if (e.code() in 400..499) {
-                    // 서버의 명시적 거부(409 중복 등) — 재시도 무의미, 전송됨 처리
+                    // 서버의 명시적 거부(409 중복 등) — 재시도 무의미, 전송됨 처리.
+                    // 다만 심박은 아직 비어 있을 수 있으니 그것만 따로 채운다.
+                    if (e.code() == 409) backfillVitals(date)
                     swimLogUseCase.markSynced(date)
                     Timber.w("수영 기록 전송 거부(HTTP %d) — 전송됨 처리: %s", e.code(), date)
                 } else {
@@ -229,6 +292,7 @@ class HcSwimSyncer @Inject constructor(
     private suspend fun postDayAggregate(date: String, rows: List<SwimLog>): Int {
         // 영법은 행에 저장된 값을 그대로 합산한다 — 수동 입력의 영법 구성이 서버에도 보존된다.
         // (HC 행은 저장 시 혼영=거리로 들어가므로 합계는 항상 거리와 일치한다)
+        val dayHr = aggregateDayHr(rows)
         val response = soodalApi.addSwimLog(
             SwimLogRequest(
                 date = date,
@@ -242,6 +306,10 @@ class HcSwimSyncer @Inject constructor(
                 strokeMixedM = rows.sumOf { it.strokeMixedM },
                 strokeKickM = rows.sumOf { it.strokeKickM },
                 source = if (rows.all { it.source == "manual" }) "manual" else "health_connect",
+                maxHr = dayHr.maxHr,
+                minHr = dayHr.minHr,
+                avgHr = dayHr.avgHr,
+                hrSeries = dayHr.hrSeries,
             )
         )
         swimLogUseCase.markSynced(date)
@@ -253,6 +321,32 @@ class HcSwimSyncer @Inject constructor(
         }
         response.data.shellReward?.newBalance?.let { appStateLoader.applyShellReward(it) }
         return earned
+    }
+
+    /**
+     * 이미 서버에 있는 날짜의 빈 심박만 채운다.
+     * 심박 컬럼이 생기기 전에 올라간 기록은 POST가 409로 막혀 심박을 올릴 길이 없다.
+     * 서버는 값이 있는 필드를 덮어쓰지 않으므로 실패해도 다음 동기화에 다시 시도하면 된다.
+     */
+    private suspend fun backfillVitals(date: String) {
+        try {
+            val dayHr = aggregateDayHr(swimLogUseCase.getLogsForDate(date))
+            if (dayHr.maxHr == null && dayHr.minHr == null &&
+                dayHr.avgHr == null && dayHr.hrSeries == null
+            ) return
+            soodalApi.updateSwimLogVitals(
+                date,
+                UpdateVitalsRequest(
+                    maxHr = dayHr.maxHr,
+                    minHr = dayHr.minHr,
+                    avgHr = dayHr.avgHr,
+                    hrSeries = dayHr.hrSeries,
+                ),
+            )
+            Timber.d("심박 백필 완료: $date")
+        } catch (e: Exception) {
+            Timber.w(e, "심박 백필 실패: $date")
+        }
     }
 
     private suspend fun processDeletedRecords(deletedRecordIds: List<String>) {
@@ -271,19 +365,21 @@ class HcSwimSyncer @Inject constructor(
         }
     }
 
-    /** HC가 못 채운 날짜만 서버 백업에서 복원한다. */
+    /**
+     * HC가 못 채운 날짜만 서버 백업에서 복원한다.
+     * 기간을 지정하지 않아 전체 이력을 받는다 — 재설치·데이터 손실 뒤에는 최근 며칠이
+     * 아니라 있는 기록 전부가 돌아와야 한다.
+     */
     private suspend fun pullServerSwimLogs() {
         try {
-            val today = LocalDate.now()
-            val response = soodalApi.getSwimLogs(
-                startDate = today.minusDays(30).toString(),
-                endDate = today.toString(),
-            )
+            val response = soodalApi.getSwimLogs()
             if (response.success && response.data != null) {
                 // 서버 삭제가 아직 반영 안 된 날짜는 복원 대상에서 제외 (삭제 의도 보존)
                 val pendingDeletes = hcSyncPreferences.getPendingServerDeletes()
                 for (serverLog in response.data.items) {
                     if (serverLog.date in pendingDeletes) continue
+                    // 행 하나의 실패가 나머지 복원을 막지 않게 날짜 단위로 격리한다
+                    try {
                     swimLogUseCase.saveFromServer(
                         SwimLog(
                             userId = userSession.userId,
@@ -298,10 +394,17 @@ class HcSwimSyncer @Inject constructor(
                             strokeMixedM = serverLog.strokeMixedM,
                             strokeKickM = serverLog.strokeKickM,
                             source = serverLog.source,
+                            maxHr = serverLog.maxHr,
+                            minHr = serverLog.minHr,
+                            avgHr = serverLog.avgHr,
+                            hrSeries = serverLog.hrSeries,
                             shellsEarned = serverLog.shellsEarned,
                             synced = true, // 서버에서 온 기록 — 되돌려 보낼 필요 없음
                         )
                     )
+                    } catch (e: Exception) {
+                        Timber.w(e, "서버 기록 복원 실패(계속 진행): ${serverLog.date}")
+                    }
                 }
                 Timber.d("서버 수영 기록 pull 완료: ${response.data.items.size}개")
             }
@@ -322,6 +425,9 @@ class HcSwimSyncer @Inject constructor(
         hcRecordId = hcRecordId,
         maxHr = maxHr,
         minHr = minHr,
+        // 평균은 저장 시점에 한 번 계산해 둔다 — 화면에서 매번 시계열을 훑지 않아도 되고,
+        // 시계열 없이 서버에서 복원된 행에도 평균이 남는다.
+        avgHr = averageHr(decodeHrSeries(hrSeries)),
         activeSeconds = activeSeconds,
         hrSeries = hrSeries,
     )

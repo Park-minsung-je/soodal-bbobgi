@@ -2,14 +2,13 @@ package com.soodalbbobgi.app.presentation.calendar
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.soodalbbobgi.app.core.ui.ShellRewardKind
 import com.soodalbbobgi.app.core.session.UserSession
 import com.soodalbbobgi.app.core.state.AppStateLoader
 import com.soodalbbobgi.app.core.util.decodeHrRestRanges
 import com.soodalbbobgi.app.core.util.decodeHrSeries
 import com.soodalbbobgi.app.data.health.HcSwimSyncer
 import com.soodalbbobgi.app.data.health.HealthConnectManager
-import com.soodalbbobgi.app.data.remote.api.SoodalApi
-import com.soodalbbobgi.app.data.remote.dto.UpdateStrokesRequest
 import com.soodalbbobgi.app.domain.model.SwimLog
 import com.soodalbbobgi.app.domain.usecase.SwimLogUseCase
 import com.soodalbbobgi.app.presentation.common.WeeklyActivity
@@ -64,7 +63,17 @@ data class SwimSessionData(
     val hrSeries: List<Pair<Int, Int>> = emptyList(),
     /** 휴식으로 계산된 구간 (오프셋초 범위) — 동기화 때 원본 해상도로 분류된 값. */
     val hrRestRanges: List<IntRange> = emptyList(),
-)
+) {
+    /**
+     * 아직 영법을 나누지 않은 세션인지 — 영법 입력 보너스를 권할지 판단하는 기준.
+     *
+     * Health Connect에서 들어온 기록은 **총 거리가 전부 혼영에 들어간 상태**로 시작한다
+     * (`strokeMixedM = distanceMeters`). 그래서 "전부 0"으로 보면 HC 기록은 영원히
+     * 손대지 않은 것으로 안 잡힌다 — 혼영만 남아 있는 그 초기 상태를 미입력으로 본다.
+     */
+    val strokesUnset: Boolean
+        get() = freeM == 0 && breastM == 0 && backM == 0 && flyM == 0 && kickM == 0
+}
 
 /**
  * 하루치 수영 데이터 — 하루 여러 세션 전제.
@@ -100,7 +109,6 @@ data class CalendarUiState(
 class CalendarViewModel @Inject constructor(
     private val userSession: UserSession,
     private val swimLogUseCase: SwimLogUseCase,
-    private val soodalApi: SoodalApi,
     private val hcSwimSyncer: HcSwimSyncer,
     private val appStateLoader: AppStateLoader,
     private val healthConnectManager: HealthConnectManager,
@@ -113,6 +121,10 @@ class CalendarViewModel @Inject constructor(
     /** 수동 등록/동기화로 지급된 조개 수 — 0보다 크면 보상 팝업 표시. */
     private val _shellReward = MutableStateFlow(0)
     val shellReward: StateFlow<Int> = _shellReward
+
+    /** 조개를 받은 계기 — 팝업 문구를 가른다. [_shellReward]와 항상 같이 바뀐다. */
+    private val _shellRewardKind = MutableStateFlow(ShellRewardKind.SwimRecord)
+    val shellRewardKind: StateFlow<ShellRewardKind> = _shellRewardKind
 
     /** 수동 등록/동기화 실패 안내 문구 — null이면 표시 없음. */
     private val _registerError = MutableStateFlow<String?>(null)
@@ -186,6 +198,7 @@ class CalendarViewModel @Inject constructor(
                 }
                 val earned = hcSwimSyncer.sync()
                 appStateLoader.refreshCurrency()
+                _shellRewardKind.value = ShellRewardKind.SwimRecord
                 _shellReward.value = earned
             } catch (e: Exception) {
                 Timber.e(e, "캘린더 수동 동기화 실패")
@@ -218,6 +231,7 @@ class CalendarViewModel @Inject constructor(
                     strokeBackM = input.backM, strokeFlyM = input.flyM, strokeKickM = input.kickM,
                 )
                 appStateLoader.refreshCurrency()
+                _shellRewardKind.value = ShellRewardKind.SwimRecord
                 _shellReward.value = earned
             } catch (e: Exception) {
                 Timber.e(e, "캘린더 수동 기록 등록 실패: $date")
@@ -262,23 +276,12 @@ class CalendarViewModel @Inject constructor(
         val date = "%04d-%02d-%02d".format(ym.year, ym.monthValue, day)
         viewModelScope.launch {
             swimLogUseCase.updateStrokes(logId, free, breast, back, fly, mixed, kick)
-            // 서버에도 반영 — 로컬 DB가 초기화돼도 분배가 보존되게. 서버는 일 단위라
-            // 그 날 모든 세션의 합계를 보낸다. 실패해도 로컬 저장은 유지된다.
-            try {
-                val dayLogs = swimLogUseCase.getLogsForDate(date)
-                soodalApi.updateSwimLogStrokes(
-                    date,
-                    UpdateStrokesRequest(
-                        strokeFreestyleM = dayLogs.sumOf { it.strokeFreestyleM },
-                        strokeBreastM = dayLogs.sumOf { it.strokeBreastM },
-                        strokeBackM = dayLogs.sumOf { it.strokeBackM },
-                        strokeFlyM = dayLogs.sumOf { it.strokeFlyM },
-                        strokeMixedM = dayLogs.sumOf { it.strokeMixedM },
-                        strokeKickM = dayLogs.sumOf { it.strokeKickM },
-                    ),
-                )
-            } catch (e: Exception) {
-                Timber.w(e, "영법 수정 서버 반영 실패 — 로컬에만 저장됨: $date")
+            // 서버에도 반영 — 로컬 DB가 초기화돼도 분배가 보존되게.
+            // 오늘 기록을 처음 채운 경우 서버가 조개 1개를 얹어 준다.
+            val earned = hcSwimSyncer.pushStrokes(date)
+            if (earned > 0) {
+                _shellRewardKind.value = ShellRewardKind.StrokeBonus
+                _shellReward.value = earned
             }
         }
     }
