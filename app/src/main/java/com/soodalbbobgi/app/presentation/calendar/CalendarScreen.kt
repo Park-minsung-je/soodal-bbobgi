@@ -1,7 +1,6 @@
 ﻿package com.soodalbbobgi.app.presentation.calendar
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -866,14 +865,13 @@ private fun SessionDetail(
             )
         }
 
-        // 세션 심박 곡선 — 화살표로 펼쳤을 때만
-        if (hasChart) {
-            AnimatedVisibility(visible = chartExpanded) {
-                Column {
-                    Spacer(Modifier.height(8.dp))
-                    HrChart(points = session.hrSeries, restRanges = session.hrRestRanges)
-                }
-            }
+        // 세션 심박 곡선 — 화살표로 펼쳤을 때만.
+        // AnimatedVisibility로 따로 펼치지 않는다. 그러면 차트와 카드가 각자 다른 시간으로
+        // 커져 카드가 뒤늦게 따라오는 것처럼 보인다. 카드의 animateContentSize 하나가
+        // 높이를 맡고, 차트는 그 클립 안에서 그대로 드러난다.
+        if (hasChart && chartExpanded) {
+            Spacer(Modifier.height(8.dp))
+            HrChart(points = session.hrSeries, restRanges = session.hrRestRanges)
         }
 
         Spacer(Modifier.height(16.dp))
