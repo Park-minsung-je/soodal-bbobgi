@@ -97,6 +97,7 @@ fun SettingsScreen(
     // 로그아웃/탈퇴 완료 → Auth로
     LaunchedEffect(signedOut) { if (signedOut) onSignedOut() }
 
+
     // 닉네임 저장 성공 → 다이얼로그 닫기
     LaunchedEffect(nicknameState) {
         if (nicknameState is NicknameSaveState.Success) {
@@ -117,6 +118,19 @@ fun SettingsScreen(
     val reminderEnabled by viewModel.reminderEnabled.collectAsStateWithLifecycle()
     val reminderTime by viewModel.reminderTime.collectAsStateWithLifecycle()
     val newRecordEnabled by viewModel.newRecordEnabled.collectAsStateWithLifecycle()
+
+    // 개발자 초기화 결과 — 서버까지 지워졌는지 눈으로 확인해야 다음 단계로 넘어갈 수 있다.
+    val devResetResult by viewModel.devResetResult.collectAsStateWithLifecycle()
+    LaunchedEffect(devResetResult) {
+        devResetResult?.let {
+            android.widget.Toast.makeText(
+                context,
+                "$it · 캘린더에서 동기화하세요",
+                android.widget.Toast.LENGTH_LONG,
+            ).show()
+            viewModel.clearDevResetResult()
+        }
+    }
 
     // HC 백그라운드 읽기 권한 — 새 기록 알림용. 거부돼도 토글은 유지 (워커가 조용히 스킵).
     val hcBgPermissionLauncher = rememberLauncherForActivityResult(
@@ -390,16 +404,9 @@ fun SettingsScreen(
                         // 지운 기록은 블랙리스트에 남아 HC에서 다시 안 들어온다 — 보상 흐름을
                         // 처음부터 다시 보려면 이걸 눌러 잊게 한 뒤 캘린더에서 동기화한다.
                         SettingsRow(
-                            label = "동기화 상태 초기화 (토큰·삭제이력·로컬기록)",
+                            label = "오늘 기록 초기화 (서버 + 앱)",
                             trailing = "↺",
-                            onClick = {
-                                viewModel.resetSyncState()
-                                android.widget.Toast.makeText(
-                                    context,
-                                    "초기화했어요. 캘린더에서 동기화하세요",
-                                    android.widget.Toast.LENGTH_LONG,
-                                ).show()
-                            },
+                            onClick = { viewModel.resetSyncState() },
                         )
                     }
                 }

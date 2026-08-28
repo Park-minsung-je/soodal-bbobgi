@@ -12,6 +12,7 @@ import com.soodalbbobgi.app.data.health.HcSyncPreferences
 import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.data.notify.NotificationPrefs
 import com.soodalbbobgi.app.data.remote.api.SoodalApi
+import com.soodalbbobgi.app.data.remote.dto.DevResetRequest
 import com.soodalbbobgi.app.data.remote.dto.RefreshRequest
 import com.soodalbbobgi.app.data.remote.dto.UpdateUserRequest
 import com.soodalbbobgi.app.domain.model.UserProfile
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.time.LocalDate
 import javax.inject.Inject
 
 /**
@@ -169,10 +171,37 @@ class SettingsViewModel @Inject constructor(
      */
     fun resetSyncState() {
         viewModelScope.launch {
+            // 서버 기록도 함께 되돌린다 — 앱만 지우면 같은 날짜가 서버에 남아
+            // 다음 등록이 409로 막히고 조개가 다시 지급되지 않는다.
+            _devResetResult.value = try {
+                val res = api.devResetSwimLogs(DevResetRequest(days = DEV_RESET_DAYS))
+                val d = res.data
+                if (d != null) {
+                    appStateLoader.refreshCurrency()
+                    "서버 ${d.deletedLogs}건 삭제 · 조개 ${d.revokedShells}개 회수"
+                } else {
+                    "서버 초기화 실패 — 앱만 초기화됨"
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "서버 초기화 실패")
+                // 서버가 ALLOW_DEV_RESET을 끄면 404다 — 앱 쪽 초기화는 그대로 진행한다.
+                "서버 초기화 불가(꺼져 있음) — 앱만 초기화됨"
+            }
             hcSyncPreferences.clearAll()
-            swimLogRepository.deleteAll()
+            // 로컬도 같은 범위만 지운다 — 전체를 지우면 과거 기록이 다 사라지고
+            // 다시 받아오는 동안 통계·달력이 텅 빈다.
+            val today = LocalDate.now()
+            repeat(DEV_RESET_DAYS) { i ->
+                swimLogRepository.deleteByDate(today.minusDays(i.toLong()).toString())
+            }
         }
     }
+
+    /** 개발자 초기화 결과 문구 — 표시 후 [clearDevResetResult]로 비운다. */
+    private val _devResetResult = MutableStateFlow<String?>(null)
+    val devResetResult: StateFlow<String?> = _devResetResult
+
+    fun clearDevResetResult() { _devResetResult.value = null }
 
     /**
      * 로그아웃 — 서버 토큰 무효화는 실패해도 진행하고, 로컬 토큰/메모리/Room을 정리한다.
@@ -233,3 +262,6 @@ sealed interface AccountActionState {
     data object Working : AccountActionState
     data class Error(val message: String) : AccountActionState
 }
+
+/** 개발자 초기화가 되돌리는 범위 — 오늘 하루. 서버에도 같은 값을 넘긴다. */
+private const val DEV_RESET_DAYS = 1

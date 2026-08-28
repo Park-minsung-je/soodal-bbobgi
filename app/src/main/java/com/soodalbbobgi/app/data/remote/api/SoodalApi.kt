@@ -117,6 +117,13 @@ interface SoodalApi {
     @DELETE("swim-logs/by-date/{date}")
     suspend fun deleteSwimLog(@Path("date") date: String): ApiResponse<DeleteSwimLogData>
 
+    /**
+     * (개발자 전용) 최근 수영 기록과 그 지급 이력을 서버에서 되돌린다 — 보상 흐름 재테스트용.
+     * 서버가 `ALLOW_DEV_RESET`으로 열어둔 경우에만 응답하며, 꺼져 있으면 404다.
+     */
+    @POST("dev/reset-swim-logs")
+    suspend fun devResetSwimLogs(@Body body: DevResetRequest): ApiResponse<DevResetData>
+
     /** 수영 통계 조회 */
     @GET("swim-logs/stats")
     suspend fun getSwimStats(

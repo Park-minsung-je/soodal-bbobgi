@@ -281,6 +281,18 @@ data class DeleteSwimLogData(
     val deleted: Boolean,
 )
 
+/** POST /dev/reset-swim-logs 요청 — 오늘부터 거슬러 되돌릴 일수. */
+data class DevResetRequest(val days: Int)
+
+/** POST /dev/reset-swim-logs 응답 — 지운 기록 수와 회수한 조개. */
+data class DevResetData(
+    val from: String,
+    val to: String,
+    val deletedLogs: Int,
+    val revokedShells: Int,
+    val newBalance: Int?,
+)
+
 /** GET /swim-logs/stats 응답 */
 data class SwimStatsData(
     val totalDistanceMeters: Int,
