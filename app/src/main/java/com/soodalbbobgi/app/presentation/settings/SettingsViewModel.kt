@@ -197,6 +197,28 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * (개발자 전용) Health Connect를 최근 [HC_RESYNC_DAYS]일만큼 다시 읽어 로컬을 채운다.
+     *
+     * 심박·활동시간은 서버에 없어 로컬을 지우면 복구할 곳이 HC뿐이다.
+     * 기존 행은 지우지 않고 HC 값으로 덮어쓴다.
+     */
+    fun resyncFromHealthConnect() {
+        viewModelScope.launch {
+            _devResetResult.value = try {
+                if (!healthConnectManager.hasAllPermissions()) {
+                    "Health Connect 권한이 없어요"
+                } else {
+                    val added = hcSwimSyncer.resyncRange(HC_RESYNC_DAYS)
+                    "HC 최근 ${HC_RESYNC_DAYS}일 다시 읽음 · 새 기록 ${added}건"
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "HC 재동기화 실패")
+                "HC 다시 읽기 실패"
+            }
+        }
+    }
+
     /** 개발자 초기화 결과 문구 — 표시 후 [clearDevResetResult]로 비운다. */
     private val _devResetResult = MutableStateFlow<String?>(null)
     val devResetResult: StateFlow<String?> = _devResetResult
@@ -265,3 +287,6 @@ sealed interface AccountActionState {
 
 /** 개발자 초기화가 되돌리는 범위 — 오늘 하루. 서버에도 같은 값을 넘긴다. */
 private const val DEV_RESET_DAYS = 1
+
+/** HC 재읽기 범위 — Health Connect가 허용하는 과거 조회 한도(약 2개월)에 맞춘다. */
+private const val HC_RESYNC_DAYS = 60

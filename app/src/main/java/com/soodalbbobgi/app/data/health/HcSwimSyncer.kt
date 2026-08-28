@@ -196,6 +196,29 @@ class HcSwimSyncer @Inject constructor(
     }
 
     /**
+     * Health Connect를 지정 기간만큼 **처음부터 다시 읽어** 로컬 기록을 채운다.
+     *
+     * 심박·활동시간은 로컬에만 있고 서버에는 없다. 그래서 로컬을 지우고 서버에서 되돌려
+     * 받으면 그 값들이 비어버리는데, HC를 다시 읽으면 같은 날짜의 서버산 행을 찾아
+     * 덮어쓰며 복구된다([SwimLogUseCase.syncSwimLog]).
+     *
+     * @param days 오늘부터 거슬러 다시 읽을 일수
+     * @return 새로 추가된 세션 수 (기존 행 갱신은 세지 않는다)
+     */
+    suspend fun resyncRange(days: Int): Int {
+        val zone = java.time.ZoneId.systemDefault()
+        val end = java.time.LocalDate.now().plusDays(1).atStartOfDay(zone).toInstant()
+        val start = java.time.LocalDate.now().minusDays(days.toLong()).atStartOfDay(zone).toInstant()
+        var added = 0
+        for (session in healthConnectManager.readSwimSessions(start, end)) {
+            val before = swimLogUseCase.getLogsForDate(session.date).size
+            upsert(session)
+            if (swimLogUseCase.getLogsForDate(session.date).size > before) added++
+        }
+        return added
+    }
+
+    /**
      * 그 날의 영법 분배를 서버에 반영한다.
      *
      * 서버 기록은 일 단위라 그 날 모든 세션의 합계를 보낸다. 실패해도 로컬 저장은 그대로 두고
