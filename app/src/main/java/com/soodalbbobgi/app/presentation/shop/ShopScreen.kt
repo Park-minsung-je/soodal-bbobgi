@@ -115,7 +115,12 @@ fun ShopScreen(
 
     // 탭에 들어올 때마다 진열·잔액을 다시 불러온다. 탭은 saveState로 보존돼 ViewModel이 살아
     // 있으므로 init에서 한 번 부르면 재진입 때 옛 진열이 그대로 보인다.
-    LaunchedEffect(Unit) { viewModel.refresh() }
+    LaunchedEffect(Unit) {
+        // 진입 전환(300ms)과 겹치지 않게 정착 후 새로고침 — 전환 중 리컴포지션·이미지
+        // 업로드가 탭 전환 잭의 한 축이었다 (gfxinfo: slow bitmap uploads).
+        kotlinx.coroutines.delay(400)
+        viewModel.refresh()
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(

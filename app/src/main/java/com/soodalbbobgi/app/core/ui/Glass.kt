@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.HazeInputScale
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import androidx.compose.runtime.Composable
@@ -181,6 +182,7 @@ fun Modifier.glassFrost(
                 tints = listOf(HazeTint(if (colors.isDark) colors.glassBg else Color.White.copy(alpha = tintAlpha)))
                 blurRadius = 20.dp
                 noiseFactor = 0f
+                inputScale = HazeInputScale.Auto
             }
         } else {
             Modifier.background(colors.glassBg)
@@ -208,6 +210,9 @@ fun Modifier.cardFrost(colors: SoodalColors, shape: Shape): Modifier {
                 tints = listOf(HazeTint(Color.White.copy(alpha = 0.55f)))
                 blurRadius = 45.dp
                 noiseFactor = 0f
+                // 백드롭을 축소해 샘플링 — 45dp 블러가 축소 아티팩트를 덮어 화질 차이는
+                // 없고 GPU 비용만 준다. 탭 전환처럼 두 화면이 동시에 그려질 때의 잭 대책.
+                inputScale = HazeInputScale.Auto
             }
     } else {
         this.clip(shape).background(colors.glassBg)
