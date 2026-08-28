@@ -52,6 +52,7 @@ import com.soodalbbobgi.app.BuildConfig
 import com.soodalbbobgi.app.core.theme.SoodalDesign
 import com.soodalbbobgi.app.data.health.HealthConnectManager
 import com.soodalbbobgi.app.core.ui.pressable
+import com.soodalbbobgi.app.core.ui.ShellRewardKind
 import com.soodalbbobgi.app.core.ui.ShellRewardPopup
 import com.soodalbbobgi.app.core.ui.soodalScreenBackdrop
 import com.soodalbbobgi.app.core.ui.topFadeEdge
@@ -372,7 +373,11 @@ fun SettingsScreen(
                 Spacer(Modifier.height(12.dp))
                 SoodalCard(modifier = Modifier.fillMaxWidth(), contentPadding = 0.dp) {
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        SettingsRow(label = "조개 지급 팝업 미리보기", trailing = "→", onClick = { devPopup = "shell" })
+                        SettingsRow(label = "조개 지급 팝업 (영법 유도)", trailing = "→", onClick = { devPopup = "shell" })
+                        SettingsDivider()
+                        SettingsRow(label = "조개 지급 팝업 (유도 없음)", trailing = "→", onClick = { devPopup = "shellPlain" })
+                        SettingsDivider()
+                        SettingsRow(label = "영법 보너스 팝업", trailing = "→", onClick = { devPopup = "strokeBonus" })
                         SettingsDivider()
                         SettingsRow(label = "뽑기 결과 팝업 (1개)", trailing = "→", onClick = { devPopup = "gacha1" })
                         SettingsDivider()
@@ -449,11 +454,24 @@ fun SettingsScreen(
     if (devPopup != null) {
         AppOverlay {
     when (devPopup) {
+        // 유도 있음 — 자동으로 닫히지 않고 두 버튼이 뜬다 (오늘 영법이 비어 있는 경우).
         "shell" -> ShellRewardPopup(
             shellCount = 3,
             distanceM = 1250,
             durationMin = 42,
             onEditStrokes = { devPopup = null },
+            onDismiss = { devPopup = null },
+        )
+        // 유도 없음 — 2.6초 뒤 자동으로 닫힌다 (영법을 이미 채운 경우).
+        "shellPlain" -> ShellRewardPopup(
+            shellCount = 2,
+            distanceM = 1250,
+            durationMin = 42,
+            onDismiss = { devPopup = null },
+        )
+        "strokeBonus" -> ShellRewardPopup(
+            shellCount = 1,
+            kind = ShellRewardKind.StrokeBonus,
             onDismiss = { devPopup = null },
         )
         "gacha1" -> GachaResultOverlay(results = devGachaResults(1), onClose = { devPopup = null })
