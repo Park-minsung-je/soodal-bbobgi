@@ -374,7 +374,14 @@ fun SettingsScreen(
                     SettingsDivider()
                     SettingsRow(label = "이용약관", trailing = "→", onClick = {})
                     SettingsDivider()
-                    SettingsRow(label = "개인정보처리방침", trailing = "→", onClick = {})
+                    SettingsRow(label = "개인정보처리방침", trailing = "→", onClick = {
+                        // API 도메인의 공개 방침 페이지 — Play 심사에도 같은 URL을 쓴다
+                        val base = android.net.Uri.parse(BuildConfig.BASE_URL)
+                        val url = "${base.scheme}://${base.host}/privacy"
+                        context.startActivity(
+                            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)),
+                        )
+                    })
                     SettingsDivider()
                     SettingsRow(label = "오픈소스 라이선스", trailing = "→", onClick = onOpenLicenses)
                 }
