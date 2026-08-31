@@ -29,12 +29,14 @@ class OnboardingPermissionViewModelTest {
 
     private lateinit var assetManager: AssetManager
     private lateinit var hcSwimSyncer: HcSwimSyncer
+    private lateinit var healthConnectManager: kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 
     @Before
     fun setup() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         assetManager = mockk(relaxed = true)
         hcSwimSyncer = mockk(relaxed = true)
+        healthConnectManager = mockk(relaxed = true)
         every { assetManager.progress } returns MutableStateFlow(AssetSyncProgress.Idle)
         coEvery { assetManager.sync() } returns Result.success(Unit)
         coEvery { hcSwimSyncer.sync() } returns 0
@@ -46,7 +48,7 @@ class OnboardingPermissionViewModelTest {
     }
 
     private fun vm() = OnboardingPermissionViewModel(assetManager, hcSwimSyncer,
-        CoroutineScope(UnconfinedTestDispatcher()))
+        healthConnectManager, CoroutineScope(UnconfinedTestDispatcher()))
 
     @Test
     fun `onPermissionGranted triggers assetManager sync`() = runTest {
