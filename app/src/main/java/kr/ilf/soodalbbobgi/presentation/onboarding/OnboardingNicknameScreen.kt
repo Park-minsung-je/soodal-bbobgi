@@ -60,14 +60,23 @@ fun OnboardingNicknameScreen(
     var nickname by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf<String?>(null) }
     var ageRange by remember { mutableStateOf<String?>(null) }
-    val validPattern = Regex("^[a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ]*$")
+    // 완성형 글자만 허용 — 영문/숫자/완성형 한글. 자음·모음 단독(ㅇㅈ 등)은 미완성 글자다.
+    val validPattern = Regex("^[a-zA-Z0-9가-힣]*$")
+    val hasJamo = nickname.any { it in 'ㄱ'..'ㅣ' } // ㄱ~ㅣ 자모 영역
+    val hasSpecialChar = nickname.isNotEmpty() && !hasJamo && !validPattern.matches(nickname)
     val valid = nickname.isNotBlank() && validPattern.matches(nickname)
-    val hasSpecialChar = nickname.isNotEmpty() && !validPattern.matches(nickname)
+    // 화면에 띄울 검증 안내 — 없으면 null
+    val nicknameError = when {
+        hasJamo -> "완성되지 않은 글자가 있어요. 예: ㅇㅈ → 오지"
+        hasSpecialChar -> "특수문자는 사용할 수 없어요."
+        else -> null
+    }
 
-    // 저장 성공 시 다음 화면으로 이동
+    // 저장 성공 시 다음 화면으로 이동. 실패 메시지는 아래 필드에 표시한다.
     LaunchedEffect(saveState) {
         if (saveState is OnboardingSaveState.Success) onNext()
     }
+    val saveError = (saveState as? OnboardingSaveState.Error)?.message
 
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -97,8 +106,9 @@ fun OnboardingNicknameScreen(
             Spacer(Modifier.height(36.dp))
             SoodalTextField(nickname, { nickname = it }, placeholder = "닉네임 입력 (최대 10자)",
                 maxLength = 10, modifier = Modifier.fillMaxWidth())
-            if (hasSpecialChar) {
-                Text("특수문자는 사용할 수 없어요.", fontSize = 12.sp, color = colors.warn,
+            val shownError = nicknameError ?: saveError
+            if (shownError != null) {
+                Text(shownError, fontSize = 12.sp, color = colors.warn,
                     modifier = Modifier.padding(top = 10.dp))
             }
             Text("${nickname.length}/10", fontSize = 11.sp, color = colors.textTertiary,
