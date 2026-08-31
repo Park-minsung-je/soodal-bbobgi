@@ -2,6 +2,7 @@ package kr.ilf.soodalbbobgi.presentation.onboarding
 
 import androidx.lifecycle.ViewModel
 import kr.ilf.soodalbbobgi.data.notify.NotificationPrefs
+import kr.ilf.soodalbbobgi.work.HcChangeCheckScheduler
 import kr.ilf.soodalbbobgi.work.ReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +17,7 @@ import javax.inject.Inject
 class OnboardingNotificationViewModel @Inject constructor(
     private val notificationPrefs: NotificationPrefs,
     private val reminderScheduler: ReminderScheduler,
+    private val hcChangeCheckScheduler: HcChangeCheckScheduler,
 ) : ViewModel() {
 
     private val _reminderEnabled = MutableStateFlow(notificationPrefs.reminderEnabled)
@@ -24,6 +26,17 @@ class OnboardingNotificationViewModel @Inject constructor(
     private val _reminderTime = MutableStateFlow(notificationPrefs.reminderHour to notificationPrefs.reminderMinute)
     /** 리마인더 시각 (시, 분). */
     val reminderTime: StateFlow<Pair<Int, Int>> = _reminderTime
+
+    private val _newRecordEnabled = MutableStateFlow(notificationPrefs.newRecordEnabled)
+    /** 새 기록 알림 on/off — 백그라운드로 HC 변경을 확인해 알린다. */
+    val newRecordEnabled: StateFlow<Boolean> = _newRecordEnabled
+
+    /** 새 기록 알림 on/off — 켜면 주기적 HC 변경 확인을 예약, 끄면 취소. */
+    fun setNewRecordEnabled(enabled: Boolean) {
+        notificationPrefs.newRecordEnabled = enabled
+        _newRecordEnabled.value = enabled
+        if (enabled) hcChangeCheckScheduler.schedule() else hcChangeCheckScheduler.cancel()
+    }
 
     /** 리마인더 on/off — 켜면 다음 발화 시각으로 예약, 끄면 취소. */
     fun setReminderEnabled(enabled: Boolean) {
