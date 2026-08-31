@@ -4,6 +4,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.offset
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.health.connect.client.PermissionController
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
@@ -69,25 +70,46 @@ fun OnboardingNotificationScreen(
     val context = LocalContext.current
     val reminderEnabled by viewModel.reminderEnabled.collectAsStateWithLifecycle()
     val reminderTime by viewModel.reminderTime.collectAsStateWithLifecycle()
+    val newRecordEnabled by viewModel.newRecordEnabled.collectAsStateWithLifecycle()
     var showTimeDialog by remember { mutableStateOf(false) }
+    // 알림 권한 요청 후 어느 토글을 켜려던 것인지 기억한다.
+    var pendingToggle by remember { mutableStateOf<String?>(null) }
 
-    // 토글 ON 시 알림 권한(13+) 요청 — 허용되면 켜고, 거부되면 끈 상태 유지
+    // 새 기록 알림용 HC 백그라운드 읽기 권한 — 거부돼도 토글은 유지(워커가 조용히 스킵).
+    val hcBgPermissionLauncher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract(),
+    ) { }
+
+    // 실제로 토글을 켜는 처리 — 새 기록이면 HC 백그라운드 권한도 이어서 요청한다.
+    val enableToggle: (String?) -> Unit = { target ->
+        when (target) {
+            "reminder" -> viewModel.setReminderEnabled(true)
+            "newRecord" -> {
+                viewModel.setNewRecordEnabled(true)
+                hcBgPermissionLauncher.launch(setOf(HC_BG_READ_PERMISSION))
+            }
+        }
+    }
+
+    // 토글 ON 시 알림 권한(13+) 요청 — 허용되면 대상 토글을 마저 켠다.
     val notifPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
-    ) { granted -> if (granted) viewModel.setReminderEnabled(true) }
+    ) { granted ->
+        val target = pendingToggle
+        pendingToggle = null
+        if (granted) enableToggle(target)
+    }
 
-    fun toggleReminder(on: Boolean) {
-        if (!on) {
-            viewModel.setReminderEnabled(false)
-            return
-        }
+    // 토글을 켜려 할 때 — 알림 권한이 없으면 먼저 요청하고, 있으면 바로 켠다.
+    fun requestToggle(target: String) {
         val needsPermission = Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) !=
             android.content.pm.PackageManager.PERMISSION_GRANTED
         if (needsPermission) {
+            pendingToggle = target
             notifPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
         } else {
-            viewModel.setReminderEnabled(true)
+            enableToggle(target)
         }
     }
 
@@ -113,7 +135,10 @@ fun OnboardingNotificationScreen(
                         Spacer(Modifier.height(4.dp))
                         Text("매일 정한 시간에 알림", fontSize = 12.sp, color = colors.textSecondary)
                     }
-                    ToggleSwitch(checked = reminderEnabled, onCheckedChange = ::toggleReminder)
+                    ToggleSwitch(
+                        checked = reminderEnabled,
+                        onCheckedChange = { on -> if (on) requestToggle("reminder") else viewModel.setReminderEnabled(false) },
+                    )
                 }
                 AnimatedVisibility(visible = reminderEnabled) {
                     Column {
@@ -133,6 +158,23 @@ fun OnboardingNotificationScreen(
                         }
                     }
                 }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // 새 기록 알림 — 백그라운드로 HC 변경을 확인해 알린다.
+        SoodalCard(Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("새 기록 알림", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                    Spacer(Modifier.height(4.dp))
+                    Text("수영 기록이 들어오면 알림", fontSize = 12.sp, color = colors.textSecondary)
+                }
+                ToggleSwitch(
+                    checked = newRecordEnabled,
+                    onCheckedChange = { on -> if (on) requestToggle("newRecord") else viewModel.setNewRecordEnabled(false) },
+                )
             }
         }
 
@@ -180,3 +222,5 @@ private fun ToggleSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
         )
     }
 }
+
+private const val HC_BG_READ_PERMISSION = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
