@@ -67,7 +67,7 @@ fun OnboardingNicknameScreen(
     val valid = nickname.isNotBlank() && validPattern.matches(nickname)
     // 화면에 띄울 검증 안내 — 없으면 null
     val nicknameError = when {
-        hasJamo -> "완성되지 않은 글자가 있어요. 예: ㅇㅈ → 오지"
+        hasJamo -> "완성되지 않은 글자가 있어요."
         hasSpecialChar -> "특수문자는 사용할 수 없어요."
         else -> null
     }
@@ -106,13 +106,19 @@ fun OnboardingNicknameScreen(
             Spacer(Modifier.height(36.dp))
             SoodalTextField(nickname, { nickname = it }, placeholder = "닉네임 입력 (최대 10자)",
                 maxLength = 10, modifier = Modifier.fillMaxWidth())
+            // 오류 메시지(왼쪽)와 글자수 카운터(오른쪽)를 한 줄에 둔다 — 오류가 나도 카운터가 밀리지 않게.
             val shownError = nicknameError ?: saveError
-            if (shownError != null) {
-                Text(shownError, fontSize = 12.sp, color = colors.warn,
-                    modifier = Modifier.padding(top = 10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = shownError ?: "",
+                    fontSize = 12.sp, color = colors.warn,
+                    modifier = Modifier.weight(1f),
+                )
+                Text("${nickname.length}/10", fontSize = 11.sp, color = colors.textTertiary)
             }
-            Text("${nickname.length}/10", fontSize = 11.sp, color = colors.textTertiary,
-                modifier = Modifier.align(Alignment.End).padding(top = 6.dp))
 
             // 성별 선택 (선택사항)
             Spacer(Modifier.height(32.dp))
