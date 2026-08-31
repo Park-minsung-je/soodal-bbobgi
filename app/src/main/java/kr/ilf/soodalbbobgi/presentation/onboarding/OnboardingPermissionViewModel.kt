@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import kr.ilf.soodalbbobgi.core.di.ApplicationScope
 import kr.ilf.soodalbbobgi.data.asset.AssetManager
 import kr.ilf.soodalbbobgi.data.health.HcSwimSyncer
+import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -19,8 +20,16 @@ import javax.inject.Inject
 class OnboardingPermissionViewModel @Inject constructor(
     private val assetManager: AssetManager,
     private val hcSwimSyncer: HcSwimSyncer,
+    private val healthConnectManager: HealthConnectManager,
     @ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
+
+    /**
+     * 필수 HC 권한이 실제로 부여돼 있는지 조회한다.
+     * 요청 런처의 결과 셋은 신뢰할 수 없다 — 이미 전부 허용된 상태에서 재요청하면
+     * HC가 빈 결과를 돌려줘, 결과 셋만 보면 허용해 놓고도 화면이 멈춘다.
+     */
+    suspend fun hasAllPermissions(): Boolean = healthConnectManager.hasAllPermissions()
 
     /**
      * HC 권한 허용 직후 호출한다. 에셋·HC 동기화를 백그라운드로 실행한다.

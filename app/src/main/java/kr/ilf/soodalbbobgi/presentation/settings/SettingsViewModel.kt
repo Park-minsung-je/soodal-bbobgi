@@ -87,6 +87,17 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { _hcConnected.value = healthConnectManager.hasAllPermissions() }
     }
 
+    /**
+     * HC 권한 요청 플로우에서 돌아온 직후 — 결과 셋 대신 실제 권한 상태를 재조회해
+     * 판단한다 (이미 전부 허용된 상태에서 재요청하면 HC가 빈 결과를 돌려주기 때문).
+     */
+    fun onHcPermissionFlowReturned() {
+        viewModelScope.launch {
+            if (healthConnectManager.hasAllPermissions()) onHcPermissionGranted()
+            else _hcConnected.value = false
+        }
+    }
+
     /** 설정에서 HC 권한이 허용된 직후 — 상태 갱신 + 백그라운드 동기화 시작. */
     fun onHcPermissionGranted() {
         _hcConnected.value = true

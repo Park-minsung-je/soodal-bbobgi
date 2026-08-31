@@ -110,7 +110,8 @@ fun SettingsScreen(
     val hcPermissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
     ) { granted ->
-        if (granted.isNotEmpty()) viewModel.onHcPermissionGranted() else viewModel.refreshHcStatus()
+        // 결과 셋은 신뢰 불가(전부 허용된 상태에서 재요청하면 빈 셋) — 실제 상태를 재조회한다.
+        viewModel.onHcPermissionFlowReturned()
     }
 
     // ── 알림 설정 상태 + 권한 플로우 ──
