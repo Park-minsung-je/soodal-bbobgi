@@ -1,0 +1,434 @@
+package kr.ilf.soodalbbobgi.data.health
+
+import kr.ilf.soodalbbobgi.core.session.UserSession
+import kr.ilf.soodalbbobgi.core.state.AppStateLoader
+import kr.ilf.soodalbbobgi.data.remote.api.SoodalApi
+import kr.ilf.soodalbbobgi.data.remote.dto.UpdateStrokesRequest
+import kr.ilf.soodalbbobgi.core.util.averageHr
+import kr.ilf.soodalbbobgi.core.util.decodeHrSeries
+import kr.ilf.soodalbbobgi.data.remote.dto.SwimLogRequest
+import kr.ilf.soodalbbobgi.data.remote.dto.UpdateVitalsRequest
+import kr.ilf.soodalbbobgi.domain.model.SwimLog
+import kr.ilf.soodalbbobgi.domain.usecase.SwimLogUseCase
+import timber.log.Timber
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * HC ↔ 로컬 ↔ 서버 수영 기록 동기화 오케스트레이터 — Splash 자동 동기화와 홈 수동 동기화가 공유한다.
+ *
+ * 하루 여러 세션을 전제로 하며 HC 세션의 정체성은 hcRecordId다. 매 동기화는 가볍게:
+ * 1) 변경 토큰으로 추가/수정/삭제 변경분만 처리 (토큰이 없거나 만료면 오늘 기록만 읽고 새 토큰 발급)
+ * 2) 서버에 아직 보고 안 된(synced=false) 날짜의 일 집계를 전송 — 실패해도 다음 동기화에 재시도
+ * 3) 서버 pull — 로컬에 없는 과거 날짜를 서버 백업에서 복원
+ */
+@Singleton
+class HcSwimSyncer @Inject constructor(
+    private val healthConnectManager: HealthConnectManager,
+    private val swimLogUseCase: SwimLogUseCase,
+    private val soodalApi: SoodalApi,
+    private val hcSyncPreferences: HcSyncPreferences,
+    private val userSession: UserSession,
+    private val appStateLoader: AppStateLoader,
+) {
+
+    /**
+     * 전체 동기화를 수행한다.
+     *
+     * @return 이번 동기화로 서버가 지급한 조개 수
+     */
+    suspend fun sync(): Int {
+        retryPendingServerDeletes()
+        syncChanges()
+        val earned = pushUnsyncedDates()
+        pullServerSwimLogs()
+        return earned
+    }
+
+    /**
+     * 세션 하나를 삭제한다 — 캘린더의 세션 단위 삭제 진입점.
+     *
+     * 로컬 삭제는 즉시 확정하고(화면 반영), 서버 정합은 뒤따른다:
+     * 1. HC 유래 기록이면 hcRecordId를 블랙리스트에 등록 — 토큰 만료 폴백이나
+     *    HC 수정 이벤트로 같은 세션이 다시 와도 재수입하지 않는다.
+     * 2. 서버의 그 날짜 일 기록을 DELETE (soft-delete, 조개 미회수).
+     *    실패(오프라인 등)하면 대기 큐에 넣어 다음 [sync]에서 재시도하고,
+     *    그동안 [pullServerSwimLogs]가 그 날짜를 복원하지 않게 막는다.
+     * 3. 같은 날 잔여 세션이 있으면 미전송으로 되돌려 일 집계를 재전송한다
+     *    (같은 날짜 재등록의 조개 재지급은 서버가 차단).
+     */
+    suspend fun deleteSession(log: SwimLog) {
+        log.hcRecordId?.let { hcSyncPreferences.addDeletedHcRecordId(it) }
+        swimLogUseCase.deleteById(log.id)
+        reconcileServerAfterDelete(log.date)
+    }
+
+    /** 서버 삭제 대기 큐를 재시도한다 — 성공한 날짜는 큐에서 빠진다. */
+    private suspend fun retryPendingServerDeletes() {
+        for (date in hcSyncPreferences.getPendingServerDeletes()) {
+            reconcileServerAfterDelete(date)
+        }
+    }
+
+    /**
+     * 세션 삭제 후 서버 일 기록을 정합화한다 — DELETE 후 잔여 세션이 있으면 재전송.
+     * 서버의 명시적 4xx(이미 없음 등)는 성공으로 취급하고, 그 외 실패는 대기 큐에 남긴다.
+     */
+    private suspend fun reconcileServerAfterDelete(date: String) {
+        try {
+            soodalApi.deleteSwimLog(date)
+            hcSyncPreferences.removePendingServerDelete(date)
+        } catch (e: retrofit2.HttpException) {
+            if (e.code() in 400..499) {
+                // 서버에 이미 없음 등 명시적 거부 — 재시도 무의미, 성공 취급
+                hcSyncPreferences.removePendingServerDelete(date)
+            } else {
+                hcSyncPreferences.addPendingServerDelete(date)
+                Timber.w(e, "서버 수영 기록 삭제 실패(재시도 예약): $date")
+                return
+            }
+        } catch (e: Exception) {
+            hcSyncPreferences.addPendingServerDelete(date)
+            Timber.w(e, "서버 수영 기록 삭제 실패(재시도 예약): $date")
+            return
+        }
+        // 잔여 세션이 있으면 일 집계를 다시 보고한다 (조개 재지급은 서버가 방지)
+        if (swimLogUseCase.getLogsForDate(date).isNotEmpty()) {
+            swimLogUseCase.markUnsynced(date)
+            pushUnsyncedDates()
+        }
+    }
+
+    /**
+     * 수동 입력 기록을 오늘 세션으로 등록하고 서버에 보고한다.
+     * (인증은 v1에서 즉시 통과 — 추후 AI 사진 인증으로 대체 예정)
+     *
+     * @param distanceMeters 수영 거리(m)
+     * @param durationMin 수영 시간(분)
+     * @param calories 칼로리(kcal) — null이면 거리 기반 추정
+     * @param maxHr 최대 심박(bpm, 선택)
+     * @param minHr 최소 심박(bpm, 선택)
+     * @param avgHr 평균 심박(bpm, 선택)
+     * @param date 기록 날짜 — 기본은 오늘, 캘린더에서 과거 날짜 입력 가능 (미래는 호출부에서 차단)
+     * @param startTime 시작 시각 (선택) — 없으면 오늘은 등록 시각, 과거 날짜는 정오로 근사
+     * @param strokeFreeM~strokeKickM 영법별 거리(m) — 합계의 잔여분은 혼영으로 배정된다
+     * @return 서버가 지급한 조개 수 (그 날 첫 기록일 때만 > 0)
+     */
+    suspend fun registerManual(
+        distanceMeters: Int,
+        durationMin: Int,
+        calories: Int? = null,
+        maxHr: Int? = null,
+        minHr: Int? = null,
+        avgHr: Int? = null,
+        date: LocalDate = LocalDate.now(),
+        startTime: LocalTime? = null,
+        strokeFreeM: Int = 0,
+        strokeBreastM: Int = 0,
+        strokeBackM: Int = 0,
+        strokeFlyM: Int = 0,
+        strokeKickM: Int = 0,
+    ): Int {
+        val now = java.time.LocalDateTime.now()
+        val zone = ZoneId.systemDefault()
+        val startEpoch = when {
+            startTime != null -> date.atTime(startTime).atZone(zone).toEpochSecond()
+            // 과거 날짜는 시작 시각을 알 수 없으므로 정오로 둔다 (시간대 라벨용 근사값).
+            date == now.toLocalDate() -> now.atZone(zone).toEpochSecond()
+            else -> date.atTime(12, 0).atZone(zone).toEpochSecond()
+        }
+        val strokeSum = strokeFreeM + strokeBreastM + strokeBackM + strokeFlyM + strokeKickM
+        swimLogUseCase.addManualLog(
+            SwimLog(
+                userId = userSession.userId,
+                date = date.toString(),
+                startEpochSec = startEpoch,
+                distanceMeters = distanceMeters,
+                durationSeconds = durationMin * 60,
+                // 미입력 시 거리 기반 대략 추정 (자유형 완만 페이스 기준).
+                calories = calories ?: (distanceMeters * 0.21f).toInt(),
+                strokeFreestyleM = strokeFreeM,
+                strokeBreastM = strokeBreastM,
+                strokeBackM = strokeBackM,
+                strokeFlyM = strokeFlyM,
+                strokeKickM = strokeKickM,
+                strokeMixedM = (distanceMeters - strokeSum).coerceAtLeast(0),
+                source = "manual",
+                maxHr = maxHr,
+                minHr = minHr,
+                avgHr = avgHr,
+            )
+        )
+        return pushUnsyncedDates()
+    }
+
+    /** HC 변경분(추가/수정/삭제)을 반영한다. 토큰이 없거나 만료면 오늘 기록만 읽고 새 토큰 발급. */
+    private suspend fun syncChanges() {
+        val storedToken = hcSyncPreferences.getChangesToken()
+        if (storedToken != null) {
+            val result = healthConnectManager.getChanges(storedToken)
+            if (result != null) {
+                for (session in result.addedSessions) upsert(session)
+                processDeletedRecords(result.deletedRecordIds)
+                hcSyncPreferences.saveChangesToken(result.nextToken)
+                return
+            }
+        }
+        val token = healthConnectManager.getChangesToken()
+        val zone = ZoneId.systemDefault()
+        val now = java.time.LocalDateTime.now()
+        // 자정 직후 동기화하면 어제 밤 수영이 빠지지 않게 새벽 2시까지는 어제부터 읽는다
+        val fetchFrom = if (now.hour < 2) now.toLocalDate().minusDays(1) else now.toLocalDate()
+        val start = fetchFrom.atStartOfDay(zone).toInstant()
+        val end = now.toLocalDate().plusDays(1).atStartOfDay(zone).toInstant()
+        for (session in healthConnectManager.readSwimSessions(start, end)) upsert(session)
+        hcSyncPreferences.saveChangesToken(token)
+    }
+
+    private suspend fun upsert(session: SwimSession) {
+        // 앱에서 삭제한 세션은 재수입하지 않는다 — 토큰 만료 폴백/HC 수정 이벤트 부활 차단
+        if (session.hcRecordId in hcSyncPreferences.getDeletedHcRecordIds()) return
+        try {
+            swimLogUseCase.syncSwimLog(userSession.userId, session.toLog())
+        } catch (e: Exception) {
+            Timber.w(e, "수영 세션 저장 실패: ${session.date}")
+        }
+    }
+
+    /**
+     * Health Connect를 지정 기간만큼 **처음부터 다시 읽어** 로컬 기록을 채운다.
+     *
+     * 심박·활동시간은 로컬에만 있고 서버에는 없다. 그래서 로컬을 지우고 서버에서 되돌려
+     * 받으면 그 값들이 비어버리는데, HC를 다시 읽으면 같은 날짜의 서버산 행을 찾아
+     * 덮어쓰며 복구된다([SwimLogUseCase.syncSwimLog]).
+     *
+     * @param days 오늘부터 거슬러 다시 읽을 일수
+     * @return 새로 추가된 세션 수 (기존 행 갱신은 세지 않는다)
+     */
+    suspend fun resyncRange(days: Int): Int {
+        val zone = java.time.ZoneId.systemDefault()
+        val end = java.time.LocalDate.now().plusDays(1).atStartOfDay(zone).toInstant()
+        val start = java.time.LocalDate.now().minusDays(days.toLong()).atStartOfDay(zone).toInstant()
+        var added = 0
+        for (session in healthConnectManager.readSwimSessions(start, end)) {
+            val before = swimLogUseCase.getLogsForDate(session.date).size
+            upsert(session)
+            if (swimLogUseCase.getLogsForDate(session.date).size > before) added++
+        }
+        return added
+    }
+
+    /**
+     * 그 날의 영법 분배를 서버에 반영한다.
+     *
+     * 서버 기록은 일 단위라 그 날 모든 세션의 합계를 보낸다. 실패해도 로컬 저장은 그대로 두고
+     * 조용히 넘어간다 — 영법은 다음 동기화에서 다시 맞춰진다.
+     *
+     * @param date 대상 날짜 (`YYYY-MM-DD`)
+     * @return 영법을 처음 채워 받은 조개 수. 못 받았거나 전송에 실패하면 0
+     */
+    suspend fun pushStrokes(date: String): Int {
+        return try {
+            val rows = swimLogUseCase.getLogsForDate(date)
+            if (rows.isEmpty()) return 0
+            val res = soodalApi.updateSwimLogStrokes(
+                date,
+                UpdateStrokesRequest(
+                    strokeFreestyleM = rows.sumOf { it.strokeFreestyleM },
+                    strokeBreastM = rows.sumOf { it.strokeBreastM },
+                    strokeBackM = rows.sumOf { it.strokeBackM },
+                    strokeFlyM = rows.sumOf { it.strokeFlyM },
+                    strokeMixedM = rows.sumOf { it.strokeMixedM },
+                    strokeKickM = rows.sumOf { it.strokeKickM },
+                ),
+            )
+            val reward = res.data?.shellReward ?: return 0
+            // 잔액은 서버가 준 값을 그대로 쓴다 — 화면 재조회 없이 헤더가 바로 맞는다.
+            appStateLoader.applyShellBalance(reward.newBalance)
+            reward.earned
+        } catch (e: Exception) {
+            Timber.w(e, "영법 수정 서버 반영 실패 — 로컬에만 저장됨: $date")
+            0
+        }
+    }
+
+    /**
+     * 서버에 아직 보고 안 된(synced=false) 행이 있는 날짜의 일 집계를 전송한다.
+     * 네트워크 실패면 미전송으로 남아 다음 동기화에 자동 재시도된다.
+     */
+    private suspend fun pushUnsyncedDates(): Int {
+        var totalEarned = 0
+        for (date in swimLogUseCase.getUnsyncedDates()) {
+            try {
+                val rows = swimLogUseCase.getLogsForDate(date)
+                if (rows.isNotEmpty()) {
+                    totalEarned += postDayAggregate(date, rows)
+                }
+            } catch (e: retrofit2.HttpException) {
+                if (e.code() in 400..499) {
+                    // 서버의 명시적 거부(409 중복 등) — 재시도 무의미, 전송됨 처리.
+                    // 다만 심박은 아직 비어 있을 수 있으니 그것만 따로 채운다.
+                    if (e.code() == 409) backfillVitals(date)
+                    swimLogUseCase.markSynced(date)
+                    Timber.w("수영 기록 전송 거부(HTTP %d) — 전송됨 처리: %s", e.code(), date)
+                } else {
+                    Timber.w(e, "수영 기록 전송 실패: $date")
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "수영 기록 전송 실패: $date")
+            }
+        }
+        return totalEarned
+    }
+
+    /**
+     * 그 날짜의 세션 합계를 서버에 POST하고 지급된 조개 수를 반환한다.
+     * 서버 응답을 받았으면(수락이든 거부든) 전송됨으로 표시한다 —
+     * 거부(이미 있는 날짜 등)를 무한 재시도하지 않기 위함. 예외는 호출자가 처리.
+     */
+    private suspend fun postDayAggregate(date: String, rows: List<SwimLog>): Int {
+        // 영법은 행에 저장된 값을 그대로 합산한다 — 수동 입력의 영법 구성이 서버에도 보존된다.
+        // (HC 행은 저장 시 혼영=거리로 들어가므로 합계는 항상 거리와 일치한다)
+        val dayHr = aggregateDayHr(rows)
+        val response = soodalApi.addSwimLog(
+            SwimLogRequest(
+                date = date,
+                distanceMeters = rows.sumOf { it.distanceMeters },
+                durationSeconds = rows.sumOf { it.durationSeconds },
+                calories = rows.sumOf { it.calories },
+                strokeFreestyleM = rows.sumOf { it.strokeFreestyleM },
+                strokeBreastM = rows.sumOf { it.strokeBreastM },
+                strokeBackM = rows.sumOf { it.strokeBackM },
+                strokeFlyM = rows.sumOf { it.strokeFlyM },
+                strokeMixedM = rows.sumOf { it.strokeMixedM },
+                strokeKickM = rows.sumOf { it.strokeKickM },
+                source = if (rows.all { it.source == "manual" }) "manual" else "health_connect",
+                maxHr = dayHr.maxHr,
+                minHr = dayHr.minHr,
+                avgHr = dayHr.avgHr,
+                hrSeries = dayHr.hrSeries,
+            )
+        )
+        swimLogUseCase.markSynced(date)
+        if (!response.success || response.data == null) return 0
+        val earned = response.data.shellReward?.earned ?: 0
+        // 서버가 지급한 조개량을 로컬 swim_log에도 즉시 반영 (캘린더 표시용)
+        if (earned > 0) {
+            swimLogUseCase.updateShellsEarned(date, earned)
+        }
+        response.data.shellReward?.newBalance?.let { appStateLoader.applyShellReward(it) }
+        return earned
+    }
+
+    /**
+     * 이미 서버에 있는 날짜의 빈 심박만 채운다.
+     * 심박 컬럼이 생기기 전에 올라간 기록은 POST가 409로 막혀 심박을 올릴 길이 없다.
+     * 서버는 값이 있는 필드를 덮어쓰지 않으므로 실패해도 다음 동기화에 다시 시도하면 된다.
+     */
+    private suspend fun backfillVitals(date: String) {
+        try {
+            val dayHr = aggregateDayHr(swimLogUseCase.getLogsForDate(date))
+            if (dayHr.maxHr == null && dayHr.minHr == null &&
+                dayHr.avgHr == null && dayHr.hrSeries == null
+            ) return
+            soodalApi.updateSwimLogVitals(
+                date,
+                UpdateVitalsRequest(
+                    maxHr = dayHr.maxHr,
+                    minHr = dayHr.minHr,
+                    avgHr = dayHr.avgHr,
+                    hrSeries = dayHr.hrSeries,
+                ),
+            )
+            Timber.d("심박 백필 완료: $date")
+        } catch (e: Exception) {
+            Timber.w(e, "심박 백필 실패: $date")
+        }
+    }
+
+    private suspend fun processDeletedRecords(deletedRecordIds: List<String>) {
+        for (hcRecordId in deletedRecordIds) {
+            try {
+                val date = swimLogUseCase.getDateByHcRecordId(hcRecordId) ?: continue
+                swimLogUseCase.deleteByHcRecordId(hcRecordId)
+                // 같은 날 다른 세션이 남아 있으면 서버 일 기록은 유지한다
+                if (swimLogUseCase.getLogsForDate(date).isEmpty()) {
+                    soodalApi.deleteSwimLog(date)
+                }
+                Timber.d("수영 기록 삭제 동기화: $date ($hcRecordId)")
+            } catch (e: Exception) {
+                Timber.w(e, "수영 기록 삭제 동기화 실패: $hcRecordId")
+            }
+        }
+    }
+
+    /**
+     * HC가 못 채운 날짜만 서버 백업에서 복원한다.
+     * 기간을 지정하지 않아 전체 이력을 받는다 — 재설치·데이터 손실 뒤에는 최근 며칠이
+     * 아니라 있는 기록 전부가 돌아와야 한다.
+     */
+    private suspend fun pullServerSwimLogs() {
+        try {
+            val response = soodalApi.getSwimLogs()
+            if (response.success && response.data != null) {
+                // 서버 삭제가 아직 반영 안 된 날짜는 복원 대상에서 제외 (삭제 의도 보존)
+                val pendingDeletes = hcSyncPreferences.getPendingServerDeletes()
+                for (serverLog in response.data.items) {
+                    if (serverLog.date in pendingDeletes) continue
+                    // 행 하나의 실패가 나머지 복원을 막지 않게 날짜 단위로 격리한다
+                    try {
+                    swimLogUseCase.saveFromServer(
+                        SwimLog(
+                            userId = userSession.userId,
+                            date = serverLog.date,
+                            distanceMeters = serverLog.distanceMeters,
+                            durationSeconds = serverLog.durationSeconds,
+                            calories = serverLog.calories,
+                            strokeFreestyleM = serverLog.strokeFreestyleM,
+                            strokeBreastM = serverLog.strokeBreastM,
+                            strokeBackM = serverLog.strokeBackM,
+                            strokeFlyM = serverLog.strokeFlyM,
+                            strokeMixedM = serverLog.strokeMixedM,
+                            strokeKickM = serverLog.strokeKickM,
+                            source = serverLog.source,
+                            maxHr = serverLog.maxHr,
+                            minHr = serverLog.minHr,
+                            avgHr = serverLog.avgHr,
+                            hrSeries = serverLog.hrSeries,
+                            shellsEarned = serverLog.shellsEarned,
+                            synced = true, // 서버에서 온 기록 — 되돌려 보낼 필요 없음
+                        )
+                    )
+                    } catch (e: Exception) {
+                        Timber.w(e, "서버 기록 복원 실패(계속 진행): ${serverLog.date}")
+                    }
+                }
+                Timber.d("서버 수영 기록 pull 완료: ${response.data.items.size}개")
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "서버 수영 기록 pull 실패")
+        }
+    }
+
+    private fun SwimSession.toLog() = SwimLog(
+        userId = userSession.userId,
+        date = date,
+        startEpochSec = startEpochSec,
+        distanceMeters = distanceMeters,
+        durationSeconds = durationSeconds,
+        calories = calories,
+        strokeMixedM = distanceMeters,
+        source = "health_connect",
+        hcRecordId = hcRecordId,
+        maxHr = maxHr,
+        minHr = minHr,
+        // 평균은 저장 시점에 한 번 계산해 둔다 — 화면에서 매번 시계열을 훑지 않아도 되고,
+        // 시계열 없이 서버에서 복원된 행에도 평균이 남는다.
+        avgHr = averageHr(decodeHrSeries(hrSeries)),
+        activeSeconds = activeSeconds,
+        hrSeries = hrSeries,
+    )
+}

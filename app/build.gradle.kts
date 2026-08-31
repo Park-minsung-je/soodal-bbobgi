@@ -42,11 +42,11 @@ val soodalKakaoNativeAppKey = buildSecret("SOODAL_KAKAO_NATIVE_APP_KEY")
 val soodalGoogleWebClientId = buildSecret("SOODAL_GOOGLE_WEB_CLIENT_ID")
 
 android {
-    namespace = "com.soodalbbobgi.app"
+    namespace = "kr.ilf.soodalbbobgi"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.soodalbbobgi.app"
+        applicationId = "kr.ilf.soodalbbobgi"
         minSdk = 29
         targetSdk = 35
         versionCode = 1

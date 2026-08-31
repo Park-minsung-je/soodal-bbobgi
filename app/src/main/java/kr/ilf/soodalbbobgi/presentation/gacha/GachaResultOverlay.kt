@@ -1,0 +1,350 @@
+package kr.ilf.soodalbbobgi.presentation.gacha
+
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.RoundedCornerShape
+import kr.ilf.soodalbbobgi.core.theme.JetBrainsMonoFamily
+import kr.ilf.soodalbbobgi.core.theme.SoodalDesign
+import kr.ilf.soodalbbobgi.core.ui.AssetImage
+import kr.ilf.soodalbbobgi.core.ui.ButtonStyle
+import kr.ilf.soodalbbobgi.core.ui.ChipColor
+import kr.ilf.soodalbbobgi.core.ui.GlassFrostTintHeavy
+import kr.ilf.soodalbbobgi.core.ui.GlassSheen
+import kr.ilf.soodalbbobgi.core.ui.GradeBadge
+import kr.ilf.soodalbbobgi.core.ui.LocalHazeContent
+import kr.ilf.soodalbbobgi.core.ui.SoodalButton
+import kr.ilf.soodalbbobgi.core.ui.SoodalChip
+import kr.ilf.soodalbbobgi.core.ui.SoodalIcon
+import kr.ilf.soodalbbobgi.core.ui.SoodalIcons
+import kr.ilf.soodalbbobgi.core.ui.glassFrost
+import kr.ilf.soodalbbobgi.core.ui.glassShadow
+import kr.ilf.soodalbbobgi.core.ui.motion.rememberPopupEnter
+import kr.ilf.soodalbbobgi.domain.model.Grade
+
+/** 카테고리 → 한국어 라벨. */
+private fun kindLabel(kind: String): String = when (kind) {
+    "char" -> "캐릭터"
+    "bg" -> "배경"
+    "frame" -> "테두리"
+    else -> "아이템"
+}
+
+/** 카테고리 → 대표 아이콘 (이미지 없을 때 폴백). */
+private fun kindIcon(kind: String): SoodalIcons = when (kind) {
+    "char" -> SoodalIcons.Otter
+    "bg" -> SoodalIcons.Aurora
+    "frame" -> SoodalIcons.Frame
+    else -> SoodalIcons.Gift
+}
+
+@Composable
+private fun gradeColor(grade: Grade) = when (grade) {
+    Grade.SSR -> SoodalDesign.colors.accentGold
+    Grade.SR -> SoodalDesign.colors.accentPurple
+    Grade.R -> SoodalDesign.colors.accentBlue
+    Grade.N -> SoodalDesign.colors.textSecondary
+}
+
+/**
+ * 뽑기/상점 박스 결과 공용 오버레이.
+ *
+ * 결과를 한 장씩 넘겨 보거나(다회), "전체 결과 보기"로 그리드 목록을 펼칠 수 있다.
+ * 인덱스/전체보기 상태는 내부에서 관리하므로 호출부는 결과 리스트와 닫기 콜백만 넘기면 된다.
+ *
+ * @param results 표시할 결과 목록 (비어 있으면 아무것도 그리지 않음)
+ * @param onClose 닫기/계속 콜백
+ * @param onApplyProfile 캐릭터 결과에서 "프로필 적용"을 눌렀을 때 (null이면 버튼 숨김)
+ */
+@Composable
+fun GachaResultOverlay(
+    results: List<GachaResultItem>,
+    onClose: () -> Unit,
+    onApplyProfile: (() -> Unit)? = null,
+) {
+    if (results.isEmpty()) return
+    val colors = SoodalDesign.colors
+    val p = rememberPopupEnter()
+    // (탭바 dim 불필요 — 오버레이 레이어로 호이스팅되어 스크림이 탭바까지 직접 덮는다)
+
+    // 백키 = 결과 팝업 닫기 우선.
+    androidx.activity.compose.BackHandler { onClose() }
+
+    var index by remember(results) { mutableIntStateOf(0) }
+    var showAll by remember(results) { mutableStateOf(false) }
+
+    Box(
+        Modifier.fillMaxSize()
+            .background(Color.Black.copy(alpha = kr.ilf.soodalbbobgi.core.ui.SoodalDimAlpha * p.coerceIn(0f, 1f)))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier.graphicsLayer {
+                // 첫 프레임은 스케일 1로 배치 — 축소 상태 배치는 블러 위치가 어긋난 채 굳는다.
+                val s = kr.ilf.soodalbbobgi.core.ui.motion.popupEnterScale(p)
+                scaleX = s
+                scaleY = s
+                alpha = p.coerceIn(0f, 1f)
+                // alpha<1일 때 오프스크린 합성이 경계 밖 그림자를 잘라 스프링 정착 중
+                // 그림자가 깜빡인다 — 클립 없는 알파 변조로 그린다.
+                compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
+            },
+            contentAlignment = Alignment.Center,
+        ) {
+            if (showAll) {
+                ResultGrid(results = results, onClose = onClose)
+            } else {
+                ResultSingle(
+                    results = results,
+                    index = index,
+                    onNext = { if (index < results.size - 1) index++ },
+                    onShowAll = { showAll = true },
+                    onClose = onClose,
+                    onApplyProfile = onApplyProfile,
+                )
+            }
+        }
+    }
+}
+
+/** 한 장씩 보기. */
+@Composable
+private fun ResultSingle(
+    results: List<GachaResultItem>,
+    index: Int,
+    onNext: () -> Unit,
+    onShowAll: () -> Unit,
+    onClose: () -> Unit,
+    onApplyProfile: (() -> Unit)?,
+) {
+    val colors = SoodalDesign.colors
+    val item = results[index]
+    val isLast = index == results.size - 1
+    val gc = gradeColor(item.grade)
+    val glow = gc.copy(alpha = if (item.grade == Grade.N) 0.1f else 0.55f)
+
+    val bounceScale by animateFloatAsState(
+        targetValue = 1f, animationSpec = spring(dampingRatio = 0.4f, stiffness = 300f),
+        label = "bounce",
+    )
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // 모달 프레임 — 공통 글래스: 뒤 콘텐츠 프로스트(블러) + 흰 하이라이트 보더 + 상단 sheen.
+        val panelShape = RoundedCornerShape(24.dp)
+        Box(
+            Modifier.padding(horizontal = 40.dp).fillMaxWidth()
+                .glassShadow(24.dp, colors)
+                // 화려한 인양 씬 위 — 가독을 위해 진한 틴트 사용.
+                .glassFrost(colors, panelShape, LocalHazeContent.current, tintAlpha = GlassFrostTintHeavy)
+                .border(1.dp, colors.glassBorder, panelShape),
+        ) {
+            GlassSheen(panelShape)
+            Box(Modifier.padding(22.dp, 18.dp)) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                if (results.size > 1) {
+                    Text(
+                        "${index + 1} / ${results.size}",
+                        fontSize = 11.sp, color = colors.textSecondary, fontFamily = JetBrainsMonoFamily,
+                        modifier = Modifier.align(Alignment.End)
+                            .background((if (colors.isDark) Color.White else Color.Black).copy(alpha = 0.06f), RoundedCornerShape(999.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                }
+
+                SoodalChip("${kindLabel(item.kind)} 상자", color = ChipColor.Blue)
+                Spacer(Modifier.height(12.dp))
+                GradeBadge(item.grade)
+                Spacer(Modifier.height(14.dp))
+
+                Box(
+                    Modifier.size(64.dp).scale(bounceScale)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(glow.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (!item.imageAsset.isNullOrBlank()) {
+                        AssetImage(imageAsset = item.imageAsset, contentDescription = item.name, modifier = Modifier.fillMaxWidth())
+                    } else {
+                        SoodalIcon(icon = kindIcon(item.kind), tint = gc, size = 32.dp)
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
+                Text(item.name, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+                Spacer(Modifier.height(5.dp))
+
+                if (item.isNew) {
+                    Text("${kindLabel(item.kind)} — 새로 획득!", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = gc)
+                } else {
+                    Text("이미 보유 중인 ${kindLabel(item.kind)}", fontSize = 11.sp, color = colors.textTertiary)
+                    Spacer(Modifier.height(7.dp))
+                    Row(
+                        modifier = Modifier
+                            .background(
+                                Brush.horizontalGradient(listOf(colors.accentPurple.copy(alpha = 0.15f), colors.accentPurple.copy(alpha = 0.05f))),
+                                RoundedCornerShape(12.dp),
+                            )
+                            .border(1.dp, colors.accentPurple.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 15.dp)
+                        Text("진주 +${item.pearlsEarned}", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, fontFamily = JetBrainsMonoFamily, color = colors.accentPurple)
+                        Text("교환 완료", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = colors.accentPurple.copy(alpha = 0.7f))
+                    }
+                }
+
+                Spacer(Modifier.height(18.dp))
+
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (!isLast && results.size > 1) {
+                        SoodalButton("다음 →", onClick = onNext, style = ButtonStyle.Primary, modifier = Modifier.weight(1f))
+                    } else {
+                        // 단발도 10연의 '다음'과 동일한 밝은 Primary — 적용은 퍼플로 구분.
+                        SoodalButton("계속", onClick = onClose, style = ButtonStyle.Primary, modifier = Modifier.weight(1f))
+                        if (item.kind == "char" && onApplyProfile != null) {
+                            SoodalButton("프로필 적용", onClick = onApplyProfile, style = ButtonStyle.Purple, modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+            } // 패널 패딩 Box
+        }
+
+        if (!isLast && results.size > 1) {
+            Spacer(Modifier.height(14.dp))
+            // 이 버튼만 유리 패널 밖, 어둡게 깔린 인양 씬 위에 놓인다 —
+            // Ghost 기본 회색은 그 위에서 거의 안 보여 흰색으로 바꾼다.
+            SoodalButton(
+                "전체 결과 보기",
+                onClick = onShowAll,
+                style = ButtonStyle.Ghost,
+                textColorOverride = Color.White,
+            )
+        }
+    }
+}
+
+/** 전체 결과 그리드 (2열 목록). */
+@Composable
+private fun ResultGrid(
+    results: List<GachaResultItem>,
+    onClose: () -> Unit,
+) {
+    val colors = SoodalDesign.colors
+    // 단발 보기와 동일한 글래스 프레임 (프로스트 + 보더 + sheen).
+    val panelShape = RoundedCornerShape(24.dp)
+    Box(
+        Modifier.padding(horizontal = 24.dp).fillMaxWidth()
+            .glassShadow(24.dp, colors)
+            // 화려한 인양 씬 위 — 가독을 위해 진한 틴트 사용.
+            .glassFrost(colors, panelShape, LocalHazeContent.current, tintAlpha = GlassFrostTintHeavy)
+            .border(1.dp, colors.glassBorder, panelShape),
+    ) {
+    GlassSheen(panelShape)
+    Column(
+        Modifier.fillMaxWidth().padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("전체 결과 (${results.size}개)", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+        Spacer(Modifier.height(14.dp))
+
+        Column(
+            Modifier.fillMaxWidth().heightIn(max = 380.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            results.chunked(2).forEach { rowItems ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    rowItems.forEach { item ->
+                        ResultGridCell(item = item, modifier = Modifier.weight(1f))
+                    }
+                    if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        SoodalButton("계속", onClick = onClose, style = ButtonStyle.Primary, modifier = Modifier.fillMaxWidth())
+    }
+    } // 글래스 프레임 Box
+}
+
+/** 그리드 셀 1개. */
+@Composable
+private fun ResultGridCell(item: GachaResultItem, modifier: Modifier = Modifier) {
+    val colors = SoodalDesign.colors
+    val gc = gradeColor(item.grade)
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            // 등급색 테두리는 프로스트 위에서 칙칙해 보여 제거 — 등급 구분은 배지가 담당.
+            .background(if (colors.isDark) Color.White.copy(alpha = 0.08f) else Color.White)
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(
+            Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)).background(gc.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (!item.imageAsset.isNullOrBlank()) {
+                AssetImage(imageAsset = item.imageAsset, contentDescription = item.name, modifier = Modifier.fillMaxWidth())
+            } else {
+                SoodalIcon(icon = kindIcon(item.kind), tint = gc, size = 22.dp)
+            }
+        }
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                GradeBadge(item.grade)
+            }
+            Spacer(Modifier.height(2.dp))
+            Text(
+                item.name,
+                fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                color = colors.textPrimary, maxLines = 1,
+            )
+            if (item.isNew) {
+                Text("NEW", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = gc)
+            } else {
+                Text("진주 +${item.pearlsEarned}", fontSize = 9.sp, fontWeight = FontWeight.SemiBold, color = colors.accentPurple)
+            }
+        }
+    }
+}

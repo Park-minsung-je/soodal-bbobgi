@@ -1,0 +1,127 @@
+package kr.ilf.soodalbbobgi.core.ui
+
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.material3.Text
+import kr.ilf.soodalbbobgi.core.theme.SoodalDesign
+import kr.ilf.soodalbbobgi.core.theme.SoodalShape
+
+enum class ButtonStyle { Primary, Gold, Purple, Secondary, Ghost, Warn }
+
+/**
+ * 공용 버튼 컴포저블.
+ *
+ * @param heightOverride 스타일별 기본 높이(Primary/Gold/Purple 52dp, Secondary 44dp,
+ *   Ghost 36dp)를 무시하고 강제로 적용할 높이. null이면 스타일 기본 사용.
+ *   같은 행에 다른 스타일 버튼을 나란히 둘 때 시각적 높이를 맞추기 위해 사용.
+ */
+@Composable
+fun SoodalButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    style: ButtonStyle = ButtonStyle.Primary,
+    enabled: Boolean = true,
+    heightOverride: Dp? = null,
+    /** 스타일 기본 배경 대신 쓸 채움 — 흰 패널 위 Secondary처럼 배경 대비가 필요할 때. */
+    backgroundOverride: Brush? = null,
+    /** 스타일 기본 글자색 대신 쓸 색 — 채움 없는 Ghost가 어두운 씬 위에 놓일 때처럼. */
+    textColorOverride: Color? = null,
+) {
+    val colors = SoodalDesign.colors
+    val background = backgroundOverride ?: when (style) {
+        ButtonStyle.Primary -> colors.gradBlue
+        ButtonStyle.Gold -> colors.gradGold
+        ButtonStyle.Purple -> colors.gradPurple
+        ButtonStyle.Warn -> SolidColor(colors.warn)
+        else -> null
+    }
+    val textColor = textColorOverride ?: when (style) {
+        ButtonStyle.Primary -> colors.btnPrimaryText
+        ButtonStyle.Gold -> colors.btnGoldText
+        ButtonStyle.Purple -> colors.btnPurpleText
+        ButtonStyle.Warn -> colors.btnPrimaryText
+        ButtonStyle.Secondary -> colors.textPrimary
+        ButtonStyle.Ghost -> colors.textSecondary
+    }
+    val glowColor = when (style) {
+        ButtonStyle.Primary -> colors.glowBlue
+        ButtonStyle.Gold -> colors.glowGold
+        ButtonStyle.Purple -> colors.glowPurple
+        else -> null
+    }
+    val height = heightOverride ?: when (style) {
+        ButtonStyle.Ghost -> 36.dp
+        ButtonStyle.Secondary -> 44.dp
+        else -> 52.dp
+    }
+    val shape = SoodalShape.md
+
+    val shadowModifier = if (glowColor != null && enabled) {
+        Modifier.shadow(12.dp, shape, ambientColor = glowColor, spotColor = glowColor)
+    } else Modifier
+
+    val bgModifier = when {
+        // Secondary + 오버라이드: 채움을 바꿔도 테두리는 유지 (흰 패널 위 대비용, 옅은 잉크).
+        background != null && style == ButtonStyle.Secondary -> Modifier
+            .background(background, shape)
+            .border(1.dp, Color(0xFF27384B).copy(alpha = 0.08f), shape)
+        background != null -> Modifier.background(background, shape)
+        style == ButtonStyle.Secondary -> Modifier
+            .background(colors.glassBg, shape)
+            .border(1.dp, colors.glassBorder, shape)
+        else -> Modifier
+    }
+
+    Row(
+        modifier = modifier
+            .then(shadowModifier)
+            .height(height)
+            .clip(shape)
+            .then(bgModifier)
+            .clickable(
+                enabled = enabled,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = LocalIndication.current,
+                onClick = onClick,
+            )
+            .padding(horizontal = when (style) {
+                ButtonStyle.Ghost -> 12.dp
+                ButtonStyle.Secondary -> 16.dp
+                else -> 20.dp
+            }),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = text,
+            color = if (enabled) textColor else textColor.copy(alpha = 0.4f),
+            fontSize = when (style) {
+                ButtonStyle.Ghost -> 13.sp
+                ButtonStyle.Secondary -> 14.sp
+                else -> 15.sp
+            },
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
