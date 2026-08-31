@@ -30,6 +30,12 @@ fun buildSecret(key: String): String = localProps.getProperty(key)
             "local.properties.sample을 local.properties로 복사한 뒤 값을 채우세요.",
     )
 
+// 릴리즈 서명 — keystore.properties가 있을 때만 활성 (파일·비밀번호는 git 미추적).
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
 val soodalBaseUrl = buildSecret("SOODAL_BASE_URL")
 val soodalAssetBaseUrl = buildSecret("SOODAL_ASSET_BASE_URL")
 val soodalKakaoNativeAppKey = buildSecret("SOODAL_KAKAO_NATIVE_APP_KEY")
@@ -57,6 +63,17 @@ android {
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$soodalGoogleWebClientId\"")
     }
 
+    signingConfigs {
+        if (keystoreProps.isNotEmpty()) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             buildConfigField("String", "BASE_URL", "\"$soodalBaseUrl\"")
@@ -66,9 +83,9 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // 테스트 설치용 디버그 서명 — OAuth(SHA-1/키해시)도 디버그 키 기준 등록이라 그대로 동작.
-            // Play 출시 시 릴리즈 키스토어로 교체.
-            signingConfig = signingConfigs.getByName("debug")
+            // keystore.properties가 있으면 릴리즈 키 서명, 없으면(다른 PC 등) 디버그 키 폴백.
+            signingConfig = if (keystoreProps.isNotEmpty()) signingConfigs.getByName("release")
+                            else signingConfigs.getByName("debug")
         }
     }
 
