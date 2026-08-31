@@ -81,11 +81,11 @@ data class CardLayers(
     /** 기록 칩 알약 스타일. */
     val statsPill: String = "BLUR",
     /** 닉네임 색상 ("#RRGGBB"). */
-    val nicknameColor: String = "#FFFFFF",
+    val nicknameColor: String = "#000000",
     /** 소개 줄 색상 ("#RRGGBB"). */
-    val taglineColor: String = "#FFFFFF",
+    val taglineColor: String = "#000000",
     /** 기록 줄 색상 ("#RRGGBB"). */
-    val statsColor: String = "#00F5FF",
+    val statsColor: String = "#000000",
     // ── 요소별 글자 외곽선(테두리) — 알약 없음(NONE) 스타일에서만 그려진다 ──
     val nicknameOutline: Boolean = false,
     val taglineOutline: Boolean = false,
@@ -326,7 +326,7 @@ object ProfileCardRenderer {
                 text = layers.nickname,
                 textSize = NICKNAME_BASE_SIZE * u * scaleMulOf(layers.nicknameScaleStep),
                 style = layers.nicknamePill,
-                colorRaw = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.WHITE),
+                colorRaw = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.BLACK),
                 cx = layers.nicknameX, cy = layers.nicknameY,
                 fontStyle = layers.nicknameStyle, outline = layers.nicknameOutline,
             )
@@ -336,7 +336,7 @@ object ProfileCardRenderer {
                 text = layers.tagline,
                 textSize = TAGLINE_BASE_SIZE * u * scaleMulOf(layers.taglineScaleStep),
                 style = layers.taglinePill,
-                colorRaw = parseColorOrDefault(layers.taglineColor, android.graphics.Color.WHITE),
+                colorRaw = parseColorOrDefault(layers.taglineColor, android.graphics.Color.BLACK),
                 cx = layers.taglineX, cy = layers.taglineY,
                 fontStyle = layers.taglineStyle, outline = layers.taglineOutline,
             )
@@ -346,7 +346,7 @@ object ProfileCardRenderer {
                 text = layers.stats,
                 textSize = STATS_BASE_SIZE * u * scaleMulOf(layers.statsScaleStep),
                 style = layers.statsPill,
-                colorRaw = parseColorOrDefault(layers.statsColor, Color(0xFF00F5FF).toArgb()),
+                colorRaw = parseColorOrDefault(layers.statsColor, android.graphics.Color.BLACK),
                 cx = layers.statsX, cy = layers.statsY,
                 fontStyle = layers.statsStyle, outline = layers.statsOutline,
             )

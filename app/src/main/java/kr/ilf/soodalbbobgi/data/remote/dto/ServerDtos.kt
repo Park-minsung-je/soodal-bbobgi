@@ -37,9 +37,9 @@ data class ServerProfileCard(
     val nicknamePill: String? = null,
     val taglinePill: String? = null,
     val statsPill: String? = null,
-    val nicknameColor: String = "#FFFFFF",
-    val taglineColor: String = "#FFFFFF",
-    val statsColor: String = "#00F5FF",
+    val nicknameColor: String = "#000000",
+    val taglineColor: String = "#000000",
+    val statsColor: String = "#000000",
     /** 요소별 글꼴/외곽선 — 구서버 응답엔 없을 수 있어 nullable (없으면 전역 값에서 유도). */
     val nicknameStyle: String? = null,
     val taglineStyle: String? = null,
