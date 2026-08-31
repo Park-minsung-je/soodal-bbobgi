@@ -534,6 +534,9 @@ class HealthConnectManager @Inject constructor(
             HealthPermission.getReadPermission(HeartRateRecord::class),
             HealthPermission.getReadPermission(SpeedRecord::class),
             HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
+            // 첫 권한 승인 30일 이전 데이터 읽기 — 재설치 후 전체 이력 복원에 필요.
+            // 필수 권한은 아니라 requiredPermissions에는 넣지 않는다 (거부해도 동작).
+            HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY,
         )
     }
 }
