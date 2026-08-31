@@ -1,6 +1,9 @@
 ﻿package kr.ilf.soodalbbobgi.presentation.onboarding
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -64,23 +67,55 @@ fun OnboardingPermissionScreen(
 
     var permissionGranted by remember { mutableStateOf(false) }
     var permissionRequested by remember { mutableStateOf(false) }
+    var syncing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // Health Connect 권한 요청 런처 — 권한 셋은 설정 화면과 공용
     val healthPermissions = HealthConnectManager.requestPermissions
 
+    val scope = rememberCoroutineScope()
+
+    // 결과 셋(grantedPermissions)으로 판단하지 않는다 — HC는 이미 전부 허용된 상태에서
+    // 재요청하면 빈 결과를 돌려주므로, 허용해 놓고도 화면이 멈추는 버그가 있었다.
+    // 런처가 돌아오면 실제 권한 상태를 다시 조회해서 판단한다.
+    // 권한 확인 → 동기화까지 마치고 넘어간다. 동기화가 실패하면 화면에 머물며 토스트로 알린다.
+    suspend fun proceedIfGranted() {
+        val granted = viewModel.hasAllPermissions()
+        permissionGranted = granted
+        if (!granted) {
+            errorMessage = "권한이 허용되지 않았어요. 다시 시도하거나 나중에 설정에서 허용할 수 있어요."
+            return
+        }
+        syncing = true
+        val errorCode = viewModel.syncAfterPermission()
+        syncing = false
+        if (errorCode == null) {
+            onConnect()
+        } else {
+            android.widget.Toast.makeText(
+                context, "동기화에 실패했어요. 잠시 후 다시 시도해주세요. ($errorCode)",
+                android.widget.Toast.LENGTH_LONG,
+            ).show()
+        }
+    }
+
+    val onPermissionFlowReturned: () -> Unit = {
+        permissionRequested = true
+        scope.launch { proceedIfGranted() }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
     ) { grantedPermissions ->
-        permissionRequested = true
-        permissionGranted = grantedPermissions.isNotEmpty()
-        Timber.d("Health Connect 권한 결과: granted=$permissionGranted (${grantedPermissions.size}/${healthPermissions.size})")
-        if (permissionGranted) {
-            // 권한 허용 직후 에셋·HC 동기화를 시작한다 (앱 스코프라 화면 전환과 무관하게 완료됨).
-            viewModel.onPermissionGranted()
-            onConnect()
-        } else {
-            errorMessage = "권한이 허용되지 않았어요. 다시 시도하거나 나중에 설정에서 허용할 수 있어요."
+        Timber.d("Health Connect 권한 결과 셋: ${grantedPermissions.size}/${healthPermissions.size} (판단은 재조회로)")
+        onPermissionFlowReturned()
+    }
+
+    // 이미 전부 허용된 채 이 화면에 온 경우(재설치 후 복원 등) 요청 없이 바로 넘어간다.
+    LaunchedEffect(Unit) {
+        if (isHealthConnectAvailable && viewModel.hasAllPermissions()) {
+            Timber.d("Health Connect 권한 이미 허용됨 — 온보딩 권한 화면 자동 통과")
+            proceedIfGranted()
         }
     }
 
@@ -127,8 +162,8 @@ fun OnboardingPermissionScreen(
                 }
             }
 
-            // 카메라 — 선택 (비활성)
-            SoodalCard(Modifier.fillMaxWidth().then(Modifier.alpha(0.45f))) {
+            // 카메라 — 선택 (비활성). 사진 인증 기능이 생기면 SHOW_CAMERA_CARD로 되살린다.
+            if (SHOW_CAMERA_CARD) SoodalCard(Modifier.fillMaxWidth().then(Modifier.alpha(0.45f))) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalAlignment = Alignment.Top,
@@ -158,10 +193,12 @@ fun OnboardingPermissionScreen(
         Spacer(Modifier.weight(1f))
         SoodalButton(
             text = when {
+                syncing -> "동기화 중…"
                 !isHealthConnectAvailable -> "Health Connect 설치 필요"
                 permissionRequested && !permissionGranted -> "다시 시도하기"
                 else -> "Health Connect 연결하기"
             },
+            enabled = !syncing,
             onClick = {
                 errorMessage = null
                 if (isHealthConnectAvailable) {
@@ -181,3 +218,6 @@ fun OnboardingPermissionScreen(
         SoodalButton("나중에 하기", onClick = onSkip, style = ButtonStyle.Ghost, modifier = Modifier.fillMaxWidth())
     }
 }
+
+/** 카메라 권한 카드 노출 여부 — 사진 인증 기능 도입 전까지 숨긴다. */
+private const val SHOW_CAMERA_CARD = false

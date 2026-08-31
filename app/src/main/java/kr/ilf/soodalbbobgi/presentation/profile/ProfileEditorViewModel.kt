@@ -79,7 +79,7 @@ data class TextElementState(
     val y: Float = 0.40f,
     val scaleStep: Int = 3,
     val pill: String = "WHITE",
-    val color: String = "#FFFFFF",
+    val color: String = "#000000",
     val bold: Boolean = false,
     val italic: Boolean = false,
     val outline: Boolean = false,

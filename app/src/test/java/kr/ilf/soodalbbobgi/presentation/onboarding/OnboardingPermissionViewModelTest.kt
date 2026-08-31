@@ -1,5 +1,6 @@
 package kr.ilf.soodalbbobgi.presentation.onboarding
 
+import com.google.common.truth.Truth.assertThat
 import kr.ilf.soodalbbobgi.data.asset.AssetManager
 import kr.ilf.soodalbbobgi.data.asset.AssetSyncProgress
 import kr.ilf.soodalbbobgi.data.health.HcSwimSyncer
@@ -29,12 +30,14 @@ class OnboardingPermissionViewModelTest {
 
     private lateinit var assetManager: AssetManager
     private lateinit var hcSwimSyncer: HcSwimSyncer
+    private lateinit var healthConnectManager: kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 
     @Before
     fun setup() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         assetManager = mockk(relaxed = true)
         hcSwimSyncer = mockk(relaxed = true)
+        healthConnectManager = mockk(relaxed = true)
         every { assetManager.progress } returns MutableStateFlow(AssetSyncProgress.Idle)
         coEvery { assetManager.sync() } returns Result.success(Unit)
         coEvery { hcSwimSyncer.sync() } returns 0
@@ -46,45 +49,45 @@ class OnboardingPermissionViewModelTest {
     }
 
     private fun vm() = OnboardingPermissionViewModel(assetManager, hcSwimSyncer,
-        CoroutineScope(UnconfinedTestDispatcher()))
+        healthConnectManager, CoroutineScope(UnconfinedTestDispatcher()))
 
     @Test
-    fun `onPermissionGranted triggers assetManager sync`() = runTest {
+    fun `syncAfterPermission triggers assetManager sync`() = runTest {
         val viewModel = vm()
-        viewModel.onPermissionGranted()
+        viewModel.syncAfterPermission()
 
-        // 권한 허용 직후 에셋 동기화가 트리거되어야 한다 (증상 1 — 권한 경로)
+        // 권한 허용 직후 에셋 동기화가 트리거되어야 한다 (앱 스코프 백그라운드)
         coVerify { assetManager.sync() }
     }
 
     @Test
-    fun `onPermissionGranted triggers HC sync`() = runTest {
+    fun `syncAfterPermission triggers HC sync and returns null on success`() = runTest {
         val viewModel = vm()
-        viewModel.onPermissionGranted()
+        val code = viewModel.syncAfterPermission()
 
-        // 권한 허용 직후 HC 동기화가 트리거되어야 한다 (증상 2 — 권한 경로)
         coVerify { hcSwimSyncer.sync() }
+        assertThat(code).isNull()
     }
 
     @Test
-    fun `onPermissionGranted does not throw when assetManager sync fails`() = runTest {
-        coEvery { assetManager.sync() } returns Result.failure(RuntimeException("network error"))
-
-        val viewModel = vm()
-        // 실패해도 예외가 전파되지 않아야 한다
-        viewModel.onPermissionGranted()
-
-        coVerify { assetManager.sync() }
-    }
-
-    @Test
-    fun `onPermissionGranted does not throw when HC sync fails`() = runTest {
+    fun `syncAfterPermission returns a code when HC sync fails`() = runTest {
         coEvery { hcSwimSyncer.sync() } throws RuntimeException("HC error")
 
         val viewModel = vm()
-        // HC 동기화 실패가 앱을 죽이지 않아야 한다
-        viewModel.onPermissionGranted()
+        val code = viewModel.syncAfterPermission()
 
-        coVerify { hcSwimSyncer.sync() }
+        // 실패는 예외로 터지지 않고 3자리 코드로 화면에 전달된다
+        assertThat(code).isEqualTo("900")
+    }
+
+    @Test
+    fun `syncAfterPermission survives an asset sync failure`() = runTest {
+        coEvery { assetManager.sync() } returns Result.failure(RuntimeException("network error"))
+
+        val viewModel = vm()
+        val code = viewModel.syncAfterPermission()
+
+        // 에셋 실패는 백그라운드라 결과에 영향 없음 — HC 성공이면 null
+        assertThat(code).isNull()
     }
 }

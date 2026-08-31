@@ -1,5 +1,7 @@
 ﻿package kr.ilf.soodalbbobgi.presentation.onboarding
 
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.layout.offset
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -153,8 +155,9 @@ fun OnboardingNotificationScreen(
 private fun ToggleSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     val colors = SoodalDesign.colors
     val trackColor = if (checked) colors.accentBlue else colors.surface3
+    // ON 오프셋 = 트랙(44) − 썸(20) − 좌우 여백(2) = 22 → 켜짐/꺼짐 여백이 좌우 대칭 (설정과 동일).
     val thumbOffset by animateDpAsState(
-        targetValue = if (checked) 20.dp else 2.dp,
+        targetValue = if (checked) 22.dp else 2.dp,
         animationSpec = tween(200),
         label = "thumb",
     )
@@ -168,9 +171,10 @@ private fun ToggleSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     ) {
         Box(
             modifier = Modifier
-                .padding(start = thumbOffset)
+                .offset(x = thumbOffset)
                 .size(20.dp)
                 .align(Alignment.CenterStart)
+                .shadow(2.dp, CircleShape) // 흰 썸이 꺼짐 상태의 밝은 트랙과도 구분되도록
                 .clip(CircleShape)
                 .background(Color.White),
         )

@@ -158,7 +158,7 @@ class ProfileEditorViewModelTest {
         assertThat(s.nicknameEl.show).isTrue()
         assertThat(s.nicknameEl.scaleStep).isEqualTo(3)
         assertThat(s.nicknameEl.pill).isEqualTo("WHITE")
-        assertThat(s.nicknameEl.color).isEqualTo("#FFFFFF")
+        assertThat(s.nicknameEl.color).isEqualTo("#000000")
         assertThat(s.taglineEl.pill).isEqualTo("NONE")
         assertThat(s.statsEl.show).isTrue()
         assertThat(s.statsEl.pill).isEqualTo("BLUR")
