@@ -78,6 +78,11 @@ android {
         debug {
             buildConfigField("String", "BASE_URL", "\"$soodalBaseUrl\"")
             buildConfigField("String", "ASSET_BASE_URL", "\"$soodalAssetBaseUrl\"")
+            // 디버그도 릴리즈 키로 서명 — 디버그↔릴리즈를 지우지 않고 덮어쓸 수 있고,
+            // OAuth 지문 등록도 하나로 충분해진다. 키가 없는 PC는 기본 디버그 키 폴백.
+            if (keystoreProps.isNotEmpty()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
         release {
             isMinifyEnabled = true
