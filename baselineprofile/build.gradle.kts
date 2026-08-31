@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.soodalbbobgi.baselineprofile"
+    namespace = "kr.ilf.soodalbbobgi.baselineprofile"
     compileSdk = 35
 
     compileOptions {
