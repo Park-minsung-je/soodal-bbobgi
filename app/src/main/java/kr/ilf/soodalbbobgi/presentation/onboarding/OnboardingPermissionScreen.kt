@@ -152,8 +152,8 @@ fun OnboardingPermissionScreen(
                 }
             }
 
-            // 카메라 — 선택 (비활성)
-            SoodalCard(Modifier.fillMaxWidth().then(Modifier.alpha(0.45f))) {
+            // 카메라 — 선택 (비활성). 사진 인증 기능이 생기면 SHOW_CAMERA_CARD로 되살린다.
+            if (SHOW_CAMERA_CARD) SoodalCard(Modifier.fillMaxWidth().then(Modifier.alpha(0.45f))) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalAlignment = Alignment.Top,
@@ -206,3 +206,6 @@ fun OnboardingPermissionScreen(
         SoodalButton("나중에 하기", onClick = onSkip, style = ButtonStyle.Ghost, modifier = Modifier.fillMaxWidth())
     }
 }
+
+/** 카메라 권한 카드 노출 여부 — 사진 인증 기능 도입 전까지 숨긴다. */
+private const val SHOW_CAMERA_CARD = false
