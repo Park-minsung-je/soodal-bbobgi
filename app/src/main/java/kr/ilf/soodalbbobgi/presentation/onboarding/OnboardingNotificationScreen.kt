@@ -149,7 +149,8 @@ fun OnboardingNotificationScreen(
                         Text("수영 리마인더", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "정해둔 시간에 아직 수영 전이면 잊지 않게 알려드려요",
+                            "정해둔 시간에 아직 수영 전이면 잊지 않게 알려드려요.\n" +
+                                "Android 알림 권한 동의가 필요해요.",
                             fontSize = 12.sp, color = colors.textSecondary, lineHeight = 17.sp,
                         )
                     }
