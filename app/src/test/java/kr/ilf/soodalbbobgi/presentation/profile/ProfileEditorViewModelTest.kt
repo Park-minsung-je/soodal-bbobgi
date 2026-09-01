@@ -156,7 +156,7 @@ class ProfileEditorViewModelTest {
 
         val s = vm.uiState.value
         assertThat(s.nicknameEl.show).isTrue()
-        assertThat(s.nicknameEl.scaleStep).isEqualTo(6)
+        assertThat(s.nicknameEl.scaleStep).isEqualTo(3)
         assertThat(s.nicknameEl.pill).isEqualTo("WHITE")
         assertThat(s.nicknameEl.color).isEqualTo("#000000")
         assertThat(s.taglineEl.pill).isEqualTo("NONE")

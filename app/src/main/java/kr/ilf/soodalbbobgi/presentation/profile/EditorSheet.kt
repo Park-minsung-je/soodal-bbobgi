@@ -422,7 +422,7 @@ private fun TextElementControls(
     SliderRow("↔ 좌우", elState.x, 0f..1f) { vm.setElementX(element, it) }
     SliderRow("↕ 상하", elState.y, 0f..1f) { vm.setElementY(element, it) }
 
-    // -- 크기 단계 — 통일 사다리 1~7: 세 요소 모두 같은 단계 = 같은 크기.
+    // -- 크기 단계 1~7 — 같은 단계 번호에서 닉네임이 항상 세 계단 크다 (사다리 오프셋).
     Spacer(Modifier.height(spacing.s3))
     Text("크기 단계", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
     Spacer(Modifier.height(spacing.s2))
