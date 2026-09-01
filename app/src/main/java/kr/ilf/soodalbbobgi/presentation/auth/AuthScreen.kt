@@ -94,9 +94,6 @@ fun AuthScreen(
         Column(Modifier.padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("시작하려면 로그인이 필요해요", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold,
                 color = colors.textPrimary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            Text("기록과 컬렉션은 서버에 안전하게 보관됩니다.", fontSize = 12.sp,
-                color = colors.textSecondary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-
             // 에러 메시지 표시
             if (errorMessage != null) {
                 Text(
@@ -112,28 +109,24 @@ fun AuthScreen(
 
             Spacer(Modifier.height(6.dp))
 
-            // 카카오 공식 로그인 버튼 이미지
-            Image(
-                painter = painterResource(R.drawable.kakao_login_medium_wide),
-                contentDescription = "카카오로 시작하기",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable(
-                        enabled = !isLoading,
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = LocalIndication.current,
-                        onClick = { viewModel.loginWithKakao(activity) },
-                    ),
+            // 카카오 로그인 — 이미지 에셋을 늘리는 대신 규격(컨테이너 #FEE500, 검은 심볼,
+            // 라벨 85% 블랙)대로 직접 그린다. 이미지 스트레치로 비율이 깨지던 문제도 없어진다.
+            AuthButton(
+                text = if (loadingProvider == "kakao") "카카오 연결 중…" else "카카오 로그인",
+                iconContent = { KakaoSymbol(20.dp) },
+                bgColor = Color(0xFFFEE500),
+                textColor = Color(0xD9000000),
+                enabled = !isLoading,
+                onClick = { viewModel.loginWithKakao(activity) },
             )
 
+            // Google 로그인 — 규격(흰 컨테이너, #747775 보더, 4색 G 로고)대로 직접 그린다.
             AuthButton(
                 text = if (loadingProvider == "google") "Google 연결 중…" else "Google로 시작하기",
-                iconContent = { Text("G", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4285F4)) },
+                iconContent = { GoogleGLogo(20.dp) },
                 bgColor = Color.White,
                 textColor = Color(0xFF1F1F1F),
-                borderColor = Color(0xFFDADCE0),
+                borderColor = Color(0xFF747775),
                 enabled = !isLoading,
                 onClick = { viewModel.loginWithGoogle(activity) },
             )
@@ -144,6 +137,46 @@ fun AuthScreen(
                 modifier = Modifier.fillMaxWidth())
         }
         Spacer(Modifier.height(32.dp))
+    }
+}
+
+/** 카카오 심볼(말풍선) — 규격 형태를 코드로 그린 근사. 심볼색은 검정. */
+@Composable
+private fun KakaoSymbol(size: androidx.compose.ui.unit.Dp) {
+    androidx.compose.foundation.Canvas(Modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+        val path = androidx.compose.ui.graphics.Path().apply {
+            addOval(androidx.compose.ui.geometry.Rect(0f, 0f, w, h * 0.82f))
+            moveTo(w * 0.30f, h * 0.68f)
+            lineTo(w * 0.18f, h)
+            lineTo(w * 0.50f, h * 0.80f)
+            close()
+        }
+        drawPath(path, Color.Black)
+    }
+}
+
+/** Google 4색 G 로고 — 규격 색상 4호를 아크로 그린다 (블루 바 포함). */
+@Composable
+private fun GoogleGLogo(size: androidx.compose.ui.unit.Dp) {
+    androidx.compose.foundation.Canvas(Modifier.size(size)) {
+        val stroke = this.size.width * 0.22f
+        val inset = stroke / 2
+        val arcSize = androidx.compose.ui.geometry.Size(this.size.width - stroke, this.size.height - stroke)
+        val topLeft = androidx.compose.ui.geometry.Offset(inset, inset)
+        val style = androidx.compose.ui.graphics.drawscope.Stroke(stroke)
+        // 0° = 3시 방향, 시계 방향. 315~325° 사이가 G의 트임.
+        drawArc(Color(0xFFEA4335), 225f, 90f, false, topLeft, arcSize, style = style)  // 레드: 위
+        drawArc(Color(0xFFFBBC05), 135f, 90f, false, topLeft, arcSize, style = style)  // 옐로: 왼쪽
+        drawArc(Color(0xFF34A853), 45f, 90f, false, topLeft, arcSize, style = style)   // 그린: 아래
+        drawArc(Color(0xFF4285F4), -35f, 80f, false, topLeft, arcSize, style = style)  // 블루: 오른쪽
+        // 블루 가로 바 — 중심에서 오른쪽 바깥 지름까지
+        drawRect(
+            Color(0xFF4285F4),
+            topLeft = androidx.compose.ui.geometry.Offset(this.size.width / 2f, this.size.height / 2f - stroke / 2f),
+            size = androidx.compose.ui.geometry.Size(this.size.width / 2f, stroke),
+        )
     }
 }
 
