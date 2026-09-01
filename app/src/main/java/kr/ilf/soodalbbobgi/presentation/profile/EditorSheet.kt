@@ -696,11 +696,8 @@ private fun SliderRow(
  * SoodalDesign 라이트/네온 포인트 컬러 + 무채색 + 보조 액센트로 구성한다.
  */
 private val TextColorPalette = listOf(
-    "#FFFFFF", "#000000", "#9CA3AF",
-    "#00F5FF", "#00A8B8",
-    "#BF5AF2", "#8B3DDB",
-    "#FFD60A", "#D99500",
-    "#FF6B6B", "#30D158", "#4FB8FF",
+    "#000000", "#FFFFFF", "#9CA3AF",
+    "#FFD60A", "#FF6B6B", "#4FB8FF",
 )
 
 /**
@@ -834,7 +831,117 @@ private fun ColorPaletteRow(
                         .pressable(onClick = { onSelect(hex) }),
                 )
             }
+            // 마지막 스와치 = 자유 선택기 — 프리셋에 없는 색이 선택돼 있으면 여기가 강조된다.
+            var pickerOpen by remember { mutableStateOf(false) }
+            val isCustom = TextColorPalette.none { it.equals(selectedColor, ignoreCase = true) }
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.sweepGradient(
+                            listOf(
+                                Color(0xFFFF6B6B), Color(0xFFFFD60A), Color(0xFF30D158),
+                                Color(0xFF4FB8FF), Color(0xFFBF5AF2), Color(0xFFFF6B6B),
+                            ),
+                        ),
+                    )
+                    .border(
+                        width = if (isCustom) 2.dp else 1.dp,
+                        color = if (isCustom) SheetAccent else colors.cardBorder,
+                        shape = CircleShape,
+                    )
+                    .pressable(onClick = { pickerOpen = true }),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (isCustom) {
+                    // 현재 커스텀 색을 가운데 점으로 보여준다
+                    Box(Modifier.size(12.dp).clip(CircleShape).background(parseSwatchColor(selectedColor)))
+                }
+            }
+            if (pickerOpen) {
+                RgbPickerDialog(
+                    initialHex = selectedColor,
+                    onPick = { onSelect(it); pickerOpen = false },
+                    onDismiss = { pickerOpen = false },
+                )
+            }
         }
+    }
+}
+
+/**
+ * RGB 색 선택 다이얼로그 — R/G/B 슬라이더와 미리보기, 16진수 표기.
+ *
+ * @param initialHex 시작 색 "#RRGGBB"
+ * @param onPick 적용 시 선택 색 전달
+ */
+@Composable
+private fun RgbPickerDialog(
+    initialHex: String,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = SoodalDesign.colors
+    val initial = remember(initialHex) { parseSwatchColor(initialHex) }
+    var r by remember { mutableStateOf(initial.red) }
+    var g by remember { mutableStateOf(initial.green) }
+    var b by remember { mutableStateOf(initial.blue) }
+    val current = Color(r, g, b)
+    val hex = String.format(
+        "#%02X%02X%02X",
+        (r * 255).toInt().coerceIn(0, 255),
+        (g * 255).toInt().coerceIn(0, 255),
+        (b * 255).toInt().coerceIn(0, 255),
+    )
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(colors.surface1)
+                .padding(20.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(44.dp).clip(CircleShape).background(current)
+                        .border(1.dp, colors.cardBorder, CircleShape),
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(hex, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+            }
+            Spacer(Modifier.height(12.dp))
+            RgbSliderRow("R", r, Color(0xFFFF6B6B)) { r = it }
+            RgbSliderRow("G", g, Color(0xFF30D158)) { g = it }
+            RgbSliderRow("B", b, Color(0xFF4FB8FF)) { b = it }
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SoodalButton("취소", onClick = onDismiss, style = ButtonStyle.Secondary,
+                    modifier = Modifier.weight(1f), heightOverride = 44.dp)
+                SoodalButton("적용", onClick = { onPick(hex) },
+                    modifier = Modifier.weight(1f), heightOverride = 44.dp)
+            }
+        }
+    }
+}
+
+/** RGB 채널 슬라이더 한 줄 — 라벨 + 0~255 표기. */
+@Composable
+private fun RgbSliderRow(label: String, value: Float, tint: Color, onChange: (Float) -> Unit) {
+    val colors = SoodalDesign.colors
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = tint, modifier = Modifier.width(20.dp))
+        androidx.compose.material3.Slider(
+            value = value,
+            onValueChange = onChange,
+            modifier = Modifier.weight(1f),
+            colors = androidx.compose.material3.SliderDefaults.colors(
+                thumbColor = tint, activeTrackColor = tint, inactiveTrackColor = colors.surface3,
+            ),
+        )
+        Text("${(value * 255).toInt()}", fontSize = 12.sp, color = colors.textSecondary,
+            modifier = Modifier.width(32.dp), textAlign = TextAlign.End)
     }
 }
 
