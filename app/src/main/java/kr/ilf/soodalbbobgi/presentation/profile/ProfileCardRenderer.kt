@@ -57,7 +57,7 @@ data class CardLayers(
     /** 캐릭터 부유 그림자(엘리베이션) 표시 여부. */
     val showShadow: Boolean = true,
     // ── 요소별 글꼴 스타일 ("REGULAR" | "BOLD" | "ITALIC" | "BOLD_ITALIC") ──
-    val nicknameStyle: String = "REGULAR",
+    val nicknameStyle: String = "BOLD",
     val taglineStyle: String = "REGULAR",
     val statsStyle: String = "REGULAR",
     // ── 요소별 표시/위치(중심 앵커 0~1)/크기 단계 — 닉네임·한마디·기록 독립 커스텀 ──
