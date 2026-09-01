@@ -132,9 +132,7 @@ fun OnboardingNotificationScreen(
         Spacer(Modifier.height(16.dp))
         Text("수영, 잊지 않게\n알려드릴까요?", style = SoodalDesign.typography.xl, color = colors.textPrimary)
         Text(
-            "원하는 알림만 골라 켜 주세요. 켤 때 Android 알림 권한을 요청하고, " +
-                "수영 기록 알림은 백그라운드에서 기록을 확인하기 위해 " +
-                "Health Connect 백그라운드 읽기 권한도 함께 필요해요.",
+            "원하는 알림만 골라 켜 주세요. 알림을 받으려면 Android 알림 권한 동의가 필요해요.",
             fontSize = 14.sp, color = colors.textSecondary, lineHeight = 22.sp,
             modifier = Modifier.padding(top = 12.dp),
         )
@@ -149,7 +147,7 @@ fun OnboardingNotificationScreen(
                     Column(Modifier.weight(1f)) {
                         Text("수영 리마인더", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                         Spacer(Modifier.height(4.dp))
-                        Text("정한 시간에 아직 수영 전이면 알려드려요", fontSize = 12.sp, color = colors.textSecondary)
+                        Text("지정한 시간에 수영할 시간을 알려드려요", fontSize = 12.sp, color = colors.textSecondary)
                     }
                     ToggleSwitch(
                         checked = reminderEnabled,
@@ -186,9 +184,12 @@ fun OnboardingNotificationScreen(
                     Text("수영 기록 알림", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        if (hcConnected) "새 수영 기록이 확인되면 알려드려요"
-                        else "Health Connect 연동 후 사용할 수 있어요",
-                        fontSize = 12.sp, color = colors.textSecondary,
+                        if (hcConnected) {
+                            "새 수영 기록이 오면 알려드려요. Health Connect 백그라운드 읽기 권한 동의가 필요해요."
+                        } else {
+                            "Health Connect 연동 후 사용할 수 있어요"
+                        },
+                        fontSize = 12.sp, color = colors.textSecondary, lineHeight = 17.sp,
                     )
                 }
                 ToggleSwitch(

@@ -1,5 +1,10 @@
 ﻿package kr.ilf.soodalbbobgi.presentation.onboarding
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -73,13 +78,13 @@ fun OnboardingPermissionScreen(
     var permissionGranted by remember { mutableStateOf(false) }
     var permissionRequested by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    // 최초 동기화로 가져올 과거 기록 기간(개월) — 0은 안 가져오기, 최대 3개월.
-    // 가져오기로 했을 때만 과거 데이터 권한이 요청 목록에 포함된다.
-    var selectedMonths by remember { mutableStateOf(0) }
+    // 지난 기록 가져오기 토글 + 기간(개월, 최대 3) — 켰을 때만 과거 데이터 권한을 요청한다.
+    var importHistory by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    var selectedMonths by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(1) }
 
     // Health Connect 권한 요청 런처 — 권한 셋은 설정 화면과 공용
     // 지난 기록을 가져오기로 했을 때만 과거 데이터 권한을 함께 요청한다
-    val healthPermissions = HealthConnectManager.requestPermissionsFor(includeHistory = selectedMonths > 0)
+    val healthPermissions = HealthConnectManager.requestPermissionsFor(includeHistory = importHistory)
 
     val scope = rememberCoroutineScope()
 
@@ -94,7 +99,7 @@ fun OnboardingPermissionScreen(
             errorMessage = "권한이 허용되지 않았어요. 다시 시도하거나 나중에 설정에서 허용할 수 있어요."
             return
         }
-        viewModel.startInitialSync(selectedMonths)
+        viewModel.startInitialSync(if (importHistory) selectedMonths else 0)
         onConnect()
     }
 
@@ -161,39 +166,49 @@ fun OnboardingPermissionScreen(
                 }
             }
 
-            // 지난 기록 가져오기 — 가져올지부터 고르고, 가져오면 기간(최대 3개월)을 고른다.
+            // 지난 기록 가져오기 — 토글을 켜면 기간 선택이 나온다 (선택 사항).
             SoodalCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth()) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("지난 기록 가져오기", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                        SoodalChip("선택", color = ChipColor.Blue)
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        MonthChip(
-                            text = "안 가져오기",
-                            selected = selectedMonths == 0,
-                            onClick = { selectedMonths = 0 },
-                        )
-                        listOf(1, 2, 3).forEach { m ->
-                            MonthChip(
-                                text = "${m}개월",
-                                selected = selectedMonths == m,
-                                onClick = { selectedMonths = m },
-                            )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text("지난 기록 가져오기", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                            SoodalChip("선택", color = ChipColor.Blue)
                         }
+                        HistoryToggle(checked = importHistory, onCheckedChange = { importHistory = it })
                     }
-                    Spacer(Modifier.height(10.dp))
-                    Text(
-                        "지난 기록까지 가져오려면 Health Connect의 '모든 기간 데이터' 권한이 추가로 필요해요.\n" +
-                            "선택한 기간의 기록을 가져와 캘린더에 정리해 드려요.\n" +
-                            "조개는 오늘 수영 기록에만 지급돼요 (새벽 2시 전엔 어제 기록까지).\n" +
-                            "기간이 길수록 가져오는 데 시간이 걸릴 수 있어요.",
-                        fontSize = 11.sp, color = colors.textTertiary, lineHeight = 17.sp,
-                    )
+                    Spacer(Modifier.height(8.dp))
+                    if (!importHistory) {
+                        // 켜기 전 — 어떤 권한 동의가 따라오는지 먼저 알린다.
+                        Text(
+                            "켜면 Health Connect의 '모든 기간의 데이터에 액세스' 권한 동의가 추가로 필요해요.",
+                            fontSize = 11.sp, color = colors.textTertiary, lineHeight = 17.sp,
+                        )
+                    } else {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(1, 2, 3).forEach { m ->
+                                MonthChip(
+                                    text = "${m}개월",
+                                    selected = selectedMonths == m,
+                                    onClick = { selectedMonths = m },
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            "Health Connect의 '모든 기간의 데이터에 액세스' 권한 동의가 추가로 필요해요.\n" +
+                                "선택한 기간의 기록을 가져와 캘린더에 정리해 드려요.\n" +
+                                "조개는 오늘 수영 기록에만 지급돼요 (새벽 2시 전엔 어제 기록까지).\n" +
+                                "기간이 길수록 가져오는 데 시간이 걸릴 수 있어요.",
+                            fontSize = 11.sp, color = colors.textTertiary, lineHeight = 17.sp,
+                        )
+                    }
                 }
             }
 
@@ -249,6 +264,36 @@ fun OnboardingPermissionScreen(
         )
         Spacer(Modifier.height(8.dp))
         SoodalButton("나중에 하기", onClick = onSkip, style = ButtonStyle.Ghost, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+/** 토글 스위치 — 알림 온보딩과 동일한 시각 언어 (44x24, 좌우 대칭 썸). */
+@Composable
+private fun HistoryToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val colors = SoodalDesign.colors
+    val trackColor = if (checked) colors.accentBlue else colors.surface3
+    val thumbOffset by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (checked) 22.dp else 2.dp,
+        animationSpec = androidx.compose.animation.core.tween(200),
+        label = "historyThumb",
+    )
+    Box(
+        modifier = Modifier
+            .width(44.dp)
+            .height(24.dp)
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .background(trackColor)
+            .pressable(onClick = { onCheckedChange(!checked) }),
+    ) {
+        Box(
+            modifier = Modifier
+                .offset(x = thumbOffset)
+                .size(20.dp)
+                .align(Alignment.CenterStart)
+                .shadow(2.dp, androidx.compose.foundation.shape.CircleShape)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(Color.White),
+        )
     }
 }
 

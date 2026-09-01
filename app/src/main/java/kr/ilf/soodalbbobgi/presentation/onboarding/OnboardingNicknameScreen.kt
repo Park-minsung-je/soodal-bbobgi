@@ -57,9 +57,10 @@ fun OnboardingNicknameScreen(
 ) {
     val colors = SoodalDesign.colors
     val saveState by viewModel.saveState.collectAsStateWithLifecycle()
-    var nickname by remember { mutableStateOf("") }
-    var gender by remember { mutableStateOf<String?>(null) }
-    var ageRange by remember { mutableStateOf<String?>(null) }
+    // rememberSaveable — 다음 화면에 갔다 뒤로 와도 입력이 남는다.
+    var nickname by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
+    var gender by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
+    var ageRange by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     // 완성형 글자만 허용 — 영문/숫자/완성형 한글. 자음·모음 단독(ㅇㅈ 등)은 미완성 글자다.
     val validPattern = Regex("^[a-zA-Z0-9가-힣]*$")
     val hasJamo = nickname.any { it in 'ㄱ'..'ㅣ' } // ㄱ~ㅣ 자모 영역
@@ -133,7 +134,11 @@ fun OnboardingNicknameScreen(
                     SelectChip(
                         text = label,
                         selected = gender == value,
-                        onClick = { gender = if (gender == value) null else value },
+                        onClick = {
+                            // 입력 중 칩을 고르면 키보드가 가리고 있을 이유가 없다
+                            focusManager.clearFocus(); keyboard?.hide()
+                            gender = if (gender == value) null else value
+                        },
                     )
                 }
             }
@@ -149,7 +154,10 @@ fun OnboardingNicknameScreen(
                     SelectChip(
                         text = label,
                         selected = ageRange == value,
-                        onClick = { ageRange = if (ageRange == value) null else value },
+                        onClick = {
+                            focusManager.clearFocus(); keyboard?.hide()
+                            ageRange = if (ageRange == value) null else value
+                        },
                     )
                 }
             }

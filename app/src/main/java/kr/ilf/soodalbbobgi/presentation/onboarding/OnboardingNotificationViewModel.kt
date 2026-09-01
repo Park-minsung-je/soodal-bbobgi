@@ -53,6 +53,13 @@ class OnboardingNotificationViewModel @Inject constructor(
         if (enabled) reminderScheduler.schedule() else reminderScheduler.cancel()
     }
 
+    init {
+        // 온보딩은 항상 꺼진 상태에서 시작한다 — 백업 복원 등으로 이전 설정이 남아
+        // 있어도 사용자가 이 화면에서 직접 켠 것만 유효하다.
+        if (notificationPrefs.reminderEnabled) setReminderEnabled(false)
+        if (notificationPrefs.newRecordEnabled) setNewRecordEnabled(false)
+    }
+
     /** 리마인더 시각 변경 — 켜져 있으면 새 시각으로 재예약. */
     fun setReminderTime(hour: Int, minute: Int) {
         notificationPrefs.reminderHour = hour
