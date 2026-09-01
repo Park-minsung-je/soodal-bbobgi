@@ -64,7 +64,7 @@ data class CardLayers(
     val showNickname: Boolean = true,
     val nicknameX: Float = 0.83f,
     val nicknameY: Float = 0.40f,
-    val nicknameScaleStep: Int = 3,
+    val nicknameScaleStep: Int = 6,
     val showTagline: Boolean = true,
     val taglineX: Float = 0.83f,
     val taglineY: Float = 0.57f,
@@ -408,17 +408,14 @@ object ProfileCardRenderer {
     }
 
     /**
-     * 통일 글자 크기 사다리(합성 기준 px) — 한마디·기록은 1~7단계를 그대로 타고,
-     * 닉네임은 1~4단계가 사다리 4~7단계에 대응한다. 그래서 닉네임 1·2·3단계는
-     * 한마디·기록의 4·5·6단계와 크기가 같고, 닉네임 4단계 = 나머지 7단계다.
+     * 통일 글자 크기 사다리(합성 기준 px) — 세 요소 모두 같은 1~7단계를 탄다.
+     * 같은 단계 = 같은 크기. 닉네임 기본 단계만 6으로 커서 시작한다.
      */
     private val TEXT_SIZE_LADDER = floatArrayOf(25.6f, 32f, 38.4f, 48f, 60.8f, 76.8f, 96f)
 
-    /** 요소 종류(기준 크기로 구분)와 단계 → 합성 기준 px. 닉네임은 사다리를 3칸 위에서 탄다. */
-    fun elementTextSize(baseSize: Float, step: Int): Float {
-        val ladderStep = if (baseSize == NICKNAME_BASE_SIZE) step.coerceIn(1, 4) + 3 else step
-        return TEXT_SIZE_LADDER[(ladderStep - 1).coerceIn(0, 6)]
-    }
+    /** 단계(1~7) → 합성 기준 px. [baseSize]는 시그니처 호환용으로만 남아 있다. */
+    fun elementTextSize(baseSize: Float, step: Int): Float =
+        TEXT_SIZE_LADDER[(step - 1).coerceIn(0, 6)]
 
     /**
      * 알약 패딩 기준 크기 — 캡(사다리 4단계)까지는 글자 크기에 비례하고,
@@ -584,7 +581,9 @@ object ProfileCardRenderer {
             }
         }
 
-        val baseline = top + padV + textSize - textPaint.descent() * 0.35f
+        // 폰트 메트릭으로 잉크를 세로 정중앙에 — 근사식은 한글에서 위 여백이 더 커 보였다.
+        val fm = textPaint.fontMetrics
+        val baseline = rect.centerY() - (fm.ascent + fm.descent) / 2f
         canvas.drawText(text, left + padH - inkLeft, baseline, textPaint)
         return pillH
     }

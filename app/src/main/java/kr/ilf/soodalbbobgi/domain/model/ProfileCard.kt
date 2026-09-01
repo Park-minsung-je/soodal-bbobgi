@@ -40,7 +40,7 @@ data class ProfileCard(
     val showNickname: Boolean = true,
     val nicknameX: Float = 0.83f,
     val nicknameY: Float = 0.40f,
-    val nicknameScaleStep: Int = 3,
+    val nicknameScaleStep: Int = 6,
     val showTagline: Boolean = true,
     val taglineX: Float = 0.83f,
     val taglineY: Float = 0.57f,

@@ -422,16 +422,15 @@ private fun TextElementControls(
     SliderRow("↔ 좌우", elState.x, 0f..1f) { vm.setElementX(element, it) }
     SliderRow("↕ 상하", elState.y, 0f..1f) { vm.setElementY(element, it) }
 
-    // -- 크기 단계 — 통일 사다리: 닉네임 1~4가 한마디·기록의 4~7과 같은 크기다.
+    // -- 크기 단계 — 통일 사다리 1~7: 세 요소 모두 같은 단계 = 같은 크기.
     Spacer(Modifier.height(spacing.s3))
     Text("크기 단계", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
     Spacer(Modifier.height(spacing.s2))
-    val maxStep = if (element == TextElement.Nickname) 4 else 7
     Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-        (1..maxStep).forEach { step ->
+        (1..7).forEach { step ->
             SegmentChip(
                 label = step.toString(),
-                isActive = elState.scaleStep.coerceIn(1, maxStep) == step,
+                isActive = elState.scaleStep.coerceIn(1, 7) == step,
                 onClick = { vm.setElementScaleStep(element, step) },
             )
         }

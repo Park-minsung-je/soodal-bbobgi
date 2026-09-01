@@ -103,7 +103,7 @@ data class ProfileEditorUiState(
     val customText: String = "",
     val textStyle: String = "REGULAR",
     /** 요소별 편집 상태 — 닉네임/한마디/기록. */
-    val nicknameEl: TextElementState = TextElementState(bold = true),
+    val nicknameEl: TextElementState = TextElementState(bold = true, scaleStep = 6),
     val taglineEl: TextElementState = TextElementState(y = 0.57f, pill = "NONE"),
     val statsEl: TextElementState = TextElementState(x = 0.16f, y = 0.90f, pill = "BLUR"),
     /** 텍스트 외곽선(테두리) 표시 여부. */
@@ -160,7 +160,7 @@ class ProfileEditorViewModel @Inject constructor(
         val textX: Float = 0.95f,
         val textY: Float = 0.5f,
         val textScaleStep: Int = 3,
-        val nicknameEl: TextElementState = TextElementState(bold = true),
+        val nicknameEl: TextElementState = TextElementState(bold = true, scaleStep = 6),
         val taglineEl: TextElementState = TextElementState(y = 0.57f, pill = "NONE"),
         val statsEl: TextElementState = TextElementState(x = 0.16f, y = 0.90f, pill = "BLUR"),
         val textOutline: Boolean = false,
