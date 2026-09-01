@@ -47,6 +47,9 @@ data class ServerProfileCard(
     val nicknameOutline: Boolean? = null,
     val taglineOutline: Boolean? = null,
     val statsOutline: Boolean? = null,
+    val nicknameOutlineColor: String? = null,
+    val taglineOutlineColor: String? = null,
+    val statsOutlineColor: String? = null,
     val textOutline: Boolean = false,
     val lastEditedAt: Long? = null,
 )

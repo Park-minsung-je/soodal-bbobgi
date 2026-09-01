@@ -66,5 +66,9 @@ data class ProfileCard(
     val nicknameOutline: Boolean = false,
     val taglineOutline: Boolean = false,
     val statsOutline: Boolean = false,
+    /** 요소별 글자 테두리 색 "#RRGGBB" — null이면 글자색 대비로 자동 결정. */
+    val nicknameOutlineColor: String? = null,
+    val taglineOutlineColor: String? = null,
+    val statsOutlineColor: String? = null,
     val textOutline: Boolean = false,
 )

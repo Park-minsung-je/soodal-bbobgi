@@ -90,6 +90,10 @@ data class CardLayers(
     val nicknameOutline: Boolean = false,
     val taglineOutline: Boolean = false,
     val statsOutline: Boolean = false,
+    /** 요소별 테두리 색 — null이면 글자색 대비 자동. */
+    val nicknameOutlineColor: String? = null,
+    val taglineOutlineColor: String? = null,
+    val statsOutlineColor: String? = null,
 )
 
 /**
@@ -306,6 +310,7 @@ object ProfileCardRenderer {
         fun drawElementCentered(
             text: String, textSize: Float, style: String, colorRaw: Int,
             cx: Float, cy: Float, fontStyle: String, outline: Boolean,
+            outlineColorHex: String? = null,
         ) {
             // 폭/높이 측정 전에 글꼴을 먼저 적용해야 기울임·굵기의 잉크 폭이 정확하다
             textPaint.typeface = typefaceOf(fontStyle)
@@ -320,6 +325,7 @@ object ProfileCardRenderer {
                 leftAligned = true,
                 anchor = cx * CARD_WIDTH - w / 2f,
                 outline = outline,
+                outlineColorRaw = outlineColorHex?.let { parseColorOrDefault(it, outlineColor(colorRaw)) },
             )
         }
 
@@ -332,6 +338,7 @@ object ProfileCardRenderer {
                 colorRaw = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.BLACK),
                 cx = layers.nicknameX, cy = layers.nicknameY,
                 fontStyle = layers.nicknameStyle, outline = layers.nicknameOutline,
+                outlineColorHex = layers.nicknameOutlineColor,
             )
         }
         if (layers.showTagline) {
@@ -342,6 +349,7 @@ object ProfileCardRenderer {
                 colorRaw = parseColorOrDefault(layers.taglineColor, android.graphics.Color.BLACK),
                 cx = layers.taglineX, cy = layers.taglineY,
                 fontStyle = layers.taglineStyle, outline = layers.taglineOutline,
+                outlineColorHex = layers.taglineOutlineColor,
             )
         }
         if (layers.showStats) {
@@ -352,6 +360,7 @@ object ProfileCardRenderer {
                 colorRaw = parseColorOrDefault(layers.statsColor, android.graphics.Color.BLACK),
                 cx = layers.statsX, cy = layers.statsY,
                 fontStyle = layers.statsStyle, outline = layers.statsOutline,
+                outlineColorHex = layers.statsOutlineColor,
             )
         }
 
@@ -457,6 +466,8 @@ object ProfileCardRenderer {
         leftAligned: Boolean,
         anchor: Float,
         outline: Boolean,
+        /** 외곽선 색(ARGB). null이면 글자색 대비로 자동 결정. */
+        outlineColorRaw: Int? = null,
         /** BLUR 칩에 backdrop이 없을 때(편집 프리뷰) 프로스트 틴트로 쓸 배경 근사색. null이면 흰색. */
         blurFallbackColor: Int? = null,
     ): Float {
@@ -478,7 +489,7 @@ object ProfileCardRenderer {
             if (outline) {
                 textPaint.style = Paint.Style.STROKE
                 textPaint.strokeWidth = textSize * 0.09f
-                textPaint.color = outlineColor(colorRaw)
+                textPaint.color = outlineColorRaw ?: outlineColor(colorRaw)
                 canvas.drawText(text, x, baseline, textPaint)
                 textPaint.style = Paint.Style.FILL
             }
@@ -621,6 +632,8 @@ object ProfileCardRenderer {
         colorRaw: Int,
         fontStyle: String,
         outline: Boolean,
+        /** 외곽선 색 "#RRGGBB". null이면 자동. */
+        outlineColorHex: String? = null,
         /** BLUR 칩 프로스트 폴백 틴트에 쓸 배경 근사색(편집 프리뷰). null이면 흰색. */
         blurFallbackColor: Int? = null,
     ): Bitmap {
@@ -644,6 +657,7 @@ object ProfileCardRenderer {
             text = text, textSize = textSize, top = margin,
             style = pill, colorRaw = colorRaw,
             leftAligned = true, anchor = margin, outline = outline,
+            outlineColorRaw = outlineColorHex?.let { parseColorOrDefault(it, outlineColor(colorRaw)) },
             blurFallbackColor = blurFallbackColor,
         )
         return bmp

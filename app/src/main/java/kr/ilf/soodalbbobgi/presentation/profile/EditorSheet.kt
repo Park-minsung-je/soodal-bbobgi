@@ -464,16 +464,21 @@ private fun TextElementControls(
         )
     }
 
-    // -- 글자 테두리(외곽선) 토글 (요소별) --
+    // -- 글자 테두리(외곽선) — 배경 칩이 있으면 렌더러가 그리지 않으므로 잠근다 --
     Spacer(Modifier.height(spacing.s3))
+    val outlineAvailable = elState.pill == "NONE"
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("글자 테두리", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+        Text(
+            "글자 테두리", fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+            color = if (outlineAvailable) colors.textSecondary else colors.textTertiary,
+        )
         Switch(
-            checked = elState.outline,
+            checked = elState.outline && outlineAvailable,
+            enabled = outlineAvailable,
             onCheckedChange = { vm.setElementOutline(element, it) },
             colors = SwitchDefaults.colors(
                 checkedThumbColor = colors.btnPrimaryText,
@@ -481,6 +486,16 @@ private fun TextElementControls(
                 uncheckedTrackColor = colors.surface3,
             ),
         )
+    }
+    if (!outlineAvailable) {
+        Text(
+            "배경 칩이 있으면 글자 테두리가 적용되지 않아요. 배경 칩을 \"없음\"으로 바꾸면 쓸 수 있어요.",
+            fontSize = 11.sp, color = colors.textTertiary, lineHeight = 16.sp,
+        )
+    } else if (elState.outline) {
+        Spacer(Modifier.height(spacing.s2))
+        // 테두리 색 — 비워두면(프리셋·선택기 미선택) 글자색 대비로 자동 결정된다.
+        ColorPaletteRow("테두리", elState.outlineColor ?: "") { vm.setElementOutlineColor(element, it) }
     }
 }
 
