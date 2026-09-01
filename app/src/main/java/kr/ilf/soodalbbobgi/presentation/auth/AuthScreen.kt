@@ -120,13 +120,12 @@ fun AuthScreen(
                 onClick = { viewModel.loginWithKakao(activity) },
             )
 
-            // Google 로그인 — 규격(흰 컨테이너, #747775 보더, 4색 G 로고)대로 직접 그린다.
+            // Google 로그인 — 흰 컨테이너 + 4색 G 로고를 직접 그린다 (보더는 디자인 판단으로 생략).
             AuthButton(
                 text = if (loadingProvider == "google") "Google 연결 중…" else "Google로 시작하기",
                 iconContent = { GoogleGLogo(20.dp) },
                 bgColor = Color.White,
                 textColor = Color(0xFF1F1F1F),
-                borderColor = Color(0xFF747775),
                 enabled = !isLoading,
                 onClick = { viewModel.loginWithGoogle(activity) },
             )
