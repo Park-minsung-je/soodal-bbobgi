@@ -1,6 +1,7 @@
 package kr.ilf.soodalbbobgi.presentation.onboarding
 
 import androidx.lifecycle.ViewModel
+import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 import kr.ilf.soodalbbobgi.data.notify.NotificationPrefs
 import kr.ilf.soodalbbobgi.work.HcChangeCheckScheduler
 import kr.ilf.soodalbbobgi.work.ReminderScheduler
@@ -18,7 +19,14 @@ class OnboardingNotificationViewModel @Inject constructor(
     private val notificationPrefs: NotificationPrefs,
     private val reminderScheduler: ReminderScheduler,
     private val hcChangeCheckScheduler: HcChangeCheckScheduler,
+    private val healthConnectManager: HealthConnectManager,
 ) : ViewModel() {
+
+    /** HC 필수 권한이 연결돼 있는지 — 수영 기록 알림은 HC 연동이 전제다. */
+    suspend fun isHcConnected(): Boolean = healthConnectManager.hasAllPermissions()
+
+    /** HC 백그라운드 읽기 권한이 이미 있는지 — 있으면 요청 화면을 띄우지 않는다. */
+    suspend fun isBgReadGranted(): Boolean = healthConnectManager.isBackgroundReadGranted()
 
     private val _reminderEnabled = MutableStateFlow(notificationPrefs.reminderEnabled)
     val reminderEnabled: StateFlow<Boolean> = _reminderEnabled

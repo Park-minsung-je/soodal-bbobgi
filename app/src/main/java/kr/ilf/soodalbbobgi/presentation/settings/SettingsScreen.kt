@@ -1,5 +1,7 @@
 ﻿package kr.ilf.soodalbbobgi.presentation.settings
 
+import androidx.compose.ui.draw.alpha
+import kotlinx.coroutines.launch
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.LocalIndication
@@ -87,6 +89,7 @@ fun SettingsScreen(
 
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val hcConnected by viewModel.hcConnected.collectAsStateWithLifecycle()
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val nicknameState by viewModel.nicknameState.collectAsStateWithLifecycle()
     val accountAction by viewModel.accountAction.collectAsStateWithLifecycle()
     val signedOut by viewModel.signedOut.collectAsStateWithLifecycle()
@@ -137,6 +140,13 @@ fun SettingsScreen(
     val hcBgPermissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
     ) { }
+    // 이미 허용돼 있으면 요청 화면을 띄우지 않는다 — 매번 띄우면 HC 액티비티가 순간
+    // 나타났다 사라지며 상단바가 깜빡인다.
+    val requestBgReadIfNeeded: () -> Unit = {
+        scope.launch {
+            if (!viewModel.isBgReadGranted()) hcBgPermissionLauncher.launch(setOf(HC_BG_READ_PERMISSION))
+        }
+    }
 
     // POST_NOTIFICATIONS(13+) 허용 후 켜려던 토글을 마저 켠다
     var pendingNotifToggle by remember { mutableStateOf<String?>(null) }
@@ -150,7 +160,7 @@ fun SettingsScreen(
                 "reminder" -> viewModel.setReminderEnabled(true)
                 "newRecord" -> {
                     viewModel.setNewRecordEnabled(true)
-                    hcBgPermissionLauncher.launch(setOf(HC_BG_READ_PERMISSION))
+                    requestBgReadIfNeeded()
                 }
             }
         }
@@ -170,7 +180,7 @@ fun SettingsScreen(
                 "reminder" -> viewModel.setReminderEnabled(true)
                 "newRecord" -> {
                     viewModel.setNewRecordEnabled(true)
-                    hcBgPermissionLauncher.launch(setOf(HC_BG_READ_PERMISSION))
+                    requestBgReadIfNeeded()
                 }
             }
         }
@@ -331,9 +341,11 @@ fun SettingsScreen(
                         },
                     )
                     SettingsDivider()
+                    // 수영 기록 알림은 HC 연동이 전제 — 연동 전이면 잠근다 (온보딩과 동일).
                     SettingsToggleRow(
-                        label = "조개 획득 알림",
+                        label = "수영 기록 알림",
                         checked = newRecordEnabled,
+                        enabled = hcConnected == true,
                         onCheckedChange = { on ->
                             if (on) enableNotifToggle("newRecord") else viewModel.setNewRecordEnabled(false)
                         },
@@ -578,6 +590,7 @@ private fun SettingsRow(
 private fun SettingsToggleRow(
     label: String,
     checked: Boolean,
+    enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val colors = SoodalDesign.colors
@@ -585,8 +598,9 @@ private fun SettingsToggleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .pressable(onClick = { onCheckedChange(!checked) })
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .then(if (enabled) Modifier.pressable(onClick = { onCheckedChange(!checked) }) else Modifier)
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+            .alpha(if (enabled) 1f else 0.45f),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -596,7 +610,7 @@ private fun SettingsToggleRow(
             fontWeight = FontWeight.Medium,
             color = colors.textPrimary,
         )
-        ToggleSwitch(checked = checked, onCheckedChange = onCheckedChange)
+        ToggleSwitch(checked = checked, onCheckedChange = { if (enabled) onCheckedChange(it) })
     }
 }
 

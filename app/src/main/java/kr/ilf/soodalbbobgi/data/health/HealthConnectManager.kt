@@ -263,6 +263,18 @@ class HealthConnectManager @Inject constructor(
      *
      * @return 모든 권한이 부여되었으면 true
      */
+    /**
+     * HC 백그라운드 읽기 권한이 이미 부여돼 있는지 확인한다.
+     * 이미 있으면 권한 요청 액티비티를 띄우지 않기 위한 사전 조회 — 매번 띄우면
+     * HC 화면이 순간 나타났다 사라지며 상단바가 깜빡인다.
+     */
+    suspend fun isBackgroundReadGranted(): Boolean = try {
+        BG_READ_PERMISSION in healthConnectClient.permissionController.getGrantedPermissions()
+    } catch (e: Exception) {
+        Timber.w(e, "HC 백그라운드 권한 확인 실패")
+        false
+    }
+
     suspend fun hasAllPermissions(): Boolean {
         return try {
             val granted = healthConnectClient.permissionController.getGrantedPermissions()
@@ -528,6 +540,9 @@ class HealthConnectManager @Inject constructor(
          * 권한 요청 다이얼로그에 띄울 전체 권한 — 온보딩·설정 공용.
          * 앱은 HC에 기록을 쓰지 않으므로 읽기 전용만 요청한다 (Play 심사 최소 권한 원칙).
          */
+        /** 새 기록 알림 워커가 쓰는 백그라운드 읽기 권한. */
+        const val BG_READ_PERMISSION = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
+
         val requestPermissions: Set<String> = setOf(
             HealthPermission.getReadPermission(ExerciseSessionRecord::class),
             HealthPermission.getReadPermission(DistanceRecord::class),
