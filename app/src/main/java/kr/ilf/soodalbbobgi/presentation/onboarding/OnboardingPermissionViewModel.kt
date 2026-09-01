@@ -39,11 +39,12 @@ class OnboardingPermissionViewModel @Inject constructor(
      * 온보딩은 권한 확인까지만 맡고, 진행 표시는 홈이 [AppState.hcSyncing]으로 잇는다.
      * 지급된 조개는 [AppState.addPendingShellReward]로 홈 팝업에 전달된다.
      *
-     * @param months 과거 기록을 가져올 기간(개월, 1~3)
+     * @param months 과거 기록을 가져올 기간(개월, 0 = 안 가져오기, 최대 3)
      */
     fun startInitialSync(months: Int) {
         // 프로세스가 죽어도 첫 동기화가 선택한 기간을 기억하게 저장해 둔다.
-        hcSyncPreferences.setPendingInitialMonths(months)
+        // 0(안 가져오기)이면 저장하지 않는다 — 첫 동기화가 기본 범위(오늘)만 읽는다.
+        if (months > 0) hcSyncPreferences.setPendingInitialMonths(months)
         appScope.launch {
             val result = assetManager.sync()
             if (result.isFailure) Timber.w(result.exceptionOrNull(), "권한 허용 후 에셋 동기화 실패 (앱 계속 진행)")

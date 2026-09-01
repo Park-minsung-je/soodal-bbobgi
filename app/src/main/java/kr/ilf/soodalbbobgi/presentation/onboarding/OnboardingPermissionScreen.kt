@@ -73,11 +73,13 @@ fun OnboardingPermissionScreen(
     var permissionGranted by remember { mutableStateOf(false) }
     var permissionRequested by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    // 최초 동기화로 가져올 과거 기록 기간(개월) — 최대 3개월.
-    var selectedMonths by remember { mutableStateOf(1) }
+    // 최초 동기화로 가져올 과거 기록 기간(개월) — 0은 안 가져오기, 최대 3개월.
+    // 가져오기로 했을 때만 과거 데이터 권한이 요청 목록에 포함된다.
+    var selectedMonths by remember { mutableStateOf(0) }
 
     // Health Connect 권한 요청 런처 — 권한 셋은 설정 화면과 공용
-    val healthPermissions = HealthConnectManager.requestPermissions
+    // 지난 기록을 가져오기로 했을 때만 과거 데이터 권한을 함께 요청한다
+    val healthPermissions = HealthConnectManager.requestPermissionsFor(includeHistory = selectedMonths > 0)
 
     val scope = rememberCoroutineScope()
 
@@ -159,12 +161,23 @@ fun OnboardingPermissionScreen(
                 }
             }
 
-            // 지난 기록 가져오기 — 최초 동기화 범위 선택.
+            // 지난 기록 가져오기 — 가져올지부터 고르고, 가져오면 기간(최대 3개월)을 고른다.
             SoodalCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth()) {
-                    Text("지난 기록 가져오기", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("지난 기록 가져오기", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                        SoodalChip("선택", color = ChipColor.Blue)
+                    }
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        MonthChip(
+                            text = "안 가져오기",
+                            selected = selectedMonths == 0,
+                            onClick = { selectedMonths = 0 },
+                        )
                         listOf(1, 2, 3).forEach { m ->
                             MonthChip(
                                 text = "${m}개월",
@@ -175,8 +188,9 @@ fun OnboardingPermissionScreen(
                     }
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "선택한 기간의 기록을 가져와 캘린더에 정리해 드려요. " +
-                            "조개는 오늘 수영 기록에만 지급돼요 (새벽 2시 전엔 어제 기록까지). " +
+                        "지난 기록까지 가져오려면 Health Connect의 '모든 기간 데이터' 권한이 추가로 필요해요.\n" +
+                            "선택한 기간의 기록을 가져와 캘린더에 정리해 드려요.\n" +
+                            "조개는 오늘 수영 기록에만 지급돼요 (새벽 2시 전엔 어제 기록까지).\n" +
                             "기간이 길수록 가져오는 데 시간이 걸릴 수 있어요.",
                         fontSize = 11.sp, color = colors.textTertiary, lineHeight = 17.sp,
                     )

@@ -543,15 +543,24 @@ class HealthConnectManager @Inject constructor(
         /** 새 기록 알림 워커가 쓰는 백그라운드 읽기 권한. */
         const val BG_READ_PERMISSION = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
 
-        val requestPermissions: Set<String> = setOf(
+        /** 기본 요청 권한 — 수영 데이터 읽기 5종. */
+        private val BASE_REQUEST_PERMISSIONS = setOf(
             HealthPermission.getReadPermission(ExerciseSessionRecord::class),
             HealthPermission.getReadPermission(DistanceRecord::class),
             HealthPermission.getReadPermission(HeartRateRecord::class),
             HealthPermission.getReadPermission(SpeedRecord::class),
             HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
-            // 첫 권한 승인 30일 이전 데이터 읽기 — 재설치 후 전체 이력 복원에 필요.
-            // 필수 권한은 아니라 requiredPermissions에는 넣지 않는다 (거부해도 동작).
-            HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY,
         )
+
+        /** 설정 재연결용 전체 셋 — 과거 데이터 권한 포함 (재설치 후 이력 복원에 필요). */
+        val requestPermissions: Set<String> = BASE_REQUEST_PERMISSIONS +
+            HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY
+
+        /**
+         * 온보딩용 요청 셋 — 지난 기록을 가져오기로 했을 때만 과거 데이터 권한을 포함한다.
+         * 과거 데이터는 필수 권한이 아니라 requiredPermissions에는 넣지 않는다 (거부해도 동작).
+         */
+        fun requestPermissionsFor(includeHistory: Boolean): Set<String> =
+            if (includeHistory) requestPermissions else BASE_REQUEST_PERMISSIONS
     }
 }
