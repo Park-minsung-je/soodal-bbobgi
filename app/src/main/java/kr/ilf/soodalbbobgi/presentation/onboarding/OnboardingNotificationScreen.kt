@@ -147,7 +147,10 @@ fun OnboardingNotificationScreen(
                     Column(Modifier.weight(1f)) {
                         Text("수영 리마인더", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                         Spacer(Modifier.height(4.dp))
-                        Text("지정한 시간에 수영할 시간을 알려드려요", fontSize = 12.sp, color = colors.textSecondary)
+                        Text(
+                            "정해둔 시간에 아직 수영 전이면 잊지 않게 알려드려요",
+                            fontSize = 12.sp, color = colors.textSecondary, lineHeight = 17.sp,
+                        )
                     }
                     ToggleSwitch(
                         checked = reminderEnabled,
@@ -186,7 +189,8 @@ fun OnboardingNotificationScreen(
                     Spacer(Modifier.height(4.dp))
                     Text(
                         if (hcConnected) {
-                            "새 수영 기록이 오면 알려드려요. Health Connect 백그라운드 읽기 권한 동의가 필요해요."
+                            "조개를 받을 수 있는 수영 기록이 확인되면 알려드려요.\n" +
+                                "Health Connect 백그라운드 읽기 권한 동의가 필요해요."
                         } else {
                             "Health Connect 연동 후 사용할 수 있어요"
                         },
