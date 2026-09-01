@@ -426,11 +426,14 @@ private fun TextElementControls(
     Spacer(Modifier.height(spacing.s3))
     Text("크기 단계", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
     Spacer(Modifier.height(spacing.s2))
-    Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
         (1..7).forEach { step ->
             SegmentChip(
                 label = step.toString(),
                 isActive = elState.scaleStep.coerceIn(1, 7) == step,
+                // 7개가 시트 폭을 균등 분할 — 고정 패딩이면 마지막 칩이 잘려 6개처럼 보였다
+                modifier = Modifier.weight(1f),
+                horizontalPadding = 0.dp,
                 onClick = { vm.setElementScaleStep(element, step) },
             )
         }
@@ -748,11 +751,14 @@ private fun PillStyleRow(label: String, selected: String, onSelect: (String) -> 
 private fun SegmentChip(
     label: String,
     isActive: Boolean,
+    modifier: Modifier = Modifier,
+    /** 좌우 안쪽 여백 — weight로 폭을 나눠 갖는 행은 0으로 줄인다 (기본 18). */
+    horizontalPadding: androidx.compose.ui.unit.Dp = 18.dp,
     onClick: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(SoodalShape.md)
             .background(if (isActive) colors.accentBlueSoft else sheetControlBg(colors))
             .then(
@@ -760,7 +766,8 @@ private fun SegmentChip(
                 else Modifier
             )
             .pressable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 8.dp),
+            .padding(horizontal = horizontalPadding, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
