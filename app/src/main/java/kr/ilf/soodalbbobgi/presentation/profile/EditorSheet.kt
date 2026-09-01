@@ -707,6 +707,12 @@ private fun SliderRow(
 }
 
 /**
+ * RGB 선택기가 마지막으로 적용한 색 — 프리셋으로 바꿨다가 선택기를 다시 열어도
+ * 조합해 둔 값에서 이어간다 (요구: 최소한 편집 시트가 떠 있는 동안 유지).
+ */
+private var lastPickerHex: String? = null
+
+/**
  * 텍스트 커스터마이즈용 프리셋 색상 팔레트.
  * SoodalDesign 라이트/네온 포인트 컬러 + 무채색 + 보조 액센트로 구성한다.
  */
@@ -876,8 +882,9 @@ private fun ColorPaletteRow(
             }
             if (pickerOpen) {
                 RgbPickerDialog(
-                    initialHex = selectedColor,
-                    onPick = { onSelect(it); pickerOpen = false },
+                    // 마지막으로 적용했던 조합이 있으면 거기서 시작한다
+                    initialHex = lastPickerHex ?: selectedColor,
+                    onPick = { lastPickerHex = it; onSelect(it); pickerOpen = false },
                     onDismiss = { pickerOpen = false },
                 )
             }
