@@ -109,17 +109,10 @@ fun AuthScreen(
 
             Spacer(Modifier.height(6.dp))
 
-            // 카카오 로그인 — 컨테이너는 규격(#FEE500, 라벨 85% 블랙)대로 그리고,
-            // 심볼은 공식 로그인 버튼 에셋에서 추출한 원본 픽셀을 쓴다.
+            // 카카오 로그인 — 규격(컨테이너 #FEE500, 검은 심볼, 라벨 85% 블랙)대로 직접 그린다.
             AuthButton(
-                text = if (loadingProvider == "kakao") "카카오 연결 중…" else "카카오톡 계정으로 시작하기",
-                iconContent = {
-                    Image(
-                        painter = painterResource(R.drawable.kakao_symbol),
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                    )
-                },
+                text = if (loadingProvider == "kakao") "카카오 연결 중…" else "카카오톡 계정으로 로그인",
+                iconContent = { KakaoSymbol(20.dp) },
                 bgColor = Color(0xFFFEE500),
                 textColor = Color(0xD9000000),
                 enabled = !isLoading,
@@ -128,7 +121,7 @@ fun AuthScreen(
 
             // Google 로그인 — 흰 컨테이너(보더는 디자인 판단으로 생략) + 공식 G 로고 에셋.
             AuthButton(
-                text = if (loadingProvider == "google") "Google 연결 중…" else "Google 계정으로 시작하기",
+                text = if (loadingProvider == "google") "Google 연결 중…" else "Google 계정으로 로그인",
                 iconContent = {
                     Image(
                         painter = painterResource(R.drawable.google_g_logo),
@@ -152,6 +145,23 @@ fun AuthScreen(
 }
 
 
+
+/** 카카오 심볼(말풍선) — 규격 형태를 코드로 그린 근사. 심볼색은 검정. */
+@Composable
+private fun KakaoSymbol(size: androidx.compose.ui.unit.Dp) {
+    androidx.compose.foundation.Canvas(Modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+        val path = androidx.compose.ui.graphics.Path().apply {
+            addOval(androidx.compose.ui.geometry.Rect(0f, 0f, w, h * 0.82f))
+            moveTo(w * 0.30f, h * 0.68f)
+            lineTo(w * 0.18f, h)
+            lineTo(w * 0.50f, h * 0.80f)
+            close()
+        }
+        drawPath(path, Color.Black)
+    }
+}
 
 @Composable
 private fun AuthButton(
