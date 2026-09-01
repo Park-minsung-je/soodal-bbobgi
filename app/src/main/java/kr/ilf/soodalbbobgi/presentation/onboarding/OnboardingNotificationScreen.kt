@@ -1,5 +1,6 @@
 ﻿package kr.ilf.soodalbbobgi.presentation.onboarding
 
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.alpha
@@ -182,7 +183,14 @@ fun OnboardingNotificationScreen(
 
         // 수영 기록 알림 — 백그라운드로 HC 변경을 확인해 알린다. HC 연동 전에는
         // 토글만이 아니라 카드 전체를 흐려 "지금은 못 쓰는 항목"임을 보이게 한다.
-        SoodalCard(Modifier.fillMaxWidth().alpha(if (hcConnected) 1f else 0.45f)) {
+        // alpha 모디파이어는 오프스크린 합성을 강제해 경계 밖 그림자가 사각형으로 비친다 —
+        // ModulateAlpha는 레이어 없이 드로우별 알파만 낮춰 라운드·그림자가 온전히 남는다.
+        SoodalCard(
+            Modifier.fillMaxWidth().graphicsLayer {
+                alpha = if (hcConnected) 1f else 0.45f
+                compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
+            },
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("수영 기록 알림", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
