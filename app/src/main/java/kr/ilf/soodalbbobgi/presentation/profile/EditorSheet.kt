@@ -960,11 +960,15 @@ private fun RgbSliderRow(label: String, value: Float, tint: Color, onChange: (Fl
     }
 }
 
-/** "#RRGGBB" 문자열을 Compose Color로 변환 (실패 시 회색 폴백). */
+/**
+ * "#RRGGBB" 문자열을 Compose Color로 변환 (실패 시 회색 폴백).
+ * parseColor는 빈 문자열에 IllegalArgumentException이 아니라
+ * StringIndexOutOfBoundsException을 던지므로 Exception으로 잡는다.
+ */
 private fun parseSwatchColor(hex: String): Color =
     try {
-        Color(android.graphics.Color.parseColor(hex))
-    } catch (e: IllegalArgumentException) {
+        if (hex.isBlank()) Color.Gray else Color(android.graphics.Color.parseColor(hex))
+    } catch (e: Exception) {
         Color.Gray
     }
 

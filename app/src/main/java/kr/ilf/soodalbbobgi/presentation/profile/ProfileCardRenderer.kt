@@ -375,8 +375,9 @@ object ProfileCardRenderer {
      */
     private fun parseColorOrDefault(hex: String, fallback: Int): Int =
         try {
-            android.graphics.Color.parseColor(hex)
-        } catch (e: IllegalArgumentException) {
+            // parseColor는 빈 문자열에 StringIndexOutOfBounds를 던진다 — Exception으로 방어
+            if (hex.isBlank()) fallback else android.graphics.Color.parseColor(hex)
+        } catch (e: Exception) {
             fallback
         }
 
