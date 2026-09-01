@@ -104,6 +104,9 @@ object ProfileCardRenderer {
     private const val PILL_PAD_H = 0.80f
     private const val PILL_PAD_V = 0.45f
 
+    /** 알약 패딩 증가를 누르기 시작하는 글자 크기(합성 기준 px, ×u 이전). 사다리 4단계. */
+    private const val PILL_PAD_CAP_BASE = 48f
+
     // 텍스트 요소 기준 크기(px, 1472폭 기준) — 카드 합성과 GPU 프리뷰가 공유한다.
     const val NICKNAME_BASE_SIZE = 60f
     const val TAGLINE_BASE_SIZE = 32f
@@ -324,7 +327,7 @@ object ProfileCardRenderer {
         if (layers.showNickname) {
             drawElementCentered(
                 text = layers.nickname,
-                textSize = NICKNAME_BASE_SIZE * u * scaleMulOf(layers.nicknameScaleStep),
+                textSize = elementTextSize(NICKNAME_BASE_SIZE, layers.nicknameScaleStep) * u,
                 style = layers.nicknamePill,
                 colorRaw = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.BLACK),
                 cx = layers.nicknameX, cy = layers.nicknameY,
@@ -334,7 +337,7 @@ object ProfileCardRenderer {
         if (layers.showTagline) {
             drawElementCentered(
                 text = layers.tagline,
-                textSize = TAGLINE_BASE_SIZE * u * scaleMulOf(layers.taglineScaleStep),
+                textSize = elementTextSize(TAGLINE_BASE_SIZE, layers.taglineScaleStep) * u,
                 style = layers.taglinePill,
                 colorRaw = parseColorOrDefault(layers.taglineColor, android.graphics.Color.BLACK),
                 cx = layers.taglineX, cy = layers.taglineY,
@@ -344,7 +347,7 @@ object ProfileCardRenderer {
         if (layers.showStats) {
             drawElementCentered(
                 text = layers.stats,
-                textSize = STATS_BASE_SIZE * u * scaleMulOf(layers.statsScaleStep),
+                textSize = elementTextSize(STATS_BASE_SIZE, layers.statsScaleStep) * u,
                 style = layers.statsPill,
                 colorRaw = parseColorOrDefault(layers.statsColor, android.graphics.Color.BLACK),
                 cx = layers.statsX, cy = layers.statsY,
@@ -394,13 +397,32 @@ object ProfileCardRenderer {
         else -> Typeface.DEFAULT
     }
 
-    /** 요소 크기 단계(1~5) → 배율. 3이 기준(1.2). */
-    private fun scaleMulOf(step: Int): Float =
-        floatArrayOf(0.8f, 1.0f, 1.2f, 1.5f, 1.8f)[(step - 1).coerceIn(0, 4)]
+    /**
+     * 통일 글자 크기 사다리(합성 기준 px) — 한마디·기록은 1~7단계를 그대로 타고,
+     * 닉네임은 1~4단계가 사다리 4~7단계에 대응한다. 그래서 닉네임 1·2·3단계는
+     * 한마디·기록의 4·5·6단계와 크기가 같고, 닉네임 4단계 = 나머지 7단계다.
+     */
+    private val TEXT_SIZE_LADDER = floatArrayOf(25.6f, 32f, 38.4f, 48f, 60.8f, 76.8f, 96f)
+
+    /** 요소 종류(기준 크기로 구분)와 단계 → 합성 기준 px. 닉네임은 사다리를 3칸 위에서 탄다. */
+    fun elementTextSize(baseSize: Float, step: Int): Float {
+        val ladderStep = if (baseSize == NICKNAME_BASE_SIZE) step.coerceIn(1, 4) + 3 else step
+        return TEXT_SIZE_LADDER[(ladderStep - 1).coerceIn(0, 6)]
+    }
+
+    /**
+     * 알약 패딩 기준 크기 — 캡(사다리 4단계)까지는 글자 크기에 비례하고,
+     * 그보다 큰 글자에서는 증가분을 40%만 반영해 여백이 비대해지지 않게 한다.
+     */
+    private fun pillPadBasis(textSize: Float): Float {
+        val cap = PILL_PAD_CAP_BASE * (CARD_WIDTH / TEXT_REF_WIDTH)
+        return if (textSize <= cap) textSize else cap + (textSize - cap) * 0.4f
+    }
 
     /** 스타일별 요소 높이 예측 (중심 앵커 배치용). */
     private fun elementHeightOf(textSize: Float, style: String): Float =
-        if (style == "NONE") textSize * 1.15f else textSize * (1f + PILL_PAD_V * 2f)
+        if (style == "NONE") textSize * 1.15f
+        else textSize + pillPadBasis(textSize) * PILL_PAD_V * 2f
 
     /** 스타일별 요소 폭 예측 — 알약은 좌우 패딩 포함, 폭은 잉크 경계 기준. typeface가 설정된 페인트 필요. */
     private fun measureElementWidth(textPaint: Paint, text: String, textSize: Float, style: String): Float {
@@ -408,7 +430,7 @@ object ProfileCardRenderer {
         val ink = Rect()
         textPaint.getTextBounds(text, 0, text.length, ink)
         val w = ink.width().toFloat()
-        return if (style == "NONE") w else w + textSize * PILL_PAD_H * 2f
+        return if (style == "NONE") w else w + pillPadBasis(textSize) * PILL_PAD_H * 2f
     }
 
     /**
@@ -468,8 +490,8 @@ object ProfileCardRenderer {
         }
 
         // ── 알약(캡슐) 계열 ──
-        val padH = textSize * PILL_PAD_H
-        val padV = textSize * PILL_PAD_V
+        val padH = pillPadBasis(textSize) * PILL_PAD_H
+        val padV = pillPadBasis(textSize) * PILL_PAD_V
         val pillW = textW + padH * 2f
         val pillH = textSize + padV * 2f
         val left = if (leftAligned) anchor else anchor - pillW
@@ -603,7 +625,7 @@ object ProfileCardRenderer {
         blurFallbackColor: Int? = null,
     ): Bitmap {
         val u = CARD_WIDTH / TEXT_REF_WIDTH
-        val textSize = baseSize * u * scaleMulOf(scaleStep)
+        val textSize = elementTextSize(baseSize, scaleStep) * u
         val textPaint = Paint().apply {
             isAntiAlias = true
             typeface = typefaceOf(fontStyle)
