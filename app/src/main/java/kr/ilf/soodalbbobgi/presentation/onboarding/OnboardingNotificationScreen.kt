@@ -177,8 +177,9 @@ fun OnboardingNotificationScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        // 수영 기록 알림 — 백그라운드로 HC 변경을 확인해 알린다. HC 연동 전에는 잠근다.
-        SoodalCard(Modifier.fillMaxWidth()) {
+        // 수영 기록 알림 — 백그라운드로 HC 변경을 확인해 알린다. HC 연동 전에는
+        // 토글만이 아니라 카드 전체를 흐려 "지금은 못 쓰는 항목"임을 보이게 한다.
+        SoodalCard(Modifier.fillMaxWidth().alpha(if (hcConnected) 1f else 0.45f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("수영 기록 알림", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)

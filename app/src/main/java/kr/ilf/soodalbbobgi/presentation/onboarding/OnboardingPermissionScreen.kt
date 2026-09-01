@@ -144,7 +144,7 @@ fun OnboardingPermissionScreen(
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalAlignment = Alignment.Top,
                 ) {
-                    SoodalIcon(icon = SoodalIcons.Heart, tint = colors.warn, size = 26.dp)
+                    SoodalIcon(icon = SoodalIcons.HealthConnect, tint = colors.accentBlue, size = 26.dp)
                     Column(Modifier.weight(1f)) {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -156,9 +156,10 @@ fun OnboardingPermissionScreen(
                         Spacer(Modifier.height(4.dp))
                         Text(
                             text = if (!isHealthConnectAvailable) {
-                                "Health Connect가 설치되어 있지 않습니다. Google Play에서 설치해주세요."
+                                "Health Connect가 설치되어 있지 않아요. Google Play에서 설치해 주세요."
                             } else {
-                                "수영 운동 데이터(거리·시간·칼로리)를 읽어오는 권한이 필요합니다."
+                                "수영 기록을 자동으로 동기화하려면 Health Connect의 " +
+                                    "운동·거리·심박수·속도·칼로리 읽기 권한이 필요해요."
                             },
                             fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp,
                         )
@@ -166,48 +167,58 @@ fun OnboardingPermissionScreen(
                 }
             }
 
-            // 지난 기록 가져오기 — 토글을 켜면 기간 선택이 나온다 (선택 사항).
+            // 지난 기록 가져오기 — 위 필수 카드와 같은 레이아웃. 토글을 켜면 기간 선택이 나온다.
             SoodalCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    SoodalIcon(icon = SoodalIcons.Clock, tint = colors.accentBlue, size = 26.dp)
+                    Column(Modifier.weight(1f)) {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("지난 기록 가져오기", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                            SoodalChip("선택", color = ChipColor.Blue)
-                        }
-                        HistoryToggle(checked = importHistory, onCheckedChange = { importHistory = it })
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    if (!importHistory) {
-                        // 켜기 전 — 어떤 권한 동의가 따라오는지 먼저 알린다.
-                        Text(
-                            "켜면 Health Connect의 '모든 기간의 데이터에 액세스' 권한 동의가 추가로 필요해요.",
-                            fontSize = 11.sp, color = colors.textTertiary, lineHeight = 17.sp,
-                        )
-                    } else {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(1, 2, 3).forEach { m ->
-                                MonthChip(
-                                    text = "${m}개월",
-                                    selected = selectedMonths == m,
-                                    onClick = { selectedMonths = m },
-                                )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("지난 기록 가져오기", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                                SoodalChip("선택", color = ChipColor.Blue)
                             }
+                            HistoryToggle(checked = importHistory, onCheckedChange = { importHistory = it })
                         }
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            "Health Connect의 '모든 기간의 데이터에 액세스' 권한 동의가 추가로 필요해요.\n" +
-                                "선택한 기간의 기록을 가져와 캘린더에 정리해 드려요.\n" +
+                        Spacer(Modifier.height(4.dp))
+                        if (!importHistory) {
+                            Text(
+                                "오늘 이전의 기록도 가져와 달력에 기록으로 저장할 수 있어요.\n" +
+                                    "불러오려면 Health Connect의 '모든 기간의 데이터에 액세스' 읽기 권한이 필요해요.",
+                                fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp,
+                            )
+                        } else {
+                            Text(
+                                "오늘 이전의 기록도 가져와 달력에 기록으로 저장할 수 있어요.\n" +
+                                    "불러오려면 Health Connect의 '모든 기간의 데이터에 액세스' 읽기 권한이 필요해요.",
+                                fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp,
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                listOf(1, 2, 3).forEach { m ->
+                                    MonthChip(
+                                        text = "${m}개월",
+                                        selected = selectedMonths == m,
+                                        onClick = { selectedMonths = m },
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Text(
                                 "조개는 오늘 수영 기록에만 지급돼요 (새벽 2시 전엔 어제 기록까지).\n" +
-                                "기간이 길수록 가져오는 데 시간이 걸릴 수 있어요.",
-                            fontSize = 11.sp, color = colors.textTertiary, lineHeight = 17.sp,
-                        )
+                                    "기간이 길수록 가져오는 데 시간이 걸릴 수 있어요.",
+                                fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp,
+                            )
+                        }
                     }
                 }
             }
