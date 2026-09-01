@@ -324,9 +324,10 @@ fun HomeScreen(
                         .graphicsLayer { alpha = if (hideCard) 0f else 1f }
                         .clip(RoundedCornerShape(ProfileFrameCorner - 6.dp))
                         // 편집 중에는 카드 탭으로 전체화면(저장값) 진입을 막는다 — 미저장 편집값과 어긋나기 때문.
+                        // 카드는 아트웍이라 누름 스크림을 얹지 않는다 — 탭하면 전체보기 전환 자체가 피드백.
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = LocalIndication.current,
+                            indication = null,
                             enabled = !editorOpen,
                             onClick = onOpenFullscreen,
                         ),
