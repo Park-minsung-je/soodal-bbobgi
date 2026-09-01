@@ -1,5 +1,6 @@
 ﻿package kr.ilf.soodalbbobgi.presentation.home
 
+import androidx.compose.ui.zIndex
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
@@ -110,6 +111,7 @@ fun HomeScreen(
     val state by viewModel.uiState.collectAsState()
     val shellReward by viewModel.shellReward.collectAsState()
     val shellRewardKind by viewModel.shellRewardKind.collectAsState()
+    val hcSyncing by viewModel.hcSyncing.collectAsState()
     val syncError by viewModel.syncError.collectAsState()
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
@@ -202,6 +204,28 @@ fun HomeScreen(
 
         // 하단 스크롤: 프로필 카드 + 통화 + 오늘 + 최근 7일 + 이번 달
         Box(Modifier.weight(1f)) {
+        // 최초 HC 가져오기 진행 표시 — 온보딩이 시작한 동기화가 끝날 때까지 상단 중앙에 뜬다.
+        androidx.compose.animation.AnimatedVisibility(
+            visible = hcSyncing,
+            modifier = Modifier.align(Alignment.TopCenter).zIndex(2f).padding(top = 6.dp),
+            enter = androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.fadeOut(),
+        ) {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(colors.surface1)
+                    .border(1.dp, colors.glassBorder, RoundedCornerShape(999.dp))
+                    .padding(horizontal = 14.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    modifier = Modifier.size(12.dp), strokeWidth = 2.dp, color = colors.accentBlue,
+                )
+                Text("수영 기록 가져오는 중…", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+            }
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()

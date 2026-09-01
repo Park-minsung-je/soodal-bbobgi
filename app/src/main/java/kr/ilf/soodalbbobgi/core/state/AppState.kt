@@ -91,6 +91,12 @@ class AppState @Inject constructor() {
 
     fun applyProfileCard(c: ProfileCard) { _profileCard.value = c }
 
+    private val _hcSyncing = MutableStateFlow(false)
+    /** HC 동기화 진행 중 여부 — 온보딩 직후의 최초 가져오기를 홈이 표시할 때 쓴다. */
+    val hcSyncing: StateFlow<Boolean> = _hcSyncing
+
+    fun setHcSyncing(active: Boolean) { _hcSyncing.value = active }
+
     /** Splash 동기화 중 지급된 조개 누적 (Home에서 팝업 후 consumePendingShellReward). */
     fun addPendingShellReward(amount: Int) {
         _pendingShellReward.update { it + amount }

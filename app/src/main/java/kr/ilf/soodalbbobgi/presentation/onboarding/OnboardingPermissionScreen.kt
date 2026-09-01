@@ -1,5 +1,10 @@
 ﻿package kr.ilf.soodalbbobgi.presentation.onboarding
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import kr.ilf.soodalbbobgi.core.ui.pressable
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
@@ -67,8 +72,9 @@ fun OnboardingPermissionScreen(
 
     var permissionGranted by remember { mutableStateOf(false) }
     var permissionRequested by remember { mutableStateOf(false) }
-    var syncing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    // 최초 동기화로 가져올 과거 기록 기간(개월) — 최대 3개월.
+    var selectedMonths by remember { mutableStateOf(1) }
 
     // Health Connect 권한 요청 런처 — 권한 셋은 설정 화면과 공용
     val healthPermissions = HealthConnectManager.requestPermissions
@@ -78,7 +84,7 @@ fun OnboardingPermissionScreen(
     // 결과 셋(grantedPermissions)으로 판단하지 않는다 — HC는 이미 전부 허용된 상태에서
     // 재요청하면 빈 결과를 돌려주므로, 허용해 놓고도 화면이 멈추는 버그가 있었다.
     // 런처가 돌아오면 실제 권한 상태를 다시 조회해서 판단한다.
-    // 권한 확인 → 동기화까지 마치고 넘어간다. 동기화가 실패하면 화면에 머물며 토스트로 알린다.
+    // 권한만 확인하고 바로 넘어간다 — 동기화는 백그라운드로 시작하고 홈이 진행을 표시한다.
     suspend fun proceedIfGranted() {
         val granted = viewModel.hasAllPermissions()
         permissionGranted = granted
@@ -86,17 +92,8 @@ fun OnboardingPermissionScreen(
             errorMessage = "권한이 허용되지 않았어요. 다시 시도하거나 나중에 설정에서 허용할 수 있어요."
             return
         }
-        syncing = true
-        val errorCode = viewModel.syncAfterPermission()
-        syncing = false
-        if (errorCode == null) {
-            onConnect()
-        } else {
-            android.widget.Toast.makeText(
-                context, "동기화에 실패했어요. 잠시 후 다시 시도해주세요. ($errorCode)",
-                android.widget.Toast.LENGTH_LONG,
-            ).show()
-        }
+        viewModel.startInitialSync(selectedMonths)
+        onConnect()
     }
 
     val onPermissionFlowReturned: () -> Unit = {
@@ -162,6 +159,30 @@ fun OnboardingPermissionScreen(
                 }
             }
 
+            // 지난 기록 가져오기 — 최초 동기화 범위 선택.
+            SoodalCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth()) {
+                    Text("지난 기록 가져오기", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(1, 2, 3).forEach { m ->
+                            MonthChip(
+                                text = "${m}개월",
+                                selected = selectedMonths == m,
+                                onClick = { selectedMonths = m },
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "선택한 기간의 기록을 가져와 캘린더에 정리해 드려요. " +
+                            "조개는 오늘 수영 기록에만 지급돼요 (새벽 2시 전엔 어제 기록까지). " +
+                            "기간이 길수록 가져오는 데 시간이 걸릴 수 있어요.",
+                        fontSize = 11.sp, color = colors.textTertiary, lineHeight = 17.sp,
+                    )
+                }
+            }
+
             // 카메라 — 선택 (비활성). 사진 인증 기능이 생기면 SHOW_CAMERA_CARD로 되살린다.
             if (SHOW_CAMERA_CARD) SoodalCard(Modifier.fillMaxWidth().then(Modifier.alpha(0.45f))) {
                 Row(
@@ -193,12 +214,10 @@ fun OnboardingPermissionScreen(
         Spacer(Modifier.weight(1f))
         SoodalButton(
             text = when {
-                syncing -> "동기화 중…"
                 !isHealthConnectAvailable -> "Health Connect 설치 필요"
                 permissionRequested && !permissionGranted -> "다시 시도하기"
                 else -> "Health Connect 연결하기"
             },
-            enabled = !syncing,
             onClick = {
                 errorMessage = null
                 if (isHealthConnectAvailable) {
@@ -216,6 +235,24 @@ fun OnboardingPermissionScreen(
         )
         Spacer(Modifier.height(8.dp))
         SoodalButton("나중에 하기", onClick = onSkip, style = ButtonStyle.Ghost, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+/** 기간 선택 칩 — 닉네임 화면 SelectChip과 같은 시각 언어. */
+@Composable
+private fun MonthChip(text: String, selected: Boolean, onClick: () -> Unit) {
+    val colors = SoodalDesign.colors
+    val shape = RoundedCornerShape(20.dp)
+    Box(
+        modifier = Modifier
+            .clip(shape)
+            .background(if (selected) colors.accentBlue.copy(alpha = 0.15f) else colors.surface1)
+            .border(1.dp, if (selected) colors.accentBlue else colors.glassBorder, shape)
+            .pressable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Text(text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+            color = if (selected) colors.accentBlue else colors.textSecondary)
     }
 }
 

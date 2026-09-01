@@ -28,6 +28,18 @@ class HcSyncPreferences @Inject constructor(
     }
 
     /** 저장된 토큰을 삭제한다 (전체 읽기로 리셋). */
+    /** 온보딩에서 고른 최초 동기화 기간(개월). 첫 전체 읽기에 쓰고 지운다. null = 없음. */
+    fun getPendingInitialMonths(): Int? =
+        prefs.getInt(KEY_INITIAL_MONTHS, 0).takeIf { it > 0 }
+
+    fun setPendingInitialMonths(months: Int) {
+        prefs.edit().putInt(KEY_INITIAL_MONTHS, months).apply()
+    }
+
+    fun clearPendingInitialMonths() {
+        prefs.edit().remove(KEY_INITIAL_MONTHS).apply()
+    }
+
     fun clearChangesToken() {
         prefs.edit().remove(KEY_CHANGES_TOKEN).apply()
     }
@@ -77,6 +89,7 @@ class HcSyncPreferences @Inject constructor(
 
     companion object {
         private const val KEY_CHANGES_TOKEN = "hc_changes_token"
+        private const val KEY_INITIAL_MONTHS = "initial_sync_months"
         private const val KEY_DELETED_HC_IDS = "deleted_hc_record_ids"
         private const val KEY_PENDING_DELETES = "pending_server_deletes"
     }
