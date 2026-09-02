@@ -517,6 +517,7 @@ fun SettingsScreen(
             )
             "nickname" -> NicknameEditDialog(
                 initial = profile?.nickname ?: "",
+                changeableAt = profile?.nicknameChangeableAt,
                 state = nicknameState,
                 onSave = { viewModel.saveNickname(it) },
                 onDismiss = { dialog = null; viewModel.resetNicknameState() },

@@ -75,6 +75,8 @@ data class UserData(
     val ageRange: String? = null,
     val authProvider: String,
     val createdAt: Long,
+    /** 다음 닉네임 변경 가능 시각(epoch ms). null이면 바로 가능. 구서버 응답엔 없다. */
+    val nicknameChangeableAt: Long? = null,
 )
 
 /**

@@ -2,6 +2,7 @@ package kr.ilf.soodalbbobgi.presentation.settings
 
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -13,6 +14,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kr.ilf.soodalbbobgi.core.notify.SoodalNotifier
+import kr.ilf.soodalbbobgi.core.session.UserSession
 import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.data.auth.TokenStore
@@ -21,16 +23,25 @@ import kr.ilf.soodalbbobgi.data.health.HcSyncPreferences
 import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 import kr.ilf.soodalbbobgi.data.notify.NotificationPrefs
 import kr.ilf.soodalbbobgi.data.remote.api.SoodalApi
+import kr.ilf.soodalbbobgi.data.remote.dto.ApiResponse
+import kr.ilf.soodalbbobgi.data.remote.dto.UserData
+import kr.ilf.soodalbbobgi.domain.model.UserProfile
 import kr.ilf.soodalbbobgi.domain.repository.SwimLogRepository
 import kr.ilf.soodalbbobgi.work.HcChangeCheckScheduler
 import kr.ilf.soodalbbobgi.work.ReminderScheduler
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import retrofit2.HttpException
+import retrofit2.Response
+import java.io.IOException
 
 /**
- * 설정 화면의 HC 연결 상태 반영 테스트.
- * HC 권한이 회수돼 있으면 수영 기록 알림이 "켜진 채 잠긴" 상태로 남지 않고 저장값까지 꺼져야 한다.
+ * 설정 화면 ViewModel 테스트.
+ * - HC 권한이 회수돼 있으면 수영 기록 알림이 "켜진 채 잠긴" 상태로 남지 않고 저장값까지 꺼져야 한다.
+ * - 닉네임 저장은 쿨다운을 앱에서 먼저 막고, 서버 거부(4xx)는 서버 문구를 그대로 보여준다.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
@@ -145,5 +156,87 @@ class SettingsViewModelTest {
 
         assertThat(vm.newRecordEnabled.value).isFalse()
         verify { hcChangeCheckScheduler.cancel() }
+    }
+
+    // ── 닉네임 저장 · 쿨다운 ──
+
+    private fun userData(nickname: String, changeableAt: Long?) = UserData(
+        id = "u1", nickname = nickname, shellBalance = 0, pearlBalance = 0, pityCounter = 0,
+        authProvider = "kakao", createdAt = 0L, nicknameChangeableAt = changeableAt,
+    )
+
+    private fun profileOf(nickname: String, changeableAt: Long? = null) =
+        AppState().apply { applyProfile(UserProfile("u1", nickname, null, null, "kakao", nicknameChangeableAt = changeableAt)) }
+
+    private fun httpError(code: Int, body: String) =
+        HttpException(Response.error<Any>(code, body.toResponseBody("application/json".toMediaType())))
+
+    private val SettingsViewModel.errorMessage: String
+        get() = (nicknameState.value as NicknameSaveState.Error).message
+
+    @Test
+    fun `쿨다운 중 다른 이름은 서버를 부르지 않고 안내를 띄운다`() = runTest {
+        val api = mockk<SoodalApi>(relaxed = true)
+        val vm = vm(api = api, appState = profileOf("수달", changeableAt = 2_000L))
+
+        vm.saveNickname("해달", nowMillis = 1_000L)
+
+        assertThat(vm.errorMessage).endsWith("부터 바꿀 수 있어요.")
+        coVerify(exactly = 0) { api.updateMe(any()) }
+    }
+
+    @Test
+    fun `쿨다운이 지나면 저장하고 응답의 다음 가능 시각을 프로필에 반영한다`() = runTest {
+        val api = mockk<SoodalApi>(relaxed = true)
+        val appState = profileOf("수달", changeableAt = 2_000L)
+        coEvery { api.updateMe(any()) } returns ApiResponse(true, userData("해달", 9_999L), null)
+        val vm = vm(api = api, appState = appState, appStateLoader = AppStateLoader(api, appState, UserSession()))
+
+        vm.saveNickname("해달", nowMillis = 3_000L)
+
+        assertThat(vm.nicknameState.value).isEqualTo(NicknameSaveState.Success)
+        assertThat(appState.profile.value?.nickname).isEqualTo("해달")
+        assertThat(appState.profile.value?.nicknameChangeableAt).isEqualTo(9_999L)
+    }
+
+    @Test
+    fun `서버 NICKNAME_COOLDOWN이면 메시지와 nextAllowedAt을 반영한다`() = runTest {
+        val api = mockk<SoodalApi>(relaxed = true)
+        val appState = profileOf("수달")
+        coEvery { api.updateMe(any()) } throws httpError(
+            429,
+            """{"success":false,"error":{"code":"NICKNAME_COOLDOWN","message":"서버 안내","details":{"nextAllowedAt":7777}}}""",
+        )
+        val vm = vm(api = api, appState = appState)
+
+        vm.saveNickname("해달", nowMillis = 1_000L)
+
+        assertThat(vm.errorMessage).isEqualTo("서버 안내")
+        assertThat(appState.profile.value?.nicknameChangeableAt).isEqualTo(7777L)
+    }
+
+    @Test
+    fun `서버 NICKNAME_TAKEN은 서버 메시지를 그대로 보여준다`() = runTest {
+        val api = mockk<SoodalApi>(relaxed = true)
+        coEvery { api.updateMe(any()) } throws httpError(
+            409,
+            """{"success":false,"error":{"code":"NICKNAME_TAKEN","message":"이미 사용 중인 닉네임입니다."}}""",
+        )
+        val vm = vm(api = api, appState = profileOf("수달"))
+
+        vm.saveNickname("해달", nowMillis = 1_000L)
+
+        assertThat(vm.errorMessage).isEqualTo("이미 사용 중인 닉네임입니다.")
+    }
+
+    @Test
+    fun `네트워크 예외는 기존 문구`() = runTest {
+        val api = mockk<SoodalApi>(relaxed = true)
+        coEvery { api.updateMe(any()) } throws IOException("down")
+        val vm = vm(api = api, appState = profileOf("수달"))
+
+        vm.saveNickname("해달", nowMillis = 1_000L)
+
+        assertThat(vm.errorMessage).isEqualTo("네트워크 오류가 발생했어요.")
     }
 }

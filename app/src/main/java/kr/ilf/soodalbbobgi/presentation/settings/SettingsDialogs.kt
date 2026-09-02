@@ -41,9 +41,10 @@ import kr.ilf.soodalbbobgi.core.ui.SoodalTextField
 import kr.ilf.soodalbbobgi.core.ui.glassFrost
 
 /**
- * 닉네임 변경 다이얼로그 — 입력 + 검증/서버 에러 인라인 표시.
+ * 닉네임 변경 다이얼로그 — 입력 + 검증/서버 에러 인라인 표시 + 3개월 규칙 안내.
  *
  * @param initial 현재 닉네임 (입력 초기값)
+ * @param changeableAt 다음 변경 가능 시각(epoch ms). null이면 바로 가능
  * @param state 저장 진행 상태 (Saving 중엔 버튼 비활성)
  * @param onSave 저장 버튼 콜백 (입력값 전달)
  * @param onDismiss 닫기 (바깥 탭/취소)
@@ -51,6 +52,7 @@ import kr.ilf.soodalbbobgi.core.ui.glassFrost
 @Composable
 fun NicknameEditDialog(
     initial: String,
+    changeableAt: Long?,
     state: NicknameSaveState,
     onSave: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -59,15 +61,21 @@ fun NicknameEditDialog(
     var input by remember { mutableStateOf(initial) }
     val saving = state is NicknameSaveState.Saving
     val errorMessage = (state as? NicknameSaveState.Error)?.message
+    // 연 시점 기준으로 잠근다 — 열어 둔 채 시각이 넘어가는 경우는 서버 판정이 막는다.
+    val locked = remember(changeableAt) { isNicknameCooldownActive(changeableAt, System.currentTimeMillis()) }
+    val hint = if (locked && changeableAt != null) nicknameCooldownMessage(changeableAt) else NICKNAME_COOLDOWN_HINT
 
     DialogScrim(onDismiss = { if (!saving) onDismiss() }) {
         Text("닉네임 변경", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(6.dp))
+        Text(hint, fontSize = 12.sp, lineHeight = 16.sp, color = if (locked) colors.warn else colors.textTertiary)
+        Spacer(Modifier.height(12.dp))
         SoodalTextField(
             value = input,
             onValueChange = { input = it },
             placeholder = "닉네임 입력 (최대 10자)",
             maxLength = 10,
+            enabled = !locked && !saving,
             modifier = Modifier.fillMaxWidth(),
         )
         Row(modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
@@ -91,7 +99,8 @@ fun NicknameEditDialog(
             SoodalButton(
                 text = if (saving) "저장 중…" else "저장",
                 onClick = { onSave(input) },
-                enabled = !saving && input.isNotBlank(),
+                // 같은 값 저장은 서버가 no-op으로 통과시키지만 UX상 막는다.
+                enabled = !saving && !locked && input.isNotBlank() && input != initial,
                 heightOverride = 48.dp,
                 modifier = Modifier.weight(1f),
             )

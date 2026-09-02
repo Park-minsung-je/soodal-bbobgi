@@ -225,6 +225,7 @@ class AppStateLoader @Inject constructor(
             gender = u.gender,
             ageRange = u.ageRange,
             authProvider = u.authProvider,
+            nicknameChangeableAt = u.nicknameChangeableAt,
         ))
         appState.applyCurrency(Currency(
             shellBalance = u.shellBalance,

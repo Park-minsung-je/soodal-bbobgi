@@ -15,6 +15,7 @@ import kr.ilf.soodalbbobgi.data.remote.api.SoodalApi
 import kr.ilf.soodalbbobgi.data.remote.dto.DevResetRequest
 import kr.ilf.soodalbbobgi.data.remote.dto.RefreshRequest
 import kr.ilf.soodalbbobgi.data.remote.dto.UpdateUserRequest
+import kr.ilf.soodalbbobgi.data.remote.toApiError
 import kr.ilf.soodalbbobgi.domain.model.UserProfile
 import kr.ilf.soodalbbobgi.domain.repository.SwimLogRepository
 import kr.ilf.soodalbbobgi.work.HcChangeCheckScheduler
@@ -125,8 +126,23 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /** 닉네임을 검증하고 서버에 저장한다. 성공 시 AppState 즉시 갱신. */
-    fun saveNickname(name: String) {
+    /**
+     * 닉네임을 검증하고 서버에 저장한다. 성공 시 AppState 즉시 갱신.
+     *
+     * 쿨다운 중이면 서버를 부르지 않고 안내만 띄운다. 서버가 거부(4xx)하면 그 메시지를 쓰고,
+     * 쿨다운 거부면 서버가 준 다음 가능 시각으로 프로필을 맞춰 다이얼로그가 잠기게 한다.
+     *
+     * @param name 입력한 닉네임
+     * @param nowMillis 현재 시각(epoch ms) — 테스트 주입용
+     */
+    fun saveNickname(name: String, nowMillis: Long = System.currentTimeMillis()) {
+        val current = profile.value
+        val changeableAt = current?.nicknameChangeableAt
+        // 같은 이름은 변경이 아니다 — 서버도 그대로 통과시킨다.
+        if (name != current?.nickname && changeableAt != null && isNicknameCooldownActive(changeableAt, nowMillis)) {
+            _nicknameState.value = NicknameSaveState.Error(nicknameCooldownMessage(changeableAt))
+            return
+        }
         val error = validateNickname(name)
         if (error != null) {
             _nicknameState.value = NicknameSaveState.Error(
@@ -150,7 +166,14 @@ class SettingsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "닉네임 변경 실패")
-                _nicknameState.value = NicknameSaveState.Error("네트워크 오류가 발생했어요.")
+                val apiError = e.toApiError()
+                // 기기 시계가 느려 앱 선검사를 통과했더라도 서버 판정에 맞춰 즉시 잠근다.
+                if (apiError?.code == "NICKNAME_COOLDOWN") {
+                    apiError.details?.nextAllowedAt?.let { next ->
+                        appState.profile.value?.let { appState.applyProfile(it.copy(nicknameChangeableAt = next)) }
+                    }
+                }
+                _nicknameState.value = NicknameSaveState.Error(apiError?.message ?: "네트워크 오류가 발생했어요.")
             }
         }
     }

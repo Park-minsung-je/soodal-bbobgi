@@ -173,6 +173,13 @@ class AppStateLoaderTest {
     }
 
     @Test
+    fun `applyProfileUpdate maps nicknameChangeableAt`() {
+        loader.applyProfileUpdate(sampleUser().copy(nicknameChangeableAt = 123L))
+
+        assertThat(state.profile.value?.nicknameChangeableAt).isEqualTo(123L)
+    }
+
+    @Test
     fun `ensureHydrated loads when profile is null (process-death recovery)`() = runTest {
         coEvery { api.getMe() } returns ApiResponse(true, sampleUser(), null)
         coEvery { api.getInventory(null) } returns ApiResponse(true, InventoryData(listOf(sampleInventory())), null)
