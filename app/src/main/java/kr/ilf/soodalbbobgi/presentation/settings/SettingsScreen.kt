@@ -94,8 +94,10 @@ fun SettingsScreen(
     val accountAction by viewModel.accountAction.collectAsStateWithLifecycle()
     val signedOut by viewModel.signedOut.collectAsStateWithLifecycle()
 
-    // 열려 있는 계정 다이얼로그: "nickname" | "logout" | "delete" | null
+    // 열려 있는 계정 다이얼로그: "time" | "nickname" | "logout" | null (탈퇴는 deleteFlow가 따로 든다)
     var dialog by remember { mutableStateOf<String?>(null) }
+    // 계정 탈퇴는 2단계 확인 — 문자열 키 대신 단계 상태 홀더.
+    val deleteFlow = remember { DeleteAccountFlow() }
 
     // 로그아웃/탈퇴 완료 → Auth로
     LaunchedEffect(signedOut) { if (signedOut) onSignedOut() }
@@ -296,7 +298,7 @@ fun SettingsScreen(
                         label = "계정 탈퇴",
                         trailing = "→",
                         labelColor = colors.warn,
-                        onClick = { dialog = "delete" },
+                        onClick = { deleteFlow.start() },
                     )
                 }
             }
@@ -459,43 +461,57 @@ fun SettingsScreen(
     }
 
     // -- 계정 다이얼로그 오버레이 (오버레이 레이어로 호이스팅 — 패널이 뒤 콘텐츠를 진짜 블러) --
-    if (dialog != null) {
+    if (dialog != null || deleteFlow.step != null) {
         AppOverlay {
-    when (dialog) {
-        "time" -> ReminderTimeDialog(
-            initialHour = reminderTime.first,
-            initialMinute = reminderTime.second,
-            onSave = { h, m ->
-                viewModel.setReminderTime(h, m)
-                dialog = null
-            },
-            onDismiss = { dialog = null },
-        )
-        "nickname" -> NicknameEditDialog(
-            initial = profile?.nickname ?: "",
-            state = nicknameState,
-            onSave = { viewModel.saveNickname(it) },
-            onDismiss = { dialog = null; viewModel.resetNicknameState() },
-        )
-        "logout" -> ConfirmActionDialog(
-            title = "로그아웃",
-            // 서버에 남는 것을 먼저 말한다 — 로컬 정리는 구현 디테일이라 적지 않는다(R16 이후에도 참).
-            message = "수영 기록과 수달, 조개·진주는 계정에 안전하게 보관돼요. 다시 로그인하면 그대로 이어서 쓸 수 있어요.",
-            confirmText = "로그아웃",
-            working = accountAction is AccountActionState.Working,
-            errorMessage = (accountAction as? AccountActionState.Error)?.message,
-            onConfirm = { viewModel.logout() },
-            onDismiss = { dialog = null; viewModel.resetAccountAction() },
-        )
-        "delete" -> ConfirmActionDialog(
+    // 탈퇴 흐름을 먼저 본다 — 진입 행이 달라 둘이 동시에 열릴 일은 없지만 방어적으로.
+    when (deleteFlow.step) {
+        // 1차 경고: 아직 아무것도 실행하지 않았으므로 진행/에러 표시가 없다.
+        DeleteAccountFlow.Step.Warn -> ConfirmActionDialog(
             title = "계정 탈퇴",
-            message = "계정과 모든 데이터(수영 기록, 수달, 재화)가 영구 삭제되며 되돌릴 수 없어요. 정말 탈퇴할까요?",
+            message = "계정과 모든 데이터(수영 기록, 수달, 재화)가 영구 삭제되며 되돌릴 수 없어요.",
             confirmText = "탈퇴하기",
+            working = false,
+            errorMessage = null,
+            onConfirm = { deleteFlow.proceed() },
+            onDismiss = { deleteFlow.cancel() },
+        )
+        // 최종 확인: 여기서만 서버 삭제를 부르고, 실패 메시지·처리 중 표시도 이 팝업에 인라인으로 남긴다.
+        DeleteAccountFlow.Step.Final -> ConfirmActionDialog(
+            title = "정말 탈퇴할까요?",
+            message = "지금 탈퇴하면 수영 기록·수달·조개·진주가 모두 삭제돼요.\n이 작업은 되돌릴 수 없어요.",
+            confirmText = "네, 탈퇴할게요",
             working = accountAction is AccountActionState.Working,
             errorMessage = (accountAction as? AccountActionState.Error)?.message,
-            onConfirm = { viewModel.deleteAccount() },
-            onDismiss = { dialog = null; viewModel.resetAccountAction() },
+            onConfirm = { if (deleteFlow.proceed()) viewModel.deleteAccount() },
+            onDismiss = { deleteFlow.cancel(); viewModel.resetAccountAction() },
         )
+        null -> when (dialog) {
+            "time" -> ReminderTimeDialog(
+                initialHour = reminderTime.first,
+                initialMinute = reminderTime.second,
+                onSave = { h, m ->
+                    viewModel.setReminderTime(h, m)
+                    dialog = null
+                },
+                onDismiss = { dialog = null },
+            )
+            "nickname" -> NicknameEditDialog(
+                initial = profile?.nickname ?: "",
+                state = nicknameState,
+                onSave = { viewModel.saveNickname(it) },
+                onDismiss = { dialog = null; viewModel.resetNicknameState() },
+            )
+            "logout" -> ConfirmActionDialog(
+                title = "로그아웃",
+                // 서버에 남는 것을 먼저 말한다 — 로컬 정리는 구현 디테일이라 적지 않는다(R16 이후에도 참).
+                message = "수영 기록과 수달, 조개·진주는 계정에 안전하게 보관돼요. 다시 로그인하면 그대로 이어서 쓸 수 있어요.",
+                confirmText = "로그아웃",
+                working = accountAction is AccountActionState.Working,
+                errorMessage = (accountAction as? AccountActionState.Error)?.message,
+                onConfirm = { viewModel.logout() },
+                onDismiss = { dialog = null; viewModel.resetAccountAction() },
+            )
+        }
     }
         }
     }
