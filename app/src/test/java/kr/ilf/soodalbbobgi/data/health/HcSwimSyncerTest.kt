@@ -14,6 +14,9 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -159,6 +162,24 @@ class HcSwimSyncerTest {
 
         assertThat(earned).isEqualTo(0)
         coVerify(exactly = 1) { useCase.markSynced("2026-06-07") }
+    }
+
+    @Test
+    fun `동시에 들어온 sync는 직렬화돼 첫 동기화가 끝나기 전에 서버를 다시 치지 않는다`() = runTest {
+        // 로그인 직후·온보딩 권한 허용·설정 재연결이 겹치면 같은 날짜를 두 번 보고할 수 있다 (R15).
+        val gate = CompletableDeferred<Unit>()
+        coEvery { useCase.getLogsForDate("2026-06-07") } returns listOf(row(synced = false))
+        coEvery { api.addSwimLog(any()) } coAnswers { gate.await(); okResponse(earned = 2) }
+
+        val first = async { syncer.sync() }
+        runCurrent()
+        val second = async { syncer.sync() }
+        runCurrent()
+
+        coVerify(exactly = 1) { api.addSwimLog(any()) }
+        gate.complete(Unit)
+        assertThat(first.await()).isEqualTo(2)
+        second.await()
     }
 
     @Test

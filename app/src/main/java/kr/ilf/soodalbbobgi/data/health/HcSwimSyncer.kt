@@ -10,6 +10,8 @@ import kr.ilf.soodalbbobgi.data.remote.dto.SwimLogRequest
 import kr.ilf.soodalbbobgi.data.remote.dto.UpdateVitalsRequest
 import kr.ilf.soodalbbobgi.domain.model.SwimLog
 import kr.ilf.soodalbbobgi.domain.usecase.SwimLogUseCase
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
 import java.time.LocalDate
 import java.time.LocalTime
@@ -35,17 +37,21 @@ class HcSwimSyncer @Inject constructor(
     private val appStateLoader: AppStateLoader,
 ) {
 
+    // 로그인 직후·온보딩 권한 허용·설정 재연결이 겹쳐 같은 날짜를 두 번 보고하지 않도록 직렬화한다.
+    // 비재진입 — 내부 어디에서도 sync()를 다시 부르지 않는다 (registerManual·deleteSession은 pushUnsyncedDates 직접 호출).
+    private val syncMutex = Mutex()
+
     /**
-     * 전체 동기화를 수행한다.
+     * 전체 동기화를 수행한다. 동시에 들어온 호출은 순서대로 하나씩 처리된다.
      *
      * @return 이번 동기화로 서버가 지급한 조개 수
      */
-    suspend fun sync(): Int {
+    suspend fun sync(): Int = syncMutex.withLock {
         retryPendingServerDeletes()
         syncChanges()
         val earned = pushUnsyncedDates()
         pullServerSwimLogs()
-        return earned
+        earned
     }
 
     /**

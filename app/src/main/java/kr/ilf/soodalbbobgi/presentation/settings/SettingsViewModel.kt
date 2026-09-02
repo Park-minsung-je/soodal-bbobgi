@@ -114,12 +114,13 @@ class SettingsViewModel @Inject constructor(
         if (!connected && notificationPrefs.newRecordEnabled) setNewRecordEnabled(false)
     }
 
-    /** 설정에서 HC 권한이 허용된 직후 — 상태 갱신 + 백그라운드 동기화 시작. */
+    /** 설정에서 HC 권한이 허용된 직후 — 상태 갱신 + 백그라운드 동기화 시작. 지급분은 홈 팝업으로 넘긴다. */
     fun onHcPermissionGranted() {
         _hcConnected.value = true
         appScope.launch {
             try {
-                hcSwimSyncer.sync()
+                val earned = hcSwimSyncer.sync()
+                if (earned > 0) appState.addPendingShellReward(earned)
             } catch (e: Exception) {
                 Timber.w(e, "설정에서 HC 재연결 후 동기화 실패")
             }

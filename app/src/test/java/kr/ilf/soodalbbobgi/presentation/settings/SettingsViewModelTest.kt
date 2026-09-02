@@ -158,6 +158,19 @@ class SettingsViewModelTest {
         verify { hcChangeCheckScheduler.cancel() }
     }
 
+    // ── HC 재연결 후 동기화 지급분 → 홈 팝업 (R15) ──
+
+    @Test
+    fun `onHcPermissionGranted hands earned shells to the home popup`() = runTest {
+        val appState = AppState()
+        val hcSwimSyncer = mockk<HcSwimSyncer>(relaxed = true)
+        coEvery { hcSwimSyncer.sync() } returns 1
+
+        vm(appState = appState, hcSwimSyncer = hcSwimSyncer).onHcPermissionGranted()
+
+        assertThat(appState.pendingShellReward.value).isEqualTo(1)
+    }
+
     // ── 닉네임 저장 · 쿨다운 ──
 
     private fun userData(nickname: String, changeableAt: Long?) = UserData(

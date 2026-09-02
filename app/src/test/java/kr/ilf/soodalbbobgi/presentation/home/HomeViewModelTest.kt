@@ -2,6 +2,7 @@ package kr.ilf.soodalbbobgi.presentation.home
 
 import com.google.common.truth.Truth.assertThat
 import kr.ilf.soodalbbobgi.core.session.UserSession
+import kr.ilf.soodalbbobgi.core.ui.ShellRewardKind
 import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.data.health.HcSyncPreferences
@@ -72,6 +73,40 @@ class HomeViewModelTest {
 
     private fun TestScope.startCollect(vm: HomeViewModel) {
         backgroundScope.launch(testDispatcher) { vm.uiState.collect {} }
+    }
+
+    /** 공통 픽스처로 [HomeViewModel]을 만든다 — 동기화 오케스트레이터는 relaxed mock. */
+    private fun newVm() = HomeViewModel(
+        userSession = session,
+        appState = appState,
+        appStateLoader = loader,
+        swimLogUseCase = swimLogUseCase,
+        healthConnectManager = hcManager,
+        hcSwimSyncer = mockk(relaxed = true),
+    )
+
+    // ── 대기 조개 → 팝업 구독 (R15 회귀) ──────────────────────────────────
+
+    @Test
+    fun `홈 진입 전에 쌓인 대기 조개는 생성 즉시 팝업으로 올린다`() = runTest(testDispatcher) {
+        appState.addPendingShellReward(2)
+
+        val vm = newVm()
+
+        assertThat(vm.shellReward.value).isEqualTo(2)
+        assertThat(vm.shellRewardKind.value).isEqualTo(ShellRewardKind.SwimRecord)
+        assertThat(appState.pendingShellReward.value).isEqualTo(0)
+    }
+
+    @Test
+    fun `홈 진입 후에 끝난 최초 동기화 지급분도 팝업으로 올린다`() = runTest(testDispatcher) {
+        val vm = newVm()
+        assertThat(vm.shellReward.value).isEqualTo(0)
+
+        appState.addPendingShellReward(3)
+        advanceUntilIdle()
+
+        assertThat(vm.shellReward.value).isEqualTo(3)
     }
 
     @Test

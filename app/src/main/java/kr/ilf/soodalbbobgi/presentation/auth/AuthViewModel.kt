@@ -3,6 +3,7 @@ package kr.ilf.soodalbbobgi.presentation.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kr.ilf.soodalbbobgi.core.di.ApplicationScope
+import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.data.asset.AssetManager
 import kr.ilf.soodalbbobgi.data.auth.GoogleAuthManager
@@ -34,6 +35,7 @@ class AuthViewModel @Inject constructor(
     private val soodalApi: SoodalApi,
     private val tokenStore: TokenStore,
     private val appStateLoader: AppStateLoader,
+    private val appState: AppState,
     private val healthConnectManager: HealthConnectManager,
     private val assetManager: AssetManager,
     private val hcSwimSyncer: HcSwimSyncer,
@@ -152,6 +154,8 @@ class AuthViewModel @Inject constructor(
     /**
      * 로그인 성공 직후 에셋 동기화와(권한이 있을 때) HC 동기화를 백그라운드로 실행한다.
      * 각 작업은 독립 코루틴으로 실행되어 실패해도 화면 전환을 막지 않는다.
+     * 재로그인은 HC 권한이 남아 있어 이 동기화가 오늘 기록을 가장 먼저 보고한다 —
+     * 여기서 지급된 조개는 [AppState.addPendingShellReward]로 홈 팝업에 넘긴다.
      * appScope를 사용하므로 화면 전환으로 ViewModel이 사라져도 동기화가 계속 진행된다.
      *
      * @param hasHcPermission HC 권한 보유 여부 — false이면 HC 동기화를 건너뜀
@@ -166,7 +170,8 @@ class AuthViewModel @Inject constructor(
         if (hasHcPermission) {
             appScope.launch {
                 try {
-                    hcSwimSyncer.sync()
+                    val earned = hcSwimSyncer.sync()
+                    if (earned > 0) appState.addPendingShellReward(earned)
                 } catch (e: Exception) {
                     Timber.w(e, "로그인 후 HC 동기화 실패 (앱 계속 진행)")
                 }

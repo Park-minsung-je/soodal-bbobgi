@@ -2,6 +2,7 @@ package kr.ilf.soodalbbobgi.presentation.auth
 
 import android.app.Activity
 import com.google.common.truth.Truth.assertThat
+import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.data.asset.AssetManager
 import kr.ilf.soodalbbobgi.data.asset.AssetSyncProgress
@@ -46,6 +47,7 @@ class AuthViewModelTest {
     private lateinit var api: SoodalApi
     private lateinit var tokenStore: TokenStore
     private lateinit var appStateLoader: AppStateLoader
+    private lateinit var appState: AppState
     private lateinit var hc: HealthConnectManager
     private lateinit var assetManager: AssetManager
     private lateinit var hcSwimSyncer: HcSwimSyncer
@@ -59,6 +61,7 @@ class AuthViewModelTest {
         api = mockk(relaxed = true)
         tokenStore = mockk(relaxed = true)
         appStateLoader = mockk(relaxed = true)
+        appState = AppState()
         hc = mockk(relaxed = true)
         assetManager = mockk(relaxed = true)
         hcSwimSyncer = mockk(relaxed = true)
@@ -71,8 +74,8 @@ class AuthViewModelTest {
 
     @After fun tearDown() { Dispatchers.resetMain() }
 
-    private fun vm() = AuthViewModel(kakao, google, api, tokenStore, appStateLoader, hc, assetManager, hcSwimSyncer,
-        CoroutineScope(UnconfinedTestDispatcher()))
+    private fun vm() = AuthViewModel(kakao, google, api, tokenStore, appStateLoader, appState, hc, assetManager,
+        hcSwimSyncer, CoroutineScope(UnconfinedTestDispatcher()))
 
     @Test
     fun `loginWithGoogle on new user routes to Onboarding`() = runTest {
@@ -251,6 +254,66 @@ class AuthViewModelTest {
         // 로그인 실패 시 동기화 트리거 없음
         coVerify(exactly = 0) { assetManager.sync() }
         coVerify(exactly = 0) { hcSwimSyncer.sync() }
+    }
+
+    // ── 로그인 직후 동기화 지급분 → 홈 팝업 (R15) ────────────────────────────
+
+    @Test
+    fun `loginWithGoogle hands post-login shells to the home popup`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(any()) } returns ApiResponse(
+            success = true, data = AuthData("at", "rt", 3600L, true, sampleUser(null)), error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns true
+        coEvery { hcSwimSyncer.sync() } returns 2
+
+        vm().loginWithGoogle(activity)
+
+        // 재로그인은 HC 권한이 남아 있어 로그인 직후 동기화가 오늘 기록을 먼저 보고한다 —
+        // 온보딩을 거쳐 홈에 닿았을 때 이 지급분이 팝업으로 떠야 한다 (R15).
+        assertThat(appState.pendingShellReward.value).isEqualTo(2)
+    }
+
+    @Test
+    fun `loginWithGoogle leaves no pending popup when the sync earned nothing`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(any()) } returns ApiResponse(
+            success = true, data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")), error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns true
+        coEvery { hcSwimSyncer.sync() } returns 0
+
+        vm().loginWithGoogle(activity)
+
+        assertThat(appState.pendingShellReward.value).isEqualTo(0)
+    }
+
+    @Test
+    fun `loginWithKakao hands post-login shells to the home popup`() = runTest {
+        coEvery { kakao.signIn(activity) } returns Result.success("kakaotok")
+        coEvery { api.authKakao(any()) } returns ApiResponse(
+            success = true, data = AuthData("at", "rt", 3600L, true, sampleUser(null)), error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns true
+        coEvery { hcSwimSyncer.sync() } returns 2
+
+        vm().loginWithKakao(activity)
+
+        assertThat(appState.pendingShellReward.value).isEqualTo(2)
+    }
+
+    @Test
+    fun `loginWithKakao leaves no pending popup when the sync earned nothing`() = runTest {
+        coEvery { kakao.signIn(activity) } returns Result.success("kakaotok")
+        coEvery { api.authKakao(any()) } returns ApiResponse(
+            success = true, data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")), error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns true
+        coEvery { hcSwimSyncer.sync() } returns 0
+
+        vm().loginWithKakao(activity)
+
+        assertThat(appState.pendingShellReward.value).isEqualTo(0)
     }
 
     private fun sampleUser(nickname: String?) = UserData(
