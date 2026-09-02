@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -130,11 +131,13 @@ fun ConfirmActionDialog(
             Text(errorMessage, fontSize = 12.sp, color = colors.warn)
         }
         Spacer(Modifier.height(18.dp))
+        // 안전한 쪽(취소)이 강조색, 파괴 동작은 흰 바탕 — 습관적으로 강조 버튼을 누르는 손이
+        // 계정을 지우지 않게 한다. 흰 버튼은 상점 구매 팝업의 '취소'와 같은 룩(불투명 흰색 + 잉크 테두리).
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             SoodalButton(
                 text = "취소",
                 onClick = onDismiss,
-                style = ButtonStyle.Ghost,
+                style = ButtonStyle.Primary,
                 enabled = !working,
                 heightOverride = 48.dp,
                 modifier = Modifier.weight(1f),
@@ -142,7 +145,9 @@ fun ConfirmActionDialog(
             SoodalButton(
                 text = if (working) "처리 중…" else confirmText,
                 onClick = onConfirm,
-                style = ButtonStyle.Warn,
+                style = ButtonStyle.Secondary,
+                // ShopScreen PurchaseConfirmOverlay의 '취소'와 동일 — Secondary+override 경로가 테두리를 그린다.
+                backgroundOverride = SolidColor(Color.White),
                 enabled = !working,
                 heightOverride = 48.dp,
                 modifier = Modifier.weight(1f),
