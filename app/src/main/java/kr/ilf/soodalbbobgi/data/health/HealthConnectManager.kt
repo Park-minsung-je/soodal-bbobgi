@@ -289,6 +289,19 @@ class HealthConnectManager @Inject constructor(
         false
     }
 
+    /**
+     * 이 앱에 허용된 HC 권한을 전부 회수한다 — 탈퇴 시 온보딩이 처음처럼 권한을 다시 묻게 하기 위함.
+     *
+     * @return 회수에 성공하면 true. 실패해도 탈퇴는 진행하므로 예외를 던지지 않는다
+     */
+    suspend fun revokeAllPermissions(): Boolean = try {
+        healthConnectClient.permissionController.revokeAllPermissions()
+        true
+    } catch (e: Exception) {
+        Timber.w(e, "HC 권한 회수 실패")
+        false
+    }
+
     suspend fun hasAllPermissions(): Boolean {
         return try {
             val granted = healthConnectClient.permissionController.getGrantedPermissions()

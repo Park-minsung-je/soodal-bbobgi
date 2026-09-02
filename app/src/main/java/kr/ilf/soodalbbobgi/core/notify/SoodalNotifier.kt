@@ -95,6 +95,9 @@ class SoodalNotifier @Inject constructor(
         )
     }
 
+    /** 게시된 앱 알림을 전부 내린다 — 탈퇴·계정 전환용. */
+    fun cancelAll() = NotificationManagerCompat.from(context).cancelAll()
+
     companion object {
         private const val CHANNEL_REMINDER = "swim_reminder"
         private const val CHANNEL_NEW_RECORD = "new_swim_record"

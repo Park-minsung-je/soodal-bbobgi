@@ -6,6 +6,7 @@ import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.data.asset.AssetManager
 import kr.ilf.soodalbbobgi.data.asset.AssetSyncProgress
+import kr.ilf.soodalbbobgi.data.auth.AccountSwitchGuard
 import kr.ilf.soodalbbobgi.data.auth.GoogleAuthManager
 import kr.ilf.soodalbbobgi.data.auth.KakaoAuthManager
 import kr.ilf.soodalbbobgi.data.auth.TokenStore
@@ -19,6 +20,7 @@ import kr.ilf.soodalbbobgi.data.remote.dto.GoogleAuthRequest
 import kr.ilf.soodalbbobgi.data.remote.dto.UserData
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
@@ -46,6 +48,7 @@ class AuthViewModelTest {
     private lateinit var google: GoogleAuthManager
     private lateinit var api: SoodalApi
     private lateinit var tokenStore: TokenStore
+    private lateinit var guard: AccountSwitchGuard
     private lateinit var appStateLoader: AppStateLoader
     private lateinit var appState: AppState
     private lateinit var hc: HealthConnectManager
@@ -60,6 +63,7 @@ class AuthViewModelTest {
         google = mockk(relaxed = true)
         api = mockk(relaxed = true)
         tokenStore = mockk(relaxed = true)
+        guard = mockk(relaxed = true)
         appStateLoader = mockk(relaxed = true)
         appState = AppState()
         hc = mockk(relaxed = true)
@@ -74,7 +78,7 @@ class AuthViewModelTest {
 
     @After fun tearDown() { Dispatchers.resetMain() }
 
-    private fun vm() = AuthViewModel(kakao, google, api, tokenStore, appStateLoader, appState, hc, assetManager,
+    private fun vm() = AuthViewModel(kakao, google, api, tokenStore, guard, appStateLoader, appState, hc, assetManager,
         hcSwimSyncer, CoroutineScope(UnconfinedTestDispatcher()))
 
     @Test
@@ -314,6 +318,54 @@ class AuthViewModelTest {
         vm().loginWithKakao(activity)
 
         assertThat(appState.pendingShellReward.value).isEqualTo(0)
+    }
+
+    // ── 계정 전환 가드 (R16) ──────────────────────────────────────────────────
+
+    @Test
+    fun `loginWithGoogle runs the account guard before saving tokens and loading state`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(any()) } returns ApiResponse(
+            success = true, data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")), error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns true
+
+        vm().loginWithGoogle(activity)
+
+        // 초기화가 토큰과 AppState도 지우므로 가드는 토큰 저장·상태 로드보다 먼저 돌아야 한다.
+        coVerifyOrder {
+            guard.ensureLocalOwnedBy(sampleUser("수달이").id)
+            tokenStore.saveTokens("at", "rt", 3600L)
+            appStateLoader.loadAll()
+        }
+    }
+
+    @Test
+    fun `loginWithGoogle does not touch the account guard on server error`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(any()) } returns ApiResponse(
+            success = false, data = null, error = ApiError("INVALID_TOKEN", "bad"),
+        )
+
+        vm().loginWithGoogle(activity)
+
+        coVerify(exactly = 0) { guard.ensureLocalOwnedBy(any()) }
+    }
+
+    @Test
+    fun `loginWithKakao runs the account guard before saving tokens`() = runTest {
+        coEvery { kakao.signIn(activity) } returns Result.success("kakaotok")
+        coEvery { api.authKakao(any()) } returns ApiResponse(
+            success = true, data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")), error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns true
+
+        vm().loginWithKakao(activity)
+
+        coVerifyOrder {
+            guard.ensureLocalOwnedBy(sampleUser("수달이").id)
+            tokenStore.saveTokens("at", "rt", 3600L)
+        }
     }
 
     private fun sampleUser(nickname: String?) = UserData(

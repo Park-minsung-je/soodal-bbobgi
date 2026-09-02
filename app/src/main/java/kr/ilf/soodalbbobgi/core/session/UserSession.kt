@@ -9,7 +9,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class UserSession @Inject constructor() {
-    var userId: String = "debug_user"
+    var userId: String = DEFAULT_USER_ID
         private set
 
     /**
@@ -19,5 +19,15 @@ class UserSession @Inject constructor() {
      */
     fun setAuthenticatedUser(id: String) {
         userId = id
+    }
+
+    /** 로그아웃/탈퇴 시 사용자 ID를 초기값으로 되돌린다. */
+    fun clear() {
+        userId = DEFAULT_USER_ID
+    }
+
+    companion object {
+        /** 로그인 전·로그아웃 후의 자리표시 ID. */
+        private const val DEFAULT_USER_ID = "debug_user"
     }
 }

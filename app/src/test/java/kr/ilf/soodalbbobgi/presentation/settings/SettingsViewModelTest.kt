@@ -21,8 +21,10 @@ import kr.ilf.soodalbbobgi.data.auth.TokenStore
 import kr.ilf.soodalbbobgi.data.health.HcSwimSyncer
 import kr.ilf.soodalbbobgi.data.health.HcSyncPreferences
 import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
+import kr.ilf.soodalbbobgi.data.local.LocalDataResetter
 import kr.ilf.soodalbbobgi.data.notify.NotificationPrefs
 import kr.ilf.soodalbbobgi.data.remote.api.SoodalApi
+import kr.ilf.soodalbbobgi.data.remote.dto.ApiError
 import kr.ilf.soodalbbobgi.data.remote.dto.ApiResponse
 import kr.ilf.soodalbbobgi.data.remote.dto.UserData
 import kr.ilf.soodalbbobgi.domain.model.UserProfile
@@ -78,6 +80,7 @@ class SettingsViewModelTest {
         reminderScheduler: ReminderScheduler = mockk(relaxed = true),
         hcChangeCheckScheduler: HcChangeCheckScheduler = this.hcChangeCheckScheduler,
         notifier: SoodalNotifier = mockk(relaxed = true),
+        resetter: LocalDataResetter = mockk(relaxed = true),
         appScope: CoroutineScope = CoroutineScope(UnconfinedTestDispatcher()),
     ) = SettingsViewModel(
         api = api,
@@ -92,6 +95,7 @@ class SettingsViewModelTest {
         reminderScheduler = reminderScheduler,
         hcChangeCheckScheduler = hcChangeCheckScheduler,
         notifier = notifier,
+        localDataResetter = resetter,
         appScope = appScope,
     )
 
@@ -169,6 +173,56 @@ class SettingsViewModelTest {
         vm(appState = appState, hcSwimSyncer = hcSwimSyncer).onHcPermissionGranted()
 
         assertThat(appState.pendingShellReward.value).isEqualTo(1)
+    }
+
+    // ── 로그아웃 · 탈퇴 초기 상태화 (R16) ──
+
+    @Test
+    fun `탈퇴는 서버 삭제 성공 시에만 HC 권한을 회수하고 에셋을 제외한 로컬 전부를 지운 뒤 signedOut을 올린다`() = runTest {
+        val api = mockk<SoodalApi>(relaxed = true)
+        val resetter = mockk<LocalDataResetter>(relaxed = true)
+        coEvery { api.deleteMe() } returns ApiResponse(true, Unit, null)
+
+        val vm = vm(api = api, resetter = resetter)
+        vm.deleteAccount()
+
+        coVerify(exactly = 1) { healthConnectManager.revokeAllPermissions() }
+        coVerify(exactly = 1) { resetter.clearAll(keepAssets = true) }
+        assertThat(vm.signedOut.value).isTrue()
+        assertThat(vm.accountAction.value).isEqualTo(AccountActionState.Idle)
+    }
+
+    @Test
+    fun `탈퇴 서버 실패면 로컬을 건드리지 않는다`() = runTest {
+        val api = mockk<SoodalApi>(relaxed = true)
+        val resetter = mockk<LocalDataResetter>(relaxed = true)
+        coEvery { api.deleteMe() } returns ApiResponse(false, null, ApiError("E", "x"))
+
+        val vm = vm(api = api, resetter = resetter)
+        vm.deleteAccount()
+
+        coVerify(exactly = 0) { resetter.clearAll(any()) }
+        verify(exactly = 0) { resetter.clearSession() }
+        coVerify(exactly = 0) { healthConnectManager.revokeAllPermissions() }
+        assertThat(vm.signedOut.value).isFalse()
+        assertThat(vm.accountAction.value).isInstanceOf(AccountActionState.Error::class.java)
+    }
+
+    @Test
+    fun `로그아웃은 서버 실패여도 세션만 끊고 로컬 데이터는 남긴다`() = runTest {
+        val api = mockk<SoodalApi>(relaxed = true)
+        val tokenStore = mockk<TokenStore>(relaxed = true)
+        val resetter = mockk<LocalDataResetter>(relaxed = true)
+        every { tokenStore.getRefreshToken() } returns "rt"
+        coEvery { api.logout(any()) } throws IOException("offline")
+
+        val vm = vm(api = api, tokenStore = tokenStore, resetter = resetter)
+        vm.logout()
+
+        verify(exactly = 1) { resetter.clearSession() }
+        coVerify(exactly = 0) { resetter.clearAll(any()) }
+        coVerify(exactly = 0) { healthConnectManager.revokeAllPermissions() }
+        assertThat(vm.signedOut.value).isTrue()
     }
 
     // ── 닉네임 저장 · 쿨다운 ──

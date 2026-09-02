@@ -6,6 +6,7 @@ import kr.ilf.soodalbbobgi.core.di.ApplicationScope
 import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.data.asset.AssetManager
+import kr.ilf.soodalbbobgi.data.auth.AccountSwitchGuard
 import kr.ilf.soodalbbobgi.data.auth.GoogleAuthManager
 import kr.ilf.soodalbbobgi.data.auth.KakaoAuthManager
 import kr.ilf.soodalbbobgi.data.auth.TokenStore
@@ -34,6 +35,7 @@ class AuthViewModel @Inject constructor(
     private val googleAuthManager: GoogleAuthManager,
     private val soodalApi: SoodalApi,
     private val tokenStore: TokenStore,
+    private val accountSwitchGuard: AccountSwitchGuard,
     private val appStateLoader: AppStateLoader,
     private val appState: AppState,
     private val healthConnectManager: HealthConnectManager,
@@ -66,6 +68,8 @@ class AuthViewModel @Inject constructor(
                 val authResponse = soodalApi.authKakao(KakaoAuthRequest(kakaoToken))
                 if (authResponse.success && authResponse.data != null) {
                     val data = authResponse.data
+                    // 다른 계정이면 온보딩/홈 진입 전에 로컬을 비운다 — 초기화가 토큰도 지우므로 저장보다 앞에 둔다
+                    accountSwitchGuard.ensureLocalOwnedBy(data.user.id)
                     tokenStore.saveTokens(data.accessToken, data.refreshToken, data.expiresIn)
 
                     // 전체 서버 상태 로드 (profile/currency/inventory/gachaBoxes/profileCard)
@@ -121,6 +125,8 @@ class AuthViewModel @Inject constructor(
                 val authResponse = soodalApi.authGoogle(GoogleAuthRequest(idToken))
                 if (authResponse.success && authResponse.data != null) {
                     val data = authResponse.data
+                    // 다른 계정이면 온보딩/홈 진입 전에 로컬을 비운다 — 초기화가 토큰도 지우므로 저장보다 앞에 둔다
+                    accountSwitchGuard.ensureLocalOwnedBy(data.user.id)
                     tokenStore.saveTokens(data.accessToken, data.refreshToken, data.expiresIn)
 
                     val loaded = appStateLoader.loadAll()

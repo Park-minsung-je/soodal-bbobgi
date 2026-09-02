@@ -10,6 +10,7 @@ import kr.ilf.soodalbbobgi.data.auth.TokenStore
 import kr.ilf.soodalbbobgi.data.health.HcSwimSyncer
 import kr.ilf.soodalbbobgi.data.health.HcSyncPreferences
 import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
+import kr.ilf.soodalbbobgi.data.local.LocalDataResetter
 import kr.ilf.soodalbbobgi.data.notify.NotificationPrefs
 import kr.ilf.soodalbbobgi.data.remote.api.SoodalApi
 import kr.ilf.soodalbbobgi.data.remote.dto.DevResetRequest
@@ -46,6 +47,7 @@ class SettingsViewModel @Inject constructor(
     private val reminderScheduler: ReminderScheduler,
     private val hcChangeCheckScheduler: HcChangeCheckScheduler,
     private val notifier: SoodalNotifier,
+    private val localDataResetter: LocalDataResetter,
     @ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -276,9 +278,8 @@ class SettingsViewModel @Inject constructor(
     fun clearDevResetResult() { _devResetResult.value = null }
 
     /**
-     * 로그아웃 — 서버 토큰 무효화는 실패해도 진행하고, 로컬 토큰/메모리/Room을 정리한다.
-     * 로컬 수영 기록도 삭제한다 (다른 계정 재로그인 시 데이터 혼입 방지,
-     * 같은 계정은 HC 재동기화로 복구).
+     * 로그아웃 — 서버 토큰 무효화는 실패해도 진행. 로컬 데이터는 남기고 세션·메모리만 끊는다.
+     * 다른 계정이 이어서 로그인하면 AccountSwitchGuard가 로컬을 초기화하고, 같은 계정은 그대로 이어 쓴다.
      */
     fun logout() {
         viewModelScope.launch {
@@ -286,18 +287,25 @@ class SettingsViewModel @Inject constructor(
             runCatching {
                 tokenStore.getRefreshToken()?.let { api.logout(RefreshRequest(it)) }
             }.onFailure { Timber.w(it, "서버 로그아웃 실패 — 로컬 정리는 계속 진행") }
-            clearLocalAndSignOut()
+            localDataResetter.clearSession()
+            finishSignOut()
         }
     }
 
-    /** 계정 탈퇴 — 서버 삭제가 성공해야만 로컬을 정리한다 (실패 시 계정이 남아있으므로). */
+    /**
+     * 계정 탈퇴 — 서버 삭제 성공 시에만 HC 권한을 회수하고 에셋을 제외한 로컬 전부를 지운 뒤 앱을 재시작한다.
+     * 실패 시 계정이 남아 있으므로 로컬을 건드리지 않는다.
+     */
     fun deleteAccount() {
         viewModelScope.launch {
             _accountAction.value = AccountActionState.Working
             try {
                 val res = api.deleteMe()
                 if (res.success) {
-                    clearLocalAndSignOut()
+                    // 재가입 시 온보딩이 처음처럼 권한을 다시 묻도록 — 실패해도 탈퇴는 진행한다
+                    healthConnectManager.revokeAllPermissions()
+                    localDataResetter.clearAll(keepAssets = true)
+                    finishSignOut()
                 } else {
                     _accountAction.value = AccountActionState.Error(res.error?.message ?: "탈퇴에 실패했어요.")
                 }
@@ -310,11 +318,8 @@ class SettingsViewModel @Inject constructor(
 
     fun resetAccountAction() { _accountAction.value = AccountActionState.Idle }
 
-    private suspend fun clearLocalAndSignOut() {
-        tokenStore.clearTokens()
-        hcSyncPreferences.clearChangesToken()
-        swimLogRepository.deleteAll()
-        appState.clear()
+    /** 로컬 정리가 끝난 뒤 화면에 종료를 알린다 — 화면은 이를 보고 앱을 스플래시부터 재시작한다. */
+    private fun finishSignOut() {
         _accountAction.value = AccountActionState.Idle
         _signedOut.value = true
     }

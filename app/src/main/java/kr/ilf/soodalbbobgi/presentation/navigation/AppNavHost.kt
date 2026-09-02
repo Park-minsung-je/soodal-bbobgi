@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavController
@@ -50,6 +51,7 @@ import kr.ilf.soodalbbobgi.core.ui.motion.soodalExit
 import kr.ilf.soodalbbobgi.core.ui.motion.soodalPopEnter
 import kr.ilf.soodalbbobgi.core.ui.motion.soodalPopExit
 import kr.ilf.soodalbbobgi.core.ui.motion.tabIndexOf
+import kr.ilf.soodalbbobgi.core.util.restartApp
 import kr.ilf.soodalbbobgi.presentation.auth.AuthRoute
 import kr.ilf.soodalbbobgi.presentation.auth.AuthScreen
 import kr.ilf.soodalbbobgi.presentation.calendar.CalendarScreen
@@ -223,13 +225,12 @@ fun AppNavHost(navController: NavHostController) {
                         ShopScreen()
                     }
                     composable(Screen.Settings.route) {
+                        val context = LocalContext.current
                         SettingsScreen(
                             onBack = { navController.popBackStack() },
-                            onSignedOut = {
-                                navController.navigate(Screen.Auth.route) {
-                                    popUpTo(0) { inclusive = true }
-                                }
-                            },
+                            // 로그아웃/탈퇴 → 스플래시부터 재진입. 내비 저장 상태와 탭 ViewModel(캘린더 월 등)까지 새로 만든다.
+                            // popUpTo(0)만으로는 backStackStates에 남은 탭 ViewModel이 재로그인 후 복원됐다.
+                            onSignedOut = { context.restartApp() },
                             onOpenLicenses = { navController.navigateOnce(Screen.Licenses.route) },
                         )
                     }

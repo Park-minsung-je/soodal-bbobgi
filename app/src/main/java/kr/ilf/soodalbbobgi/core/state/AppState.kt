@@ -108,7 +108,7 @@ class AppState @Inject constructor() {
         return v
     }
 
-    /** 로그아웃 시 모든 메모리 상태 초기화. */
+    /** 로그아웃·탈퇴 시 모든 메모리 상태 초기화. */
     fun clear() {
         _profile.value = null
         _currency.value = Currency()
@@ -118,5 +118,7 @@ class AppState @Inject constructor() {
         _shopListings.value = emptyList()
         _profileCard.value = null
         _pendingShellReward.value = 0
+        // 진행 중이던 동기화는 함께 취소되므로 홈 상단 필이 재시작 후에도 남지 않게 내린다
+        _hcSyncing.value = false
     }
 }
