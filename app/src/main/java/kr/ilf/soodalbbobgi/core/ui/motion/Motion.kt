@@ -26,6 +26,14 @@ object Motion {
     /** 앱 시작 플로우(스플래시→홈 등) 단순 페이드 시간(ms). */
     const val DUR_FADE = 240
 
+    /**
+     * 누름 스크림 해제 페이드 시간(ms). 닿을 땐 즉시 뜨고 뗄 때만 이 시간에 걸쳐 사라진다.
+     *
+     * 180ms는 사용자 테스트에서 짧다는 피드백이 있어 [DUR_FADE]와 같은 240ms로 맞췄다.
+     * 300ms를 넘기면 토글처럼 탭 직후 상태가 바뀌는 요소 위에 스크림이 남아 보인다.
+     */
+    const val DUR_PRESS_FADE = 240
+
     /** 대부분의 전환에 쓰는 표준 이징. */
     val easeStandard: Easing = FastOutSlowInEasing
 

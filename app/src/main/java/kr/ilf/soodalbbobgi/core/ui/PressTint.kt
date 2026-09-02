@@ -20,6 +20,7 @@ import androidx.compose.ui.node.DelegatableNode
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.invalidateDraw
 import kr.ilf.soodalbbobgi.core.theme.SoodalDesign
+import kr.ilf.soodalbbobgi.core.ui.motion.Motion
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.launch
@@ -48,9 +49,6 @@ private data class PressTintIndication(
         PressTintNode(interactionSource, tint, alpha)
 }
 
-/** 스크림 해제 페이드 시간(ms) — 닿을 땐 즉시, 뗄 땐 이 시간에 걸쳐 사라진다. */
-private const val PRESS_FADE_OUT_MS = 180
-
 /** 눌림 여부를 추적해 콘텐츠 위에 스크림을 그리는 노드 — 해제 시 서서히 사라진다. */
 private class PressTintNode(
     private val interactionSource: InteractionSource,
@@ -78,7 +76,7 @@ private class PressTintNode(
                         progress.snapTo(1f)
                         invalidateDraw()
                     } else {
-                        progress.animateTo(0f, androidx.compose.animation.core.tween(PRESS_FADE_OUT_MS)) {
+                        progress.animateTo(0f, androidx.compose.animation.core.tween(Motion.DUR_PRESS_FADE)) {
                             invalidateDraw()
                         }
                     }
