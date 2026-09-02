@@ -479,7 +479,8 @@ fun SettingsScreen(
         )
         "logout" -> ConfirmActionDialog(
             title = "로그아웃",
-            message = "로그아웃하면 이 기기의 수영 기록이 지워져요. 다시 로그인하면 Health Connect에서 다시 가져올 수 있어요.",
+            // 서버에 남는 것을 먼저 말한다 — 로컬 정리는 구현 디테일이라 적지 않는다(R16 이후에도 참).
+            message = "수영 기록과 수달, 조개·진주는 계정에 안전하게 보관돼요. 다시 로그인하면 그대로 이어서 쓸 수 있어요.",
             confirmText = "로그아웃",
             working = accountAction is AccountActionState.Working,
             errorMessage = (accountAction as? AccountActionState.Error)?.message,
