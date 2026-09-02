@@ -354,7 +354,7 @@ private fun BoxGridItem(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 12.dp)
                 Text(
-                    text = "${item.price}",
+                    text = priceLabel(item.price),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.accentPurple,
@@ -458,7 +458,7 @@ private fun DirectItemCard(
                 } else {
                     SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 11.dp)
                     Text(
-                        text = "${item.price}",
+                        text = priceLabel(item.price),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = colors.accentPurple,
@@ -496,6 +496,17 @@ private fun saleRemainingLabel(endAt: Long?): String? {
     }
     return "기간 한정 · $label"
 }
+
+/**
+ * 상점 가격 라벨 — 숫자만 돌려준다.
+ *
+ * 왼쪽에 진주 아이콘이 붙으므로 "진주"·"개" 같은 단위 글자는 붙이지 않는다
+ * (조개 보상 팝업의 `+N` 표기와 같은 원칙). 카드와 구매 확인 팝업이 모두 이 함수를 쓴다.
+ *
+ * @param price 진주 가격
+ * @return 표시 문자열 (예: "200")
+ */
+internal fun priceLabel(price: Int): String = price.toString()
 
 @Composable
 private fun PurchaseConfirmOverlay(
@@ -615,7 +626,7 @@ private fun PurchaseConfirmOverlay(
                 ) {
                     SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 14.dp)
                     Text(
-                        text = "${item.price} 진주",
+                        text = priceLabel(item.price),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.accentPurple,
