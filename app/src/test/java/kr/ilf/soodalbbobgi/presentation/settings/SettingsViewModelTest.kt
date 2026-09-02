@@ -3,6 +3,7 @@ package kr.ilf.soodalbbobgi.presentation.settings
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -17,6 +18,8 @@ import kr.ilf.soodalbbobgi.core.notify.SoodalNotifier
 import kr.ilf.soodalbbobgi.core.session.UserSession
 import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
+import kr.ilf.soodalbbobgi.data.auth.GoogleAuthManager
+import kr.ilf.soodalbbobgi.data.auth.KakaoAuthManager
 import kr.ilf.soodalbbobgi.data.auth.TokenStore
 import kr.ilf.soodalbbobgi.data.health.HcSwimSyncer
 import kr.ilf.soodalbbobgi.data.health.HcSyncPreferences
@@ -72,6 +75,8 @@ class SettingsViewModelTest {
         appState: AppState = AppState(),
         appStateLoader: AppStateLoader = mockk(relaxed = true),
         tokenStore: TokenStore = mockk(relaxed = true),
+        kakao: KakaoAuthManager = mockk(relaxed = true),
+        google: GoogleAuthManager = mockk(relaxed = true),
         hcSyncPreferences: HcSyncPreferences = mockk(relaxed = true),
         healthConnectManager: HealthConnectManager = this.healthConnectManager,
         swimLogRepository: SwimLogRepository = mockk(relaxed = true),
@@ -87,6 +92,8 @@ class SettingsViewModelTest {
         appState = appState,
         appStateLoader = appStateLoader,
         tokenStore = tokenStore,
+        kakaoAuthManager = kakao,
+        googleAuthManager = google,
         hcSyncPreferences = hcSyncPreferences,
         healthConnectManager = healthConnectManager,
         swimLogRepository = swimLogRepository,
@@ -222,6 +229,97 @@ class SettingsViewModelTest {
         verify(exactly = 1) { resetter.clearSession() }
         coVerify(exactly = 0) { resetter.clearAll(any()) }
         coVerify(exactly = 0) { healthConnectManager.revokeAllPermissions() }
+        assertThat(vm.signedOut.value).isTrue()
+    }
+
+    // ── 탈퇴·로그아웃 시 프로바이더 기기 세션 정리 (R6 앱) ──
+
+    private fun kakaoUser() = AppState().apply { applyProfile(UserProfile("u1", "수달", null, null, "kakao")) }
+
+    private fun googleUser() = AppState().apply { applyProfile(UserProfile("u1", "수달", null, null, "google")) }
+
+    @Test
+    fun `deleteAccount on a kakao user clears the kakao session after the server delete`() = runTest {
+        val api = mockk<SoodalApi>(relaxed = true)
+        val kakao = mockk<KakaoAuthManager>(relaxed = true)
+        val google = mockk<GoogleAuthManager>(relaxed = true)
+        val resetter = mockk<LocalDataResetter>(relaxed = true)
+        coEvery { api.deleteMe() } returns ApiResponse(true, Unit, null)
+        coEvery { kakao.signOutLocally() } returns Result.success(Unit)
+
+        val vm = vm(api = api, appState = kakaoUser(), kakao = kakao, google = google, resetter = resetter)
+        vm.deleteAccount()
+
+        // 서버 성공 직후·HC 회수 앞 — provider 값을 읽어야 하므로 로컬 초기화(clearAll)보다 먼저여야 한다
+        coVerifyOrder {
+            api.deleteMe()
+            kakao.signOutLocally()
+            healthConnectManager.revokeAllPermissions()
+            resetter.clearAll(keepAssets = true)
+        }
+        coVerify(exactly = 0) { google.clearCredentialState() }
+        assertThat(vm.signedOut.value).isTrue()
+    }
+
+    @Test
+    fun `deleteAccount on a google user clears the credential state`() = runTest {
+        val api = mockk<SoodalApi>(relaxed = true)
+        val kakao = mockk<KakaoAuthManager>(relaxed = true)
+        val google = mockk<GoogleAuthManager>(relaxed = true)
+        coEvery { api.deleteMe() } returns ApiResponse(true, Unit, null)
+        coEvery { google.clearCredentialState() } returns Result.success(Unit)
+
+        vm(api = api, appState = googleUser(), kakao = kakao, google = google).deleteAccount()
+
+        coVerify(exactly = 1) { google.clearCredentialState() }
+        coVerify(exactly = 0) { kakao.signOutLocally() }
+    }
+
+    @Test
+    fun `deleteAccount proceeds when the provider cleanup fails`() = runTest {
+        val api = mockk<SoodalApi>(relaxed = true)
+        val kakao = mockk<KakaoAuthManager>(relaxed = true)
+        val resetter = mockk<LocalDataResetter>(relaxed = true)
+        coEvery { api.deleteMe() } returns ApiResponse(true, Unit, null)
+        coEvery { kakao.signOutLocally() } returns Result.failure(RuntimeException("no token"))
+
+        val vm = vm(api = api, appState = kakaoUser(), kakao = kakao, resetter = resetter)
+        vm.deleteAccount()
+
+        coVerify(exactly = 1) { resetter.clearAll(keepAssets = true) }
+        assertThat(vm.signedOut.value).isTrue()
+        assertThat(vm.accountAction.value).isEqualTo(AccountActionState.Idle)
+    }
+
+    @Test
+    fun `deleteAccount server failure touches neither provider nor local`() = runTest {
+        val api = mockk<SoodalApi>(relaxed = true)
+        val kakao = mockk<KakaoAuthManager>(relaxed = true)
+        val resetter = mockk<LocalDataResetter>(relaxed = true)
+        coEvery { api.deleteMe() } returns ApiResponse(false, null, ApiError("INTERNAL_ERROR", "x"))
+
+        val vm = vm(api = api, appState = kakaoUser(), kakao = kakao, resetter = resetter)
+        vm.deleteAccount()
+
+        coVerify(exactly = 0) { kakao.signOutLocally() }
+        coVerify(exactly = 0) { resetter.clearAll(any()) }
+        assertThat(vm.accountAction.value).isInstanceOf(AccountActionState.Error::class.java)
+    }
+
+    @Test
+    fun `logout clears the provider session too`() = runTest {
+        val kakao = mockk<KakaoAuthManager>(relaxed = true)
+        val resetter = mockk<LocalDataResetter>(relaxed = true)
+        coEvery { kakao.signOutLocally() } returns Result.success(Unit)
+
+        val vm = vm(appState = kakaoUser(), kakao = kakao, resetter = resetter)
+        vm.logout()
+
+        // 세션 정리(clearSession)가 메모리 프로필을 비우므로 provider 정리는 그 앞이어야 한다
+        coVerifyOrder {
+            kakao.signOutLocally()
+            resetter.clearSession()
+        }
         assertThat(vm.signedOut.value).isTrue()
     }
 
