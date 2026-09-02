@@ -363,9 +363,10 @@ fun SettingsScreen(
                     )
                     SettingsDivider()
                     // 수영 기록 알림은 HC 연동이 전제 — 연동 전이면 잠근다 (온보딩과 동일).
+                    // 권한이 회수된 게 확인되면 꺼진 모습으로 보인다 (VM이 저장값도 함께 내린다).
                     SettingsToggleRow(
                         label = "수영 기록 알림",
-                        checked = newRecordEnabled,
+                        checked = newRecordEnabled && hcConnected != false,
                         enabled = hcConnected == true,
                         onCheckedChange = { on ->
                             if (on) enableNotifToggle("newRecord") else viewModel.setNewRecordEnabled(false)

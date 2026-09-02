@@ -82,12 +82,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { appStateLoader.ensureHydrated() }
     }
 
-    /** HC 권한 상태를 다시 확인한다 (화면 진입/권한 요청 결과 후). */
     /** HC 백그라운드 읽기 권한이 이미 있는지 — 있으면 요청 화면을 띄우지 않는다. */
     suspend fun isBgReadGranted(): Boolean = healthConnectManager.isBackgroundReadGranted()
 
+    /** HC 권한 상태를 다시 확인한다 (화면 진입·재개·권한 요청 결과 후). */
     fun refreshHcStatus() {
-        viewModelScope.launch { _hcConnected.value = healthConnectManager.hasAllPermissions() }
+        viewModelScope.launch { applyHcConnected(healthConnectManager.hasAllPermissions()) }
     }
 
     /**
@@ -97,8 +97,20 @@ class SettingsViewModel @Inject constructor(
     fun onHcPermissionFlowReturned() {
         viewModelScope.launch {
             if (healthConnectManager.hasAllPermissions()) onHcPermissionGranted()
-            else _hcConnected.value = false
+            else applyHcConnected(false)
         }
+    }
+
+    /**
+     * HC 연결 상태를 반영한다. 끊겨 있으면 수영 기록 알림도 끈다 — 저장값까지 내려
+     * 토글이 "켜진 채 잠긴" 모습으로 남지 않게 하고, 변경 감지 워커가 권한 없이 헛돌지 않게 한다.
+     * 다시 켤 때 백그라운드 읽기 권한 요청을 다시 거치게 하려는 의도이기도 하다.
+     *
+     * @param connected 필수 HC 권한 3종이 모두 허용돼 있는지
+     */
+    private fun applyHcConnected(connected: Boolean) {
+        _hcConnected.value = connected
+        if (!connected && notificationPrefs.newRecordEnabled) setNewRecordEnabled(false)
     }
 
     /** 설정에서 HC 권한이 허용된 직후 — 상태 갱신 + 백그라운드 동기화 시작. */
