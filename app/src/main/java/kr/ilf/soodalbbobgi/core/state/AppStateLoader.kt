@@ -338,6 +338,9 @@ private fun ServerProfileCard.toDomain(userId: String): ProfileCard {
         nicknameOutline = nicknameOutline ?: textOutline,
         taglineOutline = taglineOutline ?: textOutline,
         statsOutline = statsOutline ?: textOutline,
+        nicknameOutlineColor = nicknameOutlineColor,
+        taglineOutlineColor = taglineOutlineColor,
+        statsOutlineColor = statsOutlineColor,
         textOutline = textOutline,
     )
 }

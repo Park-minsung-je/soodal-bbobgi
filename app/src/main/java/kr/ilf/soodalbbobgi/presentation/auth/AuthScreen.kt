@@ -94,9 +94,6 @@ fun AuthScreen(
         Column(Modifier.padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("시작하려면 로그인이 필요해요", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold,
                 color = colors.textPrimary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            Text("기록과 컬렉션은 서버에 안전하게 보관됩니다.", fontSize = 12.sp,
-                color = colors.textSecondary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-
             // 에러 메시지 표시
             if (errorMessage != null) {
                 Text(
@@ -112,28 +109,28 @@ fun AuthScreen(
 
             Spacer(Modifier.height(6.dp))
 
-            // 카카오 공식 로그인 버튼 이미지
-            Image(
-                painter = painterResource(R.drawable.kakao_login_medium_wide),
-                contentDescription = "카카오로 시작하기",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable(
-                        enabled = !isLoading,
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = LocalIndication.current,
-                        onClick = { viewModel.loginWithKakao(activity) },
-                    ),
+            // 카카오 로그인 — 규격(컨테이너 #FEE500, 검은 심볼, 라벨 85% 블랙)대로 직접 그린다.
+            AuthButton(
+                text = if (loadingProvider == "kakao") "카카오 연결 중…" else "카카오톡 계정으로 로그인",
+                iconContent = { KakaoSymbol(20.dp) },
+                bgColor = Color(0xFFFEE500),
+                textColor = Color(0xD9000000),
+                enabled = !isLoading,
+                onClick = { viewModel.loginWithKakao(activity) },
             )
 
+            // Google 로그인 — 흰 컨테이너(보더는 디자인 판단으로 생략) + 공식 G 로고 에셋.
             AuthButton(
-                text = if (loadingProvider == "google") "Google 연결 중…" else "Google로 시작하기",
-                iconContent = { Text("G", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4285F4)) },
+                text = if (loadingProvider == "google") "Google 연결 중…" else "Google 계정으로 로그인",
+                iconContent = {
+                    Image(
+                        painter = painterResource(R.drawable.google_g_logo),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                    )
+                },
                 bgColor = Color.White,
                 textColor = Color(0xFF1F1F1F),
-                borderColor = Color(0xFFDADCE0),
                 enabled = !isLoading,
                 onClick = { viewModel.loginWithGoogle(activity) },
             )
@@ -144,6 +141,25 @@ fun AuthScreen(
                 modifier = Modifier.fillMaxWidth())
         }
         Spacer(Modifier.height(32.dp))
+    }
+}
+
+
+
+/** 카카오 심볼(말풍선) — 규격 형태를 코드로 그린 근사. 심볼색은 검정. */
+@Composable
+private fun KakaoSymbol(size: androidx.compose.ui.unit.Dp) {
+    androidx.compose.foundation.Canvas(Modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+        val path = androidx.compose.ui.graphics.Path().apply {
+            addOval(androidx.compose.ui.geometry.Rect(0f, 0f, w, h * 0.82f))
+            moveTo(w * 0.30f, h * 0.68f)
+            lineTo(w * 0.18f, h)
+            lineTo(w * 0.50f, h * 0.80f)
+            close()
+        }
+        drawPath(path, Color.Black)
     }
 }
 

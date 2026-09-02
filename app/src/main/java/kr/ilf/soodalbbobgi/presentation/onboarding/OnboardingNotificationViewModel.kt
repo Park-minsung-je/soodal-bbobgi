@@ -1,6 +1,7 @@
 package kr.ilf.soodalbbobgi.presentation.onboarding
 
 import androidx.lifecycle.ViewModel
+import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 import kr.ilf.soodalbbobgi.data.notify.NotificationPrefs
 import kr.ilf.soodalbbobgi.work.HcChangeCheckScheduler
 import kr.ilf.soodalbbobgi.work.ReminderScheduler
@@ -18,7 +19,14 @@ class OnboardingNotificationViewModel @Inject constructor(
     private val notificationPrefs: NotificationPrefs,
     private val reminderScheduler: ReminderScheduler,
     private val hcChangeCheckScheduler: HcChangeCheckScheduler,
+    private val healthConnectManager: HealthConnectManager,
 ) : ViewModel() {
+
+    /** HC 필수 권한이 연결돼 있는지 — 수영 기록 알림은 HC 연동이 전제다. */
+    suspend fun isHcConnected(): Boolean = healthConnectManager.hasAllPermissions()
+
+    /** HC 백그라운드 읽기 권한이 이미 있는지 — 있으면 요청 화면을 띄우지 않는다. */
+    suspend fun isBgReadGranted(): Boolean = healthConnectManager.isBackgroundReadGranted()
 
     private val _reminderEnabled = MutableStateFlow(notificationPrefs.reminderEnabled)
     val reminderEnabled: StateFlow<Boolean> = _reminderEnabled
@@ -43,6 +51,13 @@ class OnboardingNotificationViewModel @Inject constructor(
         notificationPrefs.reminderEnabled = enabled
         _reminderEnabled.value = enabled
         if (enabled) reminderScheduler.schedule() else reminderScheduler.cancel()
+    }
+
+    init {
+        // 온보딩은 항상 꺼진 상태에서 시작한다 — 백업 복원 등으로 이전 설정이 남아
+        // 있어도 사용자가 이 화면에서 직접 켠 것만 유효하다.
+        if (notificationPrefs.reminderEnabled) setReminderEnabled(false)
+        if (notificationPrefs.newRecordEnabled) setNewRecordEnabled(false)
     }
 
     /** 리마인더 시각 변경 — 켜져 있으면 새 시각으로 재예약. */

@@ -116,12 +116,22 @@ class HomeViewModel @Inject constructor(
 
     fun clearSyncError() { _syncError.value = null }
 
+    /** 최초 HC 가져오기 진행 여부 — 온보딩이 시작한 동기화를 홈이 표시한다. */
+    val hcSyncing: StateFlow<Boolean> = appState.hcSyncing
+
     init {
-        // 스플래시에서 누적된 조개 보상 팝업으로 표시
-        val pending = appState.consumePendingShellReward()
-        if (pending > 0) {
-            _shellRewardKind.value = ShellRewardKind.SwimRecord
-            _shellReward.value = pending
+        // 대기 중인 조개 보상을 팝업으로 — 스플래시 누적분과, 온보딩이 시작해 홈 진입
+        // 후에야 끝나는 최초 동기화 지급분을 모두 받도록 일회성 소비가 아니라 구독한다.
+        viewModelScope.launch {
+            appState.pendingShellReward.collect { pending ->
+                if (pending > 0) {
+                    val earned = appState.consumePendingShellReward()
+                    if (earned > 0) {
+                        _shellRewardKind.value = ShellRewardKind.SwimRecord
+                        _shellReward.value = earned
+                    }
+                }
+            }
         }
 
         // 프로세스 사망 후 Splash를 거치지 않고 복원된 경우 메모리 상태를 재수화한다.

@@ -263,6 +263,18 @@ class HealthConnectManager @Inject constructor(
      *
      * @return 모든 권한이 부여되었으면 true
      */
+    /**
+     * HC 백그라운드 읽기 권한이 이미 부여돼 있는지 확인한다.
+     * 이미 있으면 권한 요청 액티비티를 띄우지 않기 위한 사전 조회 — 매번 띄우면
+     * HC 화면이 순간 나타났다 사라지며 상단바가 깜빡인다.
+     */
+    suspend fun isBackgroundReadGranted(): Boolean = try {
+        BG_READ_PERMISSION in healthConnectClient.permissionController.getGrantedPermissions()
+    } catch (e: Exception) {
+        Timber.w(e, "HC 백그라운드 권한 확인 실패")
+        false
+    }
+
     suspend fun hasAllPermissions(): Boolean {
         return try {
             val granted = healthConnectClient.permissionController.getGrantedPermissions()
@@ -528,15 +540,27 @@ class HealthConnectManager @Inject constructor(
          * 권한 요청 다이얼로그에 띄울 전체 권한 — 온보딩·설정 공용.
          * 앱은 HC에 기록을 쓰지 않으므로 읽기 전용만 요청한다 (Play 심사 최소 권한 원칙).
          */
-        val requestPermissions: Set<String> = setOf(
+        /** 새 기록 알림 워커가 쓰는 백그라운드 읽기 권한. */
+        const val BG_READ_PERMISSION = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
+
+        /** 기본 요청 권한 — 수영 데이터 읽기 5종. */
+        private val BASE_REQUEST_PERMISSIONS = setOf(
             HealthPermission.getReadPermission(ExerciseSessionRecord::class),
             HealthPermission.getReadPermission(DistanceRecord::class),
             HealthPermission.getReadPermission(HeartRateRecord::class),
             HealthPermission.getReadPermission(SpeedRecord::class),
             HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
-            // 첫 권한 승인 30일 이전 데이터 읽기 — 재설치 후 전체 이력 복원에 필요.
-            // 필수 권한은 아니라 requiredPermissions에는 넣지 않는다 (거부해도 동작).
-            HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY,
         )
+
+        /** 설정 재연결용 전체 셋 — 과거 데이터 권한 포함 (재설치 후 이력 복원에 필요). */
+        val requestPermissions: Set<String> = BASE_REQUEST_PERMISSIONS +
+            HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY
+
+        /**
+         * 온보딩용 요청 셋 — 지난 기록을 가져오기로 했을 때만 과거 데이터 권한을 포함한다.
+         * 과거 데이터는 필수 권한이 아니라 requiredPermissions에는 넣지 않는다 (거부해도 동작).
+         */
+        fun requestPermissionsFor(includeHistory: Boolean): Set<String> =
+            if (includeHistory) requestPermissions else BASE_REQUEST_PERMISSIONS
     }
 }

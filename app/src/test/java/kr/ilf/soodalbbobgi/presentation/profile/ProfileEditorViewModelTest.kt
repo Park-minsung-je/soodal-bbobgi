@@ -162,7 +162,7 @@ class ProfileEditorViewModelTest {
         assertThat(s.taglineEl.pill).isEqualTo("NONE")
         assertThat(s.statsEl.show).isTrue()
         assertThat(s.statsEl.pill).isEqualTo("BLUR")
-        assertThat(s.statsEl.color).isEqualTo("#00F5FF")
+        assertThat(s.statsEl.color).isEqualTo("#000000")
     }
 
     @Test

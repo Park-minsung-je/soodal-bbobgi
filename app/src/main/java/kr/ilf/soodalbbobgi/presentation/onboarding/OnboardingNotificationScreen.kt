@@ -1,5 +1,10 @@
 ﻿package kr.ilf.soodalbbobgi.presentation.onboarding
 
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.draw.alpha
+import kotlinx.coroutines.launch
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.offset
 import android.os.Build
@@ -72,6 +77,10 @@ fun OnboardingNotificationScreen(
     val reminderTime by viewModel.reminderTime.collectAsStateWithLifecycle()
     val newRecordEnabled by viewModel.newRecordEnabled.collectAsStateWithLifecycle()
     var showTimeDialog by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    // 수영 기록 알림은 HC 연동이 전제 — 연동 전이면 토글을 잠근다.
+    var hcConnected by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { hcConnected = viewModel.isHcConnected() }
     // 알림 권한 요청 후 어느 토글을 켜려던 것인지 기억한다.
     var pendingToggle by remember { mutableStateOf<String?>(null) }
 
@@ -86,7 +95,11 @@ fun OnboardingNotificationScreen(
             "reminder" -> viewModel.setReminderEnabled(true)
             "newRecord" -> {
                 viewModel.setNewRecordEnabled(true)
-                hcBgPermissionLauncher.launch(setOf(HC_BG_READ_PERMISSION))
+                // 이미 허용돼 있으면 요청 화면을 띄우지 않는다 — 매번 띄우면 HC 액티비티가
+                // 순간 나타났다 사라지며 상단바가 깜빡인다.
+                scope.launch {
+                    if (!viewModel.isBgReadGranted()) hcBgPermissionLauncher.launch(setOf(HC_BG_READ_PERMISSION))
+                }
             }
         }
     }
@@ -119,9 +132,11 @@ fun OnboardingNotificationScreen(
             color = colors.accentBlue, letterSpacing = 1.5.sp)
         Spacer(Modifier.height(16.dp))
         Text("수영, 잊지 않게\n알려드릴까요?", style = SoodalDesign.typography.xl, color = colors.textPrimary)
-        Text("정한 시간에 그날 아직 수영 전이면 살짝 알려드려요. 이미 수영했다면 알림은 오지 않아요.",
+        Text(
+            "원하는 알림만 골라 켜 주세요. 알림을 받으려면 Android 알림 권한 동의가 필요해요.",
             fontSize = 14.sp, color = colors.textSecondary, lineHeight = 22.sp,
-            modifier = Modifier.padding(top = 12.dp))
+            modifier = Modifier.padding(top = 12.dp),
+        )
         Spacer(Modifier.height(36.dp))
         SoodalIcon(SoodalIcons.Calendar, tint = colors.accentBlue, size = 64.dp,
             modifier = Modifier.align(Alignment.CenterHorizontally))
@@ -133,7 +148,11 @@ fun OnboardingNotificationScreen(
                     Column(Modifier.weight(1f)) {
                         Text("수영 리마인더", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                         Spacer(Modifier.height(4.dp))
-                        Text("매일 정한 시간에 알림", fontSize = 12.sp, color = colors.textSecondary)
+                        Text(
+                            "정해둔 시간에 아직 수영 전이면 잊지 않게 알려드려요.\n" +
+                                "Android 알림 권한 동의가 필요해요.",
+                            fontSize = 12.sp, color = colors.textSecondary, lineHeight = 17.sp,
+                        )
                     }
                     ToggleSwitch(
                         checked = reminderEnabled,
@@ -163,16 +182,33 @@ fun OnboardingNotificationScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        // 새 기록 알림 — 백그라운드로 HC 변경을 확인해 알린다.
-        SoodalCard(Modifier.fillMaxWidth()) {
+        // 수영 기록 알림 — 백그라운드로 HC 변경을 확인해 알린다. HC 연동 전에는
+        // 토글만이 아니라 카드 전체를 흐려 "지금은 못 쓰는 항목"임을 보이게 한다.
+        // alpha 모디파이어는 오프스크린 합성을 강제해 경계 밖 그림자가 사각형으로 비친다 —
+        // ModulateAlpha는 레이어 없이 드로우별 알파만 낮춰 라운드·그림자가 온전히 남는다.
+        SoodalCard(
+            Modifier.fillMaxWidth().graphicsLayer {
+                alpha = if (hcConnected) 1f else 0.45f
+                compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
+            },
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("새 기록 알림", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                    Text("수영 기록 알림", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                     Spacer(Modifier.height(4.dp))
-                    Text("수영 기록이 들어오면 알림", fontSize = 12.sp, color = colors.textSecondary)
+                    Text(
+                        if (hcConnected) {
+                            "조개를 받을 수 있는 수영 기록이 확인되면 알려드려요.\n" +
+                                "Health Connect 백그라운드 읽기 권한 동의가 필요해요."
+                        } else {
+                            "Health Connect 연동 후 사용할 수 있어요"
+                        },
+                        fontSize = 12.sp, color = colors.textSecondary, lineHeight = 17.sp,
+                    )
                 }
                 ToggleSwitch(
                     checked = newRecordEnabled,
+                    enabled = hcConnected,
                     onCheckedChange = { on -> if (on) requestToggle("newRecord") else viewModel.setNewRecordEnabled(false) },
                 )
             }
@@ -194,7 +230,7 @@ fun OnboardingNotificationScreen(
 
 /** 온보딩 리마인더 토글 — 트랙 + 흰 썸. 설정 화면 토글과 같은 모양. */
 @Composable
-private fun ToggleSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun ToggleSwitch(checked: Boolean, enabled: Boolean = true, onCheckedChange: (Boolean) -> Unit) {
     val colors = SoodalDesign.colors
     val trackColor = if (checked) colors.accentBlue else colors.surface3
     // ON 오프셋 = 트랙(44) − 썸(20) − 좌우 여백(2) = 22 → 켜짐/꺼짐 여백이 좌우 대칭 (설정과 동일).
@@ -205,11 +241,12 @@ private fun ToggleSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     )
     Box(
         modifier = Modifier
+            .alpha(if (enabled) 1f else 0.45f)
             .width(44.dp)
             .height(24.dp)
             .clip(CircleShape)
             .background(trackColor)
-            .pressable(onClick = { onCheckedChange(!checked) }),
+            .then(if (enabled) Modifier.pressable(onClick = { onCheckedChange(!checked) }) else Modifier),
     ) {
         Box(
             modifier = Modifier

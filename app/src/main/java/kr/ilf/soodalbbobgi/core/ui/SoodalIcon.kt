@@ -41,6 +41,8 @@ enum class SoodalIcons(@DrawableRes val resId: Int, val fullColor: Boolean = fal
     Frame(R.drawable.ic_frame),
     Gift(R.drawable.ic_gift),
     Heart(R.drawable.ic_heart),
+    HealthConnect(R.drawable.ic_health_connect),
+    Clock(R.drawable.ic_clock),
     Moon(R.drawable.ic_moon),
     Pin(R.drawable.ic_pin),
     Plus(R.drawable.ic_plus),

@@ -119,7 +119,7 @@ fun EditorCardPreview(
                 text = layers.nickname, baseSize = ProfileCardRenderer.NICKNAME_BASE_SIZE,
                 scaleStep = layers.nicknameScaleStep, pill = layers.nicknamePill,
                 color = layers.nicknameColor, fontStyle = layers.nicknameStyle,
-                outline = layers.nicknameOutline,
+                outline = layers.nicknameOutline, outlineColor = layers.nicknameOutlineColor,
                 cx = layers.nicknameX, cy = layers.nicknameY,
                 widthPx = widthPx, heightPx = heightPx, s = s, bgBitmap = bgBitmap,
             )
@@ -129,7 +129,7 @@ fun EditorCardPreview(
                 text = layers.tagline, baseSize = ProfileCardRenderer.TAGLINE_BASE_SIZE,
                 scaleStep = layers.taglineScaleStep, pill = layers.taglinePill,
                 color = layers.taglineColor, fontStyle = layers.taglineStyle,
-                outline = layers.taglineOutline,
+                outline = layers.taglineOutline, outlineColor = layers.taglineOutlineColor,
                 cx = layers.taglineX, cy = layers.taglineY,
                 widthPx = widthPx, heightPx = heightPx, s = s, bgBitmap = bgBitmap,
             )
@@ -139,7 +139,7 @@ fun EditorCardPreview(
                 text = layers.stats, baseSize = ProfileCardRenderer.STATS_BASE_SIZE,
                 scaleStep = layers.statsScaleStep, pill = layers.statsPill,
                 color = layers.statsColor, fontStyle = layers.statsStyle,
-                outline = layers.statsOutline,
+                outline = layers.statsOutline, outlineColor = layers.statsOutlineColor,
                 cx = layers.statsX, cy = layers.statsY,
                 widthPx = widthPx, heightPx = heightPx, s = s, bgBitmap = bgBitmap,
             )
@@ -160,6 +160,7 @@ private fun BoxScope.ElementLayer(
     color: String,
     fontStyle: String,
     outline: Boolean,
+    outlineColor: String?,
     cx: Float,
     cy: Float,
     widthPx: Float,
@@ -178,8 +179,11 @@ private fun BoxScope.ElementLayer(
     val blurFallback = remember(pill, bgBitmap, cx, cy) {
         if (pill == "BLUR" && bgBitmap != null) ProfileCardRenderer.sampleBgColor(bgBitmap, cx, cy) else null
     }
-    val bmp: Bitmap = remember(text, baseSize, scaleStep, pill, colorRaw, fontStyle, outline, blurFallback) {
-        ProfileCardRenderer.renderElementBitmap(text, baseSize, scaleStep, pill, colorRaw, fontStyle, outline, blurFallback)
+    val bmp: Bitmap = remember(text, baseSize, scaleStep, pill, colorRaw, fontStyle, outline, outlineColor, blurFallback) {
+        ProfileCardRenderer.renderElementBitmap(
+            text, baseSize, scaleStep, pill, colorRaw, fontStyle, outline,
+            outlineColorHex = outlineColor, blurFallbackColor = blurFallback,
+        )
     }
     val density = LocalDensity.current
     val wDp = with(density) { (bmp.width * s).toDp() }

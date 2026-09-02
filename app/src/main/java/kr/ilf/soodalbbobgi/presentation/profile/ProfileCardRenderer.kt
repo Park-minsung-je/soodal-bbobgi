@@ -57,7 +57,7 @@ data class CardLayers(
     /** 캐릭터 부유 그림자(엘리베이션) 표시 여부. */
     val showShadow: Boolean = true,
     // ── 요소별 글꼴 스타일 ("REGULAR" | "BOLD" | "ITALIC" | "BOLD_ITALIC") ──
-    val nicknameStyle: String = "REGULAR",
+    val nicknameStyle: String = "BOLD",
     val taglineStyle: String = "REGULAR",
     val statsStyle: String = "REGULAR",
     // ── 요소별 표시/위치(중심 앵커 0~1)/크기 단계 — 닉네임·한마디·기록 독립 커스텀 ──
@@ -90,6 +90,10 @@ data class CardLayers(
     val nicknameOutline: Boolean = false,
     val taglineOutline: Boolean = false,
     val statsOutline: Boolean = false,
+    /** 요소별 테두리 색 — null이면 글자색 대비 자동. */
+    val nicknameOutlineColor: String? = null,
+    val taglineOutlineColor: String? = null,
+    val statsOutlineColor: String? = null,
 )
 
 /**
@@ -103,6 +107,9 @@ object ProfileCardRenderer {
     // 배경 칩(알약) 내부 여백 — 글자 크기 대비 배율. 디자인 시안의 여유 있는 캡슐 비율 기준.
     private const val PILL_PAD_H = 0.80f
     private const val PILL_PAD_V = 0.45f
+
+    /** 알약 패딩 증가를 누르기 시작하는 글자 크기(합성 기준 px, ×u 이전). 사다리 4단계. */
+    private const val PILL_PAD_CAP_BASE = 48f
 
     // 텍스트 요소 기준 크기(px, 1472폭 기준) — 카드 합성과 GPU 프리뷰가 공유한다.
     const val NICKNAME_BASE_SIZE = 60f
@@ -303,6 +310,7 @@ object ProfileCardRenderer {
         fun drawElementCentered(
             text: String, textSize: Float, style: String, colorRaw: Int,
             cx: Float, cy: Float, fontStyle: String, outline: Boolean,
+            outlineColorHex: String? = null,
         ) {
             // 폭/높이 측정 전에 글꼴을 먼저 적용해야 기울임·굵기의 잉크 폭이 정확하다
             textPaint.typeface = typefaceOf(fontStyle)
@@ -317,6 +325,7 @@ object ProfileCardRenderer {
                 leftAligned = true,
                 anchor = cx * CARD_WIDTH - w / 2f,
                 outline = outline,
+                outlineColorRaw = outlineColorHex?.let { parseColorOrDefault(it, outlineColor(colorRaw)) },
             )
         }
 
@@ -324,31 +333,34 @@ object ProfileCardRenderer {
         if (layers.showNickname) {
             drawElementCentered(
                 text = layers.nickname,
-                textSize = NICKNAME_BASE_SIZE * u * scaleMulOf(layers.nicknameScaleStep),
+                textSize = elementTextSize(NICKNAME_BASE_SIZE, layers.nicknameScaleStep) * u,
                 style = layers.nicknamePill,
                 colorRaw = parseColorOrDefault(layers.nicknameColor, android.graphics.Color.BLACK),
                 cx = layers.nicknameX, cy = layers.nicknameY,
                 fontStyle = layers.nicknameStyle, outline = layers.nicknameOutline,
+                outlineColorHex = layers.nicknameOutlineColor,
             )
         }
         if (layers.showTagline) {
             drawElementCentered(
                 text = layers.tagline,
-                textSize = TAGLINE_BASE_SIZE * u * scaleMulOf(layers.taglineScaleStep),
+                textSize = elementTextSize(TAGLINE_BASE_SIZE, layers.taglineScaleStep) * u,
                 style = layers.taglinePill,
                 colorRaw = parseColorOrDefault(layers.taglineColor, android.graphics.Color.BLACK),
                 cx = layers.taglineX, cy = layers.taglineY,
                 fontStyle = layers.taglineStyle, outline = layers.taglineOutline,
+                outlineColorHex = layers.taglineOutlineColor,
             )
         }
         if (layers.showStats) {
             drawElementCentered(
                 text = layers.stats,
-                textSize = STATS_BASE_SIZE * u * scaleMulOf(layers.statsScaleStep),
+                textSize = elementTextSize(STATS_BASE_SIZE, layers.statsScaleStep) * u,
                 style = layers.statsPill,
                 colorRaw = parseColorOrDefault(layers.statsColor, android.graphics.Color.BLACK),
                 cx = layers.statsX, cy = layers.statsY,
                 fontStyle = layers.statsStyle, outline = layers.statsOutline,
+                outlineColorHex = layers.statsOutlineColor,
             )
         }
 
@@ -363,8 +375,9 @@ object ProfileCardRenderer {
      */
     private fun parseColorOrDefault(hex: String, fallback: Int): Int =
         try {
-            android.graphics.Color.parseColor(hex)
-        } catch (e: IllegalArgumentException) {
+            // parseColor는 빈 문자열에 StringIndexOutOfBounds를 던진다 — Exception으로 방어
+            if (hex.isBlank()) fallback else android.graphics.Color.parseColor(hex)
+        } catch (e: Exception) {
             fallback
         }
 
@@ -394,13 +407,34 @@ object ProfileCardRenderer {
         else -> Typeface.DEFAULT
     }
 
-    /** 요소 크기 단계(1~5) → 배율. 3이 기준(1.2). */
-    private fun scaleMulOf(step: Int): Float =
-        floatArrayOf(0.8f, 1.0f, 1.2f, 1.5f, 1.8f)[(step - 1).coerceIn(0, 4)]
+    /**
+     * 통일 글자 크기 사다리(합성 기준 px, 10계단) — 한마디·기록은 1~7단계가 계단 1~7을,
+     * 닉네임은 1~7단계가 계단 4~10을 탄다. 그래서 같은 단계 번호에서 닉네임이 항상
+     * 세 계단 크고(닉네임 1단계 = 타 요소 4단계 크기), 둘 다 7단계까지 키울 수 있다.
+     */
+    private val TEXT_SIZE_LADDER = floatArrayOf(
+        25.6f, 32f, 38.4f, 48f, 60.8f, 76.8f, 96f, 115.2f, 138.2f, 165.9f,
+    )
+
+    /** 요소 종류(기준 크기로 구분)와 단계(1~7) → 합성 기준 px. */
+    fun elementTextSize(baseSize: Float, step: Int): Float {
+        val ladderStep = if (baseSize == NICKNAME_BASE_SIZE) step.coerceIn(1, 7) + 3 else step
+        return TEXT_SIZE_LADDER[(ladderStep - 1).coerceIn(0, 9)]
+    }
+
+    /**
+     * 알약 패딩 기준 크기 — 캡(사다리 4단계)까지는 글자 크기에 비례하고,
+     * 그보다 큰 글자에서는 증가분을 40%만 반영해 여백이 비대해지지 않게 한다.
+     */
+    private fun pillPadBasis(textSize: Float): Float {
+        val cap = PILL_PAD_CAP_BASE * (CARD_WIDTH / TEXT_REF_WIDTH)
+        return if (textSize <= cap) textSize else cap + (textSize - cap) * 0.4f
+    }
 
     /** 스타일별 요소 높이 예측 (중심 앵커 배치용). */
     private fun elementHeightOf(textSize: Float, style: String): Float =
-        if (style == "NONE") textSize * 1.15f else textSize * (1f + PILL_PAD_V * 2f)
+        if (style == "NONE") textSize * 1.15f
+        else textSize + pillPadBasis(textSize) * PILL_PAD_V * 2f
 
     /** 스타일별 요소 폭 예측 — 알약은 좌우 패딩 포함, 폭은 잉크 경계 기준. typeface가 설정된 페인트 필요. */
     private fun measureElementWidth(textPaint: Paint, text: String, textSize: Float, style: String): Float {
@@ -408,7 +442,7 @@ object ProfileCardRenderer {
         val ink = Rect()
         textPaint.getTextBounds(text, 0, text.length, ink)
         val w = ink.width().toFloat()
-        return if (style == "NONE") w else w + textSize * PILL_PAD_H * 2f
+        return if (style == "NONE") w else w + pillPadBasis(textSize) * PILL_PAD_H * 2f
     }
 
     /**
@@ -435,6 +469,8 @@ object ProfileCardRenderer {
         leftAligned: Boolean,
         anchor: Float,
         outline: Boolean,
+        /** 외곽선 색(ARGB). null이면 글자색 대비로 자동 결정. */
+        outlineColorRaw: Int? = null,
         /** BLUR 칩에 backdrop이 없을 때(편집 프리뷰) 프로스트 틴트로 쓸 배경 근사색. null이면 흰색. */
         blurFallbackColor: Int? = null,
     ): Float {
@@ -456,7 +492,7 @@ object ProfileCardRenderer {
             if (outline) {
                 textPaint.style = Paint.Style.STROKE
                 textPaint.strokeWidth = textSize * 0.09f
-                textPaint.color = outlineColor(colorRaw)
+                textPaint.color = outlineColorRaw ?: outlineColor(colorRaw)
                 canvas.drawText(text, x, baseline, textPaint)
                 textPaint.style = Paint.Style.FILL
             }
@@ -468,8 +504,8 @@ object ProfileCardRenderer {
         }
 
         // ── 알약(캡슐) 계열 ──
-        val padH = textSize * PILL_PAD_H
-        val padV = textSize * PILL_PAD_V
+        val padH = pillPadBasis(textSize) * PILL_PAD_H
+        val padV = pillPadBasis(textSize) * PILL_PAD_V
         val pillW = textW + padH * 2f
         val pillH = textSize + padV * 2f
         val left = if (leftAligned) anchor else anchor - pillW
@@ -550,7 +586,9 @@ object ProfileCardRenderer {
             }
         }
 
-        val baseline = top + padV + textSize - textPaint.descent() * 0.35f
+        // 폰트 메트릭으로 잉크를 세로 정중앙에 — 근사식은 한글에서 위 여백이 더 커 보였다.
+        val fm = textPaint.fontMetrics
+        val baseline = rect.centerY() - (fm.ascent + fm.descent) / 2f
         canvas.drawText(text, left + padH - inkLeft, baseline, textPaint)
         return pillH
     }
@@ -599,11 +637,13 @@ object ProfileCardRenderer {
         colorRaw: Int,
         fontStyle: String,
         outline: Boolean,
+        /** 외곽선 색 "#RRGGBB". null이면 자동. */
+        outlineColorHex: String? = null,
         /** BLUR 칩 프로스트 폴백 틴트에 쓸 배경 근사색(편집 프리뷰). null이면 흰색. */
         blurFallbackColor: Int? = null,
     ): Bitmap {
         val u = CARD_WIDTH / TEXT_REF_WIDTH
-        val textSize = baseSize * u * scaleMulOf(scaleStep)
+        val textSize = elementTextSize(baseSize, scaleStep) * u
         val textPaint = Paint().apply {
             isAntiAlias = true
             typeface = typefaceOf(fontStyle)
@@ -622,6 +662,7 @@ object ProfileCardRenderer {
             text = text, textSize = textSize, top = margin,
             style = pill, colorRaw = colorRaw,
             leftAligned = true, anchor = margin, outline = outline,
+            outlineColorRaw = outlineColorHex?.let { parseColorOrDefault(it, outlineColor(colorRaw)) },
             blurFallbackColor = blurFallbackColor,
         )
         return bmp

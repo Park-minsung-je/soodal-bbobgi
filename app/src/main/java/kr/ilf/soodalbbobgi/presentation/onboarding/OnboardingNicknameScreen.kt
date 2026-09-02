@@ -57,17 +57,20 @@ fun OnboardingNicknameScreen(
 ) {
     val colors = SoodalDesign.colors
     val saveState by viewModel.saveState.collectAsStateWithLifecycle()
-    var nickname by remember { mutableStateOf("") }
-    var gender by remember { mutableStateOf<String?>(null) }
-    var ageRange by remember { mutableStateOf<String?>(null) }
+    // rememberSaveable — 다음 화면에 갔다 뒤로 와도 입력이 남는다.
+    var nickname by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
+    var gender by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
+    var ageRange by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     // 완성형 글자만 허용 — 영문/숫자/완성형 한글. 자음·모음 단독(ㅇㅈ 등)은 미완성 글자다.
     val validPattern = Regex("^[a-zA-Z0-9가-힣]*$")
     val hasJamo = nickname.any { it in 'ㄱ'..'ㅣ' } // ㄱ~ㅣ 자모 영역
     val hasSpecialChar = nickname.isNotEmpty() && !hasJamo && !validPattern.matches(nickname)
-    val valid = nickname.isNotBlank() && validPattern.matches(nickname)
+    // 자모 안내는 제출할 때만 띄운다 — 한글은 조합 중("오"의 첫 타 "ㅇ")에도 자모라서
+    // 실시간으로 검사하면 정상 입력 중에도 오류가 깜빡인다.
+    var jamoError by remember { mutableStateOf(false) }
     // 화면에 띄울 검증 안내 — 없으면 null
     val nicknameError = when {
-        hasJamo -> "완성되지 않은 글자가 있어요."
+        jamoError -> "완성되지 않은 글자가 있어요."
         hasSpecialChar -> "특수문자는 사용할 수 없어요."
         else -> null
     }
@@ -104,7 +107,7 @@ fun OnboardingNicknameScreen(
             SoodalIcon(SoodalIcons.Edit, tint = colors.accentBlue, size = 64.dp,
                 modifier = Modifier.align(Alignment.CenterHorizontally))
             Spacer(Modifier.height(36.dp))
-            SoodalTextField(nickname, { nickname = it }, placeholder = "닉네임 입력 (최대 10자)",
+            SoodalTextField(nickname, { nickname = it; jamoError = false }, placeholder = "닉네임 입력 (최대 10자)",
                 maxLength = 10, modifier = Modifier.fillMaxWidth())
             // 오류 메시지(왼쪽)와 글자수 카운터(오른쪽)를 한 줄에 둔다 — 오류가 나도 카운터가 밀리지 않게.
             val shownError = nicknameError ?: saveError
@@ -131,7 +134,11 @@ fun OnboardingNicknameScreen(
                     SelectChip(
                         text = label,
                         selected = gender == value,
-                        onClick = { gender = if (gender == value) null else value },
+                        onClick = {
+                            // 입력 중 칩을 고르면 키보드가 가리고 있을 이유가 없다
+                            focusManager.clearFocus(); keyboard?.hide()
+                            gender = if (gender == value) null else value
+                        },
                     )
                 }
             }
@@ -147,7 +154,10 @@ fun OnboardingNicknameScreen(
                     SelectChip(
                         text = label,
                         selected = ageRange == value,
-                        onClick = { ageRange = if (ageRange == value) null else value },
+                        onClick = {
+                            focusManager.clearFocus(); keyboard?.hide()
+                            ageRange = if (ageRange == value) null else value
+                        },
                     )
                 }
             }
@@ -156,8 +166,12 @@ fun OnboardingNicknameScreen(
         val isSaving = saveState is OnboardingSaveState.Saving
         SoodalButton(
             text = if (isSaving) "저장 중…" else "다음 →",
-            onClick = { viewModel.saveProfile(nickname, gender, ageRange) },
-            enabled = valid && !isSaving,
+            onClick = {
+                // 미완성 글자는 여기서 걸러 안내한다 — 입력 중 깜빡이지 않게 제출 시 1회 검사.
+                if (hasJamo) jamoError = true
+                else viewModel.saveProfile(nickname, gender, ageRange)
+            },
+            enabled = nickname.isNotBlank() && !hasSpecialChar && !isSaving,
             modifier = Modifier.fillMaxWidth(),
         )
     }

@@ -83,6 +83,9 @@ class SettingsViewModel @Inject constructor(
     }
 
     /** HC 권한 상태를 다시 확인한다 (화면 진입/권한 요청 결과 후). */
+    /** HC 백그라운드 읽기 권한이 이미 있는지 — 있으면 요청 화면을 띄우지 않는다. */
+    suspend fun isBgReadGranted(): Boolean = healthConnectManager.isBackgroundReadGranted()
+
     fun refreshHcStatus() {
         viewModelScope.launch { _hcConnected.value = healthConnectManager.hasAllPermissions() }
     }

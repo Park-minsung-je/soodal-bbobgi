@@ -422,15 +422,18 @@ private fun TextElementControls(
     SliderRow("↔ 좌우", elState.x, 0f..1f) { vm.setElementX(element, it) }
     SliderRow("↕ 상하", elState.y, 0f..1f) { vm.setElementY(element, it) }
 
-    // -- 크기 (5단계) --
+    // -- 크기 단계 1~7 — 같은 단계 번호에서 닉네임이 항상 세 계단 크다 (사다리 오프셋).
     Spacer(Modifier.height(spacing.s3))
     Text("크기 단계", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
     Spacer(Modifier.height(spacing.s2))
-    Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-        (1..5).forEach { step ->
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        (1..7).forEach { step ->
             SegmentChip(
                 label = step.toString(),
-                isActive = elState.scaleStep == step,
+                isActive = elState.scaleStep.coerceIn(1, 7) == step,
+                // 7개가 시트 폭을 균등 분할 — 고정 패딩이면 마지막 칩이 잘려 6개처럼 보였다
+                modifier = Modifier.weight(1f),
+                horizontalPadding = 0.dp,
                 onClick = { vm.setElementScaleStep(element, step) },
             )
         }
@@ -463,16 +466,21 @@ private fun TextElementControls(
         )
     }
 
-    // -- 글자 테두리(외곽선) 토글 (요소별) --
+    // -- 글자 테두리(외곽선) — 배경 칩이 있으면 렌더러가 그리지 않으므로 잠근다 --
     Spacer(Modifier.height(spacing.s3))
+    val outlineAvailable = elState.pill == "NONE"
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("글자 테두리", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+        Text(
+            "글자 테두리", fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+            color = if (outlineAvailable) colors.textSecondary else colors.textTertiary,
+        )
         Switch(
-            checked = elState.outline,
+            checked = elState.outline && outlineAvailable,
+            enabled = outlineAvailable,
             onCheckedChange = { vm.setElementOutline(element, it) },
             colors = SwitchDefaults.colors(
                 checkedThumbColor = colors.btnPrimaryText,
@@ -480,6 +488,16 @@ private fun TextElementControls(
                 uncheckedTrackColor = colors.surface3,
             ),
         )
+    }
+    if (!outlineAvailable) {
+        Text(
+            "배경 칩이 있으면 글자 테두리가 적용되지 않아요. 배경 칩을 \"없음\"으로 바꾸면 쓸 수 있어요.",
+            fontSize = 11.sp, color = colors.textTertiary, lineHeight = 16.sp,
+        )
+    } else if (elState.outline) {
+        Spacer(Modifier.height(spacing.s2))
+        // 테두리 색 — 비워두면(프리셋·선택기 미선택) 글자색 대비로 자동 결정된다.
+        ColorPaletteRow("테두리", elState.outlineColor ?: "") { vm.setElementOutlineColor(element, it) }
     }
 }
 
@@ -691,15 +709,18 @@ private fun SliderRow(
 }
 
 /**
+ * RGB 선택기가 마지막으로 적용한 색 — 프리셋으로 바꿨다가 선택기를 다시 열어도
+ * 조합해 둔 값에서 이어간다 (요구: 최소한 편집 시트가 떠 있는 동안 유지).
+ */
+private var lastPickerHex: String? = null
+
+/**
  * 텍스트 커스터마이즈용 프리셋 색상 팔레트.
  * SoodalDesign 라이트/네온 포인트 컬러 + 무채색 + 보조 액센트로 구성한다.
  */
 private val TextColorPalette = listOf(
-    "#FFFFFF", "#000000", "#9CA3AF",
-    "#00F5FF", "#00A8B8",
-    "#BF5AF2", "#8B3DDB",
-    "#FFD60A", "#D99500",
-    "#FF6B6B", "#30D158", "#4FB8FF",
+    "#000000", "#FFFFFF", "#9CA3AF",
+    "#FFD60A", "#FF6B6B", "#4FB8FF",
 )
 
 /**
@@ -730,11 +751,14 @@ private fun PillStyleRow(label: String, selected: String, onSelect: (String) -> 
 private fun SegmentChip(
     label: String,
     isActive: Boolean,
+    modifier: Modifier = Modifier,
+    /** 좌우 안쪽 여백 — weight로 폭을 나눠 갖는 행은 0으로 줄인다 (기본 18). */
+    horizontalPadding: androidx.compose.ui.unit.Dp = 18.dp,
     onClick: () -> Unit,
 ) {
     val colors = SoodalDesign.colors
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(SoodalShape.md)
             .background(if (isActive) colors.accentBlueSoft else sheetControlBg(colors))
             .then(
@@ -742,7 +766,8 @@ private fun SegmentChip(
                 else Modifier
             )
             .pressable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 8.dp),
+            .padding(horizontal = horizontalPadding, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
@@ -833,15 +858,130 @@ private fun ColorPaletteRow(
                         .pressable(onClick = { onSelect(hex) }),
                 )
             }
+            // 마지막 스와치 = 자유 선택기 — 프리셋에 없는 색이 선택돼 있으면 여기가 강조된다.
+            var pickerOpen by remember { mutableStateOf(false) }
+            val isCustom = TextColorPalette.none { it.equals(selectedColor, ignoreCase = true) }
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.sweepGradient(
+                            listOf(
+                                Color(0xFFFF6B6B), Color(0xFFFFD60A), Color(0xFF30D158),
+                                Color(0xFF4FB8FF), Color(0xFFBF5AF2), Color(0xFFFF6B6B),
+                            ),
+                        ),
+                    )
+                    .border(
+                        width = if (isCustom) 2.dp else 1.dp,
+                        color = if (isCustom) SheetAccent else colors.cardBorder,
+                        shape = CircleShape,
+                    )
+                    .pressable(onClick = { pickerOpen = true }),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (isCustom) {
+                    // 현재 커스텀 색을 가운데 점으로 보여준다
+                    Box(Modifier.size(12.dp).clip(CircleShape).background(parseSwatchColor(selectedColor)))
+                }
+            }
+            if (pickerOpen) {
+                RgbPickerDialog(
+                    // 마지막으로 적용했던 조합이 있으면 거기서 시작한다
+                    initialHex = lastPickerHex ?: selectedColor,
+                    onPick = { lastPickerHex = it; onSelect(it); pickerOpen = false },
+                    onDismiss = { pickerOpen = false },
+                )
+            }
         }
     }
 }
 
-/** "#RRGGBB" 문자열을 Compose Color로 변환 (실패 시 회색 폴백). */
+/**
+ * RGB 색 선택 다이얼로그 — R/G/B 슬라이더와 미리보기, 16진수 표기.
+ *
+ * @param initialHex 시작 색 "#RRGGBB"
+ * @param onPick 적용 시 선택 색 전달
+ */
+@Composable
+private fun RgbPickerDialog(
+    initialHex: String,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = SoodalDesign.colors
+    val initial = remember(initialHex) { parseSwatchColor(initialHex) }
+    var r by remember { mutableStateOf(initial.red) }
+    var g by remember { mutableStateOf(initial.green) }
+    var b by remember { mutableStateOf(initial.blue) }
+    val current = Color(r, g, b)
+    val hex = String.format(
+        "#%02X%02X%02X",
+        (r * 255).toInt().coerceIn(0, 255),
+        (g * 255).toInt().coerceIn(0, 255),
+        (b * 255).toInt().coerceIn(0, 255),
+    )
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(colors.surface1)
+                .padding(20.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(44.dp).clip(CircleShape).background(current)
+                        .border(1.dp, colors.cardBorder, CircleShape),
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(hex, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+            }
+            Spacer(Modifier.height(12.dp))
+            RgbSliderRow("R", r, Color(0xFFFF6B6B)) { r = it }
+            RgbSliderRow("G", g, Color(0xFF30D158)) { g = it }
+            RgbSliderRow("B", b, Color(0xFF4FB8FF)) { b = it }
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SoodalButton("취소", onClick = onDismiss, style = ButtonStyle.Secondary,
+                    modifier = Modifier.weight(1f), heightOverride = 44.dp)
+                SoodalButton("적용", onClick = { onPick(hex) },
+                    modifier = Modifier.weight(1f), heightOverride = 44.dp)
+            }
+        }
+    }
+}
+
+/** RGB 채널 슬라이더 한 줄 — 라벨 + 0~255 표기. */
+@Composable
+private fun RgbSliderRow(label: String, value: Float, tint: Color, onChange: (Float) -> Unit) {
+    val colors = SoodalDesign.colors
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = tint, modifier = Modifier.width(20.dp))
+        androidx.compose.material3.Slider(
+            value = value,
+            onValueChange = onChange,
+            modifier = Modifier.weight(1f),
+            colors = androidx.compose.material3.SliderDefaults.colors(
+                thumbColor = tint, activeTrackColor = tint, inactiveTrackColor = colors.surface3,
+            ),
+        )
+        Text("${(value * 255).toInt()}", fontSize = 12.sp, color = colors.textSecondary,
+            modifier = Modifier.width(32.dp), textAlign = TextAlign.End)
+    }
+}
+
+/**
+ * "#RRGGBB" 문자열을 Compose Color로 변환 (실패 시 회색 폴백).
+ * parseColor는 빈 문자열에 IllegalArgumentException이 아니라
+ * StringIndexOutOfBoundsException을 던지므로 Exception으로 잡는다.
+ */
 private fun parseSwatchColor(hex: String): Color =
     try {
-        Color(android.graphics.Color.parseColor(hex))
-    } catch (e: IllegalArgumentException) {
+        if (hex.isBlank()) Color.Gray else Color(android.graphics.Color.parseColor(hex))
+    } catch (e: Exception) {
         Color.Gray
     }
 

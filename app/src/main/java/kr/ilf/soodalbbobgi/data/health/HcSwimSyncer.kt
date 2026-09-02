@@ -180,12 +180,19 @@ class HcSwimSyncer @Inject constructor(
         val token = healthConnectManager.getChangesToken()
         val zone = ZoneId.systemDefault()
         val now = java.time.LocalDateTime.now()
-        // 자정 직후 동기화하면 어제 밤 수영이 빠지지 않게 새벽 2시까지는 어제부터 읽는다
-        val fetchFrom = if (now.hour < 2) now.toLocalDate().minusDays(1) else now.toLocalDate()
+        // 온보딩에서 고른 최초 가져오기 기간이 있으면 그만큼 과거까지 읽는다 (첫 연동 1회).
+        // 없으면: 자정 직후 동기화 시 어제 밤 수영이 빠지지 않게 새벽 2시까지는 어제부터.
+        val initialMonths = hcSyncPreferences.getPendingInitialMonths()
+        val fetchFrom = when {
+            initialMonths != null -> now.toLocalDate().minusMonths(initialMonths.toLong())
+            now.hour < 2 -> now.toLocalDate().minusDays(1)
+            else -> now.toLocalDate()
+        }
         val start = fetchFrom.atStartOfDay(zone).toInstant()
         val end = now.toLocalDate().plusDays(1).atStartOfDay(zone).toInstant()
         for (session in healthConnectManager.readSwimSessions(start, end)) upsert(session)
         hcSyncPreferences.saveChangesToken(token)
+        if (initialMonths != null) hcSyncPreferences.clearPendingInitialMonths()
     }
 
     private suspend fun upsert(session: SwimSession) {

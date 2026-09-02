@@ -48,14 +48,19 @@ private data class PressTintIndication(
         PressTintNode(interactionSource, tint, alpha)
 }
 
-/** 눌림 여부만 추적해 콘텐츠 위에 스크림을 그리는 노드. */
+/** 스크림 해제 페이드 시간(ms) — 닿을 땐 즉시, 뗄 땐 이 시간에 걸쳐 사라진다. */
+private const val PRESS_FADE_OUT_MS = 180
+
+/** 눌림 여부를 추적해 콘텐츠 위에 스크림을 그리는 노드 — 해제 시 서서히 사라진다. */
 private class PressTintNode(
     private val interactionSource: InteractionSource,
     private val tint: Color,
     private val alpha: Float,
 ) : Modifier.Node(), DrawModifierNode {
 
-    private var pressed = false
+    // 0~1 진행값 — 누름은 반응성이 생명이라 즉시 1, 해제는 부드럽게 0으로.
+    private val progress = androidx.compose.animation.core.Animatable(0f)
+    private var fadeJob: kotlinx.coroutines.Job? = null
 
     override fun onAttach() {
         coroutineScope.launch {
@@ -66,10 +71,17 @@ private class PressTintNode(
                     is PressInteraction.Press -> count++
                     is PressInteraction.Release, is PressInteraction.Cancel -> count--
                 }
-                val next = count > 0
-                if (next != pressed) {
-                    pressed = next
-                    invalidateDraw()
+                val pressedNow = count > 0
+                fadeJob?.cancel()
+                fadeJob = coroutineScope.launch {
+                    if (pressedNow) {
+                        progress.snapTo(1f)
+                        invalidateDraw()
+                    } else {
+                        progress.animateTo(0f, androidx.compose.animation.core.tween(PRESS_FADE_OUT_MS)) {
+                            invalidateDraw()
+                        }
+                    }
                 }
             }
         }
@@ -77,7 +89,8 @@ private class PressTintNode(
 
     override fun ContentDrawScope.draw() {
         drawContent()
-        if (pressed) drawRect(color = tint.copy(alpha = alpha))
+        val a = progress.value
+        if (a > 0f) drawRect(color = tint.copy(alpha = alpha * a))
     }
 }
 

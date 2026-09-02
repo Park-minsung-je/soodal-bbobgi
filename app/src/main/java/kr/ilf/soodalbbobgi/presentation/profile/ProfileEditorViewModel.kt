@@ -83,6 +83,8 @@ data class TextElementState(
     val bold: Boolean = false,
     val italic: Boolean = false,
     val outline: Boolean = false,
+    /** 글자 테두리 색 "#RRGGBB" — null이면 글자색 대비 자동. */
+    val outlineColor: String? = null,
 ) {
     /** 굵게/기울임 토글 → 저장용 textStyle 문자열. */
     val style: String get() = combineTextStyle(bold, italic)
@@ -101,9 +103,9 @@ data class ProfileEditorUiState(
     val customText: String = "",
     val textStyle: String = "REGULAR",
     /** 요소별 편집 상태 — 닉네임/한마디/기록. */
-    val nicknameEl: TextElementState = TextElementState(),
+    val nicknameEl: TextElementState = TextElementState(bold = true),
     val taglineEl: TextElementState = TextElementState(y = 0.57f, pill = "NONE"),
-    val statsEl: TextElementState = TextElementState(x = 0.16f, y = 0.90f, pill = "BLUR", color = "#00F5FF"),
+    val statsEl: TextElementState = TextElementState(x = 0.16f, y = 0.90f, pill = "BLUR"),
     /** 텍스트 외곽선(테두리) 표시 여부. */
     val textOutline: Boolean = false,
     val isSaving: Boolean = false,
@@ -158,9 +160,9 @@ class ProfileEditorViewModel @Inject constructor(
         val textX: Float = 0.95f,
         val textY: Float = 0.5f,
         val textScaleStep: Int = 3,
-        val nicknameEl: TextElementState = TextElementState(),
+        val nicknameEl: TextElementState = TextElementState(bold = true),
         val taglineEl: TextElementState = TextElementState(y = 0.57f, pill = "NONE"),
-        val statsEl: TextElementState = TextElementState(x = 0.16f, y = 0.90f, pill = "BLUR", color = "#00F5FF"),
+        val statsEl: TextElementState = TextElementState(x = 0.16f, y = 0.90f, pill = "BLUR"),
         val textOutline: Boolean = false,
         val isSaving: Boolean = false,
         val saveSuccess: Boolean = false,
@@ -194,19 +196,19 @@ class ProfileEditorViewModel @Inject constructor(
                     show = savedCard.showNickname, x = savedCard.nicknameX, y = savedCard.nicknameY,
                     scaleStep = savedCard.nicknameScaleStep, pill = savedCard.nicknamePill, color = savedCard.nicknameColor,
                     bold = textStyleHasBold(savedCard.nicknameStyle), italic = textStyleHasItalic(savedCard.nicknameStyle),
-                    outline = savedCard.nicknameOutline,
+                    outline = savedCard.nicknameOutline, outlineColor = savedCard.nicknameOutlineColor,
                 ),
                 taglineEl = TextElementState(
                     show = savedCard.showTagline, x = savedCard.taglineX, y = savedCard.taglineY,
                     scaleStep = savedCard.taglineScaleStep, pill = savedCard.taglinePill, color = savedCard.taglineColor,
                     bold = textStyleHasBold(savedCard.taglineStyle), italic = textStyleHasItalic(savedCard.taglineStyle),
-                    outline = savedCard.taglineOutline,
+                    outline = savedCard.taglineOutline, outlineColor = savedCard.taglineOutlineColor,
                 ),
                 statsEl = TextElementState(
                     show = savedCard.showStats, x = savedCard.statsX, y = savedCard.statsY,
                     scaleStep = savedCard.statsScaleStep, pill = savedCard.statsPill, color = savedCard.statsColor,
                     bold = textStyleHasBold(savedCard.statsStyle), italic = textStyleHasItalic(savedCard.statsStyle),
-                    outline = savedCard.statsOutline,
+                    outline = savedCard.statsOutline, outlineColor = savedCard.statsOutlineColor,
                 ),
                 textOutline = savedCard.textOutline,
                 initialized = true,
@@ -296,12 +298,17 @@ class ProfileEditorViewModel @Inject constructor(
     fun setElementShow(el: TextElement, v: Boolean) = updateElement(el) { it.copy(show = v) }
     fun setElementX(el: TextElement, v: Float) = updateElement(el) { it.copy(x = v.coerceIn(0f, 1f)) }
     fun setElementY(el: TextElement, v: Float) = updateElement(el) { it.copy(y = v.coerceIn(0f, 1f)) }
-    fun setElementScaleStep(el: TextElement, v: Int) = updateElement(el) { it.copy(scaleStep = v.coerceIn(1, 5)) }
+    fun setElementScaleStep(el: TextElement, v: Int) = updateElement(el) { it.copy(scaleStep = v.coerceIn(1, 7)) }
     fun setElementPill(el: TextElement, v: String) = updateElement(el) { it.copy(pill = v) }
     fun setElementColor(el: TextElement, v: String) = updateElement(el) { it.copy(color = v) }
     fun setElementBold(el: TextElement, v: Boolean) = updateElement(el) { it.copy(bold = v) }
     fun setElementItalic(el: TextElement, v: Boolean) = updateElement(el) { it.copy(italic = v) }
     fun setElementOutline(el: TextElement, v: Boolean) = updateElement(el) { it.copy(outline = v) }
+
+    /** 요소 글자 테두리 색 변경 — null이면 자동(글자색 대비). */
+    fun setElementOutlineColor(element: TextElement, hex: String?) {
+        updateElement(element) { it.copy(outlineColor = hex) }
+    }
     fun clearSaveResult() { _editState.value = _editState.value.copy(saveSuccess = false, saveError = null) }
 
     /**
@@ -355,6 +362,9 @@ class ProfileEditorViewModel @Inject constructor(
                     nicknameOutline = s.nicknameEl.outline,
                     taglineOutline = s.taglineEl.outline,
                     statsOutline = s.statsEl.outline,
+                    nicknameOutlineColor = s.nicknameEl.outlineColor,
+                    taglineOutlineColor = s.taglineEl.outlineColor,
+                    statsOutlineColor = s.statsEl.outlineColor,
                     textOutline = s.nicknameEl.outline || s.taglineEl.outline || s.statsEl.outline,
                 )
                 // 메모리 즉시 반영
@@ -396,6 +406,9 @@ class ProfileEditorViewModel @Inject constructor(
                     nicknameOutline = card.nicknameOutline,
                     taglineOutline = card.taglineOutline,
                     statsOutline = card.statsOutline,
+                    nicknameOutlineColor = card.nicknameOutlineColor,
+                    taglineOutlineColor = card.taglineOutlineColor,
+                    statsOutlineColor = card.statsOutlineColor,
                     textOutline = card.textOutline,
                 ))
                 _editState.value = _editState.value.copy(isSaving = false, saveSuccess = true)
