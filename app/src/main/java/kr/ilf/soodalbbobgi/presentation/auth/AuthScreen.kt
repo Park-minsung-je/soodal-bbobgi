@@ -29,18 +29,28 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.LinkInteractionListener
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kr.ilf.soodalbbobgi.BuildConfig
 import kr.ilf.soodalbbobgi.R
 import kr.ilf.soodalbbobgi.core.theme.SoodalDesign
 import kr.ilf.soodalbbobgi.core.ui.pressable
 import kr.ilf.soodalbbobgi.core.ui.SoodalIcon
 import kr.ilf.soodalbbobgi.core.ui.SoodalIcons
 import kr.ilf.soodalbbobgi.core.ui.soodalScreenBackdrop
+import kr.ilf.soodalbbobgi.core.util.LegalPages
+import kr.ilf.soodalbbobgi.core.util.openInBrowser
 
 /**
  * 로그인 화면.
@@ -136,15 +146,50 @@ fun AuthScreen(
             )
 
             Spacer(Modifier.height(6.dp))
-            Text("계속하면 이용약관 및 개인정보처리방침에 동의한 것으로 간주됩니다.",
-                fontSize = 11.sp, color = colors.textSecondary, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth())
+            LegalConsentText()
         }
         Spacer(Modifier.height(32.dp))
     }
 }
 
 
+
+/**
+ * 로그인 하단 동의 안내 — "이용약관"·"개인정보처리방침"만 강조색+밑줄 링크로 그리고,
+ * 탭하면 서버의 공개 페이지를 브라우저로 연다. 나머지 글자는 안내 문구 색 그대로.
+ */
+@Composable
+private fun LegalConsentText(modifier: Modifier = Modifier) {
+    val colors = SoodalDesign.colors
+    val context = LocalContext.current
+    val accent = colors.accentBlue
+    // 기본 UriHandler 대신 설정 화면과 같은 ACTION_VIEW 경로를 쓰고, 실패 시 앱이 죽지 않게 한다.
+    val openLink = remember(context) {
+        LinkInteractionListener { link ->
+            (link as? LinkAnnotation.Url)?.let { openInBrowser(context, it.url) }
+        }
+    }
+    val text = remember(accent, openLink) {
+        val linkStyles = TextLinkStyles(
+            style = SpanStyle(color = accent, textDecoration = TextDecoration.Underline),
+            pressedStyle = SpanStyle(color = accent.copy(alpha = 0.6f), textDecoration = TextDecoration.Underline),
+        )
+        buildAnnotatedString {
+            append("계속하면 ")
+            withLink(LinkAnnotation.Url(LegalPages.termsUrl(BuildConfig.BASE_URL), linkStyles, openLink)) { append("이용약관") }
+            append(" 및 ")
+            withLink(LinkAnnotation.Url(LegalPages.privacyUrl(BuildConfig.BASE_URL), linkStyles, openLink)) { append("개인정보처리방침") }
+            append("에 동의한 것으로 간주됩니다.")
+        }
+    }
+    Text(
+        text = text,
+        fontSize = 11.sp,
+        color = colors.textSecondary,
+        textAlign = TextAlign.Center,
+        modifier = modifier.fillMaxWidth(),
+    )
+}
 
 /** 카카오 심볼(말풍선) — 규격 형태를 코드로 그린 근사. 심볼색은 검정. */
 @Composable
