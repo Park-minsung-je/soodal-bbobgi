@@ -40,6 +40,14 @@ data class ApiResponse<T>(
 data class ApiError(
     val code: String,
     val message: String,
+    /** 코드별 부가 정보 — 예: NICKNAME_COOLDOWN의 nextAllowedAt. 없으면 null. */
+    val details: ApiErrorDetails? = null,
+)
+
+/** 서버 에러의 부가 정보. 코드마다 쓰는 필드가 달라 전부 nullable. */
+data class ApiErrorDetails(
+    /** 다음 허용 시각(epoch ms) — NICKNAME_COOLDOWN. */
+    val nextAllowedAt: Long? = null,
 )
 
 /**
