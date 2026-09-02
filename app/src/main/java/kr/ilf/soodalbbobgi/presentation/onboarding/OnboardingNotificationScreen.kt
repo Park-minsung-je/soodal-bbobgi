@@ -132,8 +132,9 @@ fun OnboardingNotificationScreen(
             color = colors.accentBlue, letterSpacing = 1.5.sp)
         Spacer(Modifier.height(16.dp))
         Text("수영, 잊지 않게\n알려드릴까요?", style = SoodalDesign.typography.xl, color = colors.textPrimary)
+        // 권한 문장은 각 카드가 자기 권한을 말한다 — 헤더에서 한 번 더 말하면 이중이라 뺐다.
         Text(
-            "원하는 알림만 골라 켜 주세요. 알림을 받으려면 Android 알림 권한 동의가 필요해요.",
+            OnboardingCopy.NOTIFICATION_INTRO,
             fontSize = 14.sp, color = colors.textSecondary, lineHeight = 22.sp,
             modifier = Modifier.padding(top = 12.dp),
         )
@@ -148,11 +149,7 @@ fun OnboardingNotificationScreen(
                     Column(Modifier.weight(1f)) {
                         Text("수영 리마인더", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                         Spacer(Modifier.height(4.dp))
-                        Text(
-                            "정해둔 시간에 아직 수영 전이면 잊지 않게 알려드려요.\n" +
-                                "Android 알림 권한 동의가 필요해요.",
-                            fontSize = 12.sp, color = colors.textSecondary, lineHeight = 17.sp,
-                        )
+                        Text(OnboardingCopy.REMINDER, fontSize = 12.sp, color = colors.textSecondary, lineHeight = 17.sp)
                     }
                     ToggleSwitch(
                         checked = reminderEnabled,
@@ -197,12 +194,7 @@ fun OnboardingNotificationScreen(
                     Text("수영 기록 알림", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        if (hcConnected) {
-                            "조개를 받을 수 있는 수영 기록이 확인되면 알려드려요.\n" +
-                                "Health Connect 백그라운드 읽기 권한 동의가 필요해요."
-                        } else {
-                            "Health Connect 연동 후 사용할 수 있어요"
-                        },
+                        if (hcConnected) OnboardingCopy.NEW_RECORD else OnboardingCopy.NEW_RECORD_LOCKED,
                         fontSize = 12.sp, color = colors.textSecondary, lineHeight = 17.sp,
                     )
                 }

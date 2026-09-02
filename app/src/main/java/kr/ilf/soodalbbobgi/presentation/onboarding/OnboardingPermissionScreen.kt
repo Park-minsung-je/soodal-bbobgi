@@ -61,7 +61,7 @@ internal val HISTORY_MONTH_OPTIONS: List<Pair<Int, String>> =
  *
  * "Health Connect 연결하기" 버튼을 누르면 Health Connect SDK가 제공하는
  * 권한 요청 다이얼로그를 띄운다. 권한 부여 완료 또는 "나중에 하기"로
- * 다음 화면(Home)으로 이동한다.
+ * 다음 화면(알림 설정)으로 이동한다.
  *
  * @param onConnect 권한 부여 완료(또는 요청 후) 콜백
  * @param onSkip "나중에 하기" 콜백
@@ -101,17 +101,13 @@ fun OnboardingPermissionScreen(
         val granted = viewModel.hasAllPermissions()
         permissionGranted = granted
         if (!granted) {
-            errorMessage = "권한이 허용되지 않았어요. 다시 시도하거나 나중에 설정에서 허용할 수 있어요."
+            errorMessage = OnboardingCopy.PERMISSION_DENIED
             return
         }
         if (importHistory && !viewModel.hasHistoryPermission()) {
             // 과거 데이터 권한만 거부한 경우 — 필수 권한이 아니라 진행은 막지 않되, HC가 첫 허용 30일 이전
             // 기록을 주지 않아 6개월·1년을 골라도 조용히 짧아지므로 미리 알린다.
-            Toast.makeText(
-                context,
-                "'모든 기간의 데이터에 액세스' 권한이 꺼져 있어 최근 한 달 기록만 가져와요.",
-                Toast.LENGTH_LONG,
-            ).show()
+            Toast.makeText(context, OnboardingCopy.HISTORY_PERMISSION_MISSING, Toast.LENGTH_LONG).show()
         }
         viewModel.startInitialSync(if (importHistory) selectedMonths else 0)
         onConnect()
@@ -169,12 +165,7 @@ fun OnboardingPermissionScreen(
                         }
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = if (!isHealthConnectAvailable) {
-                                "Health Connect가 설치되어 있지 않아요. Google Play에서 설치해 주세요."
-                            } else {
-                                "수영 기록을 자동으로 동기화하려면 Health Connect의 " +
-                                    "운동·거리·심박수·속도·칼로리 읽기 권한이 필요해요."
-                            },
+                            text = if (!isHealthConnectAvailable) OnboardingCopy.HC_NOT_INSTALLED else OnboardingCopy.HC_REQUIRED,
                             fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp,
                         )
                     }
@@ -204,18 +195,9 @@ fun OnboardingPermissionScreen(
                             HistoryToggle(checked = importHistory, onCheckedChange = { importHistory = it })
                         }
                         Spacer(Modifier.height(4.dp))
-                        if (!importHistory) {
-                            Text(
-                                "오늘 이전의 기록도 가져와 달력에 기록으로 저장할 수 있어요.\n" +
-                                    "불러오려면 Health Connect의 '모든 기간의 데이터에 액세스' 읽기 권한이 필요해요.",
-                                fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp,
-                            )
-                        } else {
-                            Text(
-                                "오늘 이전의 기록도 가져와 달력에 기록으로 저장할 수 있어요.\n" +
-                                    "불러오려면 Health Connect의 '모든 기간의 데이터에 액세스' 읽기 권한이 필요해요.",
-                                fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp,
-                            )
+                        // 안내문은 토글 상태와 무관하게 같다 — 분기 안에 두 번 쓰면 한쪽만 고쳐져 OFF/ON이 어긋난다.
+                        Text(OnboardingCopy.HISTORY_GUIDE, fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp)
+                        if (importHistory) {
                             Spacer(Modifier.height(10.dp))
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 HISTORY_MONTH_OPTIONS.forEach { (months, label) ->
@@ -230,11 +212,7 @@ fun OnboardingPermissionScreen(
                                 }
                             }
                             Spacer(Modifier.height(8.dp))
-                            Text(
-                                "조개는 오늘 수영 기록에만 지급돼요 (새벽 2시 전엔 어제 기록까지).\n" +
-                                    "기간이 길수록 가져오는 데 시간이 걸릴 수 있어요.",
-                                fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp,
-                            )
+                            Text(OnboardingCopy.HISTORY_POLICY, fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp)
                         }
                     }
                 }
@@ -250,7 +228,7 @@ fun OnboardingPermissionScreen(
                     Column(Modifier.weight(1f)) {
                         Text("카메라 (선택)", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                         Spacer(Modifier.height(4.dp))
-                        Text("수동 입력 인증 시 사용됩니다. 추후 업데이트 예정.",
+                        Text("수동 입력 인증에 써요. 추후 업데이트 예정이에요.",
                             fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp)
                     }
                 }
@@ -281,11 +259,12 @@ fun OnboardingPermissionScreen(
                     try {
                         permissionLauncher.launch(healthPermissions)
                     } catch (e: Exception) {
+                        // 예외 원문은 로그에만 — 사용자에게는 할 수 있는 조치(HC 업데이트)만 말한다.
                         Timber.e(e, "Health Connect 권한 요청 실패")
-                        errorMessage = "권한 요청을 실행할 수 없어요: ${e.message}"
+                        errorMessage = OnboardingCopy.PERMISSION_LAUNCH_FAILED
                     }
                 } else {
-                    errorMessage = "Health Connect 앱이 설치되어 있지 않습니다."
+                    errorMessage = OnboardingCopy.HC_APP_MISSING
                 }
             },
             modifier = Modifier.fillMaxWidth(),

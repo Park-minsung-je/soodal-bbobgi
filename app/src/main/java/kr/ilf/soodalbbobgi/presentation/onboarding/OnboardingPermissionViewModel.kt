@@ -67,7 +67,7 @@ class OnboardingPermissionViewModel @Inject constructor(
                 val code = (e as? retrofit2.HttpException)?.code()?.toString()
                     ?: if (e is java.io.IOException) "901" else "900"
                 android.widget.Toast.makeText(
-                    appContext, "동기화에 실패했어요. 캘린더에서 다시 시도할 수 있어요. ($code)",
+                    appContext, "수영 기록을 가져오지 못했어요. 캘린더에서 다시 시도할 수 있어요. ($code)",
                     android.widget.Toast.LENGTH_LONG,
                 ).show()
             } finally {
