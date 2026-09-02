@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.health.connect.client.PermissionController
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kr.ilf.soodalbbobgi.BuildConfig
 import kr.ilf.soodalbbobgi.core.theme.SoodalDesign
@@ -109,6 +110,12 @@ fun SettingsScreen(
             dialog = null
             viewModel.resetNicknameState()
         }
+    }
+
+    // HC 앱에서 권한을 바꾸고 돌아오면 다시 읽는다 — 화면이 살아 있는 동안 init은 다시 돌지 않는다.
+    LifecycleResumeEffect(Unit) {
+        viewModel.refreshHcStatus()
+        onPauseOrDispose { }
     }
 
     // Health Connect 권한 요청 런처 — 온보딩과 같은 권한 셋
@@ -314,13 +321,25 @@ fun SettingsScreen(
                         label = "Health Connect",
                         trailing = null,
                         onClick = {
-                            if (hcConnected == false) {
-                                hcPermissionLauncher.launch(HealthConnectManager.requestPermissions)
+                            when (hcConnected) {
+                                false -> hcPermissionLauncher.launch(HealthConnectManager.requestPermissions)
+                                // 연결돼 있으면 HC의 이 앱 권한 화면으로 — 권한 조정·해제는 거기서 한다.
+                                true -> if (!HealthConnectManager.openPermissionScreen(context)) {
+                                    android.widget.Toast.makeText(
+                                        context, "Health Connect를 열 수 없어요", android.widget.Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                                null -> Unit
                             }
                         },
                     ) {
                         when (hcConnected) {
-                            true -> Text("연결됨", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.success)
+                            true -> Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("연결됨", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.success)
+                                Spacer(Modifier.width(4.dp))
+                                // 탭 가능한 행이 됐으니 닉네임 행과 같은 힌트를 준다.
+                                Text("›", fontSize = 14.sp, color = colors.textTertiary)
+                            }
                             false -> Text("연결 안 됨 · 탭하여 연결", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.warn)
                             null -> Text("확인 중…", fontSize = 12.sp, color = colors.textTertiary)
                         }

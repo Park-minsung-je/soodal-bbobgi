@@ -100,5 +100,12 @@
 
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
+        <!-- 설정 "연결됨" → HC 권한 화면 (14+ 플랫폼 UI / 13 이하 HC 앱) -->
+        <intent>
+            <action android:name="android.health.connect.action.MANAGE_HEALTH_PERMISSIONS" />
+        </intent>
+        <intent>
+            <action android:name="androidx.health.ACTION_HEALTH_CONNECT_SETTINGS" />
+        </intent>
     </queries>
 </manifest>

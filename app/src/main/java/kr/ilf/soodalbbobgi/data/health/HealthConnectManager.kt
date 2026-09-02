@@ -550,6 +550,9 @@ class HealthConnectManager @Inject constructor(
             return getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
         }
 
+        /** 설정 "연결됨" 탭 → HC 앱별 권한 화면. 열지 못하면 false (호출자가 안내). */
+        fun openPermissionScreen(context: Context): Boolean = openHealthConnectPermissions(context)
+
         /**
          * 권한 요청 다이얼로그에 띄울 전체 권한 — 온보딩·설정 공용.
          * 앱은 HC에 기록을 쓰지 않으므로 읽기 전용만 요청한다 (Play 심사 최소 권한 원칙).
