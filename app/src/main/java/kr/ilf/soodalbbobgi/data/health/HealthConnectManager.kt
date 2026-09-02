@@ -275,6 +275,20 @@ class HealthConnectManager @Inject constructor(
         false
     }
 
+    /**
+     * HC 과거 데이터 권한('모든 기간의 데이터에 액세스')이 허용돼 있는지 확인한다.
+     * 없으면 HC가 첫 허용 시점 30일 이전 기록을 주지 않아 긴 기간 가져오기가 조용히 짧아진다.
+     *
+     * @return 과거 데이터 권한이 부여돼 있으면 true. 조회 실패 시 false
+     */
+    suspend fun isHistoryReadGranted(): Boolean = try {
+        HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY in
+            healthConnectClient.permissionController.getGrantedPermissions()
+    } catch (e: Exception) {
+        Timber.w(e, "HC 과거 데이터 권한 확인 실패")
+        false
+    }
+
     suspend fun hasAllPermissions(): Boolean {
         return try {
             val granted = healthConnectClient.permissionController.getGrantedPermissions()

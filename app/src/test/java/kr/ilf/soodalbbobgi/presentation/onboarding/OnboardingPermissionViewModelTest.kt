@@ -64,10 +64,33 @@ class OnboardingPermissionViewModelTest {
 
     @Test
     fun `startInitialSync stores the chosen window before syncing`() = runTest {
-        vm().startInitialSync(2)
+        vm().startInitialSync(12)
 
-        // 프로세스가 죽어도 첫 동기화가 기간을 기억해야 한다
-        verify { hcSyncPreferences.setPendingInitialMonths(2) }
+        // 프로세스가 죽어도 첫 동기화가 기간을 기억해야 한다 — 최대 옵션(1년)도 그대로 저장
+        verify { hcSyncPreferences.setPendingInitialMonths(12) }
+    }
+
+    @Test
+    fun `startInitialSync clamps the window to the maximum`() = runTest {
+        vm().startInitialSync(99)
+
+        // UI 밖에서 어떤 값이 들어와도 1년을 넘는 읽기를 시작하지 않는다
+        verify { hcSyncPreferences.setPendingInitialMonths(OnboardingPermissionViewModel.MAX_INITIAL_MONTHS) }
+    }
+
+    @Test
+    fun `startInitialSync does not store a window when history is skipped`() = runTest {
+        vm().startInitialSync(0)
+
+        verify(exactly = 0) { hcSyncPreferences.setPendingInitialMonths(any()) }
+        coVerify { hcSwimSyncer.sync() } // 기간 없이도 오늘 창 동기화는 시작한다
+    }
+
+    @Test
+    fun `hasHistoryPermission asks Health Connect for the history grant`() = runTest {
+        coEvery { healthConnectManager.isHistoryReadGranted() } returns false
+
+        assertThat(vm().hasHistoryPermission()).isFalse()
     }
 
     @Test

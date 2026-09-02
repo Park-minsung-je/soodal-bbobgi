@@ -1,5 +1,6 @@
 ﻿package kr.ilf.soodalbbobgi.presentation.onboarding
 
+import android.widget.Toast
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.offset
@@ -51,6 +52,10 @@ import kr.ilf.soodalbbobgi.core.ui.soodalScreenBackdrop
 import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 import timber.log.Timber
 
+/** 지난 기록 가져오기 기간 선택지 — (개월 수, 칩 라벨). 12개월은 '1년'으로 읽힌다. */
+internal val HISTORY_MONTH_OPTIONS: List<Pair<Int, String>> =
+    listOf(1 to "1개월", 3 to "3개월", 6 to "6개월", 12 to "1년")
+
 /**
  * 온보딩 2단계 — Health Connect 권한 요청 화면.
  *
@@ -78,7 +83,7 @@ fun OnboardingPermissionScreen(
     var permissionGranted by remember { mutableStateOf(false) }
     var permissionRequested by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    // 지난 기록 가져오기 토글 + 기간(개월, 최대 3) — 켰을 때만 과거 데이터 권한을 요청한다.
+    // 지난 기록 가져오기 토글 + 기간(개월, 최대 12) — 켰을 때만 과거 데이터 권한을 요청한다.
     var importHistory by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var selectedMonths by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(1) }
 
@@ -98,6 +103,15 @@ fun OnboardingPermissionScreen(
         if (!granted) {
             errorMessage = "권한이 허용되지 않았어요. 다시 시도하거나 나중에 설정에서 허용할 수 있어요."
             return
+        }
+        if (importHistory && !viewModel.hasHistoryPermission()) {
+            // 과거 데이터 권한만 거부한 경우 — 필수 권한이 아니라 진행은 막지 않되, HC가 첫 허용 30일 이전
+            // 기록을 주지 않아 6개월·1년을 골라도 조용히 짧아지므로 미리 알린다.
+            Toast.makeText(
+                context,
+                "'모든 기간의 데이터에 액세스' 권한이 꺼져 있어 최근 한 달 기록만 가져와요.",
+                Toast.LENGTH_LONG,
+            ).show()
         }
         viewModel.startInitialSync(if (importHistory) selectedMonths else 0)
         onConnect()
@@ -203,12 +217,15 @@ fun OnboardingPermissionScreen(
                                 fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp,
                             )
                             Spacer(Modifier.height(10.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                listOf(1, 2, 3).forEach { m ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                HISTORY_MONTH_OPTIONS.forEach { (months, label) ->
                                     MonthChip(
-                                        text = "${m}개월",
-                                        selected = selectedMonths == m,
-                                        onClick = { selectedMonths = m },
+                                        text = label,
+                                        selected = selectedMonths == months,
+                                        // 4개가 카드 폭을 나눠 갖는다 — 고정 패딩이면 마지막 칩이 카드 밖으로 밀린다
+                                        // (EditorSheet 크기 칩과 같은 처리)
+                                        modifier = Modifier.weight(1f),
+                                        onClick = { selectedMonths = months },
                                     )
                                 }
                             }
@@ -308,21 +325,36 @@ private fun HistoryToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit) 
     }
 }
 
-/** 기간 선택 칩 — 닉네임 화면 SelectChip과 같은 시각 언어. */
+/**
+ * 기간 선택 칩 — 닉네임 화면 SelectChip과 같은 시각 언어. 폭은 부모가 [modifier]의 weight로 나눠 준다.
+ *
+ * @param text 칩 라벨
+ * @param selected 선택 상태 (강조색 배경·테두리)
+ * @param modifier 부모가 주는 폭 분배용 Modifier
+ * @param onClick 탭 콜백
+ */
 @Composable
-private fun MonthChip(text: String, selected: Boolean, onClick: () -> Unit) {
+private fun MonthChip(
+    text: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     val colors = SoodalDesign.colors
     val shape = RoundedCornerShape(20.dp)
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(shape)
             .background(if (selected) colors.accentBlue.copy(alpha = 0.15f) else colors.surface1)
             .border(1.dp, if (selected) colors.accentBlue else colors.glassBorder, shape)
             .pressable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        Text(text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-            color = if (selected) colors.accentBlue else colors.textSecondary)
+        Text(
+            text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+            color = if (selected) colors.accentBlue else colors.textSecondary,
+        )
     }
 }
 

@@ -40,6 +40,8 @@ class HcSwimSyncerTest {
         prefs = mockk(relaxed = true)
         loader = mockk(relaxed = true)
         every { prefs.getChangesToken() } returns null
+        // relaxed mock의 Int? 기본값에 기대지 않고 '온보딩 기간 없음'을 명시한다
+        every { prefs.getPendingInitialMonths() } returns null
         coEvery { hcm.getChangesToken() } returns "tok"
         coEvery { hcm.readSwimSessions(any(), any()) } returns listOf(hcSession())
         coEvery { useCase.getUnsyncedDates() } returns listOf("2026-06-07")
@@ -113,6 +115,23 @@ class HcSwimSyncerTest {
                 any(),
             )
         }
+    }
+
+    @Test
+    fun `온보딩에서 고른 기간이 있으면 그만큼 과거부터 읽고 기간을 지운다`() = runTest {
+        every { prefs.getPendingInitialMonths() } returns 12
+        coEvery { useCase.getUnsyncedDates() } returns emptyList()
+        // 자정 넘김 경계에서 start/end가 어긋나지 않게 오늘 날짜를 한 번만 잡는다
+        val today = java.time.LocalDate.now()
+        val zone = java.time.ZoneId.systemDefault()
+        val expectedStart = today.minusMonths(12).atStartOfDay(zone).toInstant()
+        val expectedEnd = today.plusDays(1).atStartOfDay(zone).toInstant()
+
+        syncer.sync()
+
+        coVerify(exactly = 1) { hcm.readSwimSessions(expectedStart, expectedEnd) }
+        coVerify(exactly = 1) { prefs.clearPendingInitialMonths() }
+        coVerify(exactly = 1) { prefs.saveChangesToken("tok") } // 긴 읽기 뒤에도 읽기 전 발급한 토큰을 저장
     }
 
     @Test
