@@ -52,7 +52,7 @@ android {
         versionCode = 1
         // 0.1.0에서 시작해 **dev에 머지할 때마다 패치 자리를 +1** 한다.
         // 마이너·메이저 자리는 사용자가 지시할 때만 올린다.
-        versionName = "0.1.14"
+        versionName = "0.1.15"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "BASE_URL", "\"$soodalBaseUrl\"")
         buildConfigField("String", "ASSET_BASE_URL", "\"$soodalAssetBaseUrl\"")
