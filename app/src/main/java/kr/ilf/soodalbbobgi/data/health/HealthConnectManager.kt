@@ -243,6 +243,7 @@ class HealthConnectManager @Inject constructor(
     }
 
     /** Health Connect에서 필요한 읽기 권한 목록. */
+    // 심박(HeartRate)과 과거 데이터(HISTORY) 권한은 거부해도 동작해야 하므로 의도적으로 여기서 제외한다.
     val requiredPermissions = setOf(
         HealthPermission.getReadPermission(ExerciseSessionRecord::class),
         HealthPermission.getReadPermission(DistanceRecord::class),
