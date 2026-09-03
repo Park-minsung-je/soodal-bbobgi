@@ -201,6 +201,23 @@ class HomeViewModelTest {
         assertThat(vm.shellReward.value).isEqualTo(3)
     }
 
+    @Test
+    fun `최초 동기화 스크림이 도는 동안은 조개 팝업을 미루고 끝난 뒤 올린다`() = runTest(testDispatcher) {
+        appState.setHcSyncing(true)
+        val vm = newVm()
+
+        // 로그인 직후 동기화가 먼저 지급한 조개 — 스크림 위로 팝업이 겹치면 안 된다 (R31)
+        appState.addPendingShellReward(2)
+        advanceUntilIdle()
+        assertThat(vm.shellReward.value).isEqualTo(0)
+        assertThat(appState.pendingShellReward.value).isEqualTo(2)
+
+        appState.setHcSyncing(false)
+        advanceUntilIdle()
+        assertThat(vm.shellReward.value).isEqualTo(2)
+        assertThat(appState.pendingShellReward.value).isEqualTo(0)
+    }
+
     // ── 최초 동기화 진행 표시 (R17 조작 차단의 근거 상태) ────────────────────
 
     @Test

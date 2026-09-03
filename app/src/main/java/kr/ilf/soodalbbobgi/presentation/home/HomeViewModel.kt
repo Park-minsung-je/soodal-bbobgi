@@ -143,8 +143,12 @@ class HomeViewModel @Inject constructor(
 
         // 대기 중인 조개 보상을 팝업으로 — 스플래시 누적분과, 온보딩이 시작해 홈 진입
         // 후에야 끝나는 최초 동기화 지급분을 모두 받도록 일회성 소비가 아니라 구독한다.
+        // 최초 동기화 스크림이 도는 동안은 소비하지 않고 기다렸다가, 스크림이 걷힌 뒤 팝업을 올린다
+        // (로그인 직후 동기화가 먼저 지급해도 스크림 위로 팝업이 겹치지 않게).
         viewModelScope.launch {
-            appState.pendingShellReward.collect { pending ->
+            combine(appState.pendingShellReward, appState.hcSyncing) { pending, syncing ->
+                if (syncing) 0 else pending
+            }.collect { pending ->
                 if (pending > 0) {
                     val earned = appState.consumePendingShellReward()
                     if (earned > 0) {
