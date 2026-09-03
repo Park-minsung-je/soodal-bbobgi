@@ -43,13 +43,6 @@ class ActiveSecondsTest {
         assertNull(computeActiveSeconds(emptyList(), emptyList()))
     }
 
-    @Test
-    fun `속도 기반 실운동시간은 거리 나누기 평균속도다`() {
-        assertEquals(1800, speedBasedActiveSeconds(1500, 1500.0 / 1800.0))
-        assertNull(speedBasedActiveSeconds(0, 1.0)) // 거리 없음
-        assertNull(speedBasedActiveSeconds(1500, 0.0)) // 속도 없음
-    }
-
     /** 수영 구간용 합성 심박 — 주기 60초 ±12bpm 사인 출렁임 (실측처럼 평활 후에도 굴곡이 남는다). */
     private fun swimBpm(sec: Int): Int =
         (150 + 12 * kotlin.math.sin(2 * Math.PI * sec / 60)).toInt()

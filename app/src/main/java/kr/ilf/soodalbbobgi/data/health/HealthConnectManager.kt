@@ -8,7 +8,6 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
-import androidx.health.connect.client.records.SpeedRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -75,14 +74,6 @@ internal fun computeActiveSeconds(
     }
     return null
 }
-
-/**
- * SpeedRecord 평균 속도(m/s) 기반 실운동시간(초) — 세그먼트/랩이 없을 때의 폴백.
- * 속도 샘플은 이동 중에만 찍히므로 거리/평균속도가 곧 실운동시간에 가깝다.
- */
-internal fun speedBasedActiveSeconds(distanceM: Int, avgSpeedMps: Double): Int? =
-    if (distanceM <= 0 || avgSpeedMps <= 0.0) null
-    else Math.round(distanceM / avgSpeedMps).toInt()
 
 /**
  * 시간 구간이 겹치는 레코드를 한 벌만 남기고 값을 합산한다 — 거리/칼로리 이중 기록 방어.
@@ -479,12 +470,6 @@ class HealthConnectManager @Inject constructor(
             val bpm = hrSamples.map { it.second }
             val hrEstimate = estimateActive(hrPoints(hrSamples), distanceM, calories)
 
-            val speedSamples = readSpeedRecords(session.startTime, session.endTime)
-                .flatMap { it.samples }
-                .map { it.speed.inMetersPerSecond }
-                .filter { it > 0 }
-            val avgSpeed = if (speedSamples.isEmpty()) 0.0 else speedSamples.average()
-
             SwimSession(
                 date = session.startTime.atZone(ZoneId.systemDefault()).toLocalDate().toString(),
                 startEpochSec = session.startTime.epochSecond,
@@ -494,8 +479,8 @@ class HealthConnectManager @Inject constructor(
                 hcRecordId = session.metadata.id,
                 maxHr = bpm.maxOrNull()?.toInt(),
                 minHr = bpm.minOrNull()?.toInt(),
+                // 세그먼트·랩이 없는 세션은 심박 추정으로 — 수영 세션엔 속도 샘플이 없어 속도 폴백은 뺐다.
                 activeSeconds = computeActiveSeconds(session.segments, session.laps)
-                    ?: speedBasedActiveSeconds(distanceM, avgSpeed)
                     ?: hrEstimate?.activeSeconds,
                 hrSeries = downsampleHr(hrSamples).takeIf { it.isNotEmpty() }
                     ?.let { encodeHrSeries(it, hrEstimate?.restRanges ?: emptyList()) },
@@ -520,24 +505,6 @@ class HealthConnectManager @Inject constructor(
             ).records
         } catch (e: Exception) {
             Timber.w(e, "심박 레코드 읽기 실패 — 심박 없이 진행")
-            emptyList()
-        }
-    }
-
-    /**
-     * 시간 범위 내 속도 레코드를 읽는다.
-     * 속도 권한이 없거나 조회에 실패해도 빈 목록을 반환해 세션 동기화를 막지 않는다.
-     */
-    private suspend fun readSpeedRecords(startTime: Instant, endTime: Instant): List<SpeedRecord> {
-        return try {
-            healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = SpeedRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
-                )
-            ).records
-        } catch (e: Exception) {
-            Timber.w(e, "속도 레코드 읽기 실패 — 속도 없이 진행")
             emptyList()
         }
     }
@@ -573,12 +540,11 @@ class HealthConnectManager @Inject constructor(
         /** 새 기록 알림 워커가 쓰는 백그라운드 읽기 권한. */
         const val BG_READ_PERMISSION = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
 
-        /** 기본 요청 권한 — 수영 데이터 읽기 5종. */
+        /** 기본 요청 권한 — 수영 데이터 읽기 4종. 속도는 수영 세션에 샘플이 없어 요청하지 않는다. */
         private val BASE_REQUEST_PERMISSIONS = setOf(
             HealthPermission.getReadPermission(ExerciseSessionRecord::class),
             HealthPermission.getReadPermission(DistanceRecord::class),
             HealthPermission.getReadPermission(HeartRateRecord::class),
-            HealthPermission.getReadPermission(SpeedRecord::class),
             HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
         )
 

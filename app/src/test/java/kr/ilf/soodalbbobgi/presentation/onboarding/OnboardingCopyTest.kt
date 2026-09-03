@@ -25,8 +25,8 @@ class OnboardingCopyTest {
     }
 
     @Test
-    fun `HC 필수 카드는 읽기 권한 다섯 가지를 전부 말한다`() {
-        listOf("운동", "거리", "심박수", "속도", "칼로리").forEach {
+    fun `HC 필수 카드는 읽기 권한 네 가지를 전부 말한다`() {
+        listOf("운동", "거리", "심박수", "칼로리").forEach {
             assertThat(OnboardingCopy.HC_REQUIRED).contains(it)
         }
         assertThat(OnboardingCopy.HC_REQUIRED).contains("읽기 권한이 필요해요")
