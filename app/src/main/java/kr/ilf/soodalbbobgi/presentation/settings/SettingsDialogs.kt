@@ -91,7 +91,9 @@ fun NicknameEditDialog(
             SoodalButton(
                 text = "취소",
                 onClick = onDismiss,
-                style = ButtonStyle.Ghost,
+                // 확인 팝업의 흰 버튼과 같은 룩 — 채움 없는 Ghost는 흰 패널 위에서 버튼으로 안 읽힌다.
+                style = ButtonStyle.Secondary,
+                backgroundOverride = SolidColor(Color.White),
                 enabled = !saving,
                 heightOverride = 48.dp,
                 modifier = Modifier.weight(1f),
