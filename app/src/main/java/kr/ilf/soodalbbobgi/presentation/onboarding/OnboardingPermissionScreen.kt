@@ -112,9 +112,12 @@ fun OnboardingPermissionScreen(
             return
         }
         if (importHistory && !viewModel.hasHistoryPermission()) {
-            // 과거 데이터 권한만 거부한 경우 — 필수 권한이 아니라 진행은 막지 않되, HC가 첫 허용 30일 이전
-            // 기록을 주지 않아 6개월·1년을 골라도 조용히 짧아지므로 미리 알린다.
-            Toast.makeText(context, OnboardingCopy.HISTORY_PERMISSION_MISSING, Toast.LENGTH_LONG).show()
+            // 과거 데이터 권한만 거부한 경우 — 알림 토글이 권한 거부 때 꺼지는 것과 같게 토글을 끄고
+            // 화면에 남긴다. 사용자는 '연결됨 · 계속하기'로 오늘 기록만 가져가거나, 토글을 다시 켜
+            // 권한을 다시 요청할 수 있다. (HC는 이 권한 없이는 첫 허용 30일 이전 기록을 주지 않는다.)
+            importHistory = false
+            Toast.makeText(context, OnboardingCopy.HISTORY_PERMISSION_DENIED, Toast.LENGTH_LONG).show()
+            return
         }
         viewModel.startInitialSync(if (importHistory) selectedMonths else 0)
         onConnect()

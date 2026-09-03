@@ -28,8 +28,8 @@ internal object OnboardingCopy {
             "기간이 길수록 가져오는 데 시간이 더 걸려요."
 
     /** 지난 기록을 켰는데 과거 데이터 권한이 거부된 경우 토스트. */
-    const val HISTORY_PERMISSION_MISSING =
-        "'$HC_HISTORY_LABEL' 권한이 꺼져 있어 최근 한 달 기록만 가져와요."
+    const val HISTORY_PERMISSION_DENIED =
+        "'$HC_HISTORY_LABEL' 권한이 거부돼 지난 기록 가져오기를 껐어요. 다시 켜면 권한을 다시 요청해요."
 
     const val PERMISSION_DENIED =
         "필수 권한이 아직 허용되지 않았어요.\n다시 시도하거나, 나중에 설정 > 연동에서 연결할 수 있어요."
@@ -54,7 +54,7 @@ internal object OnboardingCopy {
 
     /** 말투 규칙 테스트용 전체 목록. */
     val ALL: List<String> = listOf(
-        HC_REQUIRED, HC_NOT_INSTALLED, HISTORY_GUIDE, HISTORY_POLICY, HISTORY_PERMISSION_MISSING,
+        HC_REQUIRED, HC_NOT_INSTALLED, HISTORY_GUIDE, HISTORY_POLICY, HISTORY_PERMISSION_DENIED,
         PERMISSION_DENIED, PERMISSION_LAUNCH_FAILED, HC_APP_MISSING,
         NOTIFICATION_INTRO, REMINDER, NEW_RECORD, NEW_RECORD_LOCKED,
     )

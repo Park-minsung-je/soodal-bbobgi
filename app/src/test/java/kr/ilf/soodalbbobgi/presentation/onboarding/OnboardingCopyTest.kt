@@ -35,7 +35,7 @@ class OnboardingCopyTest {
     @Test
     fun `지난 기록 안내는 HC 공식 권한 라벨을 그대로 쓴다`() {
         assertThat(OnboardingCopy.HISTORY_GUIDE).contains("'모든 기간의 데이터에 액세스'")
-        assertThat(OnboardingCopy.HISTORY_PERMISSION_MISSING).contains("'모든 기간의 데이터에 액세스'")
+        assertThat(OnboardingCopy.HISTORY_PERMISSION_DENIED).contains("'모든 기간의 데이터에 액세스'")
     }
 
     @Test
