@@ -705,11 +705,11 @@ private fun TodayCard(
                 TodayMetric(Modifier.weight(1f), "평균 심박", avgHr?.toString() ?: "—", if (avgHr != null) "bpm" else "", Color(0xFFF43F5E))
                 TodayMetric(Modifier.weight(1f), "시간", "$durationMin", "분", colors.textPrimary)
             }
-            // 탭 가능 힌트 — 지표 열의 폭을 나눠 갖지 않도록 Row 위에 띄워 오른쪽 끝(패딩 쪽)에 둔다.
-            // 지표들은 그대로 왼쪽 정렬이고, 마지막 열의 남는 여백에만 걸친다.
+            // 탭 가능 힌트 — 내 컬렉션 카드의 '›'와 같은 굵기·색. 지표 열의 폭을 나눠 갖지 않도록
+            // Row 위에 띄워 콘텐츠 오른쪽 끝에 둔다(패딩 안쪽). 지표들은 그대로 왼쪽 정렬.
             Text(
-                "›", fontSize = 18.sp, color = colors.textTertiary,
-                modifier = Modifier.align(Alignment.CenterEnd).offset(x = 6.dp),
+                "›", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = colors.textTertiary,
+                modifier = Modifier.align(Alignment.CenterEnd),
             )
         }
     }
