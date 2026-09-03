@@ -15,11 +15,16 @@
         <item name="postSplashScreenTheme">@style/Theme.SoodalBbobgi</item>
     </style>
 
+    <!-- Android 13 이하 Health Connect 앱이 읽는 선언 — HealthConnectManager.requestPermissions + BG_READ_PERMISSION과 1:1.
+         14+는 매니페스트 uses-permission을 본다. 권한을 더하거나 빼면 여기·매니페스트·HealthPermissionRationaleCopy를 함께 고친다. -->
     <array name="health_permissions">
         <item>androidx.health.permission.ExerciseSession.READ</item>
         <item>androidx.health.permission.Distance.READ</item>
+        <item>androidx.health.permission.HeartRate.READ</item>
         <item>androidx.health.permission.TotalCaloriesBurned.READ</item>
         <!-- 새 기록 알림 — 백그라운드에서 변경 여부 확인용 -->
         <item>android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND</item>
+        <!-- 지난 기록 가져오기·재연결 시 30일 이전 데이터 -->
+        <item>android.permission.health.READ_HEALTH_DATA_HISTORY</item>
     </array>
 </resources>
