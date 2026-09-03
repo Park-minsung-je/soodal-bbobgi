@@ -37,11 +37,17 @@
             </intent-filter>
         </activity>
 
-        <!-- Health Connect 권한 설명 화면 -->
+        <!-- Health Connect 권한 사용 근거 — 시스템 설정·HC 권한 화면의 "개인정보처리방침"이 연다.
+             로그인 흐름을 타지 않도록 MainActivity가 아닌 전용 액티비티로 받는다. -->
+        <activity
+            android:name=".presentation.health.HealthPermissionRationaleActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SoodalBbobgi" />
+
         <activity-alias
             android:name="ViewPermissionUsageActivity"
             android:exported="true"
-            android:targetActivity=".MainActivity"
+            android:targetActivity=".presentation.health.HealthPermissionRationaleActivity"
             android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
@@ -52,7 +58,7 @@
         <activity-alias
             android:name=".AndroidURationaleActivity"
             android:exported="true"
-            android:targetActivity=".MainActivity"
+            android:targetActivity=".presentation.health.HealthPermissionRationaleActivity"
             android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
