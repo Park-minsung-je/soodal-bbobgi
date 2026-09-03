@@ -63,6 +63,9 @@ internal val HISTORY_MONTH_OPTIONS: List<Pair<Int, String>> =
  * 권한 요청 다이얼로그를 띄운다. 권한 부여 완료 또는 "나중에 하기"로
  * 다음 화면(알림 설정)으로 이동한다.
  *
+ * 권한이 이미 전부 허용된 채 들어와도(재가입·다른 계정 전환 등) 자동으로 넘어가지 않는다 —
+ * 지난 기록 가져오기 토글·기간을 고를 기회가 있어야 하므로 버튼을 "연결됨 · 계속하기"로 바꿔 보여 준다.
+ *
  * @param onConnect 권한 부여 완료(또는 요청 후) 콜백
  * @param onSkip "나중에 하기" 콜백
  */
@@ -82,6 +85,8 @@ fun OnboardingPermissionScreen(
 
     var permissionGranted by remember { mutableStateOf(false) }
     var permissionRequested by remember { mutableStateOf(false) }
+    // 진입 시점에 필수 권한이 이미 전부 허용돼 있는지 — 버튼 라벨과 탭 동작(런처 생략)을 가른다.
+    var alreadyGranted by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     // 지난 기록 가져오기 토글 + 기간(개월, 최대 12) — 켰을 때만 과거 데이터 권한을 요청한다.
     var importHistory by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
@@ -100,6 +105,8 @@ fun OnboardingPermissionScreen(
     suspend fun proceedIfGranted() {
         val granted = viewModel.hasAllPermissions()
         permissionGranted = granted
+        // 진입 후 권한이 회수된 경우 "연결됨" 표시를 거두고 다음 탭은 런처로 보낸다.
+        alreadyGranted = granted
         if (!granted) {
             errorMessage = OnboardingCopy.PERMISSION_DENIED
             return
@@ -125,12 +132,11 @@ fun OnboardingPermissionScreen(
         onPermissionFlowReturned()
     }
 
-    // 이미 전부 허용된 채 이 화면에 온 경우(재설치 후 복원 등) 요청 없이 바로 넘어간다.
+    // 이미 전부 허용된 채 들어와도 자동으로 넘어가지 않는다 — 지난 기록 토글·기간을 고를 기회가 사라진다(R18·R19).
+    // 상태만 보관해 버튼을 "연결됨 · 계속하기"로 바꾼다.
     LaunchedEffect(Unit) {
-        if (isHealthConnectAvailable && viewModel.hasAllPermissions()) {
-            Timber.d("Health Connect 권한 이미 허용됨 — 온보딩 권한 화면 자동 통과")
-            proceedIfGranted()
-        }
+        alreadyGranted = isHealthConnectAvailable && viewModel.hasAllPermissions()
+        if (alreadyGranted) Timber.d("Health Connect 권한 이미 허용됨 — 기간 선택을 위해 화면 유지")
     }
 
     // 자체 배경 필수 — 투명이면 슬라이드 전환 중 이전 화면과 겹쳐 보인다 (설정 화면과 동일 패턴).
@@ -251,17 +257,27 @@ fun OnboardingPermissionScreen(
             text = when {
                 !isHealthConnectAvailable -> "Health Connect 설치 필요"
                 permissionRequested && !permissionGranted -> "다시 시도하기"
+                alreadyGranted -> "연결됨 · 계속하기"
                 else -> "Health Connect 연결하기"
             },
             onClick = {
                 errorMessage = null
                 if (isHealthConnectAvailable) {
-                    try {
-                        permissionLauncher.launch(healthPermissions)
-                    } catch (e: Exception) {
-                        // 예외 원문은 로그에만 — 사용자에게는 할 수 있는 조치(HC 업데이트)만 말한다.
-                        Timber.e(e, "Health Connect 권한 요청 실패")
-                        errorMessage = OnboardingCopy.PERMISSION_LAUNCH_FAILED
+                    scope.launch {
+                        // 이미 연결돼 있고 추가로 요청할 권한(지난 기록)도 없으면 런처를 생략한다 —
+                        // HC 요청 화면이 순간 떴다 사라지며 상단바가 깜빡이는 것을 피한다.
+                        val needsHistory = importHistory && !viewModel.hasHistoryPermission()
+                        if (alreadyGranted && !needsHistory) {
+                            onPermissionFlowReturned()
+                            return@launch
+                        }
+                        try {
+                            permissionLauncher.launch(healthPermissions)
+                        } catch (e: Exception) {
+                            // 예외 원문은 로그에만 — 사용자에게는 할 수 있는 조치(HC 업데이트)만 말한다.
+                            Timber.e(e, "Health Connect 권한 요청 실패")
+                            errorMessage = OnboardingCopy.PERMISSION_LAUNCH_FAILED
+                        }
                     }
                 } else {
                     errorMessage = OnboardingCopy.HC_APP_MISSING
