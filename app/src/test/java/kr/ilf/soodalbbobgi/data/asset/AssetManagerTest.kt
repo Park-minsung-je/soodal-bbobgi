@@ -199,6 +199,48 @@ class AssetManagerTest {
         assertThat(store.loadLocalManifest()?.files?.map { it.path }).containsExactly("keep/a.png")
     }
 
+    // ─── R5: 서버 매니페스트가 참조 파일만으로 축소됐을 때 ─────────────────
+
+    @Test
+    fun `narrowed server manifest deletes previously downloaded unreferenced files without redownloading`() = runTest {
+        // 이전 sync가 전체 에셋(참조 + 미참조)을 받아둔 상태를 재현한다.
+        val usedBytes = "used".toByteArray()
+        val unusedBytes = "unused".toByteArray()
+        store.writeFile("char/used.png", usedBytes)
+        store.writeFile("char/unused.png", unusedBytes)
+        store.saveLocalManifest(
+            AssetManifest(
+                version = "1.0.0",
+                updatedAt = 100L,
+                files = listOf(
+                    AssetFile("char/used.png", sha256("used"), usedBytes.size.toLong()),
+                    AssetFile("char/unused.png", sha256("unused"), unusedBytes.size.toLong()),
+                ),
+            ),
+        )
+        // 서버(R5 수정 후)는 같은 버전이라도 아이템이 참조하는 파일만 내려준다.
+        val serverManifest = AssetManifestData(
+            version = "1.0.0",
+            updatedAt = 200L,
+            files = listOf(
+                ServerAssetFile("char/used.png", sha256("used"), usedBytes.size.toLong()),
+            ),
+        )
+        coEvery { api.getAssetManifest() } returns ApiResponse(true, serverManifest, null)
+
+        val result = manager.sync()
+
+        assertThat(result.isSuccess).isTrue()
+        assertThat(store.exists("char/used.png")).isTrue()
+        assertThat(store.exists("char/unused.png")).isFalse()
+        coVerify(exactly = 0) { api.downloadAssetFile(any()) }
+        assertThat(store.loadLocalManifest()?.files?.map { it.path }).containsExactly("char/used.png")
+
+        val progress = manager.progress.value as AssetSyncProgress.Done
+        assertThat(progress.downloaded).isEqualTo(0)
+        assertThat(progress.removed).isEqualTo(1)
+    }
+
     // ─── 매니페스트 fetch 실패 ────────────────────────────────────
 
     @Test
