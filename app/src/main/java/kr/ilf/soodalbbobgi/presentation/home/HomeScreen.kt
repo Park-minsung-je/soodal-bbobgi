@@ -113,6 +113,7 @@ fun HomeScreen(
     val shellRewardKind by viewModel.shellRewardKind.collectAsState()
     val hcSyncing by viewModel.hcSyncing.collectAsState()
     val syncError by viewModel.syncError.collectAsState()
+    val setupNudge by viewModel.setupNudge.collectAsState()
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
     val context = LocalContext.current
@@ -465,6 +466,21 @@ fun HomeScreen(
         }
     }
 
+    // ── 기존 회원 HC 연결 안내 팝업 (R30) ─────────────────────
+    // 조개 팝업이 떠 있으면 그 뒤로 미룬다 — 두 팝업이 겹치지 않게 조개가 닫힌 뒤 그린다.
+    // 최초 가져오기 스크림과도 겹치지 않게 한다 (온보딩 직후는 어차피 억제되지만 안전장치).
+    if (setupNudge && shellReward == 0 && editToday == null && !hcSyncing) {
+        AppOverlay {
+            SetupNudgeDialog(
+                onLater = { dontShowAgain -> viewModel.dismissSetupNudge(dontShowAgain) },
+                onGoToSettings = { dontShowAgain ->
+                    viewModel.dismissSetupNudge(dontShowAgain)
+                    onNavigateToSettings()
+                },
+            )
+        }
+    }
+
     // ── 수동 입력 시트 (오버레이 레이어) ─────────────────────
     if (manualOpen) {
         AppOverlay {
@@ -705,11 +721,11 @@ private fun TodayCard(
                 TodayMetric(Modifier.weight(1f), "평균 심박", avgHr?.toString() ?: "—", if (avgHr != null) "bpm" else "", Color(0xFFF43F5E))
                 TodayMetric(Modifier.weight(1f), "시간", "$durationMin", "분", colors.textPrimary)
             }
-            // 탭 가능 힌트 — 지표 열의 폭을 나눠 갖지 않도록 Row 위에 띄워 오른쪽 끝(패딩 쪽)에 둔다.
-            // 지표들은 그대로 왼쪽 정렬이고, 마지막 열의 남는 여백에만 걸친다.
+            // 탭 가능 힌트 — 내 컬렉션 카드의 '›'와 같은 굵기·색. 지표 열의 폭을 나눠 갖지 않도록
+            // Row 위에 띄워 콘텐츠 오른쪽 끝에 둔다(패딩 안쪽). 지표들은 그대로 왼쪽 정렬.
             Text(
-                "›", fontSize = 18.sp, color = colors.textTertiary,
-                modifier = Modifier.align(Alignment.CenterEnd).offset(x = 6.dp),
+                "›", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = colors.textTertiary,
+                modifier = Modifier.align(Alignment.CenterEnd),
             )
         }
     }

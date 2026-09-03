@@ -149,8 +149,6 @@ fun ConfirmActionDialog(
                 text = "취소",
                 onClick = onDismiss,
                 style = ButtonStyle.Primary,
-                // 기본 gradBlue는 흰 팝업 위에서 칙칙해 보여 편집 시트 저장 버튼과 같은 진한 하늘색을 쓴다.
-                backgroundOverride = colors.gradBlueVivid,
                 enabled = !working,
                 heightOverride = 48.dp,
                 modifier = Modifier.weight(1f),

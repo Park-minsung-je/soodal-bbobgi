@@ -50,6 +50,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kr.ilf.soodalbbobgi.core.theme.SoodalDesign
+import kr.ilf.soodalbbobgi.core.ui.SoodalToggle
 import kr.ilf.soodalbbobgi.core.ui.pressable
 import kr.ilf.soodalbbobgi.core.ui.SoodalButton
 import kr.ilf.soodalbbobgi.core.ui.SoodalCard
@@ -155,7 +156,7 @@ fun OnboardingNotificationScreen(
                         Spacer(Modifier.height(4.dp))
                         Text(OnboardingCopy.REMINDER, fontSize = 12.sp, color = colors.textSecondary, lineHeight = 17.sp)
                     }
-                    ToggleSwitch(
+                    SoodalToggle(
                         checked = reminderEnabled,
                         onCheckedChange = { on -> if (on) requestToggle("reminder") else viewModel.setReminderEnabled(false) },
                     )
@@ -202,7 +203,7 @@ fun OnboardingNotificationScreen(
                         fontSize = 12.sp, color = colors.textSecondary, lineHeight = 17.sp,
                     )
                 }
-                ToggleSwitch(
+                SoodalToggle(
                     checked = newRecordEnabled,
                     enabled = hcConnected,
                     onCheckedChange = { on -> if (on) requestToggle("newRecord") else viewModel.setNewRecordEnabled(false) },
@@ -211,7 +212,12 @@ fun OnboardingNotificationScreen(
         }
 
         Spacer(Modifier.weight(1f))
-        SoodalButton("시작하기", onClick = onDone, modifier = Modifier.fillMaxWidth())
+        // 홈의 설정 안내 팝업은 이 화면이 방금 물은 것과 같으므로 바로 이어지는 진입 한 번은 건너뛴다.
+        SoodalButton(
+            "시작하기",
+            onClick = { viewModel.markOnboardingJustFinished(); onDone() },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 
     if (showTimeDialog) {
@@ -225,36 +231,5 @@ fun OnboardingNotificationScreen(
 }
 
 /** 온보딩 리마인더 토글 — 트랙 + 흰 썸. 설정 화면 토글과 같은 모양. */
-@Composable
-private fun ToggleSwitch(checked: Boolean, enabled: Boolean = true, onCheckedChange: (Boolean) -> Unit) {
-    val colors = SoodalDesign.colors
-    // 켜짐 트랙은 편집 시트 저장 버튼과 같은 진한 하늘색 그라데이션 — 단색 accentBlue보다 또렷하다.
-    val trackBackground = if (checked) Modifier.background(colors.gradBlueVivid) else Modifier.background(colors.surface3)
-    // ON 오프셋 = 트랙(44) − 썸(20) − 좌우 여백(2) = 22 → 켜짐/꺼짐 여백이 좌우 대칭 (설정과 동일).
-    val thumbOffset by animateDpAsState(
-        targetValue = if (checked) 22.dp else 2.dp,
-        animationSpec = tween(200),
-        label = "thumb",
-    )
-    Box(
-        modifier = Modifier
-            .alpha(if (enabled) 1f else 0.45f)
-            .width(44.dp)
-            .height(24.dp)
-            .clip(CircleShape)
-            .then(trackBackground)
-            .then(if (enabled) Modifier.pressable(onClick = { onCheckedChange(!checked) }) else Modifier),
-    ) {
-        Box(
-            modifier = Modifier
-                .offset(x = thumbOffset)
-                .size(20.dp)
-                .align(Alignment.CenterStart)
-                .shadow(2.dp, CircleShape) // 흰 썸이 꺼짐 상태의 밝은 트랙과도 구분되도록
-                .clip(CircleShape)
-                .background(Color.White),
-        )
-    }
-}
 
 private const val HC_BG_READ_PERMISSION = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"

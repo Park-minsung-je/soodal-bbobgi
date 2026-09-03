@@ -5,6 +5,7 @@ import kr.ilf.soodalbbobgi.core.session.UserSession
 import kr.ilf.soodalbbobgi.core.ui.ShellRewardKind
 import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
+import kr.ilf.soodalbbobgi.data.auth.AccountPrefs
 import kr.ilf.soodalbbobgi.data.health.HcSyncPreferences
 import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 import kr.ilf.soodalbbobgi.data.remote.api.SoodalApi
@@ -19,6 +20,7 @@ import kr.ilf.soodalbbobgi.domain.usecase.SwimLogUseCase
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -51,6 +53,7 @@ class HomeViewModelTest {
     private lateinit var swimLogUseCase: SwimLogUseCase
     private lateinit var hcManager: HealthConnectManager
     private lateinit var hcPrefs: HcSyncPreferences
+    private lateinit var accountPrefs: AccountPrefs
 
     @Before
     fun setup() {
@@ -62,6 +65,7 @@ class HomeViewModelTest {
         swimLogUseCase = mockk(relaxed = true)
         hcManager = mockk(relaxed = true)
         hcPrefs = mockk(relaxed = true)
+        accountPrefs = mockk(relaxed = true)
 
         // 기본: 비어 있는 월간 로그 + 0 통계
         every { swimLogUseCase.getLogsByDateRange(any(), any()) } returns flowOf(emptyList())
@@ -83,7 +87,86 @@ class HomeViewModelTest {
         swimLogUseCase = swimLogUseCase,
         healthConnectManager = hcManager,
         hcSwimSyncer = mockk(relaxed = true),
+        accountPrefs = accountPrefs,
     )
+
+    // ── 기존 회원 설정 안내 팝업 (R30) ─────────────────────────────────────
+
+    @Test
+    fun `HC 필수 권한이 없으면 연결 안내를 띄운다`() = runTest(testDispatcher) {
+        coEvery { hcManager.hasAllPermissions() } returns false
+        every { accountPrefs.setupNudgeDismissed } returns false
+
+        val vm = newVm()
+        advanceUntilIdle()
+
+        assertThat(vm.setupNudge.value).isTrue()
+    }
+
+    @Test
+    fun `HC 권한이 모두 있으면 알림 설정과 무관하게 안내를 띄우지 않는다`() = runTest(testDispatcher) {
+        coEvery { hcManager.hasAllPermissions() } returns true
+        every { accountPrefs.setupNudgeDismissed } returns false
+
+        val vm = newVm()
+        advanceUntilIdle()
+
+        assertThat(vm.setupNudge.value).isFalse()
+    }
+
+    @Test
+    fun `다시 보지 않음을 저장한 기기에서는 조건이 맞아도 안내를 띄우지 않는다`() = runTest(testDispatcher) {
+        coEvery { hcManager.hasAllPermissions() } returns false
+        every { accountPrefs.setupNudgeDismissed } returns true
+
+        val vm = newVm()
+        advanceUntilIdle()
+
+        assertThat(vm.setupNudge.value).isFalse()
+    }
+
+    @Test
+    fun `온보딩 직후 진입은 한 번 건너뛰고 플래그를 소비해 다음 진입부터 띄운다`() = runTest(testDispatcher) {
+        coEvery { hcManager.hasAllPermissions() } returns false
+        every { accountPrefs.setupNudgeDismissed } returns false
+        appState.suppressSetupNudgeOnce = true
+
+        val first = newVm()
+        advanceUntilIdle()
+        assertThat(first.setupNudge.value).isFalse()
+        assertThat(appState.suppressSetupNudgeOnce).isFalse()
+
+        val second = newVm()
+        advanceUntilIdle()
+        assertThat(second.setupNudge.value).isTrue()
+    }
+
+    @Test
+    fun `다시 보지 않음으로 닫으면 기기에 저장하고 안내를 내린다`() = runTest(testDispatcher) {
+        coEvery { hcManager.hasAllPermissions() } returns false
+        every { accountPrefs.setupNudgeDismissed } returns false
+        val vm = newVm()
+        advanceUntilIdle()
+        assertThat(vm.setupNudge.value).isTrue()
+
+        vm.dismissSetupNudge(dontShowAgain = true)
+
+        verify { accountPrefs.setupNudgeDismissed = true }
+        assertThat(vm.setupNudge.value).isFalse()
+    }
+
+    @Test
+    fun `나중에로 닫으면 저장 없이 안내만 내린다`() = runTest(testDispatcher) {
+        coEvery { hcManager.hasAllPermissions() } returns false
+        every { accountPrefs.setupNudgeDismissed } returns false
+        val vm = newVm()
+        advanceUntilIdle()
+
+        vm.dismissSetupNudge(dontShowAgain = false)
+
+        verify(exactly = 0) { accountPrefs.setupNudgeDismissed = any() }
+        assertThat(vm.setupNudge.value).isFalse()
+    }
 
     // ── 대기 조개 → 팝업 구독 (R15 회귀) ──────────────────────────────────
 
@@ -107,6 +190,23 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         assertThat(vm.shellReward.value).isEqualTo(3)
+    }
+
+    @Test
+    fun `최초 동기화 스크림이 도는 동안은 조개 팝업을 미루고 끝난 뒤 올린다`() = runTest(testDispatcher) {
+        appState.setHcSyncing(true)
+        val vm = newVm()
+
+        // 로그인 직후 동기화가 먼저 지급한 조개 — 스크림 위로 팝업이 겹치면 안 된다 (R31)
+        appState.addPendingShellReward(2)
+        advanceUntilIdle()
+        assertThat(vm.shellReward.value).isEqualTo(0)
+        assertThat(appState.pendingShellReward.value).isEqualTo(2)
+
+        appState.setHcSyncing(false)
+        advanceUntilIdle()
+        assertThat(vm.shellReward.value).isEqualTo(2)
+        assertThat(appState.pendingShellReward.value).isEqualTo(0)
     }
 
     // ── 최초 동기화 진행 표시 (R17 조작 차단의 근거 상태) ────────────────────
@@ -173,6 +273,7 @@ class HomeViewModelTest {
                 swimLogUseCase = swimLogUseCase,
                 healthConnectManager = hcManager,
                 hcSwimSyncer = mockk(relaxed = true),
+                        accountPrefs = accountPrefs,
             )
             startCollect(vm)
             advanceUntilIdle()

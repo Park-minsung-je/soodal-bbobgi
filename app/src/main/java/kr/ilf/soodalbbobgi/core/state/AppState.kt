@@ -97,6 +97,26 @@ class AppState @Inject constructor() {
 
     fun setHcSyncing(active: Boolean) { _hcSyncing.value = active }
 
+    // ─── 설정 안내 팝업 억제 (온보딩 "시작하기" → 바로 이어지는 홈 진입 1회) ──
+    /**
+     * 다음 홈 진입에서 기존 회원 설정 안내 팝업(R30)을 한 번 건너뛸지.
+     * 온보딩이 방금 HC 연결·알림을 물었으므로 그 직후 홈에서 또 묻지 않는다.
+     * 홈이 [consumeSuppressSetupNudgeOnce]로 읽는 즉시 false로 돌아간다.
+     */
+    @Volatile
+    var suppressSetupNudgeOnce: Boolean = false
+
+    /**
+     * 억제 플래그를 읽고 소비한다 — 한 번의 홈 진입에만 적용되도록.
+     *
+     * @return 이번 진입에서 안내를 건너뛰어야 하면 true
+     */
+    fun consumeSuppressSetupNudgeOnce(): Boolean {
+        val v = suppressSetupNudgeOnce
+        suppressSetupNudgeOnce = false
+        return v
+    }
+
     /** Splash 동기화 중 지급된 조개 누적 (Home에서 팝업 후 consumePendingShellReward). */
     fun addPendingShellReward(amount: Int) {
         _pendingShellReward.update { it + amount }
@@ -120,5 +140,6 @@ class AppState @Inject constructor() {
         _pendingShellReward.value = 0
         // 진행 중이던 동기화는 함께 취소되므로 홈 상단 필이 재시작 후에도 남지 않게 내린다
         _hcSyncing.value = false
+        suppressSetupNudgeOnce = false
     }
 }

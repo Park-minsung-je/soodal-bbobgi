@@ -7,9 +7,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
@@ -25,10 +25,10 @@ import androidx.compose.ui.unit.sp
 import kr.ilf.soodalbbobgi.core.theme.SoodalDesign
 
 /**
- * 동기화·로딩 중 화면 조작을 막는 전체 화면 오버레이 — 옅은 스크림 + 상단 중앙 2줄 진행 카드.
+ * 동기화·로딩 중 화면 조작을 막는 전체 화면 오버레이 — 옅은 스크림 + 하단 중앙 2줄 진행 카드.
  *
  * 스크림은 닿는 포인터 이벤트를 전부 소비해 아래 콘텐츠가 눌리지 않게 하고 눌림 표시도 내지 않는다.
- * 카드는 상단바 자리(위패딩 16 + 높이 38 + 6dp) 아래 중앙에 놓여 화면이 어디든 같은 위치에 뜬다.
+ * 카드는 탭바 바로 위(탭바 여백 + 12dp)에 놓여 화면 위쪽 내용을 가리지 않고 어디서든 같은 자리에 뜬다.
  * 최초 HC 가져오기(홈)·수동 동기화(홈·캘린더)·상점 로딩이 모두 이 하나를 쓴다.
  *
  * @param message 첫 줄 — 무엇을 하는 중인지 (예: "수영 기록 동기화 중이에요…")
@@ -44,7 +44,6 @@ fun SyncLoadingOverlay(
 ) {
     if (dimTabBar) DimTabBarWhileVisible()
     val colors = SoodalDesign.colors
-    val spacing = SoodalDesign.spacing
     val shape = RoundedCornerShape(18.dp)
     Box(
         modifier = Modifier
@@ -58,12 +57,12 @@ fun SyncLoadingOverlay(
                     }
                 }
             }
-            .statusBarsPadding(),
-        contentAlignment = Alignment.TopCenter,
+            .navigationBarsPadding(),
+        contentAlignment = Alignment.BottomCenter,
     ) {
         Column(
             modifier = Modifier
-                .padding(top = spacing.s4 + 38.dp + 6.dp)
+                .padding(bottom = TabBarClearance + 12.dp)
                 .clip(shape)
                 .background(colors.surface1)
                 .border(1.dp, colors.glassBorder, shape)

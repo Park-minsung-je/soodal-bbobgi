@@ -6,6 +6,7 @@ import kr.ilf.soodalbbobgi.core.ui.ShellRewardKind
 import kr.ilf.soodalbbobgi.core.session.UserSession
 import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
+import kr.ilf.soodalbbobgi.data.auth.AccountPrefs
 import kr.ilf.soodalbbobgi.data.health.HcSwimSyncer
 import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 import kr.ilf.soodalbbobgi.core.util.averageHr
@@ -101,6 +102,7 @@ class HomeViewModel @Inject constructor(
     private val swimLogUseCase: SwimLogUseCase,
     private val healthConnectManager: HealthConnectManager,
     private val hcSwimSyncer: HcSwimSyncer,
+    private val accountPrefs: AccountPrefs,
 ) : ViewModel() {
 
     private val _shellReward = MutableStateFlow(0)
@@ -119,11 +121,25 @@ class HomeViewModel @Inject constructor(
     /** 최초 HC 가져오기 진행 여부 — 온보딩이 시작한 동기화를 홈이 표시한다. */
     val hcSyncing: StateFlow<Boolean> = appState.hcSyncing
 
+    private val _setupNudge = MutableStateFlow(false)
+    /**
+     * Health Connect 연결 안내 팝업(R30) 표시 여부 — 재설치·재로그인한 기존 회원은 권한이
+     * 없어 홈 진입 자동 동기화가 돌지 않으므로 설정 > 연동으로 유도한다.
+     * 홈 진입마다 한 번 판단하며, 화면은 조개 팝업이 닫힌 뒤에 그린다.
+     */
+    val setupNudge: StateFlow<Boolean> = _setupNudge
+
     init {
+        viewModelScope.launch { evaluateSetupNudge() }
+
         // 대기 중인 조개 보상을 팝업으로 — 스플래시 누적분과, 온보딩이 시작해 홈 진입
         // 후에야 끝나는 최초 동기화 지급분을 모두 받도록 일회성 소비가 아니라 구독한다.
+        // 최초 동기화 스크림이 도는 동안은 소비하지 않고 기다렸다가, 스크림이 걷힌 뒤 팝업을 올린다
+        // (로그인 직후 동기화가 먼저 지급해도 스크림 위로 팝업이 겹치지 않게).
         viewModelScope.launch {
-            appState.pendingShellReward.collect { pending ->
+            combine(appState.pendingShellReward, appState.hcSyncing) { pending, syncing ->
+                if (syncing) 0 else pending
+            }.collect { pending ->
                 if (pending > 0) {
                     val earned = appState.consumePendingShellReward()
                     if (earned > 0) {
@@ -290,6 +306,30 @@ class HomeViewModel @Inject constructor(
     }
 
     fun clearShellReward() { _shellReward.value = 0 }
+
+    /**
+     * 홈 진입 시 HC 필수 권한이 빠져 있으면 연결 안내 팝업(R30)을 띄운다.
+     * 알림 설정은 개인 선택이라 보지 않는다 — 자동 동기화가 막히는 권한만 유도한다.
+     *
+     * 온보딩 직후 진입은 억제 플래그를 소비하며 한 번 건너뛰고, "다시 보지 않음"을
+     * 저장한 기기에서는 판단 자체를 하지 않는다. 플래그는 조건과 무관하게 먼저 소비해
+     * 다음 진입에 남지 않게 한다.
+     */
+    private suspend fun evaluateSetupNudge() {
+        val suppressed = appState.consumeSuppressSetupNudgeOnce()
+        if (suppressed || accountPrefs.setupNudgeDismissed) return
+        if (!healthConnectManager.hasAllPermissions()) _setupNudge.value = true
+    }
+
+    /**
+     * 설정 안내 팝업을 닫는다 — "나중에"·"설정으로" 어느 쪽이든 체크 상태를 저장한다.
+     *
+     * @param dontShowAgain "다시 보지 않음" 체크 여부. true면 기기에 저장해 이후 진입에서 띄우지 않는다
+     */
+    fun dismissSetupNudge(dontShowAgain: Boolean) {
+        if (dontShowAgain) accountPrefs.setupNudgeDismissed = true
+        _setupNudge.value = false
+    }
 
     /**
      * 수동 입력 기록 등록 — 로컬 저장 후 서버 보고까지 동기화 흐름을 재사용한다.

@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.health.connect.client.PermissionController
 import androidx.hilt.navigation.compose.hiltViewModel
 import kr.ilf.soodalbbobgi.core.theme.SoodalDesign
+import kr.ilf.soodalbbobgi.core.ui.SoodalToggle
 import kr.ilf.soodalbbobgi.core.ui.ButtonStyle
 import kr.ilf.soodalbbobgi.core.ui.SoodalButton
 import kr.ilf.soodalbbobgi.core.ui.ChipColor
@@ -201,7 +202,7 @@ fun OnboardingPermissionScreen(
                                 Text("지난 기록 가져오기", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                                 SoodalChip("선택", color = ChipColor.Blue)
                             }
-                            HistoryToggle(checked = importHistory, onCheckedChange = { importHistory = it })
+                            SoodalToggle(checked = importHistory, onCheckedChange = { importHistory = it })
                         }
                         Spacer(Modifier.height(4.dp))
                         // 안내문은 토글 상태와 무관하게 같다 — 분기 안에 두 번 쓰면 한쪽만 고쳐져 OFF/ON이 어긋난다.
@@ -294,35 +295,6 @@ fun OnboardingPermissionScreen(
 }
 
 /** 토글 스위치 — 알림 온보딩과 동일한 시각 언어 (44x24, 좌우 대칭 썸). */
-@Composable
-private fun HistoryToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    val colors = SoodalDesign.colors
-    // 켜짐 트랙은 편집 시트 저장 버튼과 같은 진한 하늘색 그라데이션 — 단색 accentBlue보다 또렷하다.
-    val trackBackground = if (checked) Modifier.background(colors.gradBlueVivid) else Modifier.background(colors.surface3)
-    val thumbOffset by androidx.compose.animation.core.animateDpAsState(
-        targetValue = if (checked) 22.dp else 2.dp,
-        animationSpec = androidx.compose.animation.core.tween(200),
-        label = "historyThumb",
-    )
-    Box(
-        modifier = Modifier
-            .width(44.dp)
-            .height(24.dp)
-            .clip(androidx.compose.foundation.shape.CircleShape)
-            .then(trackBackground)
-            .pressable(onClick = { onCheckedChange(!checked) }),
-    ) {
-        Box(
-            modifier = Modifier
-                .offset(x = thumbOffset)
-                .size(20.dp)
-                .align(Alignment.CenterStart)
-                .shadow(2.dp, androidx.compose.foundation.shape.CircleShape)
-                .clip(androidx.compose.foundation.shape.CircleShape)
-                .background(Color.White),
-        )
-    }
-}
 
 /**
  * 기간 선택 칩 — 닉네임 화면 SelectChip과 같은 시각 언어. 폭은 부모가 [modifier]의 weight로 나눠 준다.
