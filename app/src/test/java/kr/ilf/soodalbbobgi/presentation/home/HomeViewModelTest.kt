@@ -109,6 +109,22 @@ class HomeViewModelTest {
         assertThat(vm.shellReward.value).isEqualTo(3)
     }
 
+    // ── 최초 동기화 진행 표시 (R17 조작 차단의 근거 상태) ────────────────────
+
+    @Test
+    fun `hcSyncing은 AppState의 최초 동기화 진행 상태를 그대로 반영한다`() = runTest(testDispatcher) {
+        val vm = newVm()
+        assertThat(vm.hcSyncing.value).isFalse()
+
+        appState.setHcSyncing(true)
+        advanceUntilIdle()
+        assertThat(vm.hcSyncing.value).isTrue()
+
+        appState.setHcSyncing(false)
+        advanceUntilIdle()
+        assertThat(vm.hcSyncing.value).isFalse()
+    }
+
     @Test
     fun `uiState binds saved ProfileCard fields and asset paths from items master`() =
         runTest(testDispatcher) {

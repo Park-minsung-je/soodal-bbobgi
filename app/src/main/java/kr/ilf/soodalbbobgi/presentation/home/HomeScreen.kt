@@ -1,6 +1,5 @@
 ﻿package kr.ilf.soodalbbobgi.presentation.home
 
-import androidx.compose.ui.zIndex
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
@@ -49,6 +48,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
@@ -69,6 +69,7 @@ import kr.ilf.soodalbbobgi.core.ui.ProfileFrameCorner
 import kr.ilf.soodalbbobgi.core.ui.GlassSheen
 import kr.ilf.soodalbbobgi.core.ui.glass
 import kr.ilf.soodalbbobgi.core.ui.SoodalCard
+import kr.ilf.soodalbbobgi.core.ui.SoodalDimAlpha
 import kr.ilf.soodalbbobgi.core.ui.AppOverlay
 import kr.ilf.soodalbbobgi.core.ui.ShellRewardKind
 import kr.ilf.soodalbbobgi.core.ui.ShellRewardPopup
@@ -204,28 +205,6 @@ fun HomeScreen(
 
         // 하단 스크롤: 프로필 카드 + 통화 + 오늘 + 최근 7일 + 이번 달
         Box(Modifier.weight(1f)) {
-        // 최초 HC 가져오기 진행 표시 — 온보딩이 시작한 동기화가 끝날 때까지 상단 중앙에 뜬다.
-        androidx.compose.animation.AnimatedVisibility(
-            visible = hcSyncing,
-            modifier = Modifier.align(Alignment.TopCenter).zIndex(2f).padding(top = 6.dp),
-            enter = androidx.compose.animation.fadeIn(),
-            exit = androidx.compose.animation.fadeOut(),
-        ) {
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(colors.surface1)
-                    .border(1.dp, colors.glassBorder, RoundedCornerShape(999.dp))
-                    .padding(horizontal = 14.dp, vertical = 7.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                androidx.compose.material3.CircularProgressIndicator(
-                    modifier = Modifier.size(12.dp), strokeWidth = 2.dp, color = colors.accentBlue,
-                )
-                Text("수영 기록 가져오는 중…", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
-            }
-        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -451,6 +430,17 @@ fun HomeScreen(
         }
     }
 
+    // ── 최초 HC 가져오기 차단 오버레이 (오버레이 레이어 — 탭바까지 덮는다) ─────
+    // 온보딩이 시작한 최초 동기화 한 번뿐이다. 도는 동안은 홈·탭바 어디도 누를 수 없고
+    // 뒤로가기도 막는다 — 가져오는 중에 기록을 손대거나 화면을 옮겨 상태가 어긋나는 일을 막는다.
+    // 진행 표시(필)는 스크림 위 상단 중앙에 두고, 끝나거나 실패하면 hcSyncing이 꺼져 함께 사라진다.
+    BackHandler(enabled = hcSyncing) {}
+    AppOverlay {
+        AnimatedVisibility(visible = hcSyncing, enter = fadeIn(), exit = fadeOut()) {
+            InitialSyncBlockingOverlay()
+        }
+    }
+
     // ── 조개 획득 팝업 (오버레이 레이어로 호이스팅 — 패널이 뒤 콘텐츠를 진짜 블러) ──
     // 영법 수정 시트가 열려 있는 동안은 숨긴다 — 시트 뒤에 팝업이 비쳐 보일 이유가 없다.
     if (shellReward > 0 && editToday == null) {
@@ -624,6 +614,57 @@ private fun DexBar(modifier: Modifier, label: String, owned: Int, total: Int, fi
                     .clip(RoundedCornerShape(999.dp))
                     .background(fill),
             )
+        }
+    }
+}
+
+/**
+ * 최초 HC 가져오기 동안 화면 전체(탭바 포함)를 덮어 조작을 막는 스크림 + 진행 카드.
+ *
+ * 스크림은 닿는 포인터 이벤트를 전부 소비해 아래 홈 콘텐츠·탭바가 눌리지 않게 하고,
+ * 눌림 표시도 내지 않는다. 진행 카드는 원래 필 자리(상단바 아래 중앙)에 같은 룩으로 두고,
+ * 둘째 줄에 기다려 달라는 안내를 덧붙인다. 앱 오버레이 레이어에서 그리도록 [AppOverlay] 안에서 쓴다.
+ */
+@Composable
+private fun InitialSyncBlockingOverlay() {
+    val colors = SoodalDesign.colors
+    val spacing = SoodalDesign.spacing
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = SoodalDimAlpha))
+            // 스크림에 닿는 모든 포인터 이벤트를 소비 — 아래 레이어로 내려가지 않는다.
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent().changes.forEach { it.consume() }
+                    }
+                }
+            }
+            .statusBarsPadding(),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        // 원래 필 위치: 상단바(위패딩 16 + 높이 38) 아래 6dp.
+        Column(
+            modifier = Modifier
+                .padding(top = spacing.s4 + 38.dp + 6.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(colors.surface1)
+                .border(1.dp, colors.glassBorder, RoundedCornerShape(18.dp))
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    modifier = Modifier.size(12.dp), strokeWidth = 2.dp, color = colors.accentBlue,
+                )
+                Text("수영 기록 가져오는 중…", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+            }
+            Text("가져오는 동안 잠시만 기다려 주세요", fontSize = 12.sp, color = colors.textTertiary)
         }
     }
 }
