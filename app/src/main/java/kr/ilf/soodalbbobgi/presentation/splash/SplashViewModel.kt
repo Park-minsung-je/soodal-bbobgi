@@ -6,6 +6,7 @@ import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.data.asset.AssetManager
 import kr.ilf.soodalbbobgi.data.asset.AssetSyncProgress
+import kr.ilf.soodalbbobgi.data.auth.AccountPrefs
 import kr.ilf.soodalbbobgi.data.auth.ServerFailure
 import kr.ilf.soodalbbobgi.data.auth.TokenStore
 import kr.ilf.soodalbbobgi.data.auth.classifyServerFailure
@@ -41,6 +42,7 @@ class SplashViewModel @Inject constructor(
     private val healthConnectManager: HealthConnectManager,
     private val hcSwimSyncer: HcSwimSyncer,
     private val assetManager: AssetManager,
+    private val accountPrefs: AccountPrefs,
 ) : ViewModel() {
 
     private val _destination = MutableStateFlow<SplashDestination>(SplashDestination.Loading)
@@ -143,7 +145,9 @@ class SplashViewModel @Inject constructor(
                 val hasHcPermission = healthConnectManager.hasAllPermissions()
                 _destination.value = when {
                     profile?.nickname.isNullOrBlank() -> SplashDestination.Onboarding
-                    !hasHcPermission -> SplashDestination.Permission
+                    // 온보딩을 끝까지 마친 계정은 HC 권한이 없어도 권한 화면으로 되돌리지 않는다 —
+                    // "나중에 하기"·권한 회수 후 매 실행마다 재진입하던 문제. 연결은 설정 > 연동에서 (R19).
+                    !hasHcPermission && !accountPrefs.onboardingCompleted -> SplashDestination.Permission
                     else -> SplashDestination.Home
                 }
             } catch (e: Exception) {

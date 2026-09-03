@@ -6,6 +6,7 @@ import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.data.asset.AssetManager
 import kr.ilf.soodalbbobgi.data.asset.AssetSyncProgress
+import kr.ilf.soodalbbobgi.data.auth.AccountPrefs
 import kr.ilf.soodalbbobgi.data.auth.TokenStore
 import kr.ilf.soodalbbobgi.data.health.HcSyncPreferences
 import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
@@ -53,12 +54,15 @@ class SplashViewModelTest {
     private lateinit var swimLogUseCase: SwimLogUseCase
     private lateinit var hcSyncPreferences: HcSyncPreferences
     private lateinit var assetManager: AssetManager
+    private lateinit var accountPrefs: AccountPrefs
     private lateinit var assetProgress: MutableStateFlow<AssetSyncProgress>
 
     @Before
     fun setup() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         tokenStore = mockk(relaxed = true)
+        // relaxed → onboardingCompleted = false (온보딩 미완료 기본값)
+        accountPrefs = mockk(relaxed = true)
         soodalApi = mockk(relaxed = true)
         userSession = UserSession()
         appState = AppState()
@@ -85,6 +89,7 @@ class SplashViewModelTest {
         healthConnectManager = healthConnectManager,
         hcSwimSyncer = mockk(relaxed = true),
         assetManager = assetManager,
+        accountPrefs = accountPrefs,
     )
 
     @Test
@@ -206,6 +211,40 @@ class SplashViewModelTest {
 
         assertThat(viewModel.destination.value).isEqualTo(SplashDestination.Home)
         assertThat(viewModel.serverError.value).isFalse()
+    }
+
+    // ── 온보딩 완료 후 HC 권한 없음 — 권한 화면으로 되돌리지 않는다 (R19) ──
+
+    @Test
+    fun `온보딩을 마친 계정은 HC 권한이 없어도 Home으로 보낸다`() = runTest {
+        every { tokenStore.getAccessToken() } returns "access"
+        every { tokenStore.isAccessTokenExpired() } returns false
+        coEvery { healthConnectManager.hasAllPermissions() } returns false
+        every { accountPrefs.onboardingCompleted } returns true
+        coEvery { appStateLoader.loadAll() } coAnswers {
+            appState.applyProfile(UserProfile("u1", "수달이", null, null, "google"))
+            Result.success(Unit)
+        }
+
+        val viewModel = vm()
+
+        assertThat(viewModel.destination.value).isEqualTo(SplashDestination.Home)
+    }
+
+    @Test
+    fun `온보딩을 마치지 않은 계정은 HC 권한이 없으면 Permission으로 보낸다`() = runTest {
+        every { tokenStore.getAccessToken() } returns "access"
+        every { tokenStore.isAccessTokenExpired() } returns false
+        coEvery { healthConnectManager.hasAllPermissions() } returns false
+        every { accountPrefs.onboardingCompleted } returns false
+        coEvery { appStateLoader.loadAll() } coAnswers {
+            appState.applyProfile(UserProfile("u1", "수달이", null, null, "google"))
+            Result.success(Unit)
+        }
+
+        val viewModel = vm()
+
+        assertThat(viewModel.destination.value).isEqualTo(SplashDestination.Permission)
     }
 
     @Test

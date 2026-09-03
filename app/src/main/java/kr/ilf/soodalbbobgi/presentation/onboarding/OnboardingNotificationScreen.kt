@@ -207,7 +207,8 @@ fun OnboardingNotificationScreen(
         }
 
         Spacer(Modifier.weight(1f))
-        SoodalButton("시작하기", onClick = onDone, modifier = Modifier.fillMaxWidth())
+        // 완료 표시는 화면 전환보다 먼저 남긴다 — 이후 실행에서 HC 권한이 없어도 이 단계로 되돌아오지 않는다.
+        SoodalButton("시작하기", onClick = { viewModel.completeOnboarding(); onDone() }, modifier = Modifier.fillMaxWidth())
     }
 
     if (showTimeDialog) {

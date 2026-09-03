@@ -7,7 +7,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * 로컬 데이터(Room·prefs)를 마지막으로 사용한 계정 ID를 영속한다.
+ * 로컬 데이터(Room·prefs)를 마지막으로 사용한 계정 ID와 온보딩 완료 여부를 영속한다.
  *
  * [TokenStore]와 분리한 이유: 토큰은 세션 만료(401 거부)로도 지워지는데, 그때마다
  * "로컬 소유자"를 잊으면 같은 계정 재로그인과 다른 계정 로그인을 구분할 수 없다.
@@ -25,12 +25,24 @@ class AccountPrefs @Inject constructor(
         get() = prefs.getString(KEY_LAST_LOCAL_USER_ID, null)
         set(value) = prefs.edit().putString(KEY_LAST_LOCAL_USER_ID, value).apply()
 
-    /** 소유자 기록을 지운다 — 탈퇴·계정 전환 초기화용. */
+    /**
+     * 온보딩을 마지막 단계("시작하기")까지 마쳤는지. 기본 false.
+     *
+     * 이 표시가 있으면 스플래시·로그인 분기는 HC 권한이 없어도 온보딩 권한 화면으로 되돌리지 않는다
+     * (연결은 설정 > 연동에서). 로컬 값이라 재설치·다른 기기에선 한 번 더 뜰 수 있다.
+     * 탈퇴·계정 전환의 [clear]로 함께 지워지고, 로그아웃(세션만 정리)에는 남아 같은 계정 재로그인 땐 유지된다.
+     */
+    var onboardingCompleted: Boolean
+        get() = prefs.getBoolean(KEY_ONBOARDING_COMPLETED, false)
+        set(value) = prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETED, value).apply()
+
+    /** 소유자 기록·온보딩 완료 표시를 지운다 — 탈퇴·계정 전환 초기화용. */
     fun clear() {
         prefs.edit().clear().apply()
     }
 
     companion object {
         private const val KEY_LAST_LOCAL_USER_ID = "last_local_user_id"
+        private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
     }
 }

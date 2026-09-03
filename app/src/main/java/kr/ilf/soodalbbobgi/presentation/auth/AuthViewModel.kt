@@ -6,6 +6,7 @@ import kr.ilf.soodalbbobgi.core.di.ApplicationScope
 import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.data.asset.AssetManager
+import kr.ilf.soodalbbobgi.data.auth.AccountPrefs
 import kr.ilf.soodalbbobgi.data.auth.AccountSwitchGuard
 import kr.ilf.soodalbbobgi.data.auth.GoogleAuthManager
 import kr.ilf.soodalbbobgi.data.auth.KakaoAuthManager
@@ -36,6 +37,7 @@ class AuthViewModel @Inject constructor(
     private val soodalApi: SoodalApi,
     private val tokenStore: TokenStore,
     private val accountSwitchGuard: AccountSwitchGuard,
+    private val accountPrefs: AccountPrefs,
     private val appStateLoader: AppStateLoader,
     private val appState: AppState,
     private val healthConnectManager: HealthConnectManager,
@@ -80,13 +82,16 @@ class AuthViewModel @Inject constructor(
 
                     val needsNickname = data.isNewUser || data.user.nickname.isNullOrBlank()
                     val hasHcPermission = healthConnectManager.hasAllPermissions()
+                    // 완료 플래그는 계정 가드 뒤에 읽는다 — 다른 계정이면 가드가 prefs를 지운 뒤여야 한다.
+                    val onboardingCompleted = accountPrefs.onboardingCompleted
 
                     // 로그인 직후 에셋·HC 동기화를 백그라운드로 시작해 앱 재시작 없이 데이터가 보이게 한다.
                     triggerPostLoginSync(hasHcPermission)
 
                     _uiState.value = when {
                         needsNickname -> AuthUiState.Success(route = AuthRoute.Onboarding)
-                        !hasHcPermission -> AuthUiState.Success(route = AuthRoute.Permission)
+                        // 온보딩을 끝까지 마친 계정은 HC 권한이 없어도 권한 화면으로 보내지 않는다 (R19)
+                        !hasHcPermission && !onboardingCompleted -> AuthUiState.Success(route = AuthRoute.Permission)
                         else -> AuthUiState.Success(route = AuthRoute.Home)
                     }
                 } else {
@@ -136,13 +141,16 @@ class AuthViewModel @Inject constructor(
 
                     val needsNickname = data.isNewUser || data.user.nickname.isNullOrBlank()
                     val hasHcPermission = healthConnectManager.hasAllPermissions()
+                    // 완료 플래그는 계정 가드 뒤에 읽는다 — 다른 계정이면 가드가 prefs를 지운 뒤여야 한다.
+                    val onboardingCompleted = accountPrefs.onboardingCompleted
 
                     // 로그인 직후 에셋·HC 동기화를 백그라운드로 시작해 앱 재시작 없이 데이터가 보이게 한다.
                     triggerPostLoginSync(hasHcPermission)
 
                     _uiState.value = when {
                         needsNickname -> AuthUiState.Success(route = AuthRoute.Onboarding)
-                        !hasHcPermission -> AuthUiState.Success(route = AuthRoute.Permission)
+                        // 온보딩을 끝까지 마친 계정은 HC 권한이 없어도 권한 화면으로 보내지 않는다 (R19)
+                        !hasHcPermission && !onboardingCompleted -> AuthUiState.Success(route = AuthRoute.Permission)
                         else -> AuthUiState.Success(route = AuthRoute.Home)
                     }
                 } else {

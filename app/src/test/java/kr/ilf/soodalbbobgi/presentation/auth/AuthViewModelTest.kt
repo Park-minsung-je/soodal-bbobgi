@@ -6,6 +6,7 @@ import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.data.asset.AssetManager
 import kr.ilf.soodalbbobgi.data.asset.AssetSyncProgress
+import kr.ilf.soodalbbobgi.data.auth.AccountPrefs
 import kr.ilf.soodalbbobgi.data.auth.AccountSwitchGuard
 import kr.ilf.soodalbbobgi.data.auth.GoogleAuthManager
 import kr.ilf.soodalbbobgi.data.auth.KakaoAuthManager
@@ -49,6 +50,7 @@ class AuthViewModelTest {
     private lateinit var api: SoodalApi
     private lateinit var tokenStore: TokenStore
     private lateinit var guard: AccountSwitchGuard
+    private lateinit var accountPrefs: AccountPrefs
     private lateinit var appStateLoader: AppStateLoader
     private lateinit var appState: AppState
     private lateinit var hc: HealthConnectManager
@@ -64,6 +66,8 @@ class AuthViewModelTest {
         api = mockk(relaxed = true)
         tokenStore = mockk(relaxed = true)
         guard = mockk(relaxed = true)
+        // relaxed → onboardingCompleted = false (온보딩 미완료 기본값)
+        accountPrefs = mockk(relaxed = true)
         appStateLoader = mockk(relaxed = true)
         appState = AppState()
         hc = mockk(relaxed = true)
@@ -78,8 +82,8 @@ class AuthViewModelTest {
 
     @After fun tearDown() { Dispatchers.resetMain() }
 
-    private fun vm() = AuthViewModel(kakao, google, api, tokenStore, guard, appStateLoader, appState, hc, assetManager,
-        hcSwimSyncer, CoroutineScope(UnconfinedTestDispatcher()))
+    private fun vm() = AuthViewModel(kakao, google, api, tokenStore, guard, accountPrefs, appStateLoader, appState, hc,
+        assetManager, hcSwimSyncer, CoroutineScope(UnconfinedTestDispatcher()))
 
     @Test
     fun `loginWithGoogle on new user routes to Onboarding`() = runTest {
@@ -144,6 +148,64 @@ class AuthViewModelTest {
 
         val state = viewModel.uiState.value
         assertThat((state as AuthUiState.Success).route).isEqualTo(AuthRoute.Home)
+    }
+
+    // ── 온보딩 완료 후 HC 권한 없음 — 권한 화면으로 되돌리지 않는다 (R19) ──
+
+    @Test
+    fun `loginWithGoogle on onboarded user without HC permission routes to Home`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(any()) } returns ApiResponse(
+            success = true,
+            data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")),
+            error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns false
+        every { accountPrefs.onboardingCompleted } returns true
+
+        val viewModel = vm()
+        viewModel.loginWithGoogle(activity)
+
+        val state = viewModel.uiState.value
+        assertThat((state as AuthUiState.Success).route).isEqualTo(AuthRoute.Home)
+    }
+
+    @Test
+    fun `loginWithGoogle on user who never finished onboarding without HC permission routes to Permission`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(any()) } returns ApiResponse(
+            success = true,
+            data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")),
+            error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns false
+        every { accountPrefs.onboardingCompleted } returns false
+
+        val viewModel = vm()
+        viewModel.loginWithGoogle(activity)
+
+        val state = viewModel.uiState.value
+        assertThat((state as AuthUiState.Success).route).isEqualTo(AuthRoute.Permission)
+    }
+
+    @Test
+    fun `loginWithGoogle reads the onboarding flag only after the account guard has run`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(any()) } returns ApiResponse(
+            success = true,
+            data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")),
+            error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns false
+        every { accountPrefs.onboardingCompleted } returns true
+
+        vm().loginWithGoogle(activity)
+
+        // 다른 계정이면 가드가 prefs를 지우므로, 완료 플래그는 가드 뒤에 읽어야 이전 계정 값을 쓰지 않는다.
+        coVerifyOrder {
+            guard.ensureLocalOwnedBy(sampleUser("수달이").id)
+            accountPrefs.onboardingCompleted
+        }
     }
 
     @Test

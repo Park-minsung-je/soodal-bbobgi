@@ -1,6 +1,7 @@
 package kr.ilf.soodalbbobgi.presentation.onboarding
 
 import androidx.lifecycle.ViewModel
+import kr.ilf.soodalbbobgi.data.auth.AccountPrefs
 import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 import kr.ilf.soodalbbobgi.data.notify.NotificationPrefs
 import kr.ilf.soodalbbobgi.work.HcChangeCheckScheduler
@@ -20,7 +21,16 @@ class OnboardingNotificationViewModel @Inject constructor(
     private val reminderScheduler: ReminderScheduler,
     private val hcChangeCheckScheduler: HcChangeCheckScheduler,
     private val healthConnectManager: HealthConnectManager,
+    private val accountPrefs: AccountPrefs,
 ) : ViewModel() {
+
+    /**
+     * "시작하기" — 온보딩을 끝까지 마쳤다고 기록한다.
+     * 이후 스플래시·로그인 분기는 HC 권한이 없어도 온보딩 권한 화면으로 되돌리지 않는다 (R19).
+     */
+    fun completeOnboarding() {
+        accountPrefs.onboardingCompleted = true
+    }
 
     /** HC 필수 권한이 연결돼 있는지 — 수영 기록 알림은 HC 연동이 전제다. */
     suspend fun isHcConnected(): Boolean = healthConnectManager.hasAllPermissions()
