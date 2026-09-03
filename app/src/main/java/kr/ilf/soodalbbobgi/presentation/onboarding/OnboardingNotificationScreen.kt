@@ -84,10 +84,14 @@ fun OnboardingNotificationScreen(
     // 알림 권한 요청 후 어느 토글을 켜려던 것인지 기억한다.
     var pendingToggle by remember { mutableStateOf<String?>(null) }
 
-    // 새 기록 알림용 HC 백그라운드 읽기 권한 — 거부돼도 토글은 유지(워커가 조용히 스킵).
+    // 새 기록 알림용 HC 백그라운드 읽기 권한 — 거부하면 알림 권한 거부와 똑같이 토글을 끈다
+    // (켜진 채 두면 권한 없이 워커만 헛돌고, 사용자는 알림이 오는 줄 안다).
     val hcBgPermissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
-    ) { }
+    ) {
+        // 결과 셋 대신 실제 권한 상태를 재조회한다 — 전부 허용된 상태에서 재요청하면 빈 셋이 온다.
+        scope.launch { if (!viewModel.isBgReadGranted()) viewModel.setNewRecordEnabled(false) }
+    }
 
     // 실제로 토글을 켜는 처리 — 새 기록이면 HC 백그라운드 권한도 이어서 요청한다.
     val enableToggle: (String?) -> Unit = { target ->

@@ -147,10 +147,14 @@ fun SettingsScreen(
         }
     }
 
-    // HC 백그라운드 읽기 권한 — 새 기록 알림용. 거부돼도 토글은 유지 (워커가 조용히 스킵).
+    // HC 백그라운드 읽기 권한 — 새 기록 알림용. 거부하면 알림 권한을 거부했을 때와 똑같이 토글을 끈다
+    // (켜진 채 두면 권한 없이 워커만 헛돌고, 사용자는 알림이 오는 줄 안다).
     val hcBgPermissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
-    ) { }
+    ) {
+        // 결과 셋 대신 실제 권한 상태를 재조회한다 — 전부 허용된 상태에서 재요청하면 빈 셋이 온다.
+        scope.launch { if (!viewModel.isBgReadGranted()) viewModel.setNewRecordEnabled(false) }
+    }
     // 이미 허용돼 있으면 요청 화면을 띄우지 않는다 — 매번 띄우면 HC 액티비티가 순간
     // 나타났다 사라지며 상단바가 깜빡인다.
     val requestBgReadIfNeeded: () -> Unit = {
