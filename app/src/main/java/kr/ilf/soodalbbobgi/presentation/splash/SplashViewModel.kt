@@ -6,7 +6,6 @@ import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.data.asset.AssetManager
 import kr.ilf.soodalbbobgi.data.asset.AssetSyncProgress
-import kr.ilf.soodalbbobgi.data.auth.AccountPrefs
 import kr.ilf.soodalbbobgi.data.auth.ServerFailure
 import kr.ilf.soodalbbobgi.data.auth.TokenStore
 import kr.ilf.soodalbbobgi.data.auth.classifyServerFailure
@@ -42,7 +41,6 @@ class SplashViewModel @Inject constructor(
     private val healthConnectManager: HealthConnectManager,
     private val hcSwimSyncer: HcSwimSyncer,
     private val assetManager: AssetManager,
-    private val accountPrefs: AccountPrefs,
 ) : ViewModel() {
 
     private val _destination = MutableStateFlow<SplashDestination>(SplashDestination.Loading)
@@ -141,14 +139,13 @@ class SplashViewModel @Inject constructor(
                     _syncError.value = "수영 데이터 동기화에 실패했어요."
                 }
 
+                // 온보딩 진입은 서버 사실(닉네임 유무)로만 판단한다 — HC 권한은 목적지에 영향을 주지 않는다.
+                // 로컬 완료 표시는 재설치·다른 기기·계정 전환에서 무력하므로 쓰지 않는다(R23). 연결은 설정 > 연동에서.
                 val profile = appState.profile.value
-                val hasHcPermission = healthConnectManager.hasAllPermissions()
-                _destination.value = when {
-                    profile?.nickname.isNullOrBlank() -> SplashDestination.Onboarding
-                    // 온보딩을 끝까지 마친 계정은 HC 권한이 없어도 권한 화면으로 되돌리지 않는다 —
-                    // "나중에 하기"·권한 회수 후 매 실행마다 재진입하던 문제. 연결은 설정 > 연동에서 (R19).
-                    !hasHcPermission && !accountPrefs.onboardingCompleted -> SplashDestination.Permission
-                    else -> SplashDestination.Home
+                _destination.value = if (profile?.nickname.isNullOrBlank()) {
+                    SplashDestination.Onboarding
+                } else {
+                    SplashDestination.Home
                 }
             } catch (e: Exception) {
                 Timber.w(e, "자동 로그인 실패")
@@ -207,6 +204,7 @@ class SplashViewModel @Inject constructor(
     }
 }
 
+/** 스플래시가 결정한 다음 화면. Onboarding은 서버 프로필에 닉네임이 없는 계정만 받는다. */
 enum class SplashDestination {
-    Loading, Auth, Onboarding, Permission, Home
+    Loading, Auth, Onboarding, Home
 }

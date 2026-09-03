@@ -6,7 +6,6 @@ import kr.ilf.soodalbbobgi.core.di.ApplicationScope
 import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.data.asset.AssetManager
-import kr.ilf.soodalbbobgi.data.auth.AccountPrefs
 import kr.ilf.soodalbbobgi.data.auth.AccountSwitchGuard
 import kr.ilf.soodalbbobgi.data.auth.GoogleAuthManager
 import kr.ilf.soodalbbobgi.data.auth.KakaoAuthManager
@@ -14,6 +13,7 @@ import kr.ilf.soodalbbobgi.data.auth.TokenStore
 import kr.ilf.soodalbbobgi.data.health.HcSwimSyncer
 import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 import kr.ilf.soodalbbobgi.data.remote.api.SoodalApi
+import kr.ilf.soodalbbobgi.data.remote.dto.AuthData
 import kr.ilf.soodalbbobgi.data.remote.dto.GoogleAuthRequest
 import kr.ilf.soodalbbobgi.data.remote.dto.KakaoAuthRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,7 +37,6 @@ class AuthViewModel @Inject constructor(
     private val soodalApi: SoodalApi,
     private val tokenStore: TokenStore,
     private val accountSwitchGuard: AccountSwitchGuard,
-    private val accountPrefs: AccountPrefs,
     private val appStateLoader: AppStateLoader,
     private val appState: AppState,
     private val healthConnectManager: HealthConnectManager,
@@ -80,20 +79,12 @@ class AuthViewModel @Inject constructor(
                         Timber.w(loaded.exceptionOrNull(), "AppState 로드 실패")
                     }
 
-                    val needsNickname = data.isNewUser || data.user.nickname.isNullOrBlank()
                     val hasHcPermission = healthConnectManager.hasAllPermissions()
-                    // 완료 플래그는 계정 가드 뒤에 읽는다 — 다른 계정이면 가드가 prefs를 지운 뒤여야 한다.
-                    val onboardingCompleted = accountPrefs.onboardingCompleted
 
                     // 로그인 직후 에셋·HC 동기화를 백그라운드로 시작해 앱 재시작 없이 데이터가 보이게 한다.
                     triggerPostLoginSync(hasHcPermission)
 
-                    _uiState.value = when {
-                        needsNickname -> AuthUiState.Success(route = AuthRoute.Onboarding)
-                        // 온보딩을 끝까지 마친 계정은 HC 권한이 없어도 권한 화면으로 보내지 않는다 (R19)
-                        !hasHcPermission && !onboardingCompleted -> AuthUiState.Success(route = AuthRoute.Permission)
-                        else -> AuthUiState.Success(route = AuthRoute.Home)
-                    }
+                    _uiState.value = AuthUiState.Success(route = resolveRoute(data))
                 } else {
                     val errorCode = authResponse.error?.code ?: "UNKNOWN"
                     Timber.e("서버 카카오 인증 실패: $errorCode")
@@ -139,20 +130,12 @@ class AuthViewModel @Inject constructor(
                         Timber.w(loaded.exceptionOrNull(), "AppState 로드 실패")
                     }
 
-                    val needsNickname = data.isNewUser || data.user.nickname.isNullOrBlank()
                     val hasHcPermission = healthConnectManager.hasAllPermissions()
-                    // 완료 플래그는 계정 가드 뒤에 읽는다 — 다른 계정이면 가드가 prefs를 지운 뒤여야 한다.
-                    val onboardingCompleted = accountPrefs.onboardingCompleted
 
                     // 로그인 직후 에셋·HC 동기화를 백그라운드로 시작해 앱 재시작 없이 데이터가 보이게 한다.
                     triggerPostLoginSync(hasHcPermission)
 
-                    _uiState.value = when {
-                        needsNickname -> AuthUiState.Success(route = AuthRoute.Onboarding)
-                        // 온보딩을 끝까지 마친 계정은 HC 권한이 없어도 권한 화면으로 보내지 않는다 (R19)
-                        !hasHcPermission && !onboardingCompleted -> AuthUiState.Success(route = AuthRoute.Permission)
-                        else -> AuthUiState.Success(route = AuthRoute.Home)
-                    }
+                    _uiState.value = AuthUiState.Success(route = resolveRoute(data))
                 } else {
                     val errorCode = authResponse.error?.code ?: "UNKNOWN"
                     Timber.e("서버 구글 인증 실패: $errorCode")
@@ -164,6 +147,18 @@ class AuthViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * 로그인 성공 후 이동할 화면을 서버 사실로만 결정한다.
+     *
+     * 서버가 방금 만든 계정이거나 닉네임이 비어 있으면(가입 도중 이탈) 온보딩, 그 외는 홈.
+     * HC 권한 유무는 보지 않는다 — 로컬 완료 표시는 재설치·다른 기기·계정 전환에서 무력하므로
+     * 기존 계정은 항상 홈으로 보내고 연결은 설정 > 연동에서 유도한다(R23).
+     *
+     * @param data 서버 인증 응답 (`isNewUser`, `user.nickname`)
+     */
+    private fun resolveRoute(data: AuthData): AuthRoute =
+        if (data.isNewUser || data.user.nickname.isNullOrBlank()) AuthRoute.Onboarding else AuthRoute.Home
 
     /**
      * 로그인 성공 직후 에셋 동기화와(권한이 있을 때) HC 동기화를 백그라운드로 실행한다.
@@ -211,10 +206,9 @@ class AuthViewModel @Inject constructor(
     }
 }
 
-/** 로그인 성공 후 이동할 화면 */
+/** 로그인 성공 후 이동할 화면. Onboarding은 서버가 새 계정이라 하거나 닉네임이 없는 계정만 받는다. */
 enum class AuthRoute {
     Onboarding,
-    Permission,
     Home,
 }
 

@@ -166,7 +166,6 @@ fun AppNavHost(navController: NavHostController) {
                             val target = when (dest) {
                                 SplashDestination.Auth -> Screen.Auth.route
                                 SplashDestination.Onboarding -> Screen.OnboardingNickname.route
-                                SplashDestination.Permission -> Screen.OnboardingPermission.route
                                 SplashDestination.Home -> Screen.Home.route
                                 SplashDestination.Loading -> return@SplashScreen
                             }
@@ -180,7 +179,6 @@ fun AppNavHost(navController: NavHostController) {
                             onNavigate = { route ->
                                 val target = when (route) {
                                     AuthRoute.Onboarding -> Screen.OnboardingNickname.route
-                                    AuthRoute.Permission -> Screen.OnboardingPermission.route
                                     AuthRoute.Home -> Screen.Home.route
                                 }
                                 navController.navigate(target) {
