@@ -275,7 +275,7 @@ fun ShopScreen(
         if (state.isLoading && state.listings.isEmpty() &&
             state.boxResults.isEmpty() && state.confirmItem == null
         ) {
-            kr.ilf.soodalbbobgi.core.ui.SyncLoadingOverlay("최신 상점 정보를 불러오는 중이에요...")
+            kr.ilf.soodalbbobgi.core.ui.SyncLoadingOverlay("최신 상점 정보를 불러오는 중이에요…")
         }
     }
 }

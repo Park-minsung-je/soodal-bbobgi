@@ -377,7 +377,7 @@ fun CalendarScreen(
 
         // ── 동기화 로딩 오버레이 ─────────────────────────────────────────
         if (syncing) {
-            kr.ilf.soodalbbobgi.core.ui.SyncLoadingOverlay("수영 기록 동기화 중이에요...")
+            kr.ilf.soodalbbobgi.core.ui.SyncLoadingOverlay("수영 기록 동기화 중이에요…")
         }
     }
 }

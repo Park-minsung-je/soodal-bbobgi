@@ -48,7 +48,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
@@ -69,7 +68,6 @@ import kr.ilf.soodalbbobgi.core.ui.ProfileFrameCorner
 import kr.ilf.soodalbbobgi.core.ui.GlassSheen
 import kr.ilf.soodalbbobgi.core.ui.glass
 import kr.ilf.soodalbbobgi.core.ui.SoodalCard
-import kr.ilf.soodalbbobgi.core.ui.SoodalDimAlpha
 import kr.ilf.soodalbbobgi.core.ui.AppOverlay
 import kr.ilf.soodalbbobgi.core.ui.ShellRewardKind
 import kr.ilf.soodalbbobgi.core.ui.ShellRewardPopup
@@ -419,7 +417,7 @@ fun HomeScreen(
 
     // ── 동기화 로딩 오버레이 ────────────────────────────────
     if (state.syncing) {
-        kr.ilf.soodalbbobgi.core.ui.SyncLoadingOverlay("수영 기록 동기화 중이에요...")
+        kr.ilf.soodalbbobgi.core.ui.SyncLoadingOverlay("수영 기록 동기화 중이에요…")
     }
 
     // ── 동기화 에러 표시 ─────────────────────────────────────
@@ -437,7 +435,12 @@ fun HomeScreen(
     BackHandler(enabled = hcSyncing) {}
     AppOverlay {
         AnimatedVisibility(visible = hcSyncing, enter = fadeIn(), exit = fadeOut()) {
-            InitialSyncBlockingOverlay()
+            // 앱 오버레이 레이어라 스크림이 탭바까지 덮는다 — 탭바 딤은 따로 켜지 않는다.
+            kr.ilf.soodalbbobgi.core.ui.SyncLoadingOverlay(
+                message = "수영 기록 가져오는 중…",
+                hint = "가져오는 동안 잠시만 기다려 주세요",
+                dimTabBar = false,
+            )
         }
     }
 
@@ -618,56 +621,6 @@ private fun DexBar(modifier: Modifier, label: String, owned: Int, total: Int, fi
     }
 }
 
-/**
- * 최초 HC 가져오기 동안 화면 전체(탭바 포함)를 덮어 조작을 막는 스크림 + 진행 카드.
- *
- * 스크림은 닿는 포인터 이벤트를 전부 소비해 아래 홈 콘텐츠·탭바가 눌리지 않게 하고,
- * 눌림 표시도 내지 않는다. 진행 카드는 원래 필 자리(상단바 아래 중앙)에 같은 룩으로 두고,
- * 둘째 줄에 기다려 달라는 안내를 덧붙인다. 앱 오버레이 레이어에서 그리도록 [AppOverlay] 안에서 쓴다.
- */
-@Composable
-private fun InitialSyncBlockingOverlay() {
-    val colors = SoodalDesign.colors
-    val spacing = SoodalDesign.spacing
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = SoodalDimAlpha))
-            // 스크림에 닿는 모든 포인터 이벤트를 소비 — 아래 레이어로 내려가지 않는다.
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        awaitPointerEvent().changes.forEach { it.consume() }
-                    }
-                }
-            }
-            .statusBarsPadding(),
-        contentAlignment = Alignment.TopCenter,
-    ) {
-        // 원래 필 위치: 상단바(위패딩 16 + 높이 38) 아래 6dp.
-        Column(
-            modifier = Modifier
-                .padding(top = spacing.s4 + 38.dp + 6.dp)
-                .clip(RoundedCornerShape(18.dp))
-                .background(colors.surface1)
-                .border(1.dp, colors.glassBorder, RoundedCornerShape(18.dp))
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                androidx.compose.material3.CircularProgressIndicator(
-                    modifier = Modifier.size(12.dp), strokeWidth = 2.dp, color = colors.accentBlue,
-                )
-                Text("수영 기록 가져오는 중…", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
-            }
-            Text("가져오는 동안 잠시만 기다려 주세요", fontSize = 12.sp, color = colors.textTertiary)
-        }
-    }
-}
 
 /**
  * 홈 통화 칩 — 아이콘 + (라벨/값 세로). 등급색 soft 배경과 0.35 테두리 (디자인 시안 기준).
