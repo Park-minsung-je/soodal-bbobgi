@@ -173,8 +173,12 @@ class HcSwimSyncer @Inject constructor(
 
     /** HC 변경분(추가/수정/삭제)을 반영한다. 토큰이 없거나 만료면 오늘 기록만 읽고 새 토큰 발급. */
     private suspend fun syncChanges() {
+        // 온보딩에서 고른 최초 가져오기 기간이 있으면 토큰이 있어도 그 기간을 전부 읽는다 —
+        // 권한이 남아 있는 재가입은 로그인 직후 동기화가 먼저 토큰을 만들어 두는데, 그때 변경분만 읽으면
+        // 사용자가 고른 기간이 조용히 버려진다. 읽은 뒤 새 토큰으로 교체하고 기간을 지운다 (첫 연동 1회).
+        val initialMonths = hcSyncPreferences.getPendingInitialMonths()
         val storedToken = hcSyncPreferences.getChangesToken()
-        if (storedToken != null) {
+        if (initialMonths == null && storedToken != null) {
             val result = healthConnectManager.getChanges(storedToken)
             if (result != null) {
                 for (session in result.addedSessions) upsert(session)
@@ -186,9 +190,7 @@ class HcSwimSyncer @Inject constructor(
         val token = healthConnectManager.getChangesToken()
         val zone = ZoneId.systemDefault()
         val now = java.time.LocalDateTime.now()
-        // 온보딩에서 고른 최초 가져오기 기간이 있으면 그만큼 과거까지 읽는다 (첫 연동 1회).
-        // 없으면: 자정 직후 동기화 시 어제 밤 수영이 빠지지 않게 새벽 2시까지는 어제부터.
-        val initialMonths = hcSyncPreferences.getPendingInitialMonths()
+        // 기간이 없으면: 자정 직후 동기화 시 어제 밤 수영이 빠지지 않게 새벽 2시까지는 어제부터.
         val fetchFrom = when {
             initialMonths != null -> now.toLocalDate().minusMonths(initialMonths.toLong())
             now.hour < 2 -> now.toLocalDate().minusDays(1)

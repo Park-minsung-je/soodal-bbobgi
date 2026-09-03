@@ -138,6 +138,25 @@ class HcSwimSyncerTest {
     }
 
     @Test
+    fun `저장된 토큰이 있어도 온보딩에서 고른 기간이 있으면 그 기간을 전부 읽는다`() = runTest {
+        // 권한이 남아 있는 재가입: 로그인 직후 동기화가 먼저 토큰을 저장한 뒤 온보딩이 기간을 고른다 (R18)
+        every { prefs.getChangesToken() } returns "live"
+        every { prefs.getPendingInitialMonths() } returns 6
+        coEvery { useCase.getUnsyncedDates() } returns emptyList()
+        val today = java.time.LocalDate.now()
+        val zone = java.time.ZoneId.systemDefault()
+        val expectedStart = today.minusMonths(6).atStartOfDay(zone).toInstant()
+        val expectedEnd = today.plusDays(1).atStartOfDay(zone).toInstant()
+
+        syncer.sync()
+
+        coVerify(exactly = 0) { hcm.getChanges(any()) }
+        coVerify(exactly = 1) { hcm.readSwimSessions(expectedStart, expectedEnd) }
+        coVerify(exactly = 1) { prefs.clearPendingInitialMonths() }
+        coVerify(exactly = 1) { prefs.saveChangesToken("tok") } // 옛 토큰 대신 전체 읽기 직전 발급한 새 토큰으로 교체
+    }
+
+    @Test
     fun `네트워크 실패면 미전송으로 남겨 다음 동기화에 재시도한다`() = runTest {
         coEvery { useCase.getLogsForDate("2026-06-07") } returns listOf(row(synced = false))
         coEvery { api.addSwimLog(any()) } throws IOException("offline")
