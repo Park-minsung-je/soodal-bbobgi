@@ -6,15 +6,19 @@ import kr.ilf.soodalbbobgi.core.di.ApplicationScope
 import kr.ilf.soodalbbobgi.core.notify.SoodalNotifier
 import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
+import kr.ilf.soodalbbobgi.data.auth.GoogleAuthManager
+import kr.ilf.soodalbbobgi.data.auth.KakaoAuthManager
 import kr.ilf.soodalbbobgi.data.auth.TokenStore
 import kr.ilf.soodalbbobgi.data.health.HcSwimSyncer
 import kr.ilf.soodalbbobgi.data.health.HcSyncPreferences
 import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
+import kr.ilf.soodalbbobgi.data.local.LocalDataResetter
 import kr.ilf.soodalbbobgi.data.notify.NotificationPrefs
 import kr.ilf.soodalbbobgi.data.remote.api.SoodalApi
 import kr.ilf.soodalbbobgi.data.remote.dto.DevResetRequest
 import kr.ilf.soodalbbobgi.data.remote.dto.RefreshRequest
 import kr.ilf.soodalbbobgi.data.remote.dto.UpdateUserRequest
+import kr.ilf.soodalbbobgi.data.remote.toApiError
 import kr.ilf.soodalbbobgi.domain.model.UserProfile
 import kr.ilf.soodalbbobgi.domain.repository.SwimLogRepository
 import kr.ilf.soodalbbobgi.work.HcChangeCheckScheduler
@@ -37,6 +41,8 @@ class SettingsViewModel @Inject constructor(
     private val appState: AppState,
     private val appStateLoader: AppStateLoader,
     private val tokenStore: TokenStore,
+    private val kakaoAuthManager: KakaoAuthManager,
+    private val googleAuthManager: GoogleAuthManager,
     private val hcSyncPreferences: HcSyncPreferences,
     private val healthConnectManager: HealthConnectManager,
     private val swimLogRepository: SwimLogRepository,
@@ -45,6 +51,7 @@ class SettingsViewModel @Inject constructor(
     private val reminderScheduler: ReminderScheduler,
     private val hcChangeCheckScheduler: HcChangeCheckScheduler,
     private val notifier: SoodalNotifier,
+    private val localDataResetter: LocalDataResetter,
     @ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -82,12 +89,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { appStateLoader.ensureHydrated() }
     }
 
-    /** HC 권한 상태를 다시 확인한다 (화면 진입/권한 요청 결과 후). */
     /** HC 백그라운드 읽기 권한이 이미 있는지 — 있으면 요청 화면을 띄우지 않는다. */
     suspend fun isBgReadGranted(): Boolean = healthConnectManager.isBackgroundReadGranted()
 
+    /** HC 권한 상태를 다시 확인한다 (화면 진입·재개·권한 요청 결과 후). */
     fun refreshHcStatus() {
-        viewModelScope.launch { _hcConnected.value = healthConnectManager.hasAllPermissions() }
+        viewModelScope.launch { applyHcConnected(healthConnectManager.hasAllPermissions()) }
     }
 
     /**
@@ -97,24 +104,52 @@ class SettingsViewModel @Inject constructor(
     fun onHcPermissionFlowReturned() {
         viewModelScope.launch {
             if (healthConnectManager.hasAllPermissions()) onHcPermissionGranted()
-            else _hcConnected.value = false
+            else applyHcConnected(false)
         }
     }
 
-    /** 설정에서 HC 권한이 허용된 직후 — 상태 갱신 + 백그라운드 동기화 시작. */
+    /**
+     * HC 연결 상태를 반영한다. 끊겨 있으면 수영 기록 알림도 끈다 — 저장값까지 내려
+     * 토글이 "켜진 채 잠긴" 모습으로 남지 않게 하고, 변경 감지 워커가 권한 없이 헛돌지 않게 한다.
+     * 다시 켤 때 백그라운드 읽기 권한 요청을 다시 거치게 하려는 의도이기도 하다.
+     *
+     * @param connected 필수 HC 권한 3종이 모두 허용돼 있는지
+     */
+    private fun applyHcConnected(connected: Boolean) {
+        _hcConnected.value = connected
+        if (!connected && notificationPrefs.newRecordEnabled) setNewRecordEnabled(false)
+    }
+
+    /** 설정에서 HC 권한이 허용된 직후 — 상태 갱신 + 백그라운드 동기화 시작. 지급분은 홈 팝업으로 넘긴다. */
     fun onHcPermissionGranted() {
         _hcConnected.value = true
         appScope.launch {
             try {
-                hcSwimSyncer.sync()
+                val earned = hcSwimSyncer.sync()
+                if (earned > 0) appState.addPendingShellReward(earned)
             } catch (e: Exception) {
                 Timber.w(e, "설정에서 HC 재연결 후 동기화 실패")
             }
         }
     }
 
-    /** 닉네임을 검증하고 서버에 저장한다. 성공 시 AppState 즉시 갱신. */
-    fun saveNickname(name: String) {
+    /**
+     * 닉네임을 검증하고 서버에 저장한다. 성공 시 AppState 즉시 갱신.
+     *
+     * 쿨다운 중이면 서버를 부르지 않고 안내만 띄운다. 서버가 거부(4xx)하면 그 메시지를 쓰고,
+     * 쿨다운 거부면 서버가 준 다음 가능 시각으로 프로필을 맞춰 다이얼로그가 잠기게 한다.
+     *
+     * @param name 입력한 닉네임
+     * @param nowMillis 현재 시각(epoch ms) — 테스트 주입용
+     */
+    fun saveNickname(name: String, nowMillis: Long = System.currentTimeMillis()) {
+        val current = profile.value
+        val changeableAt = current?.nicknameChangeableAt
+        // 같은 이름은 변경이 아니다 — 서버도 그대로 통과시킨다.
+        if (name != current?.nickname && changeableAt != null && isNicknameCooldownActive(changeableAt, nowMillis)) {
+            _nicknameState.value = NicknameSaveState.Error(nicknameCooldownMessage(changeableAt))
+            return
+        }
         val error = validateNickname(name)
         if (error != null) {
             _nicknameState.value = NicknameSaveState.Error(
@@ -138,7 +173,14 @@ class SettingsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "닉네임 변경 실패")
-                _nicknameState.value = NicknameSaveState.Error("네트워크 오류가 발생했어요.")
+                val apiError = e.toApiError()
+                // 기기 시계가 느려 앱 선검사를 통과했더라도 서버 판정에 맞춰 즉시 잠근다.
+                if (apiError?.code == "NICKNAME_COOLDOWN") {
+                    apiError.details?.nextAllowedAt?.let { next ->
+                        appState.profile.value?.let { appState.applyProfile(it.copy(nicknameChangeableAt = next)) }
+                    }
+                }
+                _nicknameState.value = NicknameSaveState.Error(apiError?.message ?: "네트워크 오류가 발생했어요.")
             }
         }
     }
@@ -240,9 +282,9 @@ class SettingsViewModel @Inject constructor(
     fun clearDevResetResult() { _devResetResult.value = null }
 
     /**
-     * 로그아웃 — 서버 토큰 무효화는 실패해도 진행하고, 로컬 토큰/메모리/Room을 정리한다.
-     * 로컬 수영 기록도 삭제한다 (다른 계정 재로그인 시 데이터 혼입 방지,
-     * 같은 계정은 HC 재동기화로 복구).
+     * 로그아웃 — 서버 토큰 무효화는 실패해도 진행. 로컬 데이터는 남기고 세션·메모리만 끊는다.
+     * 다른 계정이 이어서 로그인하면 AccountSwitchGuard가 로컬을 초기화하고, 같은 계정은 그대로 이어 쓴다.
+     * 프로바이더 기기 세션도 함께 지운다 — 남아 있으면 다른 계정으로 로그인할 때 이전 계정이 그대로 통과한다.
      */
     fun logout() {
         viewModelScope.launch {
@@ -250,18 +292,29 @@ class SettingsViewModel @Inject constructor(
             runCatching {
                 tokenStore.getRefreshToken()?.let { api.logout(RefreshRequest(it)) }
             }.onFailure { Timber.w(it, "서버 로그아웃 실패 — 로컬 정리는 계속 진행") }
-            clearLocalAndSignOut()
+            // clearSession()이 메모리 프로필을 비우므로 provider를 읽는 정리는 그 앞이어야 한다
+            clearProviderSession()
+            localDataResetter.clearSession()
+            finishSignOut()
         }
     }
 
-    /** 계정 탈퇴 — 서버 삭제가 성공해야만 로컬을 정리한다 (실패 시 계정이 남아있으므로). */
+    /**
+     * 계정 탈퇴 — 서버 삭제 성공 시에만 프로바이더 기기 세션을 지우고 HC 권한을 회수한 뒤
+     * 에셋을 제외한 로컬 전부를 지우고 앱을 재시작한다. 실패 시 계정이 남아 있으므로 로컬을 건드리지 않는다.
+     */
     fun deleteAccount() {
         viewModelScope.launch {
             _accountAction.value = AccountActionState.Working
             try {
                 val res = api.deleteMe()
                 if (res.success) {
-                    clearLocalAndSignOut()
+                    // 서버가 이미 unlink 했으므로 앱은 기기 저장 세션만 정리 — clearAll()이 프로필을 비우기 전에
+                    clearProviderSession()
+                    // 재가입 시 온보딩이 처음처럼 권한을 다시 묻도록 — 실패해도 탈퇴는 진행한다
+                    healthConnectManager.revokeAllPermissions()
+                    localDataResetter.clearAll(keepAssets = true)
+                    finishSignOut()
                 } else {
                     _accountAction.value = AccountActionState.Error(res.error?.message ?: "탈퇴에 실패했어요.")
                 }
@@ -274,11 +327,20 @@ class SettingsViewModel @Inject constructor(
 
     fun resetAccountAction() { _accountAction.value = AccountActionState.Idle }
 
-    private suspend fun clearLocalAndSignOut() {
-        tokenStore.clearTokens()
-        hcSyncPreferences.clearChangesToken()
-        swimLogRepository.deleteAll()
-        appState.clear()
+    /**
+     * 프로바이더 SDK가 기기에 저장한 세션을 정리한다 — 카카오는 저장 토큰 삭제, 구글은 자격증명 상태 초기화.
+     * best-effort: 실패해도 탈퇴·로그아웃은 진행한다. 현재 프로필의 provider를 읽으므로 메모리를 비우기 전에 불러야 한다.
+     */
+    private suspend fun clearProviderSession() {
+        when (appState.profile.value?.authProvider) {
+            "kakao" -> kakaoAuthManager.signOutLocally()
+            "google" -> googleAuthManager.clearCredentialState()
+            else -> Result.success(Unit)
+        }.onFailure { Timber.w(it, "프로바이더 세션 정리 실패 — 계속 진행") }
+    }
+
+    /** 로컬 정리가 끝난 뒤 화면에 종료를 알린다 — 화면은 이를 보고 앱을 스플래시부터 재시작한다. */
+    private fun finishSignOut() {
         _accountAction.value = AccountActionState.Idle
         _signedOut.value = true
     }

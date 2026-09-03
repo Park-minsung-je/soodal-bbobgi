@@ -45,6 +45,11 @@ class HcChangeCheckWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         if (!prefs.newRecordEnabled) return Result.success()
+        // 필수 권한이 회수됐으면 HC에 묻지 않는다 — 저장값은 설정 화면이 사용자에게 보이며 내린다.
+        if (!healthConnectManager.hasAllPermissions()) {
+            Timber.w("HC 권한 없음 — 새 기록 확인 생략")
+            return Result.success()
+        }
         val token = hcSyncPreferences.getChangesToken() ?: return Result.success()
         val alreadyNotified = prefs.notifiedChangeToken == token
         // 이미 알린 토큰 상태면 HC 질의 없이 끝낸다 (판단 자체는 아래 조건 함수가 다시 검증)

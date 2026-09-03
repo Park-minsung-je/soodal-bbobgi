@@ -208,6 +208,39 @@ class SplashViewModelTest {
         assertThat(viewModel.serverError.value).isFalse()
     }
 
+    // ── 온보딩 진입은 서버 사실(닉네임 유무)로만 — HC 권한은 목적지에 영향 없음 (R23) ──
+
+    @Test
+    fun `닉네임이 있는 계정은 HC 권한이 없어도 Home으로 보낸다`() = runTest {
+        every { tokenStore.getAccessToken() } returns "access"
+        every { tokenStore.isAccessTokenExpired() } returns false
+        coEvery { healthConnectManager.hasAllPermissions() } returns false
+        coEvery { appStateLoader.loadAll() } coAnswers {
+            appState.applyProfile(UserProfile("u1", "수달이", null, null, "google"))
+            Result.success(Unit)
+        }
+
+        val viewModel = vm()
+
+        // 재설치·다른 기기처럼 로컬 표시가 없는 상황에서도 기존 계정은 항상 홈 — 연결은 설정 > 연동에서.
+        assertThat(viewModel.destination.value).isEqualTo(SplashDestination.Home)
+    }
+
+    @Test
+    fun `닉네임이 없는 계정은 Onboarding으로 보낸다`() = runTest {
+        every { tokenStore.getAccessToken() } returns "access"
+        every { tokenStore.isAccessTokenExpired() } returns false
+        coEvery { healthConnectManager.hasAllPermissions() } returns true
+        coEvery { appStateLoader.loadAll() } coAnswers {
+            appState.applyProfile(UserProfile("u1", null, null, null, "google"))
+            Result.success(Unit)
+        }
+
+        val viewModel = vm()
+
+        assertThat(viewModel.destination.value).isEqualTo(SplashDestination.Onboarding)
+    }
+
     @Test
     fun `재시도로 서버가 복구되면 Home으로 진행한다`() = runTest {
         every { tokenStore.getAccessToken() } returns "access"

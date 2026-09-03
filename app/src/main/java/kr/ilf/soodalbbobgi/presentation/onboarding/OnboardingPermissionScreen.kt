@@ -1,5 +1,6 @@
 ﻿package kr.ilf.soodalbbobgi.presentation.onboarding
 
+import android.widget.Toast
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.offset
@@ -51,12 +52,19 @@ import kr.ilf.soodalbbobgi.core.ui.soodalScreenBackdrop
 import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 import timber.log.Timber
 
+/** 지난 기록 가져오기 기간 선택지 — (개월 수, 칩 라벨). 12개월은 '1년'으로 읽힌다. */
+internal val HISTORY_MONTH_OPTIONS: List<Pair<Int, String>> =
+    listOf(1 to "1개월", 3 to "3개월", 6 to "6개월", 12 to "1년")
+
 /**
  * 온보딩 2단계 — Health Connect 권한 요청 화면.
  *
  * "Health Connect 연결하기" 버튼을 누르면 Health Connect SDK가 제공하는
  * 권한 요청 다이얼로그를 띄운다. 권한 부여 완료 또는 "나중에 하기"로
- * 다음 화면(Home)으로 이동한다.
+ * 다음 화면(알림 설정)으로 이동한다.
+ *
+ * 권한이 이미 전부 허용된 채 들어와도(재가입·다른 계정 전환 등) 자동으로 넘어가지 않는다 —
+ * 지난 기록 가져오기 토글·기간을 고를 기회가 있어야 하므로 버튼을 "연결됨 · 계속하기"로 바꿔 보여 준다.
  *
  * @param onConnect 권한 부여 완료(또는 요청 후) 콜백
  * @param onSkip "나중에 하기" 콜백
@@ -77,8 +85,10 @@ fun OnboardingPermissionScreen(
 
     var permissionGranted by remember { mutableStateOf(false) }
     var permissionRequested by remember { mutableStateOf(false) }
+    // 진입 시점에 필수 권한이 이미 전부 허용돼 있는지 — 버튼 라벨과 탭 동작(런처 생략)을 가른다.
+    var alreadyGranted by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    // 지난 기록 가져오기 토글 + 기간(개월, 최대 3) — 켰을 때만 과거 데이터 권한을 요청한다.
+    // 지난 기록 가져오기 토글 + 기간(개월, 최대 12) — 켰을 때만 과거 데이터 권한을 요청한다.
     var importHistory by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var selectedMonths by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(1) }
 
@@ -95,8 +105,18 @@ fun OnboardingPermissionScreen(
     suspend fun proceedIfGranted() {
         val granted = viewModel.hasAllPermissions()
         permissionGranted = granted
+        // 진입 후 권한이 회수된 경우 "연결됨" 표시를 거두고 다음 탭은 런처로 보낸다.
+        alreadyGranted = granted
         if (!granted) {
-            errorMessage = "권한이 허용되지 않았어요. 다시 시도하거나 나중에 설정에서 허용할 수 있어요."
+            errorMessage = OnboardingCopy.PERMISSION_DENIED
+            return
+        }
+        if (importHistory && !viewModel.hasHistoryPermission()) {
+            // 과거 데이터 권한만 거부한 경우 — 알림 토글이 권한 거부 때 꺼지는 것과 같게 토글을 끄고
+            // 화면에 남긴다. 사용자는 '연결됨 · 계속하기'로 오늘 기록만 가져가거나, 토글을 다시 켜
+            // 권한을 다시 요청할 수 있다. (HC는 이 권한 없이는 첫 허용 30일 이전 기록을 주지 않는다.)
+            importHistory = false
+            Toast.makeText(context, OnboardingCopy.HISTORY_PERMISSION_DENIED, Toast.LENGTH_LONG).show()
             return
         }
         viewModel.startInitialSync(if (importHistory) selectedMonths else 0)
@@ -115,12 +135,11 @@ fun OnboardingPermissionScreen(
         onPermissionFlowReturned()
     }
 
-    // 이미 전부 허용된 채 이 화면에 온 경우(재설치 후 복원 등) 요청 없이 바로 넘어간다.
+    // 이미 전부 허용된 채 들어와도 자동으로 넘어가지 않는다 — 지난 기록 토글·기간을 고를 기회가 사라진다(R18·R19).
+    // 상태만 보관해 버튼을 "연결됨 · 계속하기"로 바꾼다.
     LaunchedEffect(Unit) {
-        if (isHealthConnectAvailable && viewModel.hasAllPermissions()) {
-            Timber.d("Health Connect 권한 이미 허용됨 — 온보딩 권한 화면 자동 통과")
-            proceedIfGranted()
-        }
+        alreadyGranted = isHealthConnectAvailable && viewModel.hasAllPermissions()
+        if (alreadyGranted) Timber.d("Health Connect 권한 이미 허용됨 — 기간 선택을 위해 화면 유지")
     }
 
     // 자체 배경 필수 — 투명이면 슬라이드 전환 중 이전 화면과 겹쳐 보인다 (설정 화면과 동일 패턴).
@@ -155,12 +174,7 @@ fun OnboardingPermissionScreen(
                         }
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = if (!isHealthConnectAvailable) {
-                                "Health Connect가 설치되어 있지 않아요. Google Play에서 설치해 주세요."
-                            } else {
-                                "수영 기록을 자동으로 동기화하려면 Health Connect의 " +
-                                    "운동·거리·심박수·속도·칼로리 읽기 권한이 필요해요."
-                            },
+                            text = if (!isHealthConnectAvailable) OnboardingCopy.HC_NOT_INSTALLED else OnboardingCopy.HC_REQUIRED,
                             fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp,
                         )
                     }
@@ -190,34 +204,24 @@ fun OnboardingPermissionScreen(
                             HistoryToggle(checked = importHistory, onCheckedChange = { importHistory = it })
                         }
                         Spacer(Modifier.height(4.dp))
-                        if (!importHistory) {
-                            Text(
-                                "오늘 이전의 기록도 가져와 달력에 기록으로 저장할 수 있어요.\n" +
-                                    "불러오려면 Health Connect의 '모든 기간의 데이터에 액세스' 읽기 권한이 필요해요.",
-                                fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp,
-                            )
-                        } else {
-                            Text(
-                                "오늘 이전의 기록도 가져와 달력에 기록으로 저장할 수 있어요.\n" +
-                                    "불러오려면 Health Connect의 '모든 기간의 데이터에 액세스' 읽기 권한이 필요해요.",
-                                fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp,
-                            )
+                        // 안내문은 토글 상태와 무관하게 같다 — 분기 안에 두 번 쓰면 한쪽만 고쳐져 OFF/ON이 어긋난다.
+                        Text(OnboardingCopy.HISTORY_GUIDE, fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp)
+                        if (importHistory) {
                             Spacer(Modifier.height(10.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                listOf(1, 2, 3).forEach { m ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                HISTORY_MONTH_OPTIONS.forEach { (months, label) ->
                                     MonthChip(
-                                        text = "${m}개월",
-                                        selected = selectedMonths == m,
-                                        onClick = { selectedMonths = m },
+                                        text = label,
+                                        selected = selectedMonths == months,
+                                        // 4개가 카드 폭을 나눠 갖는다 — 고정 패딩이면 마지막 칩이 카드 밖으로 밀린다
+                                        // (EditorSheet 크기 칩과 같은 처리)
+                                        modifier = Modifier.weight(1f),
+                                        onClick = { selectedMonths = months },
                                     )
                                 }
                             }
                             Spacer(Modifier.height(8.dp))
-                            Text(
-                                "조개는 오늘 수영 기록에만 지급돼요 (새벽 2시 전엔 어제 기록까지).\n" +
-                                    "기간이 길수록 가져오는 데 시간이 걸릴 수 있어요.",
-                                fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp,
-                            )
+                            Text(OnboardingCopy.HISTORY_POLICY, fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp)
                         }
                     }
                 }
@@ -233,7 +237,7 @@ fun OnboardingPermissionScreen(
                     Column(Modifier.weight(1f)) {
                         Text("카메라 (선택)", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                         Spacer(Modifier.height(4.dp))
-                        Text("수동 입력 인증 시 사용됩니다. 추후 업데이트 예정.",
+                        Text("수동 입력 인증에 써요. 추후 업데이트 예정이에요.",
                             fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp)
                     }
                 }
@@ -256,19 +260,30 @@ fun OnboardingPermissionScreen(
             text = when {
                 !isHealthConnectAvailable -> "Health Connect 설치 필요"
                 permissionRequested && !permissionGranted -> "다시 시도하기"
+                alreadyGranted -> "연결됨 · 계속하기"
                 else -> "Health Connect 연결하기"
             },
             onClick = {
                 errorMessage = null
                 if (isHealthConnectAvailable) {
-                    try {
-                        permissionLauncher.launch(healthPermissions)
-                    } catch (e: Exception) {
-                        Timber.e(e, "Health Connect 권한 요청 실패")
-                        errorMessage = "권한 요청을 실행할 수 없어요: ${e.message}"
+                    scope.launch {
+                        // 이미 연결돼 있고 추가로 요청할 권한(지난 기록)도 없으면 런처를 생략한다 —
+                        // HC 요청 화면이 순간 떴다 사라지며 상단바가 깜빡이는 것을 피한다.
+                        val needsHistory = importHistory && !viewModel.hasHistoryPermission()
+                        if (alreadyGranted && !needsHistory) {
+                            onPermissionFlowReturned()
+                            return@launch
+                        }
+                        try {
+                            permissionLauncher.launch(healthPermissions)
+                        } catch (e: Exception) {
+                            // 예외 원문은 로그에만 — 사용자에게는 할 수 있는 조치(HC 업데이트)만 말한다.
+                            Timber.e(e, "Health Connect 권한 요청 실패")
+                            errorMessage = OnboardingCopy.PERMISSION_LAUNCH_FAILED
+                        }
                     }
                 } else {
-                    errorMessage = "Health Connect 앱이 설치되어 있지 않습니다."
+                    errorMessage = OnboardingCopy.HC_APP_MISSING
                 }
             },
             modifier = Modifier.fillMaxWidth(),
@@ -282,7 +297,8 @@ fun OnboardingPermissionScreen(
 @Composable
 private fun HistoryToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     val colors = SoodalDesign.colors
-    val trackColor = if (checked) colors.accentBlue else colors.surface3
+    // 켜짐 트랙은 편집 시트 저장 버튼과 같은 진한 하늘색 그라데이션 — 단색 accentBlue보다 또렷하다.
+    val trackBackground = if (checked) Modifier.background(colors.gradBlueVivid) else Modifier.background(colors.surface3)
     val thumbOffset by androidx.compose.animation.core.animateDpAsState(
         targetValue = if (checked) 22.dp else 2.dp,
         animationSpec = androidx.compose.animation.core.tween(200),
@@ -293,7 +309,7 @@ private fun HistoryToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit) 
             .width(44.dp)
             .height(24.dp)
             .clip(androidx.compose.foundation.shape.CircleShape)
-            .background(trackColor)
+            .then(trackBackground)
             .pressable(onClick = { onCheckedChange(!checked) }),
     ) {
         Box(
@@ -308,21 +324,36 @@ private fun HistoryToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit) 
     }
 }
 
-/** 기간 선택 칩 — 닉네임 화면 SelectChip과 같은 시각 언어. */
+/**
+ * 기간 선택 칩 — 닉네임 화면 SelectChip과 같은 시각 언어. 폭은 부모가 [modifier]의 weight로 나눠 준다.
+ *
+ * @param text 칩 라벨
+ * @param selected 선택 상태 (강조색 배경·테두리)
+ * @param modifier 부모가 주는 폭 분배용 Modifier
+ * @param onClick 탭 콜백
+ */
 @Composable
-private fun MonthChip(text: String, selected: Boolean, onClick: () -> Unit) {
+private fun MonthChip(
+    text: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     val colors = SoodalDesign.colors
     val shape = RoundedCornerShape(20.dp)
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(shape)
             .background(if (selected) colors.accentBlue.copy(alpha = 0.15f) else colors.surface1)
             .border(1.dp, if (selected) colors.accentBlue else colors.glassBorder, shape)
             .pressable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        Text(text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-            color = if (selected) colors.accentBlue else colors.textSecondary)
+        Text(
+            text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+            color = if (selected) colors.accentBlue else colors.textSecondary,
+        )
     }
 }
 

@@ -10,4 +10,6 @@ data class UserProfile(
     val gender: String?,
     val ageRange: String?,
     val authProvider: String,
+    /** 다음 닉네임 변경 가능 시각(epoch ms). null이면 바로 가능. */
+    val nicknameChangeableAt: Long? = null,
 )

@@ -31,4 +31,9 @@ class ThemePreferences @Inject constructor(
     suspend fun setTheme(theme: SoodalThemeType) {
         context.dataStore.edit { it[key] = theme.name }
     }
+
+    /** 테마 설정을 지운다 (기본 Light로 복귀) — 탈퇴·계정 전환용. */
+    suspend fun clear() {
+        context.dataStore.edit { it.clear() }
+    }
 }

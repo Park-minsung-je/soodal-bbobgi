@@ -139,12 +139,13 @@ class SplashViewModel @Inject constructor(
                     _syncError.value = "수영 데이터 동기화에 실패했어요."
                 }
 
+                // 온보딩 진입은 서버 사실(닉네임 유무)로만 판단한다 — HC 권한은 목적지에 영향을 주지 않는다.
+                // 로컬 완료 표시는 재설치·다른 기기·계정 전환에서 무력하므로 쓰지 않는다(R23). 연결은 설정 > 연동에서.
                 val profile = appState.profile.value
-                val hasHcPermission = healthConnectManager.hasAllPermissions()
-                _destination.value = when {
-                    profile?.nickname.isNullOrBlank() -> SplashDestination.Onboarding
-                    !hasHcPermission -> SplashDestination.Permission
-                    else -> SplashDestination.Home
+                _destination.value = if (profile?.nickname.isNullOrBlank()) {
+                    SplashDestination.Onboarding
+                } else {
+                    SplashDestination.Home
                 }
             } catch (e: Exception) {
                 Timber.w(e, "자동 로그인 실패")
@@ -203,6 +204,7 @@ class SplashViewModel @Inject constructor(
     }
 }
 
+/** 스플래시가 결정한 다음 화면. Onboarding은 서버 프로필에 닉네임이 없는 계정만 받는다. */
 enum class SplashDestination {
-    Loading, Auth, Onboarding, Permission, Home
+    Loading, Auth, Onboarding, Home
 }

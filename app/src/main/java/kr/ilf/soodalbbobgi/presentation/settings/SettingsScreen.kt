@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.health.connect.client.PermissionController
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kr.ilf.soodalbbobgi.BuildConfig
 import kr.ilf.soodalbbobgi.core.theme.SoodalDesign
@@ -63,6 +64,8 @@ import kr.ilf.soodalbbobgi.core.ui.SoodalCard
 import kr.ilf.soodalbbobgi.core.ui.BackLink
 import kr.ilf.soodalbbobgi.core.ui.SoodalIcon
 import kr.ilf.soodalbbobgi.core.ui.SoodalIcons
+import kr.ilf.soodalbbobgi.core.util.LegalPages
+import kr.ilf.soodalbbobgi.core.util.openInBrowser
 import kr.ilf.soodalbbobgi.domain.model.Grade
 import kr.ilf.soodalbbobgi.presentation.gacha.GachaResultItem
 import kr.ilf.soodalbbobgi.presentation.gacha.GachaResultOverlay
@@ -94,8 +97,10 @@ fun SettingsScreen(
     val accountAction by viewModel.accountAction.collectAsStateWithLifecycle()
     val signedOut by viewModel.signedOut.collectAsStateWithLifecycle()
 
-    // 열려 있는 계정 다이얼로그: "nickname" | "logout" | "delete" | null
+    // 열려 있는 계정 다이얼로그: "time" | "nickname" | "logout" | null (탈퇴는 deleteFlow가 따로 든다)
     var dialog by remember { mutableStateOf<String?>(null) }
+    // 계정 탈퇴는 2단계 확인 — 문자열 키 대신 단계 상태 홀더.
+    val deleteFlow = remember { DeleteAccountFlow() }
 
     // 로그아웃/탈퇴 완료 → Auth로
     LaunchedEffect(signedOut) { if (signedOut) onSignedOut() }
@@ -107,6 +112,12 @@ fun SettingsScreen(
             dialog = null
             viewModel.resetNicknameState()
         }
+    }
+
+    // HC 앱에서 권한을 바꾸고 돌아오면 다시 읽는다 — 화면이 살아 있는 동안 init은 다시 돌지 않는다.
+    LifecycleResumeEffect(Unit) {
+        viewModel.refreshHcStatus()
+        onPauseOrDispose { }
     }
 
     // Health Connect 권한 요청 런처 — 온보딩과 같은 권한 셋
@@ -136,10 +147,14 @@ fun SettingsScreen(
         }
     }
 
-    // HC 백그라운드 읽기 권한 — 새 기록 알림용. 거부돼도 토글은 유지 (워커가 조용히 스킵).
+    // HC 백그라운드 읽기 권한 — 새 기록 알림용. 거부하면 알림 권한을 거부했을 때와 똑같이 토글을 끈다
+    // (켜진 채 두면 권한 없이 워커만 헛돌고, 사용자는 알림이 오는 줄 안다).
     val hcBgPermissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
-    ) { }
+    ) {
+        // 결과 셋 대신 실제 권한 상태를 재조회한다 — 전부 허용된 상태에서 재요청하면 빈 셋이 온다.
+        scope.launch { if (!viewModel.isBgReadGranted()) viewModel.setNewRecordEnabled(false) }
+    }
     // 이미 허용돼 있으면 요청 화면을 띄우지 않는다 — 매번 띄우면 HC 액티비티가 순간
     // 나타났다 사라지며 상단바가 깜빡인다.
     val requestBgReadIfNeeded: () -> Unit = {
@@ -296,7 +311,7 @@ fun SettingsScreen(
                         label = "계정 탈퇴",
                         trailing = "→",
                         labelColor = colors.warn,
-                        onClick = { dialog = "delete" },
+                        onClick = { deleteFlow.start() },
                     )
                 }
             }
@@ -312,13 +327,25 @@ fun SettingsScreen(
                         label = "Health Connect",
                         trailing = null,
                         onClick = {
-                            if (hcConnected == false) {
-                                hcPermissionLauncher.launch(HealthConnectManager.requestPermissions)
+                            when (hcConnected) {
+                                false -> hcPermissionLauncher.launch(HealthConnectManager.requestPermissions)
+                                // 연결돼 있으면 HC의 이 앱 권한 화면으로 — 권한 조정·해제는 거기서 한다.
+                                true -> if (!HealthConnectManager.openPermissionScreen(context)) {
+                                    android.widget.Toast.makeText(
+                                        context, "Health Connect를 열 수 없어요", android.widget.Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                                null -> Unit
                             }
                         },
                     ) {
                         when (hcConnected) {
-                            true -> Text("연결됨", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.success)
+                            true -> Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("연결됨", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.success)
+                                Spacer(Modifier.width(4.dp))
+                                // 탭 가능한 행이 됐으니 닉네임 행과 같은 힌트를 준다.
+                                Text("›", fontSize = 14.sp, color = colors.textTertiary)
+                            }
                             false -> Text("연결 안 됨 · 탭하여 연결", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.warn)
                             null -> Text("확인 중…", fontSize = 12.sp, color = colors.textTertiary)
                         }
@@ -342,9 +369,10 @@ fun SettingsScreen(
                     )
                     SettingsDivider()
                     // 수영 기록 알림은 HC 연동이 전제 — 연동 전이면 잠근다 (온보딩과 동일).
+                    // 권한이 회수된 게 확인되면 꺼진 모습으로 보인다 (VM이 저장값도 함께 내린다).
                     SettingsToggleRow(
                         label = "수영 기록 알림",
-                        checked = newRecordEnabled,
+                        checked = newRecordEnabled && hcConnected != false,
                         enabled = hcConnected == true,
                         onCheckedChange = { on ->
                             if (on) enableNotifToggle("newRecord") else viewModel.setNewRecordEnabled(false)
@@ -385,15 +413,13 @@ fun SettingsScreen(
                         )
                     }
                     SettingsDivider()
-                    SettingsRow(label = "이용약관", trailing = "→", onClick = {})
+                    SettingsRow(label = "이용약관", trailing = "→", onClick = {
+                        openInBrowser(context, LegalPages.termsUrl(BuildConfig.BASE_URL))
+                    })
                     SettingsDivider()
                     SettingsRow(label = "개인정보처리방침", trailing = "→", onClick = {
                         // API 도메인의 공개 방침 페이지 — Play 심사에도 같은 URL을 쓴다
-                        val base = android.net.Uri.parse(BuildConfig.BASE_URL)
-                        val url = "${base.scheme}://${base.host}/privacy"
-                        context.startActivity(
-                            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)),
-                        )
+                        openInBrowser(context, LegalPages.privacyUrl(BuildConfig.BASE_URL))
                     })
                     SettingsDivider()
                     SettingsRow(label = "오픈소스 라이선스", trailing = "→", onClick = onOpenLicenses)
@@ -459,42 +485,58 @@ fun SettingsScreen(
     }
 
     // -- 계정 다이얼로그 오버레이 (오버레이 레이어로 호이스팅 — 패널이 뒤 콘텐츠를 진짜 블러) --
-    if (dialog != null) {
+    if (dialog != null || deleteFlow.step != null) {
         AppOverlay {
-    when (dialog) {
-        "time" -> ReminderTimeDialog(
-            initialHour = reminderTime.first,
-            initialMinute = reminderTime.second,
-            onSave = { h, m ->
-                viewModel.setReminderTime(h, m)
-                dialog = null
-            },
-            onDismiss = { dialog = null },
-        )
-        "nickname" -> NicknameEditDialog(
-            initial = profile?.nickname ?: "",
-            state = nicknameState,
-            onSave = { viewModel.saveNickname(it) },
-            onDismiss = { dialog = null; viewModel.resetNicknameState() },
-        )
-        "logout" -> ConfirmActionDialog(
-            title = "로그아웃",
-            message = "로그아웃하면 이 기기의 수영 기록이 지워져요. 다시 로그인하면 Health Connect에서 다시 가져올 수 있어요.",
-            confirmText = "로그아웃",
-            working = accountAction is AccountActionState.Working,
-            errorMessage = (accountAction as? AccountActionState.Error)?.message,
-            onConfirm = { viewModel.logout() },
-            onDismiss = { dialog = null; viewModel.resetAccountAction() },
-        )
-        "delete" -> ConfirmActionDialog(
+    // 탈퇴 흐름을 먼저 본다 — 진입 행이 달라 둘이 동시에 열릴 일은 없지만 방어적으로.
+    when (deleteFlow.step) {
+        // 1차 경고: 아직 아무것도 실행하지 않았으므로 진행/에러 표시가 없다.
+        DeleteAccountFlow.Step.Warn -> ConfirmActionDialog(
             title = "계정 탈퇴",
-            message = "계정과 모든 데이터(수영 기록, 수달, 재화)가 영구 삭제되며 되돌릴 수 없어요. 정말 탈퇴할까요?",
+            message = "계정과 모든 데이터(수영 기록, 수달, 재화)가 영구 삭제되며 되돌릴 수 없어요.",
             confirmText = "탈퇴하기",
+            working = false,
+            errorMessage = null,
+            onConfirm = { deleteFlow.proceed() },
+            onDismiss = { deleteFlow.cancel() },
+        )
+        // 최종 확인: 여기서만 서버 삭제를 부르고, 실패 메시지·처리 중 표시도 이 팝업에 인라인으로 남긴다.
+        DeleteAccountFlow.Step.Final -> ConfirmActionDialog(
+            title = "정말 탈퇴할까요?",
+            message = "지금 탈퇴하면 수영 기록·수달·조개·진주가 모두 삭제돼요.\n이 작업은 되돌릴 수 없어요.",
+            confirmText = "네, 탈퇴할게요",
             working = accountAction is AccountActionState.Working,
             errorMessage = (accountAction as? AccountActionState.Error)?.message,
-            onConfirm = { viewModel.deleteAccount() },
-            onDismiss = { dialog = null; viewModel.resetAccountAction() },
+            onConfirm = { if (deleteFlow.proceed()) viewModel.deleteAccount() },
+            onDismiss = { deleteFlow.cancel(); viewModel.resetAccountAction() },
         )
+        null -> when (dialog) {
+            "time" -> ReminderTimeDialog(
+                initialHour = reminderTime.first,
+                initialMinute = reminderTime.second,
+                onSave = { h, m ->
+                    viewModel.setReminderTime(h, m)
+                    dialog = null
+                },
+                onDismiss = { dialog = null },
+            )
+            "nickname" -> NicknameEditDialog(
+                initial = profile?.nickname ?: "",
+                changeableAt = profile?.nicknameChangeableAt,
+                state = nicknameState,
+                onSave = { viewModel.saveNickname(it) },
+                onDismiss = { dialog = null; viewModel.resetNicknameState() },
+            )
+            "logout" -> ConfirmActionDialog(
+                title = "로그아웃",
+                // 서버에 남는 것을 먼저 말한다 — 로컬 정리는 구현 디테일이라 적지 않는다(R16 이후에도 참).
+                message = "수영 기록과 수달, 조개·진주는 계정에 안전하게 보관돼요. 다시 로그인하면 그대로 이어서 쓸 수 있어요.",
+                confirmText = "로그아웃",
+                working = accountAction is AccountActionState.Working,
+                errorMessage = (accountAction as? AccountActionState.Error)?.message,
+                onConfirm = { viewModel.logout() },
+                onDismiss = { dialog = null; viewModel.resetAccountAction() },
+            )
+        }
     }
         }
     }
@@ -620,7 +662,8 @@ private fun ToggleSwitch(
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val colors = SoodalDesign.colors
-    val trackColor = if (checked) colors.accentBlue else colors.surface3
+    // 켜짐 트랙은 편집 시트 저장 버튼과 같은 진한 하늘색 그라데이션 — 단색 accentBlue보다 또렷하다.
+    val trackBackground = if (checked) Modifier.background(colors.gradBlueVivid) else Modifier.background(colors.surface3)
     // ON 오프셋 = 트랙(44) − 썸(20) − 좌우 여백(2) = 22 → 켜짐/꺼짐 여백이 좌우 대칭.
     val thumbOffset by animateDpAsState(
         targetValue = if (checked) 22.dp else 2.dp,
@@ -633,7 +676,7 @@ private fun ToggleSwitch(
             .width(44.dp)
             .height(24.dp)
             .clip(CircleShape)
-            .background(trackColor)
+            .then(trackBackground)
             .pressable(onClick = { onCheckedChange(!checked) }),
     ) {
         Box(

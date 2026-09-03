@@ -35,16 +35,24 @@ class OnboardingPermissionViewModel @Inject constructor(
     suspend fun hasAllPermissions(): Boolean = healthConnectManager.hasAllPermissions()
 
     /**
+     * 과거 데이터 권한이 허용돼 있는지 — 긴 기간을 골랐는데 거부된 경우 안내용.
+     * 필수 권한이 아니라 진행은 막지 않는다.
+     */
+    suspend fun hasHistoryPermission(): Boolean = healthConnectManager.isHistoryReadGranted()
+
+    /**
      * HC 권한 허용 직후 — 선택한 기간의 최초 가져오기를 백그라운드로 시작하고 즉시 돌아온다.
      * 온보딩은 권한 확인까지만 맡고, 진행 표시는 홈이 [AppState.hcSyncing]으로 잇는다.
      * 지급된 조개는 [AppState.addPendingShellReward]로 홈 팝업에 전달된다.
      *
-     * @param months 과거 기록을 가져올 기간(개월, 0 = 안 가져오기, 최대 3)
+     * @param months 과거 기록을 가져올 기간(개월, 0 = 안 가져오기, 최대 12 — 넘으면 [MAX_INITIAL_MONTHS]로 잘린다)
      */
     fun startInitialSync(months: Int) {
+        // UI 선택지 밖의 값이 들어와도 1년을 넘는 읽기는 시작하지 않는다 — 저장값 방어선.
+        val window = months.coerceIn(0, MAX_INITIAL_MONTHS)
         // 프로세스가 죽어도 첫 동기화가 선택한 기간을 기억하게 저장해 둔다.
         // 0(안 가져오기)이면 저장하지 않는다 — 첫 동기화가 기본 범위(오늘)만 읽는다.
-        if (months > 0) hcSyncPreferences.setPendingInitialMonths(months)
+        if (window > 0) hcSyncPreferences.setPendingInitialMonths(window)
         appScope.launch {
             val result = assetManager.sync()
             if (result.isFailure) Timber.w(result.exceptionOrNull(), "권한 허용 후 에셋 동기화 실패 (앱 계속 진행)")
@@ -59,12 +67,17 @@ class OnboardingPermissionViewModel @Inject constructor(
                 val code = (e as? retrofit2.HttpException)?.code()?.toString()
                     ?: if (e is java.io.IOException) "901" else "900"
                 android.widget.Toast.makeText(
-                    appContext, "동기화에 실패했어요. 캘린더에서 다시 시도할 수 있어요. ($code)",
+                    appContext, "수영 기록을 가져오지 못했어요. 캘린더에서 다시 시도할 수 있어요. ($code)",
                     android.widget.Toast.LENGTH_LONG,
                 ).show()
             } finally {
                 appState.setHcSyncing(false)
             }
         }
+    }
+
+    companion object {
+        /** 지난 기록 가져오기 최대 기간(개월) — UI 선택지 상한이자 저장값 방어선. */
+        const val MAX_INITIAL_MONTHS = 12
     }
 }

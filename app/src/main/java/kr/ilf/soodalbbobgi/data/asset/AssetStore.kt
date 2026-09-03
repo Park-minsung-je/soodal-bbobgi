@@ -176,6 +176,13 @@ class AssetStore @VisibleForTesting internal constructor(
             .sorted()
     }
 
+    /** 에셋 루트를 통째로 지우고 빈 루트를 다시 만든다 (LocalDataResetter keepAssets=false 전용). */
+    fun deleteAll() {
+        rootDir.deleteRecursively()
+        rootDir.mkdirs()
+        resolvedPathCache.clear()
+    }
+
     // ─── 내부 유틸 ────────────────────────────────────────────
 
     /**

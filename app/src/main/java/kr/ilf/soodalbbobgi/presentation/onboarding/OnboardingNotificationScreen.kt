@@ -84,10 +84,14 @@ fun OnboardingNotificationScreen(
     // 알림 권한 요청 후 어느 토글을 켜려던 것인지 기억한다.
     var pendingToggle by remember { mutableStateOf<String?>(null) }
 
-    // 새 기록 알림용 HC 백그라운드 읽기 권한 — 거부돼도 토글은 유지(워커가 조용히 스킵).
+    // 새 기록 알림용 HC 백그라운드 읽기 권한 — 거부하면 알림 권한 거부와 똑같이 토글을 끈다
+    // (켜진 채 두면 권한 없이 워커만 헛돌고, 사용자는 알림이 오는 줄 안다).
     val hcBgPermissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
-    ) { }
+    ) {
+        // 결과 셋 대신 실제 권한 상태를 재조회한다 — 전부 허용된 상태에서 재요청하면 빈 셋이 온다.
+        scope.launch { if (!viewModel.isBgReadGranted()) viewModel.setNewRecordEnabled(false) }
+    }
 
     // 실제로 토글을 켜는 처리 — 새 기록이면 HC 백그라운드 권한도 이어서 요청한다.
     val enableToggle: (String?) -> Unit = { target ->
@@ -132,8 +136,9 @@ fun OnboardingNotificationScreen(
             color = colors.accentBlue, letterSpacing = 1.5.sp)
         Spacer(Modifier.height(16.dp))
         Text("수영, 잊지 않게\n알려드릴까요?", style = SoodalDesign.typography.xl, color = colors.textPrimary)
+        // 권한 문장은 각 카드가 자기 권한을 말한다 — 헤더에서 한 번 더 말하면 이중이라 뺐다.
         Text(
-            "원하는 알림만 골라 켜 주세요. 알림을 받으려면 Android 알림 권한 동의가 필요해요.",
+            OnboardingCopy.NOTIFICATION_INTRO,
             fontSize = 14.sp, color = colors.textSecondary, lineHeight = 22.sp,
             modifier = Modifier.padding(top = 12.dp),
         )
@@ -148,11 +153,7 @@ fun OnboardingNotificationScreen(
                     Column(Modifier.weight(1f)) {
                         Text("수영 리마인더", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                         Spacer(Modifier.height(4.dp))
-                        Text(
-                            "정해둔 시간에 아직 수영 전이면 잊지 않게 알려드려요.\n" +
-                                "Android 알림 권한 동의가 필요해요.",
-                            fontSize = 12.sp, color = colors.textSecondary, lineHeight = 17.sp,
-                        )
+                        Text(OnboardingCopy.REMINDER, fontSize = 12.sp, color = colors.textSecondary, lineHeight = 17.sp)
                     }
                     ToggleSwitch(
                         checked = reminderEnabled,
@@ -197,12 +198,7 @@ fun OnboardingNotificationScreen(
                     Text("수영 기록 알림", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        if (hcConnected) {
-                            "조개를 받을 수 있는 수영 기록이 확인되면 알려드려요.\n" +
-                                "Health Connect 백그라운드 읽기 권한 동의가 필요해요."
-                        } else {
-                            "Health Connect 연동 후 사용할 수 있어요"
-                        },
+                        if (hcConnected) OnboardingCopy.NEW_RECORD else OnboardingCopy.NEW_RECORD_LOCKED,
                         fontSize = 12.sp, color = colors.textSecondary, lineHeight = 17.sp,
                     )
                 }
@@ -232,7 +228,8 @@ fun OnboardingNotificationScreen(
 @Composable
 private fun ToggleSwitch(checked: Boolean, enabled: Boolean = true, onCheckedChange: (Boolean) -> Unit) {
     val colors = SoodalDesign.colors
-    val trackColor = if (checked) colors.accentBlue else colors.surface3
+    // 켜짐 트랙은 편집 시트 저장 버튼과 같은 진한 하늘색 그라데이션 — 단색 accentBlue보다 또렷하다.
+    val trackBackground = if (checked) Modifier.background(colors.gradBlueVivid) else Modifier.background(colors.surface3)
     // ON 오프셋 = 트랙(44) − 썸(20) − 좌우 여백(2) = 22 → 켜짐/꺼짐 여백이 좌우 대칭 (설정과 동일).
     val thumbOffset by animateDpAsState(
         targetValue = if (checked) 22.dp else 2.dp,
@@ -245,7 +242,7 @@ private fun ToggleSwitch(checked: Boolean, enabled: Boolean = true, onCheckedCha
             .width(44.dp)
             .height(24.dp)
             .clip(CircleShape)
-            .background(trackColor)
+            .then(trackBackground)
             .then(if (enabled) Modifier.pressable(onClick = { onCheckedChange(!checked) }) else Modifier),
     ) {
         Box(

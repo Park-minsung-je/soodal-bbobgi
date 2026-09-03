@@ -275,6 +275,33 @@ class HealthConnectManager @Inject constructor(
         false
     }
 
+    /**
+     * HC 과거 데이터 권한('모든 기간의 데이터에 액세스')이 허용돼 있는지 확인한다.
+     * 없으면 HC가 첫 허용 시점 30일 이전 기록을 주지 않아 긴 기간 가져오기가 조용히 짧아진다.
+     *
+     * @return 과거 데이터 권한이 부여돼 있으면 true. 조회 실패 시 false
+     */
+    suspend fun isHistoryReadGranted(): Boolean = try {
+        HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY in
+            healthConnectClient.permissionController.getGrantedPermissions()
+    } catch (e: Exception) {
+        Timber.w(e, "HC 과거 데이터 권한 확인 실패")
+        false
+    }
+
+    /**
+     * 이 앱에 허용된 HC 권한을 전부 회수한다 — 탈퇴 시 온보딩이 처음처럼 권한을 다시 묻게 하기 위함.
+     *
+     * @return 회수에 성공하면 true. 실패해도 탈퇴는 진행하므로 예외를 던지지 않는다
+     */
+    suspend fun revokeAllPermissions(): Boolean = try {
+        healthConnectClient.permissionController.revokeAllPermissions()
+        true
+    } catch (e: Exception) {
+        Timber.w(e, "HC 권한 회수 실패")
+        false
+    }
+
     suspend fun hasAllPermissions(): Boolean {
         return try {
             val granted = healthConnectClient.permissionController.getGrantedPermissions()
@@ -535,6 +562,9 @@ class HealthConnectManager @Inject constructor(
         fun isAvailable(context: Context): Boolean {
             return getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
         }
+
+        /** 설정 "연결됨" 탭 → HC 설정 홈(앱별 권한 화면은 시스템 전용). 열지 못하면 false (호출자가 안내). */
+        fun openPermissionScreen(context: Context): Boolean = openHealthConnectSettings(context)
 
         /**
          * 권한 요청 다이얼로그에 띄울 전체 권한 — 온보딩·설정 공용.

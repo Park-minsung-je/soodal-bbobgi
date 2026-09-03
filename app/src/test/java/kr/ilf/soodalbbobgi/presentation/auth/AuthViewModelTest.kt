@@ -2,9 +2,11 @@ package kr.ilf.soodalbbobgi.presentation.auth
 
 import android.app.Activity
 import com.google.common.truth.Truth.assertThat
+import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.data.asset.AssetManager
 import kr.ilf.soodalbbobgi.data.asset.AssetSyncProgress
+import kr.ilf.soodalbbobgi.data.auth.AccountSwitchGuard
 import kr.ilf.soodalbbobgi.data.auth.GoogleAuthManager
 import kr.ilf.soodalbbobgi.data.auth.KakaoAuthManager
 import kr.ilf.soodalbbobgi.data.auth.TokenStore
@@ -18,6 +20,7 @@ import kr.ilf.soodalbbobgi.data.remote.dto.GoogleAuthRequest
 import kr.ilf.soodalbbobgi.data.remote.dto.UserData
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
@@ -45,7 +48,9 @@ class AuthViewModelTest {
     private lateinit var google: GoogleAuthManager
     private lateinit var api: SoodalApi
     private lateinit var tokenStore: TokenStore
+    private lateinit var guard: AccountSwitchGuard
     private lateinit var appStateLoader: AppStateLoader
+    private lateinit var appState: AppState
     private lateinit var hc: HealthConnectManager
     private lateinit var assetManager: AssetManager
     private lateinit var hcSwimSyncer: HcSwimSyncer
@@ -58,7 +63,9 @@ class AuthViewModelTest {
         google = mockk(relaxed = true)
         api = mockk(relaxed = true)
         tokenStore = mockk(relaxed = true)
+        guard = mockk(relaxed = true)
         appStateLoader = mockk(relaxed = true)
+        appState = AppState()
         hc = mockk(relaxed = true)
         assetManager = mockk(relaxed = true)
         hcSwimSyncer = mockk(relaxed = true)
@@ -71,8 +78,8 @@ class AuthViewModelTest {
 
     @After fun tearDown() { Dispatchers.resetMain() }
 
-    private fun vm() = AuthViewModel(kakao, google, api, tokenStore, appStateLoader, hc, assetManager, hcSwimSyncer,
-        CoroutineScope(UnconfinedTestDispatcher()))
+    private fun vm() = AuthViewModel(kakao, google, api, tokenStore, guard, appStateLoader, appState, hc,
+        assetManager, hcSwimSyncer, CoroutineScope(UnconfinedTestDispatcher()))
 
     @Test
     fun `loginWithGoogle on new user routes to Onboarding`() = runTest {
@@ -98,7 +105,7 @@ class AuthViewModelTest {
     }
 
     @Test
-    fun `loginWithGoogle on existing user without HC permission routes to Permission`() = runTest {
+    fun `loginWithGoogle on existing user without HC permission routes to Home`() = runTest {
         coEvery { google.signIn(activity) } returns Result.success("idtok")
         coEvery { api.authGoogle(any()) } returns ApiResponse(
             success = true,
@@ -114,8 +121,9 @@ class AuthViewModelTest {
         val viewModel = vm()
         viewModel.loginWithGoogle(activity)
 
+        // 온보딩은 서버가 아는 "새 계정"에게만 — 기존 계정은 재설치·다른 기기·계정 전환에서도 항상 홈 (R23).
         val state = viewModel.uiState.value
-        assertThat((state as AuthUiState.Success).route).isEqualTo(AuthRoute.Permission)
+        assertThat((state as AuthUiState.Success).route).isEqualTo(AuthRoute.Home)
     }
 
     @Test
@@ -134,6 +142,59 @@ class AuthViewModelTest {
 
         val viewModel = vm()
         viewModel.loginWithGoogle(activity)
+
+        val state = viewModel.uiState.value
+        assertThat((state as AuthUiState.Success).route).isEqualTo(AuthRoute.Home)
+    }
+
+    // ── 온보딩 진입은 서버 사실(isNewUser / 닉네임 유무)로만 (R23) ──
+
+    @Test
+    fun `loginWithGoogle on new user with HC permission still routes to Onboarding`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(any()) } returns ApiResponse(
+            success = true,
+            data = AuthData("at", "rt", 3600L, true, sampleUser("수달이")),
+            error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns true
+
+        val viewModel = vm()
+        viewModel.loginWithGoogle(activity)
+
+        // 서버가 새 계정이라고 하면 닉네임·HC 권한이 있어도 온보딩부터 — 기간 선택 등 첫 설정은 새 계정의 몫.
+        val state = viewModel.uiState.value
+        assertThat((state as AuthUiState.Success).route).isEqualTo(AuthRoute.Onboarding)
+    }
+
+    @Test
+    fun `loginWithGoogle on existing user without nickname routes to Onboarding`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(any()) } returns ApiResponse(
+            success = true,
+            data = AuthData("at", "rt", 3600L, false, sampleUser(nickname = "")),
+            error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns true
+
+        val viewModel = vm()
+        viewModel.loginWithGoogle(activity)
+
+        // 가입 도중 이탈해 닉네임이 없는 계정은 isNewUser=false여도 온보딩(닉네임 화면)부터 다시.
+        val state = viewModel.uiState.value
+        assertThat((state as AuthUiState.Success).route).isEqualTo(AuthRoute.Onboarding)
+    }
+
+    @Test
+    fun `loginWithKakao on existing user without HC permission routes to Home`() = runTest {
+        coEvery { kakao.signIn(activity) } returns Result.success("kakaotok")
+        coEvery { api.authKakao(any()) } returns ApiResponse(
+            success = true, data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")), error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns false
+
+        val viewModel = vm()
+        viewModel.loginWithKakao(activity)
 
         val state = viewModel.uiState.value
         assertThat((state as AuthUiState.Success).route).isEqualTo(AuthRoute.Home)
@@ -251,6 +312,114 @@ class AuthViewModelTest {
         // 로그인 실패 시 동기화 트리거 없음
         coVerify(exactly = 0) { assetManager.sync() }
         coVerify(exactly = 0) { hcSwimSyncer.sync() }
+    }
+
+    // ── 로그인 직후 동기화 지급분 → 홈 팝업 (R15) ────────────────────────────
+
+    @Test
+    fun `loginWithGoogle hands post-login shells to the home popup`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(any()) } returns ApiResponse(
+            success = true, data = AuthData("at", "rt", 3600L, true, sampleUser(null)), error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns true
+        coEvery { hcSwimSyncer.sync() } returns 2
+
+        vm().loginWithGoogle(activity)
+
+        // 재로그인은 HC 권한이 남아 있어 로그인 직후 동기화가 오늘 기록을 먼저 보고한다 —
+        // 온보딩을 거쳐 홈에 닿았을 때 이 지급분이 팝업으로 떠야 한다 (R15).
+        assertThat(appState.pendingShellReward.value).isEqualTo(2)
+    }
+
+    @Test
+    fun `loginWithGoogle leaves no pending popup when the sync earned nothing`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(any()) } returns ApiResponse(
+            success = true, data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")), error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns true
+        coEvery { hcSwimSyncer.sync() } returns 0
+
+        vm().loginWithGoogle(activity)
+
+        assertThat(appState.pendingShellReward.value).isEqualTo(0)
+    }
+
+    @Test
+    fun `loginWithKakao hands post-login shells to the home popup`() = runTest {
+        coEvery { kakao.signIn(activity) } returns Result.success("kakaotok")
+        coEvery { api.authKakao(any()) } returns ApiResponse(
+            success = true, data = AuthData("at", "rt", 3600L, true, sampleUser(null)), error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns true
+        coEvery { hcSwimSyncer.sync() } returns 2
+
+        vm().loginWithKakao(activity)
+
+        assertThat(appState.pendingShellReward.value).isEqualTo(2)
+    }
+
+    @Test
+    fun `loginWithKakao leaves no pending popup when the sync earned nothing`() = runTest {
+        coEvery { kakao.signIn(activity) } returns Result.success("kakaotok")
+        coEvery { api.authKakao(any()) } returns ApiResponse(
+            success = true, data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")), error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns true
+        coEvery { hcSwimSyncer.sync() } returns 0
+
+        vm().loginWithKakao(activity)
+
+        assertThat(appState.pendingShellReward.value).isEqualTo(0)
+    }
+
+    // ── 계정 전환 가드 (R16) ──────────────────────────────────────────────────
+
+    @Test
+    fun `loginWithGoogle runs the account guard before saving tokens and loading state`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(any()) } returns ApiResponse(
+            success = true, data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")), error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns true
+
+        vm().loginWithGoogle(activity)
+
+        // 초기화가 토큰과 AppState도 지우므로 가드는 토큰 저장·상태 로드보다 먼저 돌아야 한다.
+        coVerifyOrder {
+            guard.ensureLocalOwnedBy(sampleUser("수달이").id)
+            tokenStore.saveTokens("at", "rt", 3600L)
+            appStateLoader.loadAll()
+        }
+    }
+
+    @Test
+    fun `loginWithGoogle does not touch the account guard on server error`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(any()) } returns ApiResponse(
+            success = false, data = null, error = ApiError("INVALID_TOKEN", "bad"),
+        )
+
+        vm().loginWithGoogle(activity)
+
+        coVerify(exactly = 0) { guard.ensureLocalOwnedBy(any()) }
+    }
+
+    @Test
+    fun `loginWithKakao runs the account guard before saving tokens`() = runTest {
+        coEvery { kakao.signIn(activity) } returns Result.success("kakaotok")
+        coEvery { api.authKakao(any()) } returns ApiResponse(
+            success = true, data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")), error = null,
+        )
+        coEvery { hc.hasAllPermissions() } returns true
+
+        vm().loginWithKakao(activity)
+
+        coVerifyOrder {
+            guard.ensureLocalOwnedBy(sampleUser("수달이").id)
+            tokenStore.saveTokens("at", "rt", 3600L)
+        }
     }
 
     private fun sampleUser(nickname: String?) = UserData(

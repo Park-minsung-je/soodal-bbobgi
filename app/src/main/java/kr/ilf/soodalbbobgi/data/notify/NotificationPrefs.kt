@@ -43,6 +43,11 @@ class NotificationPrefs @Inject constructor(
         get() = prefs.getString(KEY_NOTIFIED_TOKEN, null)
         set(value) = prefs.edit().putString(KEY_NOTIFIED_TOKEN, value).apply()
 
+    /** 알림 설정 전부 삭제 — 탈퇴·계정 전환용. 예약 취소는 호출자가 스케줄러로 한다. */
+    fun clear() {
+        prefs.edit().clear().apply()
+    }
+
     companion object {
         private const val KEY_REMINDER_ENABLED = "reminder_enabled"
         private const val KEY_REMINDER_HOUR = "reminder_hour"

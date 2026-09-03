@@ -1,6 +1,7 @@
 package kr.ilf.soodalbbobgi.data.auth
 
 import android.content.Context
+import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
@@ -48,5 +49,15 @@ class GoogleAuthManager @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    /**
+     * 자격증명 세션을 지워 다음 로그인 때 계정 선택 UI가 다시 뜨게 한다 (탈퇴·로그아웃 후 정리).
+     * 구글 쪽 동의 철회(revoke)는 아니다 — ID 토큰만 쓰는 구조라 폐기할 토큰이 없다.
+     *
+     * @return 초기화 결과 — 실패해도 호출자는 진행해도 된다
+     */
+    suspend fun clearCredentialState(): Result<Unit> = runCatching {
+        credentialManager.clearCredentialState(ClearCredentialStateRequest())
     }
 }

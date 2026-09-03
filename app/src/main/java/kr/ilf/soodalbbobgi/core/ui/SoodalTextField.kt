@@ -20,6 +20,11 @@ import androidx.compose.material3.Text
 import kr.ilf.soodalbbobgi.core.theme.SoodalDesign
 import kr.ilf.soodalbbobgi.core.theme.SoodalShape
 
+/**
+ * 한 줄 텍스트 입력 필드 — 앱 공통 룩(입력 배경·테두리·플레이스홀더).
+ *
+ * @param enabled false면 입력을 막고 글자색을 흐리게 한다 (닉네임 쿨다운 잠금 등)
+ */
 @Composable
 fun SoodalTextField(
     value: String,
@@ -27,13 +32,15 @@ fun SoodalTextField(
     modifier: Modifier = Modifier,
     placeholder: String = "",
     maxLength: Int = Int.MAX_VALUE,
+    enabled: Boolean = true,
 ) {
     val colors = SoodalDesign.colors
     BasicTextField(
         value = value,
         onValueChange = { if (it.length <= maxLength) onValueChange(it) },
+        enabled = enabled,
         textStyle = TextStyle(
-            color = colors.textPrimary,
+            color = if (enabled) colors.textPrimary else colors.textTertiary,
             fontSize = 15.sp,
             fontWeight = FontWeight.Normal,
         ),
@@ -53,7 +60,7 @@ fun SoodalTextField(
                 if (value.isEmpty()) {
                     Text(
                         text = placeholder,
-                        color = colors.inputPlaceholder,
+                        color = if (enabled) colors.inputPlaceholder else colors.textTertiary,
                         fontSize = 15.sp,
                     )
                 }

@@ -10,6 +10,8 @@ import kr.ilf.soodalbbobgi.data.remote.dto.SwimLogRequest
 import kr.ilf.soodalbbobgi.data.remote.dto.UpdateVitalsRequest
 import kr.ilf.soodalbbobgi.domain.model.SwimLog
 import kr.ilf.soodalbbobgi.domain.usecase.SwimLogUseCase
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
 import java.time.LocalDate
 import java.time.LocalTime
@@ -35,17 +37,21 @@ class HcSwimSyncer @Inject constructor(
     private val appStateLoader: AppStateLoader,
 ) {
 
+    // 로그인 직후·온보딩 권한 허용·설정 재연결이 겹쳐 같은 날짜를 두 번 보고하지 않도록 직렬화한다.
+    // 비재진입 — 내부 어디에서도 sync()를 다시 부르지 않는다 (registerManual·deleteSession은 pushUnsyncedDates 직접 호출).
+    private val syncMutex = Mutex()
+
     /**
-     * 전체 동기화를 수행한다.
+     * 전체 동기화를 수행한다. 동시에 들어온 호출은 순서대로 하나씩 처리된다.
      *
      * @return 이번 동기화로 서버가 지급한 조개 수
      */
-    suspend fun sync(): Int {
+    suspend fun sync(): Int = syncMutex.withLock {
         retryPendingServerDeletes()
         syncChanges()
         val earned = pushUnsyncedDates()
         pullServerSwimLogs()
-        return earned
+        earned
     }
 
     /**
@@ -167,8 +173,12 @@ class HcSwimSyncer @Inject constructor(
 
     /** HC 변경분(추가/수정/삭제)을 반영한다. 토큰이 없거나 만료면 오늘 기록만 읽고 새 토큰 발급. */
     private suspend fun syncChanges() {
+        // 온보딩에서 고른 최초 가져오기 기간이 있으면 토큰이 있어도 그 기간을 전부 읽는다 —
+        // 권한이 남아 있는 재가입은 로그인 직후 동기화가 먼저 토큰을 만들어 두는데, 그때 변경분만 읽으면
+        // 사용자가 고른 기간이 조용히 버려진다. 읽은 뒤 새 토큰으로 교체하고 기간을 지운다 (첫 연동 1회).
+        val initialMonths = hcSyncPreferences.getPendingInitialMonths()
         val storedToken = hcSyncPreferences.getChangesToken()
-        if (storedToken != null) {
+        if (initialMonths == null && storedToken != null) {
             val result = healthConnectManager.getChanges(storedToken)
             if (result != null) {
                 for (session in result.addedSessions) upsert(session)
@@ -180,9 +190,7 @@ class HcSwimSyncer @Inject constructor(
         val token = healthConnectManager.getChangesToken()
         val zone = ZoneId.systemDefault()
         val now = java.time.LocalDateTime.now()
-        // 온보딩에서 고른 최초 가져오기 기간이 있으면 그만큼 과거까지 읽는다 (첫 연동 1회).
-        // 없으면: 자정 직후 동기화 시 어제 밤 수영이 빠지지 않게 새벽 2시까지는 어제부터.
-        val initialMonths = hcSyncPreferences.getPendingInitialMonths()
+        // 기간이 없으면: 자정 직후 동기화 시 어제 밤 수영이 빠지지 않게 새벽 2시까지는 어제부터.
         val fetchFrom = when {
             initialMonths != null -> now.toLocalDate().minusMonths(initialMonths.toLong())
             now.hour < 2 -> now.toLocalDate().minusDays(1)

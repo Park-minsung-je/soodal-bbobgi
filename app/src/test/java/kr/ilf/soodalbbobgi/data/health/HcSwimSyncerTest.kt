@@ -14,6 +14,9 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -40,6 +43,8 @@ class HcSwimSyncerTest {
         prefs = mockk(relaxed = true)
         loader = mockk(relaxed = true)
         every { prefs.getChangesToken() } returns null
+        // relaxed mock의 Int? 기본값에 기대지 않고 '온보딩 기간 없음'을 명시한다
+        every { prefs.getPendingInitialMonths() } returns null
         coEvery { hcm.getChangesToken() } returns "tok"
         coEvery { hcm.readSwimSessions(any(), any()) } returns listOf(hcSession())
         coEvery { useCase.getUnsyncedDates() } returns listOf("2026-06-07")
@@ -116,6 +121,42 @@ class HcSwimSyncerTest {
     }
 
     @Test
+    fun `온보딩에서 고른 기간이 있으면 그만큼 과거부터 읽고 기간을 지운다`() = runTest {
+        every { prefs.getPendingInitialMonths() } returns 12
+        coEvery { useCase.getUnsyncedDates() } returns emptyList()
+        // 자정 넘김 경계에서 start/end가 어긋나지 않게 오늘 날짜를 한 번만 잡는다
+        val today = java.time.LocalDate.now()
+        val zone = java.time.ZoneId.systemDefault()
+        val expectedStart = today.minusMonths(12).atStartOfDay(zone).toInstant()
+        val expectedEnd = today.plusDays(1).atStartOfDay(zone).toInstant()
+
+        syncer.sync()
+
+        coVerify(exactly = 1) { hcm.readSwimSessions(expectedStart, expectedEnd) }
+        coVerify(exactly = 1) { prefs.clearPendingInitialMonths() }
+        coVerify(exactly = 1) { prefs.saveChangesToken("tok") } // 긴 읽기 뒤에도 읽기 전 발급한 토큰을 저장
+    }
+
+    @Test
+    fun `저장된 토큰이 있어도 온보딩에서 고른 기간이 있으면 그 기간을 전부 읽는다`() = runTest {
+        // 권한이 남아 있는 재가입: 로그인 직후 동기화가 먼저 토큰을 저장한 뒤 온보딩이 기간을 고른다 (R18)
+        every { prefs.getChangesToken() } returns "live"
+        every { prefs.getPendingInitialMonths() } returns 6
+        coEvery { useCase.getUnsyncedDates() } returns emptyList()
+        val today = java.time.LocalDate.now()
+        val zone = java.time.ZoneId.systemDefault()
+        val expectedStart = today.minusMonths(6).atStartOfDay(zone).toInstant()
+        val expectedEnd = today.plusDays(1).atStartOfDay(zone).toInstant()
+
+        syncer.sync()
+
+        coVerify(exactly = 0) { hcm.getChanges(any()) }
+        coVerify(exactly = 1) { hcm.readSwimSessions(expectedStart, expectedEnd) }
+        coVerify(exactly = 1) { prefs.clearPendingInitialMonths() }
+        coVerify(exactly = 1) { prefs.saveChangesToken("tok") } // 옛 토큰 대신 전체 읽기 직전 발급한 새 토큰으로 교체
+    }
+
+    @Test
     fun `네트워크 실패면 미전송으로 남겨 다음 동기화에 재시도한다`() = runTest {
         coEvery { useCase.getLogsForDate("2026-06-07") } returns listOf(row(synced = false))
         coEvery { api.addSwimLog(any()) } throws IOException("offline")
@@ -140,6 +181,24 @@ class HcSwimSyncerTest {
 
         assertThat(earned).isEqualTo(0)
         coVerify(exactly = 1) { useCase.markSynced("2026-06-07") }
+    }
+
+    @Test
+    fun `동시에 들어온 sync는 직렬화돼 첫 동기화가 끝나기 전에 서버를 다시 치지 않는다`() = runTest {
+        // 로그인 직후·온보딩 권한 허용·설정 재연결이 겹치면 같은 날짜를 두 번 보고할 수 있다 (R15).
+        val gate = CompletableDeferred<Unit>()
+        coEvery { useCase.getLogsForDate("2026-06-07") } returns listOf(row(synced = false))
+        coEvery { api.addSwimLog(any()) } coAnswers { gate.await(); okResponse(earned = 2) }
+
+        val first = async { syncer.sync() }
+        runCurrent()
+        val second = async { syncer.sync() }
+        runCurrent()
+
+        coVerify(exactly = 1) { api.addSwimLog(any()) }
+        gate.complete(Unit)
+        assertThat(first.await()).isEqualTo(2)
+        second.await()
     }
 
     @Test

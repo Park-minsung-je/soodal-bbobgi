@@ -1,6 +1,5 @@
 ﻿package kr.ilf.soodalbbobgi.presentation.home
 
-import androidx.compose.ui.zIndex
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
@@ -27,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -204,28 +204,6 @@ fun HomeScreen(
 
         // 하단 스크롤: 프로필 카드 + 통화 + 오늘 + 최근 7일 + 이번 달
         Box(Modifier.weight(1f)) {
-        // 최초 HC 가져오기 진행 표시 — 온보딩이 시작한 동기화가 끝날 때까지 상단 중앙에 뜬다.
-        androidx.compose.animation.AnimatedVisibility(
-            visible = hcSyncing,
-            modifier = Modifier.align(Alignment.TopCenter).zIndex(2f).padding(top = 6.dp),
-            enter = androidx.compose.animation.fadeIn(),
-            exit = androidx.compose.animation.fadeOut(),
-        ) {
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(colors.surface1)
-                    .border(1.dp, colors.glassBorder, RoundedCornerShape(999.dp))
-                    .padding(horizontal = 14.dp, vertical = 7.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                androidx.compose.material3.CircularProgressIndicator(
-                    modifier = Modifier.size(12.dp), strokeWidth = 2.dp, color = colors.accentBlue,
-                )
-                Text("수영 기록 가져오는 중…", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
-            }
-        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -440,7 +418,7 @@ fun HomeScreen(
 
     // ── 동기화 로딩 오버레이 ────────────────────────────────
     if (state.syncing) {
-        kr.ilf.soodalbbobgi.core.ui.SyncLoadingOverlay("수영 기록 동기화 중이에요...")
+        kr.ilf.soodalbbobgi.core.ui.SyncLoadingOverlay("수영 기록 동기화 중이에요…")
     }
 
     // ── 동기화 에러 표시 ─────────────────────────────────────
@@ -448,6 +426,22 @@ fun HomeScreen(
         LaunchedEffect(syncError) {
             android.widget.Toast.makeText(context, syncError, android.widget.Toast.LENGTH_LONG).show()
             viewModel.clearSyncError()
+        }
+    }
+
+    // ── 최초 HC 가져오기 차단 오버레이 (오버레이 레이어 — 탭바까지 덮는다) ─────
+    // 온보딩이 시작한 최초 동기화 한 번뿐이다. 도는 동안은 홈·탭바 어디도 누를 수 없고
+    // 뒤로가기도 막는다 — 가져오는 중에 기록을 손대거나 화면을 옮겨 상태가 어긋나는 일을 막는다.
+    // 진행 표시(필)는 스크림 위 상단 중앙에 두고, 끝나거나 실패하면 hcSyncing이 꺼져 함께 사라진다.
+    BackHandler(enabled = hcSyncing) {}
+    AppOverlay {
+        AnimatedVisibility(visible = hcSyncing, enter = fadeIn(), exit = fadeOut()) {
+            // 앱 오버레이 레이어라 스크림이 탭바까지 덮는다 — 탭바 딤은 따로 켜지 않는다.
+            kr.ilf.soodalbbobgi.core.ui.SyncLoadingOverlay(
+                message = "수영 기록 가져오는 중…",
+                hint = "가져오는 동안 잠시만 기다려 주세요",
+                dimTabBar = false,
+            )
         }
     }
 
@@ -628,6 +622,7 @@ private fun DexBar(modifier: Modifier, label: String, owned: Int, total: Int, fi
     }
 }
 
+
 /**
  * 홈 통화 칩 — 아이콘 + (라벨/값 세로). 등급색 soft 배경과 0.35 테두리 (디자인 시안 기준).
  */
@@ -703,11 +698,19 @@ private fun TodayCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            TodayMetric(Modifier.weight(1f), "거리", distanceM.formatNumber(), "m", colors.accentBlue)
-            TodayMetric(Modifier.weight(1f), "칼로리", kcal.formatNumber(), "kcal", colors.success)
-            TodayMetric(Modifier.weight(1f), "평균 심박", avgHr?.toString() ?: "—", if (avgHr != null) "bpm" else "", Color(0xFFF43F5E))
-            TodayMetric(Modifier.weight(1f), "시간", "$durationMin", "분", colors.textPrimary)
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                TodayMetric(Modifier.weight(1f), "거리", distanceM.formatNumber(), "m", colors.accentBlue)
+                TodayMetric(Modifier.weight(1f), "칼로리", kcal.formatNumber(), "kcal", colors.success)
+                TodayMetric(Modifier.weight(1f), "평균 심박", avgHr?.toString() ?: "—", if (avgHr != null) "bpm" else "", Color(0xFFF43F5E))
+                TodayMetric(Modifier.weight(1f), "시간", "$durationMin", "분", colors.textPrimary)
+            }
+            // 탭 가능 힌트 — 지표 열의 폭을 나눠 갖지 않도록 Row 위에 띄워 오른쪽 끝(패딩 쪽)에 둔다.
+            // 지표들은 그대로 왼쪽 정렬이고, 마지막 열의 남는 여백에만 걸친다.
+            Text(
+                "›", fontSize = 18.sp, color = colors.textTertiary,
+                modifier = Modifier.align(Alignment.CenterEnd).offset(x = 6.dp),
+            )
         }
     }
 }

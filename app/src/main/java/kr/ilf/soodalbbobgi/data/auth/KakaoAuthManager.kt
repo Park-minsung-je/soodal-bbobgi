@@ -39,4 +39,16 @@ class KakaoAuthManager @Inject constructor() {
             UserApiClient.instance.loginWithKakaoAccount(activity, callback = callback)
         }
     }
+
+    /**
+     * 카카오 SDK가 기기에 저장한 토큰을 지운다 (탈퇴·로그아웃 후 정리).
+     * 서버가 이미 연결을 끊어 토큰이 폐기된 경우 API 호출은 실패하지만 SDK는 저장 토큰을 무조건 삭제한다.
+     *
+     * @return 카카오 로그아웃 API 결과 — 실패여도 저장 토큰은 지워져 있으므로 호출자는 진행해도 된다
+     */
+    suspend fun signOutLocally(): Result<Unit> = suspendCoroutine { cont ->
+        UserApiClient.instance.logout { error ->
+            cont.resume(if (error == null) Result.success(Unit) else Result.failure(error))
+        }
+    }
 }
