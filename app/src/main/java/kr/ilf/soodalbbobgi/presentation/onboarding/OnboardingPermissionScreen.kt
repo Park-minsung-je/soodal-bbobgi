@@ -278,7 +278,8 @@ fun OnboardingPermissionScreen(
 @Composable
 private fun HistoryToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     val colors = SoodalDesign.colors
-    val trackColor = if (checked) colors.accentBlue else colors.surface3
+    // 켜짐 트랙은 편집 시트 저장 버튼과 같은 진한 하늘색 그라데이션 — 단색 accentBlue보다 또렷하다.
+    val trackBackground = if (checked) Modifier.background(colors.gradBlueVivid) else Modifier.background(colors.surface3)
     val thumbOffset by androidx.compose.animation.core.animateDpAsState(
         targetValue = if (checked) 22.dp else 2.dp,
         animationSpec = androidx.compose.animation.core.tween(200),
@@ -289,7 +290,7 @@ private fun HistoryToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit) 
             .width(44.dp)
             .height(24.dp)
             .clip(androidx.compose.foundation.shape.CircleShape)
-            .background(trackColor)
+            .then(trackBackground)
             .pressable(onClick = { onCheckedChange(!checked) }),
     ) {
         Box(

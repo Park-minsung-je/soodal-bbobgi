@@ -658,7 +658,8 @@ private fun ToggleSwitch(
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val colors = SoodalDesign.colors
-    val trackColor = if (checked) colors.accentBlue else colors.surface3
+    // 켜짐 트랙은 편집 시트 저장 버튼과 같은 진한 하늘색 그라데이션 — 단색 accentBlue보다 또렷하다.
+    val trackBackground = if (checked) Modifier.background(colors.gradBlueVivid) else Modifier.background(colors.surface3)
     // ON 오프셋 = 트랙(44) − 썸(20) − 좌우 여백(2) = 22 → 켜짐/꺼짐 여백이 좌우 대칭.
     val thumbOffset by animateDpAsState(
         targetValue = if (checked) 22.dp else 2.dp,
@@ -671,7 +672,7 @@ private fun ToggleSwitch(
             .width(44.dp)
             .height(24.dp)
             .clip(CircleShape)
-            .background(trackColor)
+            .then(trackBackground)
             .pressable(onClick = { onCheckedChange(!checked) }),
     ) {
         Box(
