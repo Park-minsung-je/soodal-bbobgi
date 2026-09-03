@@ -34,8 +34,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kr.ilf.soodalbbobgi.core.theme.SoodalDesign
+import kr.ilf.soodalbbobgi.core.ui.SoodalToggle
 import kr.ilf.soodalbbobgi.core.theme.SoodalShape
 import kr.ilf.soodalbbobgi.core.ui.pressable
 import kr.ilf.soodalbbobgi.core.ui.AssetImage
@@ -274,15 +273,7 @@ fun EditorSheet(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text("배경 그림자", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
-                        Switch(
-                            checked = state.charShadow,
-                            onCheckedChange = { vm.setCharShadow(it) },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = colors.btnPrimaryText,
-                                checkedTrackColor = SheetAccent,
-                                uncheckedTrackColor = colors.surface3,
-                            ),
-                        )
+                        SoodalToggle(checked = state.charShadow, onCheckedChange = { vm.setCharShadow(it) })
                     }
                 }
                 EditorCategory.Nickname -> TextElementControls(TextElement.Nickname, state, vm)
@@ -373,15 +364,7 @@ private fun TextElementControls(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text("${element.label} 표시", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
-        Switch(
-            checked = elState.show,
-            onCheckedChange = { vm.setElementShow(element, it) },
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = colors.btnPrimaryText,
-                checkedTrackColor = SheetAccent,
-                uncheckedTrackColor = colors.surface3,
-            ),
-        )
+        SoodalToggle(checked = elState.show, onCheckedChange = { vm.setElementShow(element, it) })
     }
 
     if (!elState.show) {
@@ -478,15 +461,10 @@ private fun TextElementControls(
             "글자 테두리", fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
             color = if (outlineAvailable) colors.textSecondary else colors.textTertiary,
         )
-        Switch(
+        SoodalToggle(
             checked = elState.outline && outlineAvailable,
             enabled = outlineAvailable,
             onCheckedChange = { vm.setElementOutline(element, it) },
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = colors.btnPrimaryText,
-                checkedTrackColor = SheetAccent,
-                uncheckedTrackColor = colors.surface3,
-            ),
         )
     }
     if (!outlineAvailable) {

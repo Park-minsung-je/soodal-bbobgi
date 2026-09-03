@@ -53,6 +53,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kr.ilf.soodalbbobgi.BuildConfig
 import kr.ilf.soodalbbobgi.core.theme.SoodalDesign
+import kr.ilf.soodalbbobgi.core.ui.SoodalToggle
 import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 import kr.ilf.soodalbbobgi.core.ui.pressable
 import kr.ilf.soodalbbobgi.core.ui.ShellRewardKind
@@ -652,44 +653,11 @@ private fun SettingsToggleRow(
             fontWeight = FontWeight.Medium,
             color = colors.textPrimary,
         )
-        ToggleSwitch(checked = checked, onCheckedChange = { if (enabled) onCheckedChange(it) })
+        // 행이 이미 흐림·탭 차단을 처리하므로 토글은 항상 활성으로 그린다 (이중 흐림 방지).
+        SoodalToggle(checked = checked, onCheckedChange = { if (enabled) onCheckedChange(it) })
     }
 }
 
-@Composable
-private fun ToggleSwitch(
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    val colors = SoodalDesign.colors
-    // 켜짐 트랙은 편집 시트 저장 버튼과 같은 진한 하늘색 그라데이션 — 단색 accentBlue보다 또렷하다.
-    val trackBackground = if (checked) Modifier.background(colors.gradBlueVivid) else Modifier.background(colors.surface3)
-    // ON 오프셋 = 트랙(44) − 썸(20) − 좌우 여백(2) = 22 → 켜짐/꺼짐 여백이 좌우 대칭.
-    val thumbOffset by animateDpAsState(
-        targetValue = if (checked) 22.dp else 2.dp,
-        animationSpec = tween(200),
-        label = "thumb",
-    )
-
-    Box(
-        modifier = Modifier
-            .width(44.dp)
-            .height(24.dp)
-            .clip(CircleShape)
-            .then(trackBackground)
-            .pressable(onClick = { onCheckedChange(!checked) }),
-    ) {
-        Box(
-            modifier = Modifier
-                .offset(x = thumbOffset)
-                .size(20.dp)
-                .align(Alignment.CenterStart)
-                .shadow(2.dp, CircleShape) // 흰 썸이 꺼짐 상태의 밝은 트랙과도 구분되도록
-                .clip(CircleShape)
-                .background(Color.White),
-        )
-    }
-}
 
 @Composable
 private fun SettingsDivider() {
