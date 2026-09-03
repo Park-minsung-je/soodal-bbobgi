@@ -7,9 +7,9 @@ package kr.ilf.soodalbbobgi.presentation.onboarding
  * 한곳에 모으고 테스트로 고정한다. HC 과거 데이터 권한은 HC 권한 화면의 공식 라벨을 그대로 쓴다.
  */
 internal object OnboardingCopy {
-    /** HC 필수 카드 — 읽는 데이터 5종은 [kr.ilf.soodalbbobgi.data.health.HealthConnectManager.BASE_REQUEST_PERMISSIONS]와 맞춘다. */
+    /** HC 필수 카드 — 읽는 데이터 4종은 [kr.ilf.soodalbbobgi.data.health.HealthConnectManager.BASE_REQUEST_PERMISSIONS]와 맞춘다. */
     const val HC_REQUIRED =
-        "수영 기록을 자동으로 동기화하려면 Health Connect의 운동·거리·심박수·속도·칼로리 읽기 권한이 필요해요."
+        "수영 기록을 자동으로 동기화하려면 Health Connect의 운동·거리·심박수·칼로리 읽기 권한이 필요해요."
 
     /** HC 미설치 카드. */
     const val HC_NOT_INSTALLED = "Health Connect가 설치되어 있지 않아요. Google Play에서 설치해 주세요."

@@ -4,7 +4,6 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
-import androidx.health.connect.client.records.SpeedRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 
@@ -50,11 +49,6 @@ object HealthPermissionRationaleCopy {
             "세션 중 최대·최소·평균 심박과 차트용 요약 곡선을 만듭니다.",
         ),
         HealthDataItem(
-            HealthPermission.getReadPermission(SpeedRecord::class),
-            "속도",
-            "구간 페이스를 계산하는 데 씁니다.",
-        ),
-        HealthDataItem(
             HealthConnectManager.BG_READ_PERMISSION,
             "백그라운드 읽기",
             "새 수영 기록 알림을 켠 경우에만, 앱이 닫혀 있어도 새 기록이 들어왔는지 확인합니다.",
@@ -62,7 +56,8 @@ object HealthPermissionRationaleCopy {
         HealthDataItem(
             HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY,
             "모든 기간의 데이터",
-            "지난 기록 가져오기를 켠 경우에만, 최근 30일보다 오래된 기록을 최대 12개월까지 읽습니다.",
+            "온보딩에서 지난 기록 가져오기를 켜거나 설정에서 다시 연결할 때 요청합니다. " +
+                "최근 30일보다 오래된 기록을 최대 12개월까지 읽습니다.",
         ),
     )
 
