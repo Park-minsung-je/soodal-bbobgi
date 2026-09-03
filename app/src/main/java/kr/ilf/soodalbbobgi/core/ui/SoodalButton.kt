@@ -50,7 +50,8 @@ fun SoodalButton(
 ) {
     val colors = SoodalDesign.colors
     val background = backgroundOverride ?: when (style) {
-        ButtonStyle.Primary -> colors.gradBlue
+        // 연한 gradBlue는 흰 패널·물빛 배경 위에서 힘이 없어 편집 시트 저장 버튼과 같은 진한 하늘색으로 통일 (2026-09-03).
+        ButtonStyle.Primary -> colors.gradBlueVivid
         ButtonStyle.Gold -> colors.gradGold
         ButtonStyle.Purple -> colors.gradPurple
         ButtonStyle.Warn -> SolidColor(colors.warn)
