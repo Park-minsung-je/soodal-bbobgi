@@ -8,7 +8,6 @@ import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.data.auth.AccountPrefs
 import kr.ilf.soodalbbobgi.data.health.HcSyncPreferences
 import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
-import kr.ilf.soodalbbobgi.data.notify.NotificationPrefs
 import kr.ilf.soodalbbobgi.data.remote.api.SoodalApi
 import kr.ilf.soodalbbobgi.domain.model.Grade
 import kr.ilf.soodalbbobgi.domain.model.InventoryItem
@@ -54,7 +53,6 @@ class HomeViewModelTest {
     private lateinit var swimLogUseCase: SwimLogUseCase
     private lateinit var hcManager: HealthConnectManager
     private lateinit var hcPrefs: HcSyncPreferences
-    private lateinit var notificationPrefs: NotificationPrefs
     private lateinit var accountPrefs: AccountPrefs
 
     @Before
@@ -67,7 +65,6 @@ class HomeViewModelTest {
         swimLogUseCase = mockk(relaxed = true)
         hcManager = mockk(relaxed = true)
         hcPrefs = mockk(relaxed = true)
-        notificationPrefs = mockk(relaxed = true)
         accountPrefs = mockk(relaxed = true)
 
         // 기본: 비어 있는 월간 로그 + 0 통계
@@ -90,78 +87,72 @@ class HomeViewModelTest {
         swimLogUseCase = swimLogUseCase,
         healthConnectManager = hcManager,
         hcSwimSyncer = mockk(relaxed = true),
-        notificationPrefs = notificationPrefs,
         accountPrefs = accountPrefs,
     )
 
     // ── 기존 회원 설정 안내 팝업 (R30) ─────────────────────────────────────
 
     @Test
-    fun `HC 미연결이고 수영 기록 알림이 꺼져 있으면 두 항목 모두 담긴 안내를 띄운다`() = runTest(testDispatcher) {
+    fun `HC 필수 권한이 없으면 연결 안내를 띄운다`() = runTest(testDispatcher) {
         coEvery { hcManager.hasAllPermissions() } returns false
-        every { notificationPrefs.newRecordEnabled } returns false
         every { accountPrefs.setupNudgeDismissed } returns false
 
         val vm = newVm()
         advanceUntilIdle()
 
-        assertThat(vm.setupNudge.value).isEqualTo(SetupNudge(hcMissing = true, newRecordOff = true))
+        assertThat(vm.setupNudge.value).isTrue()
     }
 
     @Test
-    fun `HC 연결돼 있고 알림도 켜져 있으면 안내를 띄우지 않는다`() = runTest(testDispatcher) {
+    fun `HC 권한이 모두 있으면 알림 설정과 무관하게 안내를 띄우지 않는다`() = runTest(testDispatcher) {
         coEvery { hcManager.hasAllPermissions() } returns true
-        every { notificationPrefs.newRecordEnabled } returns true
         every { accountPrefs.setupNudgeDismissed } returns false
 
         val vm = newVm()
         advanceUntilIdle()
 
-        assertThat(vm.setupNudge.value).isNull()
+        assertThat(vm.setupNudge.value).isFalse()
     }
 
     @Test
     fun `다시 보지 않음을 저장한 기기에서는 조건이 맞아도 안내를 띄우지 않는다`() = runTest(testDispatcher) {
         coEvery { hcManager.hasAllPermissions() } returns false
-        every { notificationPrefs.newRecordEnabled } returns false
         every { accountPrefs.setupNudgeDismissed } returns true
 
         val vm = newVm()
         advanceUntilIdle()
 
-        assertThat(vm.setupNudge.value).isNull()
+        assertThat(vm.setupNudge.value).isFalse()
     }
 
     @Test
     fun `온보딩 직후 진입은 한 번 건너뛰고 플래그를 소비해 다음 진입부터 띄운다`() = runTest(testDispatcher) {
         coEvery { hcManager.hasAllPermissions() } returns false
-        every { notificationPrefs.newRecordEnabled } returns false
         every { accountPrefs.setupNudgeDismissed } returns false
         appState.suppressSetupNudgeOnce = true
 
         val first = newVm()
         advanceUntilIdle()
-        assertThat(first.setupNudge.value).isNull()
+        assertThat(first.setupNudge.value).isFalse()
         assertThat(appState.suppressSetupNudgeOnce).isFalse()
 
         val second = newVm()
         advanceUntilIdle()
-        assertThat(second.setupNudge.value).isNotNull()
+        assertThat(second.setupNudge.value).isTrue()
     }
 
     @Test
     fun `다시 보지 않음으로 닫으면 기기에 저장하고 안내를 내린다`() = runTest(testDispatcher) {
         coEvery { hcManager.hasAllPermissions() } returns false
-        every { notificationPrefs.newRecordEnabled } returns true
         every { accountPrefs.setupNudgeDismissed } returns false
         val vm = newVm()
         advanceUntilIdle()
-        assertThat(vm.setupNudge.value).isEqualTo(SetupNudge(hcMissing = true, newRecordOff = false))
+        assertThat(vm.setupNudge.value).isTrue()
 
         vm.dismissSetupNudge(dontShowAgain = true)
 
         verify { accountPrefs.setupNudgeDismissed = true }
-        assertThat(vm.setupNudge.value).isNull()
+        assertThat(vm.setupNudge.value).isFalse()
     }
 
     @Test
@@ -174,7 +165,7 @@ class HomeViewModelTest {
         vm.dismissSetupNudge(dontShowAgain = false)
 
         verify(exactly = 0) { accountPrefs.setupNudgeDismissed = any() }
-        assertThat(vm.setupNudge.value).isNull()
+        assertThat(vm.setupNudge.value).isFalse()
     }
 
     // ── 대기 조개 → 팝업 구독 (R15 회귀) ──────────────────────────────────
@@ -282,8 +273,7 @@ class HomeViewModelTest {
                 swimLogUseCase = swimLogUseCase,
                 healthConnectManager = hcManager,
                 hcSwimSyncer = mockk(relaxed = true),
-                notificationPrefs = notificationPrefs,
-                accountPrefs = accountPrefs,
+                        accountPrefs = accountPrefs,
             )
             startCollect(vm)
             advanceUntilIdle()

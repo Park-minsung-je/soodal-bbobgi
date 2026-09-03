@@ -47,19 +47,17 @@ import kr.ilf.soodalbbobgi.core.ui.motion.popupEnterScale
 import kr.ilf.soodalbbobgi.core.ui.motion.rememberPopupEnter
 
 /**
- * 기존 회원 설정 안내 팝업(R30) — 재설치·재로그인으로 HC 연결이나 수영 기록 알림이
- * 꺼져 있을 때 홈에서 설정 > 연동·알림으로 안내한다.
+ * Health Connect 연결 안내 팝업(R30) — 재설치·재로그인으로 HC 권한이 없어 자동 동기화가
+ * 돌지 않는 기존 회원을 홈에서 설정 > 연동으로 안내한다.
  *
  * 설정 다이얼로그(`DialogScrim`)와 같은 스크림·글래스 패널 룩. 스크림 탭·뒤로가기는
  * "나중에"와 같다. "다시 보지 않음" 체크는 어느 버튼으로 닫아도 함께 전달한다.
  *
- * @param nudge 표시할 항목 (둘 다 false인 값은 호출자가 걸러야 한다)
  * @param onLater 닫기 — 인자는 "다시 보지 않음" 체크 여부
  * @param onGoToSettings 닫고 설정 화면으로 — 인자는 "다시 보지 않음" 체크 여부
  */
 @Composable
 fun SetupNudgeDialog(
-    nudge: SetupNudge,
     onLater: (dontShowAgain: Boolean) -> Unit,
     onGoToSettings: (dontShowAgain: Boolean) -> Unit,
 ) {
@@ -108,10 +106,10 @@ fun SetupNudgeDialog(
         ) {
             GlassSheen(panelShape)
             Column(Modifier.padding(22.dp)) {
-                Text("설정을 확인해 주세요", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+                Text("Health Connect 연결이 필요해요", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    setupNudgeMessage(nudge),
+                    SETUP_NUDGE_MESSAGE,
                     fontSize = 13.sp, color = colors.textSecondary, lineHeight = 20.sp,
                 )
                 Spacer(Modifier.height(14.dp))
@@ -140,17 +138,10 @@ fun SetupNudgeDialog(
     }
 }
 
-/**
- * 안내 본문 — 해당 항목만 줄로 나열하고 마지막 줄에 설정 위치를 붙인다.
- *
- * @param nudge 표시할 항목
- * @return 줄바꿈으로 이은 본문
- */
-internal fun setupNudgeMessage(nudge: SetupNudge): String = buildList {
-    if (nudge.hcMissing) add("Health Connect가 연결되지 않아 수영 기록을 가져오지 못해요.")
-    if (nudge.newRecordOff) add("수영 기록 알림이 꺼져 있어요.")
-    add("설정 > 연동·알림에서 켤 수 있어요.")
-}.joinToString("\n")
+/** 안내 본문 — 권한이 없으면 앱을 켤 때 수영 기록이 자동으로 들어오지 않는다는 점을 짚는다. */
+private const val SETUP_NUDGE_MESSAGE =
+    "Health Connect가 연결되지 않아 수영 기록을 자동으로 가져오지 못해요.\n" +
+        "설정 > 연동에서 Health Connect를 연결해 주세요."
 
 /** "다시 보지 않음" 행 — 앱 룩에 맞춘 작은 사각 체크 + 라벨. 행 전체가 탭 영역이다. */
 @Composable

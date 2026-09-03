@@ -9,7 +9,6 @@ import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.data.auth.AccountPrefs
 import kr.ilf.soodalbbobgi.data.health.HcSwimSyncer
 import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
-import kr.ilf.soodalbbobgi.data.notify.NotificationPrefs
 import kr.ilf.soodalbbobgi.core.util.averageHr
 import kr.ilf.soodalbbobgi.core.util.decodeHrSeries
 import kr.ilf.soodalbbobgi.domain.model.SwimLog
@@ -91,14 +90,6 @@ data class HomeUiState(
 )
 
 /**
- * 기존 회원 설정 안내 팝업(R30)에 담을 항목 — 재설치·재로그인으로 꺼져 있을 수 있는 것들.
- *
- * @param hcMissing Health Connect 필수 권한이 전부 허용돼 있지 않음
- * @param newRecordOff 수영 기록 알림이 꺼져 있음 (리마인더는 개인 선택이라 보지 않는다)
- */
-data class SetupNudge(val hcMissing: Boolean, val newRecordOff: Boolean)
-
-/**
  * 홈 화면 ViewModel.
  * 사용자 프로필/잔액/인벤토리는 [AppState] 메모리에서 관찰하고,
  * 수영 통계는 swim_logs Room Flow에서 본다.
@@ -111,7 +102,6 @@ class HomeViewModel @Inject constructor(
     private val swimLogUseCase: SwimLogUseCase,
     private val healthConnectManager: HealthConnectManager,
     private val hcSwimSyncer: HcSwimSyncer,
-    private val notificationPrefs: NotificationPrefs,
     private val accountPrefs: AccountPrefs,
 ) : ViewModel() {
 
@@ -131,12 +121,13 @@ class HomeViewModel @Inject constructor(
     /** 최초 HC 가져오기 진행 여부 — 온보딩이 시작한 동기화를 홈이 표시한다. */
     val hcSyncing: StateFlow<Boolean> = appState.hcSyncing
 
-    private val _setupNudge = MutableStateFlow<SetupNudge?>(null)
+    private val _setupNudge = MutableStateFlow(false)
     /**
-     * 기존 회원 설정 안내 팝업(R30) — null이면 띄울 것 없음.
+     * Health Connect 연결 안내 팝업(R30) 표시 여부 — 재설치·재로그인한 기존 회원은 권한이
+     * 없어 홈 진입 자동 동기화가 돌지 않으므로 설정 > 연동으로 유도한다.
      * 홈 진입마다 한 번 판단하며, 화면은 조개 팝업이 닫힌 뒤에 그린다.
      */
-    val setupNudge: StateFlow<SetupNudge?> = _setupNudge
+    val setupNudge: StateFlow<Boolean> = _setupNudge
 
     init {
         viewModelScope.launch { evaluateSetupNudge() }
@@ -317,7 +308,8 @@ class HomeViewModel @Inject constructor(
     fun clearShellReward() { _shellReward.value = 0 }
 
     /**
-     * 홈 진입 시 HC 연결·수영 기록 알림 상태를 보고 설정 안내 팝업(R30)을 띄울지 정한다.
+     * 홈 진입 시 HC 필수 권한이 빠져 있으면 연결 안내 팝업(R30)을 띄운다.
+     * 알림 설정은 개인 선택이라 보지 않는다 — 자동 동기화가 막히는 권한만 유도한다.
      *
      * 온보딩 직후 진입은 억제 플래그를 소비하며 한 번 건너뛰고, "다시 보지 않음"을
      * 저장한 기기에서는 판단 자체를 하지 않는다. 플래그는 조건과 무관하게 먼저 소비해
@@ -326,11 +318,7 @@ class HomeViewModel @Inject constructor(
     private suspend fun evaluateSetupNudge() {
         val suppressed = appState.consumeSuppressSetupNudgeOnce()
         if (suppressed || accountPrefs.setupNudgeDismissed) return
-        val hcMissing = !healthConnectManager.hasAllPermissions()
-        val newRecordOff = !notificationPrefs.newRecordEnabled
-        if (hcMissing || newRecordOff) {
-            _setupNudge.value = SetupNudge(hcMissing = hcMissing, newRecordOff = newRecordOff)
-        }
+        if (!healthConnectManager.hasAllPermissions()) _setupNudge.value = true
     }
 
     /**
@@ -340,7 +328,7 @@ class HomeViewModel @Inject constructor(
      */
     fun dismissSetupNudge(dontShowAgain: Boolean) {
         if (dontShowAgain) accountPrefs.setupNudgeDismissed = true
-        _setupNudge.value = null
+        _setupNudge.value = false
     }
 
     /**
