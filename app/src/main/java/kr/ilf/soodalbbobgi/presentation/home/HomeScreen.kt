@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -697,11 +698,19 @@ private fun TodayCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            TodayMetric(Modifier.weight(1f), "거리", distanceM.formatNumber(), "m", colors.accentBlue)
-            TodayMetric(Modifier.weight(1f), "칼로리", kcal.formatNumber(), "kcal", colors.success)
-            TodayMetric(Modifier.weight(1f), "평균 심박", avgHr?.toString() ?: "—", if (avgHr != null) "bpm" else "", Color(0xFFF43F5E))
-            TodayMetric(Modifier.weight(1f), "시간", "$durationMin", "분", colors.textPrimary)
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                TodayMetric(Modifier.weight(1f), "거리", distanceM.formatNumber(), "m", colors.accentBlue)
+                TodayMetric(Modifier.weight(1f), "칼로리", kcal.formatNumber(), "kcal", colors.success)
+                TodayMetric(Modifier.weight(1f), "평균 심박", avgHr?.toString() ?: "—", if (avgHr != null) "bpm" else "", Color(0xFFF43F5E))
+                TodayMetric(Modifier.weight(1f), "시간", "$durationMin", "분", colors.textPrimary)
+            }
+            // 탭 가능 힌트 — 지표 열의 폭을 나눠 갖지 않도록 Row 위에 띄워 오른쪽 끝(패딩 쪽)에 둔다.
+            // 지표들은 그대로 왼쪽 정렬이고, 마지막 열의 남는 여백에만 걸친다.
+            Text(
+                "›", fontSize = 18.sp, color = colors.textTertiary,
+                modifier = Modifier.align(Alignment.CenterEnd).offset(x = 6.dp),
+            )
         }
     }
 }
