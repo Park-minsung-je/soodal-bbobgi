@@ -1,6 +1,7 @@
 package kr.ilf.soodalbbobgi.presentation.onboarding
 
 import androidx.lifecycle.ViewModel
+import kr.ilf.soodalbbobgi.core.state.AppState
 import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 import kr.ilf.soodalbbobgi.data.notify.NotificationPrefs
 import kr.ilf.soodalbbobgi.work.HcChangeCheckScheduler
@@ -20,10 +21,19 @@ class OnboardingNotificationViewModel @Inject constructor(
     private val reminderScheduler: ReminderScheduler,
     private val hcChangeCheckScheduler: HcChangeCheckScheduler,
     private val healthConnectManager: HealthConnectManager,
+    private val appState: AppState,
 ) : ViewModel() {
 
     /** HC 필수 권한이 연결돼 있는지 — 수영 기록 알림은 HC 연동이 전제다. */
     suspend fun isHcConnected(): Boolean = healthConnectManager.hasAllPermissions()
+
+    /**
+     * "시작하기" 직전 호출 — 바로 이어지는 홈 진입에서 설정 안내 팝업(R30)을 한 번 건너뛰게 한다.
+     * 온보딩이 방금 HC 연결과 알림을 물었으므로 홈에서 곧바로 또 묻지 않는다.
+     */
+    fun markOnboardingJustFinished() {
+        appState.suppressSetupNudgeOnce = true
+    }
 
     /** HC 백그라운드 읽기 권한이 이미 있는지 — 있으면 요청 화면을 띄우지 않는다. */
     suspend fun isBgReadGranted(): Boolean = healthConnectManager.isBackgroundReadGranted()

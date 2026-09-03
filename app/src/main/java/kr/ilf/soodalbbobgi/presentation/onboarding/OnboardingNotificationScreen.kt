@@ -212,7 +212,12 @@ fun OnboardingNotificationScreen(
         }
 
         Spacer(Modifier.weight(1f))
-        SoodalButton("시작하기", onClick = onDone, modifier = Modifier.fillMaxWidth())
+        // 홈의 설정 안내 팝업은 이 화면이 방금 물은 것과 같으므로 바로 이어지는 진입 한 번은 건너뛴다.
+        SoodalButton(
+            "시작하기",
+            onClick = { viewModel.markOnboardingJustFinished(); onDone() },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 
     if (showTimeDialog) {

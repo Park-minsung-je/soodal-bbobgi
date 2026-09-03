@@ -113,6 +113,7 @@ fun HomeScreen(
     val shellRewardKind by viewModel.shellRewardKind.collectAsState()
     val hcSyncing by viewModel.hcSyncing.collectAsState()
     val syncError by viewModel.syncError.collectAsState()
+    val setupNudge by viewModel.setupNudge.collectAsState()
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
     val context = LocalContext.current
@@ -462,6 +463,24 @@ fun HomeScreen(
                     ?.let { s -> { viewModel.clearShellReward(); editToday = s } },
                 onDismiss = { viewModel.clearShellReward() },
             )
+        }
+    }
+
+    // ── 기존 회원 설정 안내 팝업 (R30) ────────────────────────
+    // 조개 팝업이 떠 있으면 그 뒤로 미룬다 — 두 팝업이 겹치지 않게 조개가 닫힌 뒤 그린다.
+    // 최초 가져오기 스크림과도 겹치지 않게 한다 (온보딩 직후는 어차피 억제되지만 안전장치).
+    setupNudge?.let { nudge ->
+        if (shellReward == 0 && editToday == null && !hcSyncing) {
+            AppOverlay {
+                SetupNudgeDialog(
+                    nudge = nudge,
+                    onLater = { dontShowAgain -> viewModel.dismissSetupNudge(dontShowAgain) },
+                    onGoToSettings = { dontShowAgain ->
+                        viewModel.dismissSetupNudge(dontShowAgain)
+                        onNavigateToSettings()
+                    },
+                )
+            }
         }
     }
 

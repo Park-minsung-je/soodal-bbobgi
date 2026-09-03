@@ -25,6 +25,15 @@ class AccountPrefs @Inject constructor(
         get() = prefs.getString(KEY_LAST_LOCAL_USER_ID, null)
         set(value) = prefs.edit().putString(KEY_LAST_LOCAL_USER_ID, value).apply()
 
+    /**
+     * 기존 회원 설정 안내 팝업(R30)의 "다시 보지 않음" 여부.
+     * 기기 단위 값이다 — 재설치하면 사라져 다시 안내하는 것이 의도이고,
+     * 탈퇴·계정 전환의 [clear]로도 초기화된다.
+     */
+    var setupNudgeDismissed: Boolean
+        get() = prefs.getBoolean(KEY_SETUP_NUDGE_DISMISSED, false)
+        set(value) = prefs.edit().putBoolean(KEY_SETUP_NUDGE_DISMISSED, value).apply()
+
     /** 소유자 기록을 지운다 — 탈퇴·계정 전환 초기화용. */
     fun clear() {
         prefs.edit().clear().apply()
@@ -32,5 +41,6 @@ class AccountPrefs @Inject constructor(
 
     companion object {
         private const val KEY_LAST_LOCAL_USER_ID = "last_local_user_id"
+        private const val KEY_SETUP_NUDGE_DISMISSED = "setup_nudge_dismissed"
     }
 }
