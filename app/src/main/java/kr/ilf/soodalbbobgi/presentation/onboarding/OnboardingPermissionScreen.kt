@@ -92,10 +92,14 @@ fun OnboardingPermissionScreen(
     // 지난 기록 가져오기 토글 + 기간(개월, 최대 12) — 켰을 때만 과거 데이터 권한을 요청한다.
     var importHistory by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var selectedMonths by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(1) }
+    // 백그라운드 읽기 토글 — 기본 켬(권장). 끄면 동기화 중 앱이 뒤로 가면 읽기가 끊기고 새 기록 알림도 못 켠다.
+    var backgroundRead by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(true) }
 
-    // Health Connect 권한 요청 런처 — 권한 셋은 설정 화면과 공용
-    // 지난 기록을 가져오기로 했을 때만 과거 데이터 권한을 함께 요청한다
-    val healthPermissions = HealthConnectManager.requestPermissionsFor(includeHistory = importHistory)
+    // Health Connect 권한 요청 런처 — 필수 4종 + 토글로 고른 선택 권한(모든 기간·백그라운드)
+    val healthPermissions = HealthConnectManager.requestPermissionsFor(
+        includeHistory = importHistory,
+        includeBackground = backgroundRead,
+    )
 
     val scope = rememberCoroutineScope()
 
@@ -118,6 +122,12 @@ fun OnboardingPermissionScreen(
             // 권한을 다시 요청할 수 있다. (HC는 이 권한 없이는 첫 허용 30일 이전 기록을 주지 않는다.)
             importHistory = false
             Toast.makeText(context, OnboardingCopy.HISTORY_PERMISSION_DENIED, Toast.LENGTH_LONG).show()
+            return
+        }
+        if (backgroundRead && !viewModel.hasBackgroundPermission()) {
+            // 백그라운드 읽기만 거부한 경우 — 지난 기록과 같은 처리. 토글을 끄고 화면에 남긴다.
+            backgroundRead = false
+            Toast.makeText(context, OnboardingCopy.BACKGROUND_PERMISSION_DENIED, Toast.LENGTH_LONG).show()
             return
         }
         viewModel.startInitialSync(if (importHistory) selectedMonths else 0)
@@ -228,6 +238,34 @@ fun OnboardingPermissionScreen(
                 }
             }
 
+            // 백그라운드 읽기 — 선택. 지난 기록 카드와 같은 레이아웃, 기간 선택은 없다.
+            SoodalCard(Modifier.fillMaxWidth()) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    SoodalIcon(icon = SoodalIcons.Sync, tint = colors.accentBlue, size = 26.dp)
+                    Column(Modifier.weight(1f)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("백그라운드 읽기", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                                SoodalChip("선택", color = ChipColor.Blue)
+                            }
+                            SoodalToggle(checked = backgroundRead, onCheckedChange = { backgroundRead = it })
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(OnboardingCopy.BACKGROUND_GUIDE, fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp)
+                    }
+                }
+            }
+
             // 카메라 — 선택 (비활성). 사진 인증 기능이 생기면 SHOW_CAMERA_CARD로 되살린다.
             if (SHOW_CAMERA_CARD) SoodalCard(Modifier.fillMaxWidth().then(Modifier.alpha(0.45f))) {
                 Row(
@@ -271,7 +309,8 @@ fun OnboardingPermissionScreen(
                         // 이미 연결돼 있고 추가로 요청할 권한(지난 기록)도 없으면 런처를 생략한다 —
                         // HC 요청 화면이 순간 떴다 사라지며 상단바가 깜빡이는 것을 피한다.
                         val needsHistory = importHistory && !viewModel.hasHistoryPermission()
-                        if (alreadyGranted && !needsHistory) {
+                        val needsBackground = backgroundRead && !viewModel.hasBackgroundPermission()
+                        if (alreadyGranted && !needsHistory && !needsBackground) {
                             onPermissionFlowReturned()
                             return@launch
                         }

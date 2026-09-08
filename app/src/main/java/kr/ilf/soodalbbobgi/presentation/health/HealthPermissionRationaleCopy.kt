@@ -51,7 +51,8 @@ object HealthPermissionRationaleCopy {
         HealthDataItem(
             HealthConnectManager.BG_READ_PERMISSION,
             "백그라운드 읽기",
-            "새 수영 기록 알림을 켠 경우에만, 앱이 닫혀 있어도 새 기록이 들어왔는지 확인합니다.",
+            "연결할 때 선택하는 권한입니다. 새 수영 기록 알림을 켠 경우 앱이 닫혀 있어도 새 기록이 들어왔는지 " +
+                "확인하고, 기록을 가져오는 중에 앱이 잠시 뒤로 가도 읽기가 끊기지 않게 합니다. 그 밖의 시점에는 접근하지 않습니다.",
         ),
         HealthDataItem(
             HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY,

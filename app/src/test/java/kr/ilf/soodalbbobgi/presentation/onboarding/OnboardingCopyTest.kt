@@ -11,6 +11,7 @@ class OnboardingCopyTest {
 
     private val twoLinePermissionCopies = listOf(
         OnboardingCopy.HISTORY_GUIDE,
+        OnboardingCopy.BACKGROUND_GUIDE,
         OnboardingCopy.REMINDER,
         OnboardingCopy.NEW_RECORD,
     )
