@@ -24,7 +24,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -92,10 +95,14 @@ fun OnboardingPermissionScreen(
     // 지난 기록 가져오기 토글 + 기간(개월, 최대 12) — 켰을 때만 과거 데이터 권한을 요청한다.
     var importHistory by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var selectedMonths by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(1) }
+    // 백그라운드 읽기 토글 — 기본 켬(권장). 끄면 동기화 중 앱이 뒤로 가면 읽기가 끊기고 새 기록 알림도 못 켠다.
+    var backgroundRead by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(true) }
 
-    // Health Connect 권한 요청 런처 — 권한 셋은 설정 화면과 공용
-    // 지난 기록을 가져오기로 했을 때만 과거 데이터 권한을 함께 요청한다
-    val healthPermissions = HealthConnectManager.requestPermissionsFor(includeHistory = importHistory)
+    // Health Connect 권한 요청 런처 — 필수 4종 + 토글로 고른 선택 권한(모든 기간·백그라운드)
+    val healthPermissions = HealthConnectManager.requestPermissionsFor(
+        includeHistory = importHistory,
+        includeBackground = backgroundRead,
+    )
 
     val scope = rememberCoroutineScope()
 
@@ -118,6 +125,12 @@ fun OnboardingPermissionScreen(
             // 권한을 다시 요청할 수 있다. (HC는 이 권한 없이는 첫 허용 30일 이전 기록을 주지 않는다.)
             importHistory = false
             Toast.makeText(context, OnboardingCopy.HISTORY_PERMISSION_DENIED, Toast.LENGTH_LONG).show()
+            return
+        }
+        if (backgroundRead && !viewModel.hasBackgroundPermission()) {
+            // 백그라운드 읽기만 거부한 경우 — 지난 기록과 같은 처리. 토글을 끄고 화면에 남긴다.
+            backgroundRead = false
+            Toast.makeText(context, OnboardingCopy.BACKGROUND_PERMISSION_DENIED, Toast.LENGTH_LONG).show()
             return
         }
         viewModel.startInitialSync(if (importHistory) selectedMonths else 0)
@@ -144,7 +157,9 @@ fun OnboardingPermissionScreen(
     }
 
     // 자체 배경 필수 — 투명이면 슬라이드 전환 중 이전 화면과 겹쳐 보인다 (설정 화면과 동일 패턴).
-    Column(Modifier.fillMaxSize().soodalScreenBackdrop().statusBarsPadding().padding(24.dp)) {
+    // 카드가 세 장이라 작은 화면·큰 글꼴에서는 버튼이 밀려 나간다 — 본문만 스크롤하고 버튼 두 개는 아래에 고정.
+    Column(Modifier.fillMaxSize().soodalScreenBackdrop().statusBarsPadding().navigationBarsPadding().padding(24.dp)) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
         Text("STEP 2 / 3", fontSize = 11.sp, fontWeight = FontWeight.Bold,
             color = colors.accentBlue, letterSpacing = 1.5.sp)
         Spacer(Modifier.height(16.dp))
@@ -178,6 +193,34 @@ fun OnboardingPermissionScreen(
                             text = if (!isHealthConnectAvailable) OnboardingCopy.HC_NOT_INSTALLED else OnboardingCopy.HC_REQUIRED,
                             fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp,
                         )
+                    }
+                }
+            }
+
+            // 백그라운드 읽기 — 선택. 동기화가 끊기는 문제를 막는 권한이라 지난 기록보다 먼저 보여 준다.
+            SoodalCard(Modifier.fillMaxWidth()) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    SoodalIcon(icon = SoodalIcons.Sync, tint = colors.accentBlue, size = 26.dp)
+                    Column(Modifier.weight(1f)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("백그라운드 읽기", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                                SoodalChip("선택", color = ChipColor.Blue)
+                            }
+                            SoodalToggle(checked = backgroundRead, onCheckedChange = { backgroundRead = it })
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(OnboardingCopy.BACKGROUND_GUIDE, fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp)
                     }
                 }
             }
@@ -256,7 +299,8 @@ fun OnboardingPermissionScreen(
             )
         }
 
-        Spacer(Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(16.dp))
         SoodalButton(
             text = when {
                 !isHealthConnectAvailable -> "Health Connect 설치 필요"
@@ -271,7 +315,8 @@ fun OnboardingPermissionScreen(
                         // 이미 연결돼 있고 추가로 요청할 권한(지난 기록)도 없으면 런처를 생략한다 —
                         // HC 요청 화면이 순간 떴다 사라지며 상단바가 깜빡이는 것을 피한다.
                         val needsHistory = importHistory && !viewModel.hasHistoryPermission()
-                        if (alreadyGranted && !needsHistory) {
+                        val needsBackground = backgroundRead && !viewModel.hasBackgroundPermission()
+                        if (alreadyGranted && !needsHistory && !needsBackground) {
                             onPermissionFlowReturned()
                             return@launch
                         }

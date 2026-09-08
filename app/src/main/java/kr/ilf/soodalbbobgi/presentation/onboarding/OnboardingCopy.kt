@@ -27,6 +27,18 @@ internal object OnboardingCopy {
         "조개는 오늘 수영한 기록에만 드려요 (새벽 2시 전엔 어제 기록까지). 지난 기록은 캘린더에만 채워져요.\n" +
             "기간이 길수록 가져오는 데 시간이 더 걸려요."
 
+    /** HC가 권한 화면에 표시하는 백그라운드 읽기 권한의 공식 라벨. */
+    const val HC_BACKGROUND_LABEL = "백그라운드에서 데이터 읽기"
+
+    /** 백그라운드 읽기 카드 — 토글 ON/OFF 공통. 동기화 끊김 방지를 먼저, 알림은 뒤에. */
+    const val BACKGROUND_GUIDE =
+        "기록을 가져오는 중에 앱이 잠시 뒤로 가면 동기화가 끊기는 현상을 방지할 수 있어요. 새 수영 기록 알림에도 필요해요.\n" +
+            "Health Connect의 '$HC_BACKGROUND_LABEL' 권한이 필요해요."
+
+    /** 백그라운드 읽기를 켰는데 권한이 거부된 경우 토스트. */
+    const val BACKGROUND_PERMISSION_DENIED =
+        "'$HC_BACKGROUND_LABEL' 권한이 거부돼 백그라운드 읽기를 껐어요. 다시 켜면 권한을 다시 요청해요."
+
     /** 지난 기록을 켰는데 과거 데이터 권한이 거부된 경우 토스트. */
     const val HISTORY_PERMISSION_DENIED =
         "'$HC_HISTORY_LABEL' 권한이 거부돼 지난 기록 가져오기를 껐어요. 다시 켜면 권한을 다시 요청해요."
@@ -55,6 +67,7 @@ internal object OnboardingCopy {
     /** 말투 규칙 테스트용 전체 목록. */
     val ALL: List<String> = listOf(
         HC_REQUIRED, HC_NOT_INSTALLED, HISTORY_GUIDE, HISTORY_POLICY, HISTORY_PERMISSION_DENIED,
+        BACKGROUND_GUIDE, BACKGROUND_PERMISSION_DENIED,
         PERMISSION_DENIED, PERMISSION_LAUNCH_FAILED, HC_APP_MISSING,
         NOTIFICATION_INTRO, REMINDER, NEW_RECORD, NEW_RECORD_LOCKED,
     )
