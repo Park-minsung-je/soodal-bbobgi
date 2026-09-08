@@ -40,6 +40,9 @@ class OnboardingPermissionViewModel @Inject constructor(
      */
     suspend fun hasHistoryPermission(): Boolean = healthConnectManager.isHistoryReadGranted()
 
+    /** 백그라운드 읽기 권한이 허용돼 있는지 — 토글을 켰는데 거부된 경우 안내용. 진행은 막지 않는다. */
+    suspend fun hasBackgroundPermission(): Boolean = healthConnectManager.isBackgroundReadGranted()
+
     /**
      * HC 권한 허용 직후 — 선택한 기간의 최초 가져오기를 백그라운드로 시작하고 즉시 돌아온다.
      * 온보딩은 권한 확인까지만 맡고, 진행 표시는 홈이 [AppState.hcSyncing]으로 잇는다.

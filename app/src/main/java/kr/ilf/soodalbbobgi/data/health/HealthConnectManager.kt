@@ -538,7 +538,10 @@ class HealthConnectManager @Inject constructor(
          * 권한 요청 다이얼로그에 띄울 전체 권한 — 온보딩·설정 공용.
          * 앱은 HC에 기록을 쓰지 않으므로 읽기 전용만 요청한다 (Play 심사 최소 권한 원칙).
          */
-        /** 새 기록 알림 워커가 쓰는 백그라운드 읽기 권한. */
+        /**
+         * 백그라운드 읽기 권한 — 새 기록 알림 워커가 쓰고, 동기화 도중 앱이 화면 밖으로 가도 읽기가 끊기지
+         * 않게 한다 (HC는 이 권한 없이는 포그라운드에서만 읽기를 허용한다). 온보딩에서 선택 토글로 요청한다.
+         */
         const val BG_READ_PERMISSION = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
 
         /** 기본 요청 권한 — 수영 데이터 읽기 4종. 속도는 수영 세션에 샘플이 없어 요청하지 않는다. */
@@ -549,15 +552,23 @@ class HealthConnectManager @Inject constructor(
             HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
         )
 
-        /** 설정 재연결용 전체 셋 — 과거 데이터 권한 포함 (재설치 후 이력 복원에 필요). */
+        /** 설정 재연결용 전체 셋 — 선택 권한(모든 기간·백그라운드 읽기)까지 포함 (재설치 후 복원·동기화 유지). */
         val requestPermissions: Set<String> = BASE_REQUEST_PERMISSIONS +
-            HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY
+            HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY +
+            BG_READ_PERMISSION
 
         /**
-         * 온보딩용 요청 셋 — 지난 기록을 가져오기로 했을 때만 과거 데이터 권한을 포함한다.
-         * 과거 데이터는 필수 권한이 아니라 requiredPermissions에는 넣지 않는다 (거부해도 동작).
+         * 온보딩용 요청 셋 — 토글에 따라 선택 권한을 붙인다. 둘 다 필수 권한이 아니라
+         * requiredPermissions에는 넣지 않는다 (거부해도 동작).
+         *
+         * @param includeHistory 지난 기록 가져오기 토글 — 모든 기간의 데이터 권한
+         * @param includeBackground 백그라운드 읽기 토글 — 알림·동기화 유지용 권한
          */
-        fun requestPermissionsFor(includeHistory: Boolean): Set<String> =
-            if (includeHistory) requestPermissions else BASE_REQUEST_PERMISSIONS
+        fun requestPermissionsFor(includeHistory: Boolean, includeBackground: Boolean): Set<String> =
+            buildSet {
+                addAll(BASE_REQUEST_PERMISSIONS)
+                if (includeHistory) add(HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY)
+                if (includeBackground) add(BG_READ_PERMISSION)
+            }
     }
 }

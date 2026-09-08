@@ -94,6 +94,13 @@ class OnboardingPermissionViewModelTest {
     }
 
     @Test
+    fun `hasBackgroundPermission asks Health Connect for the background grant`() = runTest {
+        coEvery { healthConnectManager.isBackgroundReadGranted() } returns true
+
+        assertThat(vm().hasBackgroundPermission()).isTrue()
+    }
+
+    @Test
     fun `startInitialSync triggers asset and HC sync`() = runTest {
         vm().startInitialSync(1)
 
