@@ -24,7 +24,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -154,7 +157,9 @@ fun OnboardingPermissionScreen(
     }
 
     // 자체 배경 필수 — 투명이면 슬라이드 전환 중 이전 화면과 겹쳐 보인다 (설정 화면과 동일 패턴).
-    Column(Modifier.fillMaxSize().soodalScreenBackdrop().statusBarsPadding().padding(24.dp)) {
+    // 카드가 세 장이라 작은 화면·큰 글꼴에서는 버튼이 밀려 나간다 — 본문만 스크롤하고 버튼 두 개는 아래에 고정.
+    Column(Modifier.fillMaxSize().soodalScreenBackdrop().statusBarsPadding().navigationBarsPadding().padding(24.dp)) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
         Text("STEP 2 / 3", fontSize = 11.sp, fontWeight = FontWeight.Bold,
             color = colors.accentBlue, letterSpacing = 1.5.sp)
         Spacer(Modifier.height(16.dp))
@@ -188,6 +193,34 @@ fun OnboardingPermissionScreen(
                             text = if (!isHealthConnectAvailable) OnboardingCopy.HC_NOT_INSTALLED else OnboardingCopy.HC_REQUIRED,
                             fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp,
                         )
+                    }
+                }
+            }
+
+            // 백그라운드 읽기 — 선택. 동기화가 끊기는 문제를 막는 권한이라 지난 기록보다 먼저 보여 준다.
+            SoodalCard(Modifier.fillMaxWidth()) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    SoodalIcon(icon = SoodalIcons.Sync, tint = colors.accentBlue, size = 26.dp)
+                    Column(Modifier.weight(1f)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("백그라운드 읽기", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                                SoodalChip("선택", color = ChipColor.Blue)
+                            }
+                            SoodalToggle(checked = backgroundRead, onCheckedChange = { backgroundRead = it })
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(OnboardingCopy.BACKGROUND_GUIDE, fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp)
                     }
                 }
             }
@@ -238,34 +271,6 @@ fun OnboardingPermissionScreen(
                 }
             }
 
-            // 백그라운드 읽기 — 선택. 지난 기록 카드와 같은 레이아웃, 기간 선택은 없다.
-            SoodalCard(Modifier.fillMaxWidth()) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    SoodalIcon(icon = SoodalIcons.Sync, tint = colors.accentBlue, size = 26.dp)
-                    Column(Modifier.weight(1f)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text("백그라운드 읽기", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                                SoodalChip("선택", color = ChipColor.Blue)
-                            }
-                            SoodalToggle(checked = backgroundRead, onCheckedChange = { backgroundRead = it })
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Text(OnboardingCopy.BACKGROUND_GUIDE, fontSize = 12.sp, color = colors.textSecondary, lineHeight = 18.sp)
-                    }
-                }
-            }
-
             // 카메라 — 선택 (비활성). 사진 인증 기능이 생기면 SHOW_CAMERA_CARD로 되살린다.
             if (SHOW_CAMERA_CARD) SoodalCard(Modifier.fillMaxWidth().then(Modifier.alpha(0.45f))) {
                 Row(
@@ -294,7 +299,8 @@ fun OnboardingPermissionScreen(
             )
         }
 
-        Spacer(Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(16.dp))
         SoodalButton(
             text = when {
                 !isHealthConnectAvailable -> "Health Connect 설치 필요"
