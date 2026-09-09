@@ -11,7 +11,6 @@ import kr.ilf.soodalbbobgi.data.auth.GoogleAuthManager
 import kr.ilf.soodalbbobgi.data.auth.KakaoAuthManager
 import kr.ilf.soodalbbobgi.data.auth.TokenStore
 import kr.ilf.soodalbbobgi.data.health.HcSwimSyncer
-import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 import kr.ilf.soodalbbobgi.data.remote.api.SoodalApi
 import kr.ilf.soodalbbobgi.data.remote.dto.ApiError
 import kr.ilf.soodalbbobgi.data.remote.dto.ApiResponse
@@ -51,7 +50,6 @@ class AuthViewModelTest {
     private lateinit var guard: AccountSwitchGuard
     private lateinit var appStateLoader: AppStateLoader
     private lateinit var appState: AppState
-    private lateinit var hc: HealthConnectManager
     private lateinit var assetManager: AssetManager
     private lateinit var hcSwimSyncer: HcSwimSyncer
     private lateinit var activity: Activity
@@ -66,7 +64,6 @@ class AuthViewModelTest {
         guard = mockk(relaxed = true)
         appStateLoader = mockk(relaxed = true)
         appState = AppState()
-        hc = mockk(relaxed = true)
         assetManager = mockk(relaxed = true)
         hcSwimSyncer = mockk(relaxed = true)
         activity = mockk(relaxed = true)
@@ -78,7 +75,7 @@ class AuthViewModelTest {
 
     @After fun tearDown() { Dispatchers.resetMain() }
 
-    private fun vm() = AuthViewModel(kakao, google, api, tokenStore, guard, appStateLoader, appState, hc,
+    private fun vm() = AuthViewModel(kakao, google, api, tokenStore, guard, appStateLoader, appState,
         assetManager, hcSwimSyncer, CoroutineScope(UnconfinedTestDispatcher()))
 
     @Test
@@ -116,7 +113,6 @@ class AuthViewModelTest {
             ),
             error = null,
         )
-        coEvery { hc.hasAllPermissions() } returns false
 
         val viewModel = vm()
         viewModel.loginWithGoogle(activity)
@@ -138,7 +134,6 @@ class AuthViewModelTest {
             ),
             error = null,
         )
-        coEvery { hc.hasAllPermissions() } returns true
 
         val viewModel = vm()
         viewModel.loginWithGoogle(activity)
@@ -157,7 +152,6 @@ class AuthViewModelTest {
             data = AuthData("at", "rt", 3600L, true, sampleUser("수달이")),
             error = null,
         )
-        coEvery { hc.hasAllPermissions() } returns true
 
         val viewModel = vm()
         viewModel.loginWithGoogle(activity)
@@ -175,7 +169,6 @@ class AuthViewModelTest {
             data = AuthData("at", "rt", 3600L, false, sampleUser(nickname = "")),
             error = null,
         )
-        coEvery { hc.hasAllPermissions() } returns true
 
         val viewModel = vm()
         viewModel.loginWithGoogle(activity)
@@ -191,7 +184,6 @@ class AuthViewModelTest {
         coEvery { api.authKakao(any()) } returns ApiResponse(
             success = true, data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")), error = null,
         )
-        coEvery { hc.hasAllPermissions() } returns false
 
         val viewModel = vm()
         viewModel.loginWithKakao(activity)
@@ -237,7 +229,6 @@ class AuthViewModelTest {
             data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")),
             error = null,
         )
-        coEvery { hc.hasAllPermissions() } returns true
 
         val viewModel = vm()
         viewModel.loginWithGoogle(activity)
@@ -257,7 +248,6 @@ class AuthViewModelTest {
             data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")),
             error = null,
         )
-        coEvery { hc.hasAllPermissions() } returns true
 
         vm().loginWithGoogle(activity)
 
@@ -273,7 +263,6 @@ class AuthViewModelTest {
             data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")),
             error = null,
         )
-        coEvery { hc.hasAllPermissions() } returns true
 
         vm().loginWithGoogle(activity)
 
@@ -282,19 +271,18 @@ class AuthViewModelTest {
     }
 
     @Test
-    fun `loginWithGoogle skips HC sync when no permission`() = runTest {
+    fun `loginWithGoogle still runs swim sync without HC permission`() = runTest {
         coEvery { google.signIn(activity) } returns Result.success("idtok")
         coEvery { api.authGoogle(any()) } returns ApiResponse(
             success = true,
             data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")),
             error = null,
         )
-        coEvery { hc.hasAllPermissions() } returns false
 
         vm().loginWithGoogle(activity)
 
-        // HC 권한이 없으면 HC 동기화를 건너뛰어야 한다
-        coVerify(exactly = 0) { hcSwimSyncer.sync() }
+        // 권한이 없어도 동기화는 돈다 — HC 읽기는 syncer가 스스로 건너뛰고 서버 백업은 복원한다.
+        coVerify { hcSwimSyncer.sync() }
         // 에셋 동기화는 권한 무관하게 항상 실행되어야 한다
         coVerify { assetManager.sync() }
     }
@@ -322,7 +310,6 @@ class AuthViewModelTest {
         coEvery { api.authGoogle(any()) } returns ApiResponse(
             success = true, data = AuthData("at", "rt", 3600L, true, sampleUser(null)), error = null,
         )
-        coEvery { hc.hasAllPermissions() } returns true
         coEvery { hcSwimSyncer.sync() } returns 2
 
         vm().loginWithGoogle(activity)
@@ -338,7 +325,6 @@ class AuthViewModelTest {
         coEvery { api.authGoogle(any()) } returns ApiResponse(
             success = true, data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")), error = null,
         )
-        coEvery { hc.hasAllPermissions() } returns true
         coEvery { hcSwimSyncer.sync() } returns 0
 
         vm().loginWithGoogle(activity)
@@ -352,7 +338,6 @@ class AuthViewModelTest {
         coEvery { api.authKakao(any()) } returns ApiResponse(
             success = true, data = AuthData("at", "rt", 3600L, true, sampleUser(null)), error = null,
         )
-        coEvery { hc.hasAllPermissions() } returns true
         coEvery { hcSwimSyncer.sync() } returns 2
 
         vm().loginWithKakao(activity)
@@ -366,7 +351,6 @@ class AuthViewModelTest {
         coEvery { api.authKakao(any()) } returns ApiResponse(
             success = true, data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")), error = null,
         )
-        coEvery { hc.hasAllPermissions() } returns true
         coEvery { hcSwimSyncer.sync() } returns 0
 
         vm().loginWithKakao(activity)
@@ -382,7 +366,6 @@ class AuthViewModelTest {
         coEvery { api.authGoogle(any()) } returns ApiResponse(
             success = true, data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")), error = null,
         )
-        coEvery { hc.hasAllPermissions() } returns true
 
         vm().loginWithGoogle(activity)
 
@@ -412,7 +395,6 @@ class AuthViewModelTest {
         coEvery { api.authKakao(any()) } returns ApiResponse(
             success = true, data = AuthData("at", "rt", 3600L, false, sampleUser("수달이")), error = null,
         )
-        coEvery { hc.hasAllPermissions() } returns true
 
         vm().loginWithKakao(activity)
 

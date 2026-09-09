@@ -44,11 +44,15 @@ class HcSwimSyncer @Inject constructor(
     /**
      * 전체 동기화를 수행한다. 동시에 들어온 호출은 순서대로 하나씩 처리된다.
      *
+     * HC 권한은 HC 읽기([syncChanges])에만 필요하다. 권한이 없어도 삭제 재시도·미전송 재전송·
+     * 서버 백업 복원은 그대로 돈다 — 재설치나 다른 기기에서 권한을 아직 안 줬어도
+     * 로그인만 하면 캘린더에 서버 기록이 돌아와야 한다. 호출부는 권한을 따지지 않고 부른다.
+     *
      * @return 이번 동기화로 서버가 지급한 조개 수
      */
     suspend fun sync(): Int = syncMutex.withLock {
         retryPendingServerDeletes()
-        syncChanges()
+        if (healthConnectManager.hasAllPermissions()) syncChanges()
         val earned = pushUnsyncedDates()
         pullServerSwimLogs()
         earned

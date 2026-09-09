@@ -45,6 +45,8 @@ class HcSwimSyncerTest {
         every { prefs.getChangesToken() } returns null
         // relaxed mock의 Int? 기본값에 기대지 않고 '온보딩 기간 없음'을 명시한다
         every { prefs.getPendingInitialMonths() } returns null
+        // 기본은 권한 있음 — HC 읽기 경로를 검증하는 기존 테스트의 전제.
+        coEvery { hcm.hasAllPermissions() } returns true
         coEvery { hcm.getChangesToken() } returns "tok"
         coEvery { hcm.readSwimSessions(any(), any()) } returns listOf(hcSession())
         coEvery { useCase.getUnsyncedDates() } returns listOf("2026-06-07")
@@ -357,5 +359,37 @@ class HcSwimSyncerTest {
                 },
             )
         }
+    }
+
+    // ── HC 권한이 없어도 서버 백업은 복원한다 ──────────────────────────────
+
+    @Test
+    fun `HC 권한이 없으면 HC를 읽지 않고 서버 기록만 가져온다`() = runTest {
+        coEvery { hcm.hasAllPermissions() } returns false
+        coEvery { useCase.getUnsyncedDates() } returns emptyList()
+        coEvery { api.getSwimLogs(any(), any()) } returns ApiResponse(
+            true,
+            kr.ilf.soodalbbobgi.data.remote.dto.SwimLogsData(
+                items = listOf(
+                    ServerSwimLog(
+                        id = "s1", date = "2026-06-07", distanceMeters = 1200, durationSeconds = 3600,
+                        calories = 400, strokeFreestyleM = 600, strokeBreastM = 600, strokeBackM = 0,
+                        strokeFlyM = 0, strokeMixedM = 0, strokeKickM = 0,
+                        source = "health_connect", shellsEarned = 2, createdAt = 0L,
+                    ),
+                ),
+            ),
+            null,
+        )
+
+        syncer.sync()
+
+        // 재설치·다른 기기에서 권한을 아직 안 줬어도 캘린더에 서버 기록(영법 포함)이 보여야 한다
+        coVerify(exactly = 1) {
+            useCase.saveFromServer(match { it.date == "2026-06-07" && it.strokeFreestyleM == 600 })
+        }
+        coVerify(exactly = 0) { hcm.getChangesToken() }
+        coVerify(exactly = 0) { hcm.readSwimSessions(any(), any()) }
+        coVerify(exactly = 0) { hcm.getChanges(any()) }
     }
 }

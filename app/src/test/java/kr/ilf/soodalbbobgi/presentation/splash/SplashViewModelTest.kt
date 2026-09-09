@@ -8,7 +8,6 @@ import kr.ilf.soodalbbobgi.data.asset.AssetManager
 import kr.ilf.soodalbbobgi.data.asset.AssetSyncProgress
 import kr.ilf.soodalbbobgi.data.auth.TokenStore
 import kr.ilf.soodalbbobgi.data.health.HcSyncPreferences
-import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 import kr.ilf.soodalbbobgi.data.remote.api.SoodalApi
 import kr.ilf.soodalbbobgi.domain.model.UserProfile
 import kr.ilf.soodalbbobgi.domain.usecase.SwimLogUseCase
@@ -49,10 +48,10 @@ class SplashViewModelTest {
     private lateinit var userSession: UserSession
     private lateinit var appState: AppState
     private lateinit var appStateLoader: AppStateLoader
-    private lateinit var healthConnectManager: HealthConnectManager
     private lateinit var swimLogUseCase: SwimLogUseCase
     private lateinit var hcSyncPreferences: HcSyncPreferences
     private lateinit var assetManager: AssetManager
+    private lateinit var hcSwimSyncer: kr.ilf.soodalbbobgi.data.health.HcSwimSyncer
     private lateinit var assetProgress: MutableStateFlow<AssetSyncProgress>
 
     @Before
@@ -63,10 +62,10 @@ class SplashViewModelTest {
         userSession = UserSession()
         appState = AppState()
         appStateLoader = mockk(relaxed = true)
-        healthConnectManager = mockk(relaxed = true)
         swimLogUseCase = mockk(relaxed = true)
         hcSyncPreferences = mockk(relaxed = true)
         assetManager = mockk(relaxed = true)
+        hcSwimSyncer = mockk(relaxed = true)
         assetProgress = MutableStateFlow(AssetSyncProgress.Idle)
         every { assetManager.progress } returns assetProgress
         coEvery { assetManager.sync() } returns Result.success(Unit)
@@ -82,8 +81,7 @@ class SplashViewModelTest {
         soodalApi = soodalApi,
         appState = appState,
         appStateLoader = appStateLoader,
-        healthConnectManager = healthConnectManager,
-        hcSwimSyncer = mockk(relaxed = true),
+        hcSwimSyncer = hcSwimSyncer,
         assetManager = assetManager,
     )
 
@@ -196,7 +194,6 @@ class SplashViewModelTest {
     fun `정상 경로면 Home으로 보낸다`() = runTest {
         every { tokenStore.getAccessToken() } returns "access"
         every { tokenStore.isAccessTokenExpired() } returns false
-        coEvery { healthConnectManager.hasAllPermissions() } returns true
         coEvery { appStateLoader.loadAll() } coAnswers {
             appState.applyProfile(UserProfile("u1", "수달이", null, null, "google"))
             Result.success(Unit)
@@ -214,7 +211,6 @@ class SplashViewModelTest {
     fun `닉네임이 있는 계정은 HC 권한이 없어도 Home으로 보낸다`() = runTest {
         every { tokenStore.getAccessToken() } returns "access"
         every { tokenStore.isAccessTokenExpired() } returns false
-        coEvery { healthConnectManager.hasAllPermissions() } returns false
         coEvery { appStateLoader.loadAll() } coAnswers {
             appState.applyProfile(UserProfile("u1", "수달이", null, null, "google"))
             Result.success(Unit)
@@ -224,13 +220,14 @@ class SplashViewModelTest {
 
         // 재설치·다른 기기처럼 로컬 표시가 없는 상황에서도 기존 계정은 항상 홈 — 연결은 설정 > 연동에서.
         assertThat(viewModel.destination.value).isEqualTo(SplashDestination.Home)
+        // 권한이 없어도 서버 백업 복원을 위해 동기화는 돈다 (HC 읽기는 syncer가 건너뜀).
+        coVerify { hcSwimSyncer.sync() }
     }
 
     @Test
     fun `닉네임이 없는 계정은 Onboarding으로 보낸다`() = runTest {
         every { tokenStore.getAccessToken() } returns "access"
         every { tokenStore.isAccessTokenExpired() } returns false
-        coEvery { healthConnectManager.hasAllPermissions() } returns true
         coEvery { appStateLoader.loadAll() } coAnswers {
             appState.applyProfile(UserProfile("u1", null, null, null, "google"))
             Result.success(Unit)
@@ -245,7 +242,6 @@ class SplashViewModelTest {
     fun `재시도로 서버가 복구되면 Home으로 진행한다`() = runTest {
         every { tokenStore.getAccessToken() } returns "access"
         every { tokenStore.isAccessTokenExpired() } returns false
-        coEvery { healthConnectManager.hasAllPermissions() } returns true
         coEvery { appStateLoader.loadAll() } returns Result.failure(ConnectException("refused"))
 
         val viewModel = vm()

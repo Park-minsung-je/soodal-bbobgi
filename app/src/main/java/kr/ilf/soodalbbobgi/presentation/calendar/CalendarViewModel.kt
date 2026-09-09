@@ -8,7 +8,6 @@ import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.core.util.decodeHrRestRanges
 import kr.ilf.soodalbbobgi.core.util.decodeHrSeries
 import kr.ilf.soodalbbobgi.data.health.HcSwimSyncer
-import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 import kr.ilf.soodalbbobgi.domain.model.SwimLog
 import kr.ilf.soodalbbobgi.domain.usecase.SwimLogUseCase
 import kr.ilf.soodalbbobgi.presentation.common.WeeklyActivity
@@ -111,7 +110,6 @@ class CalendarViewModel @Inject constructor(
     private val swimLogUseCase: SwimLogUseCase,
     private val hcSwimSyncer: HcSwimSyncer,
     private val appStateLoader: AppStateLoader,
-    private val healthConnectManager: HealthConnectManager,
 ) : ViewModel() {
 
     private val _yearMonth = MutableStateFlow(YearMonth.now())
@@ -192,10 +190,7 @@ class CalendarViewModel @Inject constructor(
             // 동기화가 순식간에 끝나도 로딩 표시는 최소 1초 유지 — 깜빡임 방지.
             val startedAt = System.currentTimeMillis()
             try {
-                if (!healthConnectManager.hasAllPermissions()) {
-                    Timber.w("Health Connect 권한이 없어 동기화를 건너뜀")
-                    return@launch
-                }
+                // HC 권한이 없어도 돌린다 — HC 읽기는 syncer가 건너뛰고 서버 백업 복원은 한다.
                 val earned = hcSwimSyncer.sync()
                 appStateLoader.refreshCurrency()
                 _shellRewardKind.value = ShellRewardKind.SwimRecord

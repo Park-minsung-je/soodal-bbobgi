@@ -10,7 +10,6 @@ import kr.ilf.soodalbbobgi.data.auth.ServerFailure
 import kr.ilf.soodalbbobgi.data.auth.TokenStore
 import kr.ilf.soodalbbobgi.data.auth.classifyServerFailure
 import kr.ilf.soodalbbobgi.data.health.HcSwimSyncer
-import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 import kr.ilf.soodalbbobgi.data.remote.api.SoodalApi
 import kr.ilf.soodalbbobgi.data.remote.dto.RefreshRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,7 +37,6 @@ class SplashViewModel @Inject constructor(
     private val soodalApi: SoodalApi,
     private val appState: AppState,
     private val appStateLoader: AppStateLoader,
-    private val healthConnectManager: HealthConnectManager,
     private val hcSwimSyncer: HcSwimSyncer,
     private val assetManager: AssetManager,
 ) : ViewModel() {
@@ -131,9 +129,9 @@ class SplashViewModel @Inject constructor(
                     return@launch
                 }
 
-                // HC 동기화 (가능하면)
+                // 수영 기록 동기화 — HC 권한이 없어도 부른다(HC 읽기는 syncer가 건너뛰고 서버 백업은 복원).
                 try {
-                    if (healthConnectManager.hasAllPermissions()) syncHealthConnect()
+                    syncHealthConnect()
                 } catch (e: Exception) {
                     Timber.w(e, "HC 동기화 중 오류 (앱 계속 진행)")
                     _syncError.value = "수영 데이터 동기화에 실패했어요."

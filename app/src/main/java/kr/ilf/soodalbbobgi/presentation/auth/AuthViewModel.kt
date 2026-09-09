@@ -11,7 +11,6 @@ import kr.ilf.soodalbbobgi.data.auth.GoogleAuthManager
 import kr.ilf.soodalbbobgi.data.auth.KakaoAuthManager
 import kr.ilf.soodalbbobgi.data.auth.TokenStore
 import kr.ilf.soodalbbobgi.data.health.HcSwimSyncer
-import kr.ilf.soodalbbobgi.data.health.HealthConnectManager
 import kr.ilf.soodalbbobgi.data.remote.api.SoodalApi
 import kr.ilf.soodalbbobgi.data.remote.dto.AuthData
 import kr.ilf.soodalbbobgi.data.remote.dto.GoogleAuthRequest
@@ -39,7 +38,6 @@ class AuthViewModel @Inject constructor(
     private val accountSwitchGuard: AccountSwitchGuard,
     private val appStateLoader: AppStateLoader,
     private val appState: AppState,
-    private val healthConnectManager: HealthConnectManager,
     private val assetManager: AssetManager,
     private val hcSwimSyncer: HcSwimSyncer,
     @ApplicationScope private val appScope: CoroutineScope,
@@ -79,10 +77,8 @@ class AuthViewModel @Inject constructor(
                         Timber.w(loaded.exceptionOrNull(), "AppState 로드 실패")
                     }
 
-                    val hasHcPermission = healthConnectManager.hasAllPermissions()
-
-                    // 로그인 직후 에셋·HC 동기화를 백그라운드로 시작해 앱 재시작 없이 데이터가 보이게 한다.
-                    triggerPostLoginSync(hasHcPermission)
+                    // 로그인 직후 에셋·수영 기록 동기화를 백그라운드로 시작해 앱 재시작 없이 데이터가 보이게 한다.
+                    triggerPostLoginSync()
 
                     _uiState.value = AuthUiState.Success(route = resolveRoute(data))
                 } else {
@@ -130,10 +126,8 @@ class AuthViewModel @Inject constructor(
                         Timber.w(loaded.exceptionOrNull(), "AppState 로드 실패")
                     }
 
-                    val hasHcPermission = healthConnectManager.hasAllPermissions()
-
-                    // 로그인 직후 에셋·HC 동기화를 백그라운드로 시작해 앱 재시작 없이 데이터가 보이게 한다.
-                    triggerPostLoginSync(hasHcPermission)
+                    // 로그인 직후 에셋·수영 기록 동기화를 백그라운드로 시작해 앱 재시작 없이 데이터가 보이게 한다.
+                    triggerPostLoginSync()
 
                     _uiState.value = AuthUiState.Success(route = resolveRoute(data))
                 } else {
@@ -161,29 +155,27 @@ class AuthViewModel @Inject constructor(
         if (data.isNewUser || data.user.nickname.isNullOrBlank()) AuthRoute.Onboarding else AuthRoute.Home
 
     /**
-     * 로그인 성공 직후 에셋 동기화와(권한이 있을 때) HC 동기화를 백그라운드로 실행한다.
+     * 로그인 성공 직후 에셋 동기화와 수영 기록 동기화를 백그라운드로 실행한다.
      * 각 작업은 독립 코루틴으로 실행되어 실패해도 화면 전환을 막지 않는다.
+     * HC 권한 유무는 따지지 않는다 — 권한이 없으면 [HcSwimSyncer]가 HC 읽기만 건너뛰고
+     * 서버 백업(영법 포함)은 복원하므로, 재설치 직후에도 캘린더가 바로 채워진다.
      * 재로그인은 HC 권한이 남아 있어 이 동기화가 오늘 기록을 가장 먼저 보고한다 —
      * 여기서 지급된 조개는 [AppState.addPendingShellReward]로 홈 팝업에 넘긴다.
      * appScope를 사용하므로 화면 전환으로 ViewModel이 사라져도 동기화가 계속 진행된다.
-     *
-     * @param hasHcPermission HC 권한 보유 여부 — false이면 HC 동기화를 건너뜀
      */
-    internal fun triggerPostLoginSync(hasHcPermission: Boolean) {
+    internal fun triggerPostLoginSync() {
         appScope.launch {
             val result = assetManager.sync()
             if (result.isFailure) {
                 Timber.w(result.exceptionOrNull(), "로그인 후 에셋 동기화 실패 (앱 계속 진행)")
             }
         }
-        if (hasHcPermission) {
-            appScope.launch {
-                try {
-                    val earned = hcSwimSyncer.sync()
-                    if (earned > 0) appState.addPendingShellReward(earned)
-                } catch (e: Exception) {
-                    Timber.w(e, "로그인 후 HC 동기화 실패 (앱 계속 진행)")
-                }
+        appScope.launch {
+            try {
+                val earned = hcSwimSyncer.sync()
+                if (earned > 0) appState.addPendingShellReward(earned)
+            } catch (e: Exception) {
+                Timber.w(e, "로그인 후 수영 기록 동기화 실패 (앱 계속 진행)")
             }
         }
     }
