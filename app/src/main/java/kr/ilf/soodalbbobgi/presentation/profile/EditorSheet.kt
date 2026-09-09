@@ -118,7 +118,7 @@ fun EditorSheet(
     // 상단 sheen — 유리 윗면 하이라이트 (카드/탭바와 동일 언어).
     GlassSheen(sheetShape)
     Column(Modifier.fillMaxSize()) {
-        // -- 드래그 핸들 + 제목 --
+        // -- 드래그 핸들 --
         // 누르는 동안 인디케이터 막대만 밝힌다 — 공용 바텀시트와 같은 언어 (시트 표면은 무반응).
         var dragAreaPressed by remember { mutableStateOf(false) }
         Box(
@@ -167,12 +167,8 @@ fun EditorSheet(
                         // 프로스트 위에서도 또렷한 잉크 틴트 핸들.
                         .background(Color(0xFF27384B).copy(alpha = handleAlpha)),
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("프로필 편집", style = SoodalDesign.typography.lg, color = colors.textPrimary)
-                }
+                // 제목은 홈 상단 헤더(EditorTopHeader)가 맡는다 — 시트에는 핸들만.
+                Spacer(Modifier.height(spacing.s4))
             }
         }
 
