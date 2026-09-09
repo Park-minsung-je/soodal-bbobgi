@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -224,7 +223,9 @@ fun SoodalBottomSheet(
                 ) {},
         ) {
             GlassSheen(sheetShape)
-            Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
+            // navigationBarsPadding()은 상위 오버레이 레이어가 인셋을 이미 소비해 0이 된다 —
+            // 위에서 읽은 원래 인셋(navBottom)으로 직접 띄워 3버튼 내비게이션 바에 버튼이 가리지 않게 한다.
+            Column(Modifier.fillMaxWidth().padding(bottom = with(LocalDensity.current) { navBottom.toDp() })) {
                 // 핸들 — 아래로 드래그하면 시트가 따라 내려가고, 충분히 내리면 닫힌다.
                 Box(
                     modifier = Modifier
