@@ -68,6 +68,8 @@ import kr.ilf.soodalbbobgi.core.ui.GlassInfoSegment
 import kr.ilf.soodalbbobgi.core.ui.ProfileFrameCorner
 import kr.ilf.soodalbbobgi.core.ui.GlassSheen
 import kr.ilf.soodalbbobgi.core.ui.glass
+import kr.ilf.soodalbbobgi.core.ui.glassFrost
+import kr.ilf.soodalbbobgi.core.ui.LocalHazeContent
 import kr.ilf.soodalbbobgi.core.ui.SoodalCard
 import kr.ilf.soodalbbobgi.core.ui.AppOverlay
 import kr.ilf.soodalbbobgi.core.ui.ShellRewardKind
@@ -524,6 +526,25 @@ fun HomeScreen(
                     ),
             )
         }
+        // 상단 헤더 — 시트와 짝으로 위에서 내려와 홈 상단바(재화·버튼)를 덮는다.
+        // 시트가 열린 동안 상단바는 눌리지 않는데 그대로 보이면 눌러도 되는 것처럼 오해하게 된다.
+        AnimatedVisibility(
+            visible = editorOpen,
+            enter = slideInVertically(
+                animationSpec = tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized),
+            ) { -it } + fadeIn(),
+            exit = slideOutVertically(
+                animationSpec = tween(Motion.DUR_EDITOR, easing = Motion.easeEmphasized),
+            ) { -it } + fadeOut(),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            EditorTopHeader(
+                onBack = {
+                    editorVm.resetToSaved()
+                    onEditorOpenChange(false)
+                },
+            )
+        }
         AnimatedVisibility(
             visible = editorOpen,
             enter = slideInVertically(
@@ -552,6 +573,60 @@ fun HomeScreen(
         }
     }
     } // Box
+}
+
+/**
+ * 프로필 편집 상단 헤더 — 편집 시트와 같은 글래스 언어(아래 모서리 26dp)로 상태바까지 덮는다.
+ * 행 높이·여백은 홈 상단바와 같아 내려오면 재화 칩·버튼 자리를 정확히 가리고,
+ * 카드와의 간격은 시트 쪽과 눈으로 맞춘다(아래 여백 6dp).
+ *
+ * @param onBack 뒤로가기(취소) — 미저장 변경을 버리고 시트를 닫는다
+ */
+@Composable
+private fun EditorTopHeader(onBack: () -> Unit) {
+    val colors = SoodalDesign.colors
+    val spacing = SoodalDesign.spacing
+    val shape = RoundedCornerShape(bottomStart = 26.dp, bottomEnd = 26.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            // 그림자는 두지 않는다 — 슬라이드가 끝나는 순간 아래로 툭 생겨 보여 어색하다.
+            .glassFrost(colors, shape, LocalHazeContent.current)
+            .border(1.dp, colors.glassBorder, shape),
+    ) {
+        GlassSheen(shape)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = spacing.s4)
+                // 아래 여백 6dp — 홈 상단바 밑변보다 살짝 더 내려온다. 시트 쪽(14dp)과 수치를
+                // 맞추면 둥근 밑변 때문에 위가 더 떠 보여서, 눈으로 맞춘 값이다.
+                .padding(top = spacing.s4, bottom = 6.dp)
+                .height(38.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // 프로스트 위에 유리 버튼을 또 얹지 않는다 — 디자인처럼 맨 화살표만.
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(GlassCornerSmall))
+                    .pressable(onClick = onBack),
+                contentAlignment = Alignment.Center,
+            ) {
+                SoodalIcon(icon = SoodalIcons.ArrowLeft, tint = colors.textPrimary, size = 22.dp, contentDescription = "편집 취소")
+            }
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("프로필 편집", style = SoodalDesign.typography.lg, color = colors.textPrimary)
+            }
+            // 제목을 정중앙에 두기 위한 화살표 자리만큼의 빈 칸.
+            Spacer(Modifier.size(38.dp))
+        }
+    }
 }
 
 /** 상단바 글래스 아이콘 버튼 (직접 기록/편집/설정) — 공용 글래스(sheen 포함). */
