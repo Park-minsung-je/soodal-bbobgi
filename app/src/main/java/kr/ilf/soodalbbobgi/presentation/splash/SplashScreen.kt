@@ -116,7 +116,7 @@ fun SplashScreen(
             )
             Spacer(Modifier.height(28.dp))
             Text("수달 뽑기", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentBlue)
-            Text("수영하고, 뽑고, 수달을 모아요", fontSize = 13.sp, color = colors.textSecondary)
+            Text("수영하고, 모으고, 꾸며요", fontSize = 13.sp, color = colors.textSecondary)
             Spacer(Modifier.height(40.dp))
             Box(Modifier.width(160.dp).height(4.dp).clip(RoundedCornerShape(999.dp)).background(colors.surface2)) {
                 Box(Modifier.fillMaxHeight().fillMaxWidth(animatedProgress).clip(RoundedCornerShape(999.dp)).background(colors.gradBlue))
