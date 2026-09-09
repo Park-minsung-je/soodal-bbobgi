@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,11 +60,55 @@ fun NicknameEditDialog(
 ) {
     val colors = SoodalDesign.colors
     var input by remember { mutableStateOf(initial) }
+    // 저장 전 확인 단계 — 오타(예: "수달뽑시")를 3개월 동안 못 고치는 일을 막는다.
+    var confirming by remember { mutableStateOf(false) }
     val saving = state is NicknameSaveState.Saving
     val errorMessage = (state as? NicknameSaveState.Error)?.message
+    // 서버가 거절하면 입력 단계로 돌아가 오류를 보여 준다.
+    LaunchedEffect(errorMessage) { if (errorMessage != null) confirming = false }
     // 연 시점 기준으로 잠근다 — 열어 둔 채 시각이 넘어가는 경우는 서버 판정이 막는다.
     val locked = remember(changeableAt) { isNicknameCooldownActive(changeableAt, System.currentTimeMillis()) }
     val hint = if (locked && changeableAt != null) nicknameCooldownMessage(changeableAt) else NICKNAME_COOLDOWN_HINT
+
+    if (confirming) {
+        // 확인 단계 — 같은 팝업 자리에서 문구만 바꾼다. 뒤로가기·스크림 탭은 입력 단계로 돌아간다.
+        DialogScrim(onDismiss = { if (!saving) confirming = false }) {
+            Text("이 닉네임으로 바꿀까요?", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+            Spacer(Modifier.height(14.dp))
+            // 닉네임만 따로 크게 — 문장 속에 섞이면 오타가 눈에 안 띈다.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(colors.surface3, RoundedCornerShape(14.dp))
+                    .padding(vertical = 18.dp, horizontal = 16.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(input, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
+            }
+            Spacer(Modifier.height(12.dp))
+            Text(NICKNAME_CONFIRM_WARNING, fontSize = 12.sp, lineHeight = 18.sp, color = colors.textSecondary)
+            Spacer(Modifier.height(18.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                SoodalButton(
+                    text = "다시 입력",
+                    onClick = { confirming = false },
+                    style = ButtonStyle.Secondary,
+                    backgroundOverride = SolidColor(Color.White),
+                    enabled = !saving,
+                    heightOverride = 48.dp,
+                    modifier = Modifier.weight(1f),
+                )
+                SoodalButton(
+                    text = if (saving) "저장 중…" else "변경",
+                    onClick = { onSave(input) },
+                    enabled = !saving,
+                    heightOverride = 48.dp,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+        return
+    }
 
     DialogScrim(onDismiss = { if (!saving) onDismiss() }) {
         Text("닉네임 변경", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
@@ -99,8 +144,8 @@ fun NicknameEditDialog(
                 modifier = Modifier.weight(1f),
             )
             SoodalButton(
-                text = if (saving) "저장 중…" else "저장",
-                onClick = { onSave(input) },
+                text = "다음",
+                onClick = { confirming = true },
                 // 같은 값 저장은 서버가 no-op으로 통과시키지만 UX상 막는다.
                 enabled = !saving && !locked && input.isNotBlank() && input != initial,
                 heightOverride = 48.dp,
