@@ -67,16 +67,20 @@ internal val TabBarShape = RoundedCornerShape(22.dp)
 /** 탭바 좌우/하단 기본 마진 — 화면 콘텐츠의 가로 패딩(spacing.s4)과 폭을 맞춘다. */
 internal val TabBarMargin = 16.dp
 
+/** 이 값 이상의 하단 인셋은 3버튼 내비게이션 바(불투명, 보통 48dp)로 본다. 제스처 힌트 바는 16~24dp. */
+private val OpaqueNavBarThreshold = 32.dp
+
 /**
- * 탭바 하단 패딩 — 내비게이션 인셋 포함 총 하단 여백이 [TabBarMargin]이 되도록 보정해
- * 바의 라운드가 디스플레이 모서리 곡률과 동심원으로 맞는다.
+ * 탭바 하단 패딩 — 제스처 모드에서는 인셋을 포함한 총 하단 여백이 [TabBarMargin]이 되도록 보정해
+ * 바의 라운드가 디스플레이 모서리 곡률과 동심원으로 맞는다. 3버튼 내비게이션 바가 있을 때는
+ * 바가 그 위에 바로 붙지 않도록 [TabBarMargin]을 그대로 둔다.
  *
- * @return 인셋을 뺀 나머지 하단 패딩(최소 0dp)
+ * @return 인셋을 고려한 하단 패딩
  */
 @Composable
 internal fun tabBarBottomPadding(): Dp {
     val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    return (TabBarMargin - navBottom).coerceAtLeast(0.dp)
+    return if (navBottom >= OpaqueNavBarThreshold) TabBarMargin else (TabBarMargin - navBottom).coerceAtLeast(0.dp)
 }
 
 /**
