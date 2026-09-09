@@ -49,7 +49,7 @@ android {
         applicationId = "kr.ilf.soodalbbobgi"
         minSdk = 29
         targetSdk = 36
-        versionCode = 3
+        versionCode = 4
         // 0.1.0에서 시작해 **dev에 머지할 때마다 패치 자리를 +1** 한다.
         // 마이너·메이저 자리는 사용자가 지시할 때만 올린다.
         versionName = "0.1.18"
