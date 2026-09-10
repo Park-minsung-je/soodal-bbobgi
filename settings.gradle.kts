@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "SoodalBbobgi"
 include(":app")
+include(":baselineprofile")

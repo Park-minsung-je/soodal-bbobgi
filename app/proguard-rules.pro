@@ -2,11 +2,11 @@
 -keepattributes *Annotation*
 
 # 서버 DTO — Gson 리플렉션 직렬화라 필드명 유지 필수
--keep class com.soodalbbobgi.app.data.remote.** { *; }
+-keep class kr.ilf.soodalbbobgi.data.remote.** { *; }
 
 # 에셋 매니페스트 — AssetStore가 도메인 모델을 Gson으로 직접 읽고 쓴다 (manifest.json)
--keep class com.soodalbbobgi.app.domain.model.AssetManifest { *; }
--keep class com.soodalbbobgi.app.domain.model.AssetFile { *; }
+-keep class kr.ilf.soodalbbobgi.domain.model.AssetManifest { *; }
+-keep class kr.ilf.soodalbbobgi.domain.model.AssetFile { *; }
 
 -keep class com.kakao.sdk.** { *; }
 -keep class com.google.gson.** { *; }

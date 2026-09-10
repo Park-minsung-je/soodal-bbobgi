@@ -1,0 +1,11 @@
+package kr.ilf.soodalbbobgi.domain.model
+
+data class InventoryItem(
+    val id: Long = 0,
+    val userId: String,
+    val itemId: Long,
+    val grade: Grade,
+    val category: String,
+    val isEquippedAs: String = "NONE",
+    val acquiredAt: Long,
+)

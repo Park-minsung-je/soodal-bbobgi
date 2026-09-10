@@ -15,11 +15,21 @@
         <item name="postSplashScreenTheme">@style/Theme.SoodalBbobgi</item>
     </style>
 
+    <!-- Android 13 이하 Health Connect 앱이 읽는 선언.
+         HealthConnectManager의 세 권한 셋 — requiredPermissions(필수 게이트; 심박·모든 기간은 의도적으로 제외),
+         BASE_REQUEST_PERMISSIONS, requestPermissions — 그리고 매니페스트 uses-permission, HealthPermissionRationaleCopy,
+         HealthPermissionDeclarationTest(유닛 테스트로 이 여섯 개 일치를 강제)와 항상 1:1을 유지한다.
+         기록류(운동·거리·심박·칼로리) 권한은 Health Connect APK가 13 이하에서 기대하는 개명 전 androidx.health.permission.* 형태를 쓰고,
+         백그라운드·과거 기록 권한은 개명 전 형태가 없어 android.permission.health.* 그대로 쓴다 — 그래서 이 배열은 두 네임스페이스가 섞여 있다.
+         14+는 매니페스트 uses-permission을 본다. 권한을 더하거나 빼면 위 다섯 곳을 모두 함께 고친다. -->
     <array name="health_permissions">
         <item>androidx.health.permission.ExerciseSession.READ</item>
         <item>androidx.health.permission.Distance.READ</item>
+        <item>androidx.health.permission.HeartRate.READ</item>
         <item>androidx.health.permission.TotalCaloriesBurned.READ</item>
         <!-- 새 기록 알림 — 백그라운드에서 변경 여부 확인용 -->
         <item>android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND</item>
+        <!-- 지난 기록 가져오기·재연결 시 30일 이전 데이터 -->
+        <item>android.permission.health.READ_HEALTH_DATA_HISTORY</item>
     </array>
 </resources>

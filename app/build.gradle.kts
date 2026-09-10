@@ -1,5 +1,8 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.baselineprofile)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
@@ -7,38 +10,87 @@ plugins {
     alias(libs.plugins.aboutlibraries)
 }
 
+// 서버 주소·OAuth 키는 소스에 박지 않는다 — git 미추적 local.properties(또는 환경변수)에서 읽는다.
+// 키 목록과 형식은 local.properties.sample 참고.
+val localProps = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+/**
+ * 빌드 설정값을 local.properties → 환경변수 순으로 찾는다.
+ *
+ * @param key 설정 키
+ * @return 찾은 값. 없으면 빌드를 즉시 실패시킨다 (빈 값으로 잘못 빌드되는 것보다 낫다)
+ */
+fun buildSecret(key: String): String = localProps.getProperty(key)
+    ?: System.getenv(key)
+    ?: throw GradleException(
+        "빌드 설정 '$key'를 찾을 수 없습니다. " +
+            "local.properties.sample을 local.properties로 복사한 뒤 값을 채우세요.",
+    )
+
+// 릴리즈 서명 — keystore.properties가 있을 때만 활성 (파일·비밀번호는 git 미추적).
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
+val soodalBaseUrl = buildSecret("SOODAL_BASE_URL")
+val soodalAssetBaseUrl = buildSecret("SOODAL_ASSET_BASE_URL")
+val soodalKakaoNativeAppKey = buildSecret("SOODAL_KAKAO_NATIVE_APP_KEY")
+val soodalGoogleWebClientId = buildSecret("SOODAL_GOOGLE_WEB_CLIENT_ID")
+
 android {
-    namespace = "com.soodalbbobgi.app"
-    compileSdk = 35
+    namespace = "kr.ilf.soodalbbobgi"
+    compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.soodalbbobgi.app"
+        applicationId = "kr.ilf.soodalbbobgi"
         minSdk = 29
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        targetSdk = 36
+        versionCode = 5
+        // 0.1.0에서 시작해 **dev에 머지할 때마다 패치 자리를 +1** 한다.
+        // 마이너·메이저 자리는 사용자가 지시할 때만 올린다.
+        versionName = "0.1.22"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "BASE_URL", "\"https://bbobgi.soodal.ilf.kr/v1/\"")
-        buildConfigField("String", "ASSET_BASE_URL", "\"https://bbobgi.soodal.ilf.kr\"")
-        buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"ff9ecdb8cae1ebf2c9541f3aee571cca\"")
-        manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = "ff9ecdb8cae1ebf2c9541f3aee571cca"
+        buildConfigField("String", "BASE_URL", "\"$soodalBaseUrl\"")
+        buildConfigField("String", "ASSET_BASE_URL", "\"$soodalAssetBaseUrl\"")
+        buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"$soodalKakaoNativeAppKey\"")
+        manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = soodalKakaoNativeAppKey
         // Google Sign-In: idToken의 audience(aud) 클레임이 이 값으로 박힌다.
         // 서버 검증 시 audience 비교용 ID. Android client ID(SHA-1 매칭용)는 코드에 안 들어감.
-        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"338800630296-qrm3niallrtf804gi2n12qbcu2e0gg40.apps.googleusercontent.com\"")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$soodalGoogleWebClientId\"")
+    }
+
+    signingConfigs {
+        if (keystoreProps.isNotEmpty()) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
         debug {
-            buildConfigField("String", "BASE_URL", "\"https://bbobgi.soodal.ilf.kr/v1/\"")
-            buildConfigField("String", "ASSET_BASE_URL", "\"https://bbobgi.soodal.ilf.kr\"")
+            buildConfigField("String", "BASE_URL", "\"$soodalBaseUrl\"")
+            buildConfigField("String", "ASSET_BASE_URL", "\"$soodalAssetBaseUrl\"")
+            // 디버그도 릴리즈 키로 서명 — 디버그↔릴리즈를 지우지 않고 덮어쓸 수 있고,
+            // OAuth 지문 등록도 하나로 충분해진다. 키가 없는 PC는 기본 디버그 키 폴백.
+            if (keystoreProps.isNotEmpty()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // 테스트 설치용 디버그 서명 — OAuth(SHA-1/키해시)도 디버그 키 기준 등록이라 그대로 동작.
-            // Play 출시 시 릴리즈 키스토어로 교체.
-            signingConfig = signingConfigs.getByName("debug")
+            // keystore.properties가 있으면 릴리즈 키 서명, 없으면(다른 PC 등) 디버그 키 폴백.
+            signingConfig = if (keystoreProps.isNotEmpty()) signingConfigs.getByName("release")
+                            else signingConfigs.getByName("debug")
         }
     }
 
@@ -55,6 +107,8 @@ ksp {
 }
 
 dependencies {
+    implementation(libs.androidx.profileinstaller)
+    "baselineProfile"(project(":baselineprofile"))
     val composeBom = platform(libs.compose.bom)
     implementation(composeBom)
     implementation(libs.compose.ui)
