@@ -28,7 +28,8 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 
-enum class GachaPhase { Idle, Spinning, Reeling, Celebrating, Result }
+/** Locked = 룰렛이 멈춰 상자가 정해진 순간 — 상자가 튀어오르고 파동이 퍼진 뒤 인양으로 넘어간다. */
+enum class GachaPhase { Idle, Spinning, Locked, Reeling, Celebrating, Result }
 
 data class BoxInfo(
     val id: String,
@@ -267,6 +268,9 @@ internal fun planSpin(startOffset: Float, boxCount: Int, resultBoxIndex: Int): P
     return plan to targetOffset
 }
 
+/** 상자 확정 연출 시간 — 룰렛이 멈춘 자리에서 상자가 튀어오르고 파동이 퍼지는 동안 잠시 머문다. */
+const val LOCK_DURATION_MS = 600L
+
 /** 인양 연출 시간 — 갈고리 내리기 + 상자를 걸어 수면까지 감아올리기. */
 const val REEL_DURATION_MS = 1600L
 
@@ -388,8 +392,12 @@ class GachaViewModel @Inject constructor(
             }
             _localState.update { it.copy(offset = targetOffset) }
 
+            // 상자 확정 — 멈춘 상자가 튀어오르며 "이거다!" 하고 잠시 보여 준다
+            _localState.update { it.copy(phase = GachaPhase.Locked, risingBox = selectedBox.toBoxInfo()) }
+            delay(LOCK_DURATION_MS)
+
             // 인양 연출 — 멈춘 상자가 로프를 타고 수면으로 끌려 올라간다
-            _localState.update { it.copy(phase = GachaPhase.Reeling, risingBox = selectedBox.toBoxInfo()) }
+            _localState.update { it.copy(phase = GachaPhase.Reeling) }
             delay(REEL_DURATION_MS)
 
             run {

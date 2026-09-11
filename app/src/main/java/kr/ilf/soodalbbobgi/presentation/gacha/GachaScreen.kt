@@ -1,6 +1,8 @@
 ﻿package kr.ilf.soodalbbobgi.presentation.gacha
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -33,12 +35,16 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -341,7 +347,29 @@ private fun SalvageScene(
                 reel.snapTo(0f)
             }
         }
-        val reeling = phase != GachaPhase.Idle && phase != GachaPhase.Spinning && risingBox != null
+        val reeling = phase != GachaPhase.Idle && phase != GachaPhase.Spinning && phase != GachaPhase.Locked && risingBox != null
+
+        // ── 상자 확정 연출: 멈춘 상자가 튀어오르고(팝) 노란 파동 링이 퍼진다 + 짧은 햅틱 ──
+        val haptic = LocalHapticFeedback.current
+        val lockPop = remember { Animatable(1f) }
+        val lockRing = remember { Animatable(0f) }
+        LaunchedEffect(phase) {
+            if (phase == GachaPhase.Locked) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) // 가벼운 틱
+                lockRing.snapTo(0f)
+                lockPop.snapTo(1f)
+                launch { lockRing.animateTo(1f, tween(460, easing = LinearEasing)) }
+                // 커졌다 → 작아졌다 → 다시 커졌다 → 제자리: 한 번 튕기는 바운스
+                lockPop.animateTo(1.12f, tween(100))
+                lockPop.animateTo(0.94f, tween(120))
+                lockPop.animateTo(1.07f, tween(120))
+                lockPop.animateTo(1f, spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMedium))
+            } else if (phase == GachaPhase.Idle) {
+                lockPop.snapTo(1f)
+                lockRing.snapTo(0f)
+            }
+        }
+        val locked = phase == GachaPhase.Locked
         val reelP = if (phase == GachaPhase.Reeling) reel.value else 1f
         // 닻이 상자에 닿아 걸리는 구간(0.18~0.28) — 인양 상자 페이드 인과
         // 룰렛 중앙 상자 페이드 아웃이 같은 값으로 교차해 하나가 이어지는 것처럼 보인다.
@@ -370,7 +398,8 @@ private fun SalvageScene(
                     val bobRot = sin(bobT + boxIndex * 1.3f) * 1.2f
                     // 중앙(멈춘) 상자는 딤 없이 유지하다가 닻이 걸리는 순간 사라진다 —
                     // 같은 자리에서 페이드 인하는 인양 상자가 이어받아 "그 상자가 올라가는" 연출.
-                    val itemAlpha = if (reeling && di == 0) 1f - attachT else stripAlpha
+                    val itemAlpha = if ((reeling || locked) && di == 0) (if (reeling) 1f - attachT else 1f) else stripAlpha
+                    val itemScale = if (di == 0 && locked) lockPop.value else 1f
 
                     Box(
                         Modifier
@@ -379,6 +408,8 @@ private fun SalvageScene(
                             .graphicsLayer {
                                 rotationZ = bobRot
                                 alpha = itemAlpha
+                                scaleX = itemScale
+                                scaleY = itemScale
                             },
                         contentAlignment = Alignment.Center,
                     ) {
@@ -394,6 +425,22 @@ private fun SalvageScene(
                     }
                 }
             }
+        }
+
+        // ── 상자 확정 파동 링 — 중앙 상자에서 바깥으로 번지며 사라진다 ──
+        if (locked || lockRing.value in 0.01f..0.99f) {
+            val p = lockRing.value
+            Box(
+                Modifier
+                    .offset(x = (centerX - CHEST_W / 2f).dp, y = (CHEST_CY - CHEST_W / 2f).dp)
+                    .size(CHEST_W.dp)
+                    .graphicsLayer {
+                        val sc = 0.95f + 0.75f * p
+                        scaleX = sc; scaleY = sc
+                        alpha = (1f - p) * 0.6f
+                    }
+                    .border(2.dp, Color(0xFFFFE066), CircleShape),
+            )
         }
 
         // ── 좌우 가장자리 페이드 (수면 아래 영역만) ──
@@ -668,6 +715,7 @@ private fun SalvageScene(
         // ── 수달 말풍선 ──
         val otterLine = when (phase) {
             GachaPhase.Reeling -> "올라온다…!"
+            GachaPhase.Locked -> "저거다! 건져 올릴게!"
             GachaPhase.Spinning -> "영차… 영차…!"
             // 인양 완료 — 무슨 상자를 건졌는지 자랑한다 (잠시 외친 뒤 결과 팝업)
             GachaPhase.Celebrating, GachaPhase.Result ->
