@@ -381,6 +381,11 @@ private fun SalvageScene(
             targetValue = if (phase == GachaPhase.Idle || phase == GachaPhase.Spinning) 1f else 0.32f,
             animationSpec = tween(400), label = "strip",
         )
+        // 상하 흔들림은 대기 중에만 — 룰렛이 돌기 시작하면 0.3초에 걸쳐 잦아들고, 멈춘 상자도 흔들리지 않는다
+        val bobAmp by animateFloatAsState(
+            targetValue = if (phase == GachaPhase.Idle) 1f else 0f,
+            animationSpec = tween(300), label = "bobAmp",
+        )
         val bobT by infinite.animateFloat(
             initialValue = 0f, targetValue = (2 * Math.PI).toFloat(),
             animationSpec = infiniteRepeatable(tween(4200, easing = LinearEasing)),
@@ -395,8 +400,8 @@ private fun SalvageScene(
                     val boxIndex = ((i % boxes.size) + boxes.size) % boxes.size
                     val box = boxes[boxIndex]
                     val x = centerX + (i * slotW - offset) - CHEST_W / 2f
-                    val bobY = sin(bobT + boxIndex * 1.3f) * 2.5f
-                    val bobRot = sin(bobT + boxIndex * 1.3f) * 1.2f
+                    val bobY = sin(bobT + boxIndex * 1.3f) * 2.5f * bobAmp
+                    val bobRot = sin(bobT + boxIndex * 1.3f) * 1.2f * bobAmp
                     // 중앙(멈춘) 상자는 딤 없이 유지하다가 닻이 걸리는 순간 사라진다 —
                     // 같은 자리에서 페이드 인하는 인양 상자가 이어받아 "그 상자가 올라가는" 연출.
                     val itemAlpha = if ((reeling || locked) && di == 0) (if (attached) 0f else 1f) else stripAlpha
