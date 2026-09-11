@@ -9,11 +9,11 @@ import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.core.ui.SoodalIcons
 import kr.ilf.soodalbbobgi.data.remote.api.SoodalApi
 import kr.ilf.soodalbbobgi.data.remote.dto.GachaPullRequest
+import kr.ilf.soodalbbobgi.data.remote.dto.ServerGachaResult
 import kr.ilf.soodalbbobgi.domain.model.GachaBoxWithDrops
 import kr.ilf.soodalbbobgi.domain.model.Grade
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import timber.log.Timber
 import javax.inject.Inject
 
 enum class GachaPhase { Idle, Spinning, Reeling, Celebrating, Result }
@@ -63,6 +65,20 @@ val GACHA_BOXES = listOf(
     BoxInfo("mystery", SoodalIcons.Gift, "랜덤 상자", Color(0xFFE0B0FF)),
 )
 
+/**
+ * 룰렛이 멈출 상자를 서버 결과로 정한다 — 첫 결과가 나온 박스(boxId), 그게 없으면
+ * 첫 아이템 카테고리와 같은 박스. 둘 다 못 찾으면 null(호출부가 임의 상자로 연출).
+ * 혼합 뽑기는 서버가 박스를 고르므로 앱이 먼저 고르면 상자와 아이템이 어긋난다.
+ *
+ * @param boxes 뽑기 화면의 활성 박스 목록(룰렛 순서)
+ * @param results 서버 뽑기 결과 (10연은 첫 결과 기준)
+ */
+internal fun resolveStopBox(boxes: List<GachaBoxWithDrops>, results: List<ServerGachaResult>): GachaBoxWithDrops? {
+    val first = results.firstOrNull() ?: return null
+    return boxes.firstOrNull { it.id == first.boxId }
+        ?: first.item.category?.let { cat -> boxes.firstOrNull { it.category == cat } }
+}
+
 /** 인양 장면의 상자 슬롯 폭 (상자 92dp + 간격 26dp). */
 const val ITEM_WIDTH_WITH_GAP = 118f
 
@@ -96,6 +112,8 @@ class GachaViewModel @Inject constructor(
 
     data class LocalGachaState(
         val phase: GachaPhase = GachaPhase.Idle,
+        /** 서버 뽑기 응답을 기다리는 중 — 룰렛은 계속 천천히 돌고 버튼만 잠근다. */
+        val awaitingServer: Boolean = false,
         val offset: Float = 0f,
         val results: List<GachaResultItem> = emptyList(),
         val risingBox: BoxInfo? = null,
@@ -131,36 +149,51 @@ class GachaViewModel @Inject constructor(
         viewModelScope.launch {
             while (isActive) {
                 delay(16)
-                if (_localState.value.phase == GachaPhase.Idle) {
+                // 서버 응답을 기다리는 동안에도 멈추지 않게 — 정지 상자가 정해진 뒤 감속이 이어진다.
+                val local = _localState.value
+                if (local.phase == GachaPhase.Idle || local.awaitingServer) {
                     _localState.update { it.copy(offset = it.offset + 0.25f) }
                 }
             }
         }
     }
 
-    /** 룰렛을 자연스럽게 감속해 정지시킨 뒤, 매 뽑기마다 랜덤 박스로 서버 뽑기 실행. */
+    /**
+     * 서버 뽑기(매 뽑기마다 랜덤 박스)를 먼저 끝내고, 그 결과가 나온 상자에서 룰렛이 멈추도록
+     * 감속 연출을 돌린다. 응답을 기다리는 동안 룰렛은 계속 천천히 돈다.
+     */
     fun spin(count: Int) {
         // 할인 없음: 단발 1, 10연 10 (1회당 조개 1개)
         val cost = count
         val s = uiState.value
         if (s.shells < cost || s.phase != GachaPhase.Idle) return
 
-        _localState.update { it.copy(phase = GachaPhase.Spinning) }
+        _localState.update { it.copy(phase = GachaPhase.Spinning, awaitingServer = true) }
 
         viewModelScope.launch {
-            val startOffset = _localState.value.offset
             val activeBoxes: List<GachaBoxWithDrops> = appState.gachaBoxes.value
             if (activeBoxes.isEmpty()) {
-                _localState.update { it.copy(phase = GachaPhase.Idle) }
+                _localState.update { it.copy(phase = GachaPhase.Idle, awaitingServer = false) }
                 return@launch
             }
-            val selectedBox = activeBoxes.random()
-            val resultBoxIndex = activeBoxes.indexOf(selectedBox)
 
-            // 애니메이션과 병행: 서버에서 가챠 실행 (mixed=true → 매 뽑기마다 랜덤 박스)
-            val pullDeferred = async(Dispatchers.IO) {
-                soodalApi.gachaPull(GachaPullRequest(count = count, mixed = true))
+            // 정지 상자를 알아야 감속 목표를 잡을 수 있으므로 서버 결과부터 받는다.
+            val response = try {
+                withContext(Dispatchers.IO) { soodalApi.gachaPull(GachaPullRequest(count = count, mixed = true)) }
+            } catch (e: Exception) {
+                Timber.w(e, "뽑기 요청 실패")
+                null
             }
+            val data = response?.takeIf { it.success }?.data
+            val results = data?.results ?: run {
+                _localState.update { it.copy(phase = GachaPhase.Idle, awaitingServer = false, risingBox = null) }
+                return@launch
+            }
+            // 서버가 고른 상자에서 멈춘다 — 못 찾으면(구서버 응답) 임의 상자로 연출만 한다.
+            val selectedBox = resolveStopBox(activeBoxes, results) ?: activeBoxes.random()
+            val resultBoxIndex = activeBoxes.indexOf(selectedBox)
+            _localState.update { it.copy(awaitingServer = false) }
+            val startOffset = _localState.value.offset
 
             val boxCount = activeBoxes.size.coerceAtLeast(1)
             val currentSlot = (startOffset / ITEM_WIDTH_WITH_GAP).toInt()
@@ -196,9 +229,8 @@ class GachaViewModel @Inject constructor(
             _localState.update { it.copy(phase = GachaPhase.Reeling, risingBox = selectedBox.toBoxInfo()) }
             delay(REEL_DURATION_MS)
 
-            val response = pullDeferred.await()
-            if (response.success && response.data != null) {
-                val batch = response.data.results.map { r ->
+            run {
+                val batch = results.map { r ->
                     GachaResultItem(
                         name = r.item.name,
                         grade = Grade.fromString(r.item.grade),
@@ -210,7 +242,7 @@ class GachaViewModel @Inject constructor(
                     )
                 }
                 // 서버 응답으로 메모리 즉시 반영 (currency + 신규 인벤토리)
-                appStateLoader.applyGachaResults(response.data.results, response.data.currency)
+                appStateLoader.applyGachaResults(results, data.currency)
 
                 // 수달이 건진 상자를 자랑할 시간을 준 뒤 결과 팝업을 띄운다
                 _localState.update {
@@ -218,8 +250,6 @@ class GachaViewModel @Inject constructor(
                 }
                 delay(CELEBRATE_MS)
                 _localState.update { it.copy(phase = GachaPhase.Result) }
-            } else {
-                _localState.update { it.copy(phase = GachaPhase.Idle, risingBox = null) }
             }
         }
     }
