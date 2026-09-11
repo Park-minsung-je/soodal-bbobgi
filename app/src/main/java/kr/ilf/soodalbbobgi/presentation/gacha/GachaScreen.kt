@@ -371,9 +371,9 @@ private fun SalvageScene(
         }
         val locked = phase == GachaPhase.Locked
         val reelP = if (phase == GachaPhase.Reeling) reel.value else 1f
-        // 닻이 상자에 닿아 걸리는 구간(0.18~0.28) — 인양 상자 페이드 인과
-        // 룰렛 중앙 상자 페이드 아웃이 같은 값으로 교차해 하나가 이어지는 것처럼 보인다.
-        val attachT = ((reelP - 0.18f) / 0.10f).coerceIn(0f, 1f)
+        // 닻이 상자 위에 닿는 순간(REEL_DROP_FRAC) 룰렛 중앙 상자를 인양 상자로 바로 바꿔 끼운다 —
+        // 같은 자리·같은 크기라 끊김 없이 "그 상자가 올라가는" 것으로 보인다. 교차 페이드는 잠깐 둘로 보였다.
+        val attached = reeling && reelP >= REEL_DROP_FRAC
 
         // ── 심해를 떠다니는 상자 줄 (룰렛) ──
         val stripAlpha by animateFloatAsState(
@@ -398,7 +398,7 @@ private fun SalvageScene(
                     val bobRot = sin(bobT + boxIndex * 1.3f) * 1.2f
                     // 중앙(멈춘) 상자는 딤 없이 유지하다가 닻이 걸리는 순간 사라진다 —
                     // 같은 자리에서 페이드 인하는 인양 상자가 이어받아 "그 상자가 올라가는" 연출.
-                    val itemAlpha = if ((reeling || locked) && di == 0) (if (reeling) 1f - attachT else 1f) else stripAlpha
+                    val itemAlpha = if ((reeling || locked) && di == 0) (if (attached) 0f else 1f) else stripAlpha
                     val itemScale = if (di == 0 && locked) lockPop.value else 1f
 
                     Box(
@@ -543,10 +543,11 @@ private fun SalvageScene(
             }
         }
 
-        // ── 닻에 걸려 올라오는 상자 ── (attachT에 맞춰 페이드 인 — 룰렛 중앙 상자와 교차)
+        // ── 닻에 걸려 올라오는 상자 ── (닻이 닿는 순간 룰렛 중앙 상자 자리에서 그대로 이어받는다)
         if (reeling && risingBox != null) {
             val liftT = ((reelP - REEL_DROP_FRAC) / (1f - REEL_DROP_FRAC)).coerceIn(0f, 1f)
-            val chestScale = lerp(1f, 1.15f, liftT)
+            // 룰렛 상자(92dp)와 같은 크기에서 출발해 올라오며 커진다
+            val chestScale = lerp(CHEST_W / 100f, 1.15f, liftT)
             val wiggle = sin(reelP * 18f) * (1f - liftT) * 2.2f
             val chestCenterY = anchorPos.y + CHEST_HANG
 
@@ -559,7 +560,7 @@ private fun SalvageScene(
                         scaleX = chestScale
                         scaleY = chestScale
                         rotationZ = wiggle
-                        alpha = attachT
+                        alpha = if (attached) 1f else 0f
                     },
                 contentAlignment = Alignment.Center,
             ) {
