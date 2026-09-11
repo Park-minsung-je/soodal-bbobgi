@@ -99,6 +99,8 @@ private const val SCENE_H = 412f
 private const val SURFACE_Y = 103f        // 수면 y
 private const val CHEST_CY = 261f         // 떠다니는 상자들의 세로 중심
 private const val CHEST_W = 92f
+/** 확정 연출이 끝난 뒤 뽑힌 상자가 유지하는 크기 배율 — 인양 상자도 이 크기에서 이어받는다. */
+private const val LOCK_FINAL_SCALE = 1.1f
 private const val RAFT_W = 132f
 private const val RAFT_H = 16f
 private const val CHEST_HANG = 40f                                // 닻 끝 → 매달린 상자 중심
@@ -359,11 +361,10 @@ private fun SalvageScene(
                 lockRing.snapTo(0f)
                 lockPop.snapTo(1f)
                 launch { lockRing.animateTo(1f, tween(460, easing = LinearEasing)) }
-                // 커졌다 → 작아졌다 → 다시 커졌다 → 제자리: 한 번 튕기는 바운스
-                lockPop.animateTo(1.12f, tween(100))
-                lockPop.animateTo(0.94f, tween(120))
-                lockPop.animateTo(1.07f, tween(120))
-                lockPop.animateTo(1f, spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMedium))
+                // 커졌다 → 작아졌다 → 다시 커져서 그 크기로 머문다: 뽑힌 상자는 끝까지 조금 큰 채로 올라간다
+                lockPop.animateTo(1.16f, tween(100))
+                lockPop.animateTo(0.95f, tween(120))
+                lockPop.animateTo(LOCK_FINAL_SCALE, spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium))
             } else if (phase == GachaPhase.Idle) {
                 lockPop.snapTo(1f)
                 lockRing.snapTo(0f)
@@ -399,7 +400,8 @@ private fun SalvageScene(
                     // 중앙(멈춘) 상자는 딤 없이 유지하다가 닻이 걸리는 순간 사라진다 —
                     // 같은 자리에서 페이드 인하는 인양 상자가 이어받아 "그 상자가 올라가는" 연출.
                     val itemAlpha = if ((reeling || locked) && di == 0) (if (attached) 0f else 1f) else stripAlpha
-                    val itemScale = if (di == 0 && locked) lockPop.value else 1f
+                    // 확정 뒤엔 인양 상자로 바뀔 때까지 커진 크기를 유지한다
+                    val itemScale = if (di == 0 && (locked || reeling)) lockPop.value else 1f
 
                     Box(
                         Modifier
@@ -546,8 +548,8 @@ private fun SalvageScene(
         // ── 닻에 걸려 올라오는 상자 ── (닻이 닿는 순간 룰렛 중앙 상자 자리에서 그대로 이어받는다)
         if (reeling && risingBox != null) {
             val liftT = ((reelP - REEL_DROP_FRAC) / (1f - REEL_DROP_FRAC)).coerceIn(0f, 1f)
-            // 룰렛 상자(92dp)와 같은 크기에서 출발해 올라오며 커진다
-            val chestScale = lerp(CHEST_W / 100f, 1.15f, liftT)
+            // 확정으로 커진 룰렛 상자(92dp × LOCK_FINAL_SCALE)와 같은 크기에서 출발해 올라오며 조금 더 커진다
+            val chestScale = lerp(CHEST_W / 100f * LOCK_FINAL_SCALE, 1.2f, liftT)
             val wiggle = sin(reelP * 18f) * (1f - liftT) * 2.2f
             val chestCenterY = anchorPos.y + CHEST_HANG
 
