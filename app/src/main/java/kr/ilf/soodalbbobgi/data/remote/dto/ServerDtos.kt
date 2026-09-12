@@ -246,6 +246,11 @@ data class ShellRewardData(
     val newBalance: Int,
 )
 
+/** GET /app/version 응답 — 서버가 정한 최소 versionCode. */
+data class AppVersionData(
+    val minVersionCode: Int,
+)
+
 /** GET /swim-logs 응답 */
 data class SwimLogsData(
     val items: List<ServerSwimLog>,

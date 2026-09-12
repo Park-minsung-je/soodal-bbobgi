@@ -37,6 +37,12 @@ interface SoodalApi {
     @POST("auth/logout")
     suspend fun logout(@Body request: RefreshRequest): ApiResponse<Unit>
 
+    // ── App ──
+
+    /** 앱 최소 버전 — 이보다 낮은 versionCode는 즉시(강제) 인앱 업데이트. 인증 없음. */
+    @GET("app/version")
+    suspend fun getAppVersion(): ApiResponse<AppVersionData>
+
     // ── User ──
 
     /** 현재 사용자 정보 조회 */
