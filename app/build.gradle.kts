@@ -140,6 +140,8 @@ dependencies {
     implementation(libs.okhttp.logging)
 
     implementation(libs.health.connect)
+    // Play 인앱 업데이트 — 새 버전 안내(유연)·강제(즉시). Play 설치본에서만 동작한다.
+    implementation(libs.play.app.update.ktx)
 
     implementation(libs.credentials)
     implementation(libs.credentials.play.services)
