@@ -15,6 +15,7 @@ import kr.ilf.soodalbbobgi.data.remote.api.SoodalApi
 import kr.ilf.soodalbbobgi.data.remote.dto.AuthData
 import kr.ilf.soodalbbobgi.data.remote.dto.GoogleAuthRequest
 import kr.ilf.soodalbbobgi.data.remote.dto.KakaoAuthRequest
+import kr.ilf.soodalbbobgi.work.NotificationSchedules
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +41,7 @@ class AuthViewModel @Inject constructor(
     private val appState: AppState,
     private val assetManager: AssetManager,
     private val hcSwimSyncer: HcSwimSyncer,
+    private val notificationSchedules: NotificationSchedules,
     @ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -70,6 +72,8 @@ class AuthViewModel @Inject constructor(
                     // 다른 계정이면 온보딩/홈 진입 전에 로컬을 비운다 — 초기화가 토큰도 지우므로 저장보다 앞에 둔다
                     accountSwitchGuard.ensureLocalOwnedBy(data.user.id)
                     tokenStore.saveTokens(data.accessToken, data.refreshToken, data.expiresIn)
+                    // 로그아웃이 걷어 낸 알림 예약을 설정대로 되살린다 (토큰 저장 뒤 = 로그인 상태)
+                    notificationSchedules.restoreIfLoggedIn()
 
                     // 전체 서버 상태 로드 (profile/currency/inventory/gachaBoxes/profileCard)
                     val loaded = appStateLoader.loadAll()
@@ -120,6 +124,8 @@ class AuthViewModel @Inject constructor(
                     // 다른 계정이면 온보딩/홈 진입 전에 로컬을 비운다 — 초기화가 토큰도 지우므로 저장보다 앞에 둔다
                     accountSwitchGuard.ensureLocalOwnedBy(data.user.id)
                     tokenStore.saveTokens(data.accessToken, data.refreshToken, data.expiresIn)
+                    // 로그아웃이 걷어 낸 알림 예약을 설정대로 되살린다 (토큰 저장 뒤 = 로그인 상태)
+                    notificationSchedules.restoreIfLoggedIn()
 
                     val loaded = appStateLoader.loadAll()
                     if (loaded.isFailure) {

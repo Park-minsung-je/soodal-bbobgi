@@ -96,7 +96,7 @@ class LocalDataResetterTest {
     }
 
     @Test
-    fun `clearSession은 토큰과 메모리만 끊고 로컬 데이터는 남긴다`() = runTest {
+    fun `clearSession은 토큰과 메모리를 끊고 알림 예약을 멈추되 로컬 데이터는 남긴다`() = runTest {
         val io = StandardTestDispatcher(testScheduler)
         appState.applyProfile(UserProfile("u1", "수달이", null, null, "google"))
 
@@ -105,7 +105,10 @@ class LocalDataResetterTest {
         verify { tokenStore.clearTokens() }
         assertThat(appState.profile.value).isNull()
         assertThat(userSession.userId).isNotEqualTo("u1")
+        // 로그아웃 상태에서 리마인더·새 기록 알림이 오지 않도록 예약과 게시 알림을 걷는다 (R45)
+        verify(exactly = 1) { reminder.cancel(); hcCheck.cancel(); notifier.cancelAll() }
+        // 알림 설정 자체는 남겨 재로그인 때 그대로 재예약한다
         coVerify(exactly = 0) { db.clearAllTables() }
-        verify(exactly = 0) { hcPrefs.clearAll(); notifyPrefs.clear(); accountPrefs.clear(); reminder.cancel() }
+        verify(exactly = 0) { hcPrefs.clearAll(); notifyPrefs.clear(); accountPrefs.clear() }
     }
 }

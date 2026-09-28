@@ -35,17 +35,17 @@ class SwimReminderReceiver : BroadcastReceiver() {
 }
 
 /**
- * 재부팅·앱 업데이트 뒤 리마인더 알람 복구 — AlarmManager 알람은 이 두 경우에 지워진다.
- * 리마인더가 꺼져 있으면 아무것도 하지 않는다.
+ * 재부팅·앱 업데이트 뒤 알림 예약 복구 — AlarmManager 알람은 이 두 경우에 지워진다.
+ * 로그아웃 상태거나 알림이 꺼져 있으면 아무것도 하지 않는다.
  */
 @AndroidEntryPoint
 class ReminderBootReceiver : BroadcastReceiver() {
 
-    @Inject lateinit var scheduler: ReminderScheduler
+    @Inject lateinit var schedules: NotificationSchedules
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
-            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> scheduler.rescheduleIfEnabled()
+            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> schedules.restoreIfLoggedIn()
         }
     }
 }

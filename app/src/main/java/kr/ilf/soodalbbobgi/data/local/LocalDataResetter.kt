@@ -78,9 +78,6 @@ class LocalDataResetter @VisibleForTesting internal constructor(
      */
     suspend fun clearAll(keepAssets: Boolean = true) {
         clearSession()
-        reminderScheduler.cancel()
-        hcChangeCheckScheduler.cancel()
-        notifier.cancelAll()
         withContext(ioDispatcher) {
             // Room은 메인 스레드에서 clearAllTables()를 거부한다 (생성 코드 assertNotMainThread)
             db.clearAllTables()
@@ -94,7 +91,9 @@ class LocalDataResetter @VisibleForTesting internal constructor(
     }
 
     /**
-     * 세션만 끊는다 — 토큰·메모리 상태·진행 중인 백그라운드 동기화. 로컬 데이터는 남긴다(로그아웃용).
+     * 세션을 끊는다 — 토큰·메모리 상태·진행 중인 백그라운드 동기화·알림 예약. 로컬 데이터와 알림 설정은 남긴다(로그아웃용).
+     * 로그아웃 상태에서 리마인더·새 기록 알림이 오지 않도록 예약과 게시된 알림을 걷고,
+     * 재로그인 때 [kr.ilf.soodalbbobgi.work.NotificationSchedules]가 설정대로 다시 예약한다.
      * 다른 계정이 이어서 로그인하면 [kr.ilf.soodalbbobgi.data.auth.AccountSwitchGuard]가 [clearAll]로 정리한다.
      */
     fun clearSession() {
@@ -103,6 +102,9 @@ class LocalDataResetter @VisibleForTesting internal constructor(
         tokenStore.clearTokens()
         appState.clear()
         userSession.clear()
+        reminderScheduler.cancel()
+        hcChangeCheckScheduler.cancel()
+        notifier.cancelAll()
     }
 
     companion object {
