@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.kakao.sdk.common.KakaoSdk
 import dagger.hilt.android.HiltAndroidApp
+import kr.ilf.soodalbbobgi.work.ReminderScheduler
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -12,6 +13,7 @@ import javax.inject.Inject
 class SoodalBbobgiApp : Application(), Configuration.Provider {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
+    @Inject lateinit var reminderScheduler: ReminderScheduler
 
     /** WorkManager on-demand 초기화 설정 — @HiltWorker 주입을 위해 HiltWorkerFactory 사용. */
     override val workManagerConfiguration: Configuration
@@ -25,5 +27,7 @@ class SoodalBbobgiApp : Application(), Configuration.Provider {
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
+        // 강제 종료 등으로 알람이 지워졌어도 프로세스가 다시 뜨면 되살린다 (같은 시각이면 교체라 중복 없음)
+        reminderScheduler.rescheduleIfEnabled()
     }
 }

@@ -18,3 +18,14 @@ fun nextReminderDelayMillis(nowMillis: Long, hour: Int, minute: Int, zone: ZoneI
     if (!target.isAfter(now)) target = target.plusDays(1)
     return target.toInstant().toEpochMilli() - nowMillis
 }
+
+/**
+ * 다음 리마인더 발화의 절대 시각(epoch ms) — AlarmManager RTC 알람에 그대로 넘긴다.
+ *
+ * @param nowMillis 현재 시각 (epoch ms)
+ * @param hour 목표 시 (0~23)
+ * @param minute 목표 분 (0~59)
+ * @param zone 사용자 시간대
+ */
+fun nextReminderTriggerMillis(nowMillis: Long, hour: Int, minute: Int, zone: ZoneId): Long =
+    nowMillis + nextReminderDelayMillis(nowMillis, hour, minute, zone)
