@@ -351,6 +351,15 @@ fun SettingsScreen(
                             null -> Text("확인 중…", fontSize = 12.sp, color = colors.textTertiary)
                         }
                     }
+                    // 온보딩과 달리 여기서 연결하면 HC 화면의 "백그라운드에서 데이터 액세스" 스위치에 설명이 없다 —
+                    // 왜 켜야 하는지 한 줄로 알려 새 기록 알림이 조용히 끊기지 않게 한다.
+                    Text(
+                        text = "수영 기록을 자동으로 가져와 조개를 받아요. 백그라운드 읽기까지 켜야 앱을 닫아도 새 기록을 알려 드려요.",
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
+                        color = colors.textSecondary,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
+                    )
                 }
             }
 
