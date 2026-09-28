@@ -195,7 +195,8 @@ class SettingsViewModelTest {
 
         coVerify(exactly = 1) { healthConnectManager.revokeAllPermissions() }
         coVerify(exactly = 1) { resetter.clearAll(keepAssets = true) }
-        assertThat(vm.signedOut.value).isTrue()
+        // 탈퇴는 HC 권한 회수가 프로세스 종료 뒤에 적용되므로 화면이 프로세스를 죽이며 재시작해야 한다
+        assertThat(vm.signedOut.value).isEqualTo(SignOut.AccountDeleted)
         assertThat(vm.accountAction.value).isEqualTo(AccountActionState.Idle)
     }
 
@@ -211,7 +212,7 @@ class SettingsViewModelTest {
         coVerify(exactly = 0) { resetter.clearAll(any()) }
         verify(exactly = 0) { resetter.clearSession() }
         coVerify(exactly = 0) { healthConnectManager.revokeAllPermissions() }
-        assertThat(vm.signedOut.value).isFalse()
+        assertThat(vm.signedOut.value).isNull()
         assertThat(vm.accountAction.value).isInstanceOf(AccountActionState.Error::class.java)
     }
 
@@ -229,7 +230,7 @@ class SettingsViewModelTest {
         verify(exactly = 1) { resetter.clearSession() }
         coVerify(exactly = 0) { resetter.clearAll(any()) }
         coVerify(exactly = 0) { healthConnectManager.revokeAllPermissions() }
-        assertThat(vm.signedOut.value).isTrue()
+        assertThat(vm.signedOut.value).isEqualTo(SignOut.LoggedOut)
     }
 
     // ── 탈퇴·로그아웃 시 프로바이더 기기 세션 정리 (R6 앱) ──
@@ -258,7 +259,7 @@ class SettingsViewModelTest {
             resetter.clearAll(keepAssets = true)
         }
         coVerify(exactly = 0) { google.clearCredentialState() }
-        assertThat(vm.signedOut.value).isTrue()
+        assertThat(vm.signedOut.value).isEqualTo(SignOut.AccountDeleted)
     }
 
     @Test
@@ -287,7 +288,7 @@ class SettingsViewModelTest {
         vm.deleteAccount()
 
         coVerify(exactly = 1) { resetter.clearAll(keepAssets = true) }
-        assertThat(vm.signedOut.value).isTrue()
+        assertThat(vm.signedOut.value).isEqualTo(SignOut.AccountDeleted)
         assertThat(vm.accountAction.value).isEqualTo(AccountActionState.Idle)
     }
 
@@ -320,7 +321,7 @@ class SettingsViewModelTest {
             kakao.signOutLocally()
             resetter.clearSession()
         }
-        assertThat(vm.signedOut.value).isTrue()
+        assertThat(vm.signedOut.value).isEqualTo(SignOut.LoggedOut)
     }
 
     // ── 닉네임 저장 · 쿨다운 ──

@@ -81,7 +81,7 @@ private const val HC_BG_READ_PERMISSION = "android.permission.health.READ_HEALTH
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
-    onSignedOut: () -> Unit,
+    onSignedOut: (SignOut) -> Unit,
     onOpenLicenses: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -104,7 +104,7 @@ fun SettingsScreen(
     val deleteFlow = remember { DeleteAccountFlow() }
 
     // 로그아웃/탈퇴 완료 → Auth로
-    LaunchedEffect(signedOut) { if (signedOut) onSignedOut() }
+    LaunchedEffect(signedOut) { signedOut?.let(onSignedOut) }
 
 
     // 닉네임 저장 성공 → 다이얼로그 닫기
@@ -503,7 +503,7 @@ fun SettingsScreen(
         // 최종 확인: 여기서만 서버 삭제를 부르고, 실패 메시지·처리 중 표시도 이 팝업에 인라인으로 남긴다.
         DeleteAccountFlow.Step.Final -> ConfirmActionDialog(
             title = "정말 탈퇴할까요?",
-            message = "지금 탈퇴하면 수영 기록·수달·조개·진주가 모두 삭제돼요.\n이 작업은 되돌릴 수 없어요.",
+            message = "지금 탈퇴하면 수영 기록·수달·조개·진주가 모두 삭제돼요.\n이 작업은 되돌릴 수 없어요. 탈퇴가 끝나면 앱이 종료돼요.",
             confirmText = "네, 탈퇴할게요",
             working = accountAction is AccountActionState.Working,
             errorMessage = (accountAction as? AccountActionState.Error)?.message,

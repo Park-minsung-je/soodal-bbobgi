@@ -29,3 +29,15 @@ fun Context.restartApp() {
     startActivity(Intent.makeRestartActivityTask(component))
     findActivity()?.finish()
 }
+
+/**
+ * 앱을 완전히 닫는다 — 태스크를 지우고 프로세스를 끝낸다. 다음 실행은 아이콘에서 스플래시부터.
+ *
+ * 탈퇴용. 탈퇴 때 회수한 Health Connect 권한은 시스템이 **앱이 포그라운드를 떠난 뒤** 프로세스를 죽이며 적용한다
+ * (`revokeSelfPermissionsOnKill`: 포그라운드에 있는 동안은 실행되지 않는다). 재시작하면 새 태스크가 곧바로
+ * 포그라운드에 올라 회수가 계속 미뤄지고, 새 계정 온보딩이 권한을 아직 가진 것으로 본다.
+ */
+fun Context.closeApp() {
+    findActivity()?.finishAndRemoveTask()
+    Runtime.getRuntime().exit(0)
+}

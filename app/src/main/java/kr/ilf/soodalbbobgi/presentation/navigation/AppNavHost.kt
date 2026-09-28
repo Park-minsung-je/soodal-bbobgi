@@ -64,6 +64,9 @@ import kr.ilf.soodalbbobgi.presentation.onboarding.OnboardingPermissionScreen
 import kr.ilf.soodalbbobgi.presentation.profile.ProfileFullscreenOverlay
 import kr.ilf.soodalbbobgi.presentation.settings.LicensesScreen
 import kr.ilf.soodalbbobgi.presentation.settings.SettingsScreen
+import kr.ilf.soodalbbobgi.presentation.settings.SignOut
+import kr.ilf.soodalbbobgi.core.util.closeApp
+import android.widget.Toast
 import kr.ilf.soodalbbobgi.presentation.shop.ShopScreen
 import kr.ilf.soodalbbobgi.presentation.splash.SplashDestination
 import kr.ilf.soodalbbobgi.presentation.splash.SplashScreen
@@ -228,7 +231,16 @@ fun AppNavHost(navController: NavHostController) {
                             onBack = { navController.popBackStack() },
                             // 로그아웃/탈퇴 → 스플래시부터 재진입. 내비 저장 상태와 탭 ViewModel(캘린더 월 등)까지 새로 만든다.
                             // popUpTo(0)만으로는 backStackStates에 남은 탭 ViewModel이 재로그인 후 복원됐다.
-                            onSignedOut = { context.restartApp() },
+                            // 탈퇴는 재시작이 아니라 종료 — HC 권한 회수가 앱이 포그라운드를 떠난 뒤에야 적용되기 때문(SignOut 참고).
+                            onSignedOut = { mode ->
+                                when (mode) {
+                                    SignOut.LoggedOut -> context.restartApp()
+                                    SignOut.AccountDeleted -> {
+                                        Toast.makeText(context, "탈퇴가 완료돼 앱을 종료할게요.", Toast.LENGTH_SHORT).show()
+                                        context.closeApp()
+                                    }
+                                }
+                            },
                             onOpenLicenses = { navController.navigateOnce(Screen.Licenses.route) },
                         )
                     }
