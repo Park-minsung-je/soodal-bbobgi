@@ -26,7 +26,11 @@ class SoodalNotifier @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
 
-    private fun ensureChannels() {
+    /**
+     * 알림 채널 2종을 만든다(있으면 그대로). 앱 시작 때 부른다 —
+     * 첫 알림을 보낼 때 만들면 그 전까지 시스템 알림 설정에 카테고리가 없어 사용자가 조정할 수 없다.
+     */
+    fun ensureChannels() {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_REMINDER, "수영 리마인더", NotificationManager.IMPORTANCE_DEFAULT)
