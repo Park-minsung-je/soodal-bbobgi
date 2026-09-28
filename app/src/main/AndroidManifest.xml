@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 재부팅 뒤 리마인더 알람 재예약 (설치 시 자동 부여) -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Health Connect 권한 — 앱은 HC에 기록을 쓰지 않으므로 읽기 전용만 선언 -->
     <uses-permission android:name="android.permission.health.READ_EXERCISE" />
@@ -79,6 +81,21 @@
         <meta-data
             android:name="health_permissions"
             android:resource="@array/health_permissions" />
+
+        <!-- 수영 리마인더 알람 수신 (앱 내부 PendingIntent 전용) -->
+        <receiver
+            android:name=".work.SwimReminderReceiver"
+            android:exported="false" />
+
+        <!-- 재부팅·앱 업데이트 뒤 리마인더 알람 복구 -->
+        <receiver
+            android:name=".work.ReminderBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- WorkManager 자동 초기화 제거 — Hilt WorkerFactory를 쓰는 on-demand 초기화 -->
         <provider

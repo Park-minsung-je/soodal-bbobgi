@@ -49,10 +49,10 @@ android {
         applicationId = "kr.ilf.soodalbbobgi"
         minSdk = 29
         targetSdk = 36
-        versionCode = 6
+        versionCode = 7
         // 0.1.0에서 시작해 **dev에 머지할 때마다 패치 자리를 +1** 한다.
         // 마이너·메이저 자리는 사용자가 지시할 때만 올린다.
-        versionName = "0.1.23"
+        versionName = "0.1.25"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "BASE_URL", "\"$soodalBaseUrl\"")
         buildConfigField("String", "ASSET_BASE_URL", "\"$soodalAssetBaseUrl\"")
@@ -140,6 +140,8 @@ dependencies {
     implementation(libs.okhttp.logging)
 
     implementation(libs.health.connect)
+    // Play 인앱 업데이트 — 새 버전 안내(유연)·강제(즉시). Play 설치본에서만 동작한다.
+    implementation(libs.play.app.update.ktx)
 
     implementation(libs.credentials)
     implementation(libs.credentials.play.services)

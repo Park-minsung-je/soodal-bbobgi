@@ -17,6 +17,7 @@ import kr.ilf.soodalbbobgi.data.remote.dto.ApiResponse
 import kr.ilf.soodalbbobgi.data.remote.dto.AuthData
 import kr.ilf.soodalbbobgi.data.remote.dto.GoogleAuthRequest
 import kr.ilf.soodalbbobgi.data.remote.dto.UserData
+import kr.ilf.soodalbbobgi.work.NotificationSchedules
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
@@ -52,6 +53,7 @@ class AuthViewModelTest {
     private lateinit var appState: AppState
     private lateinit var assetManager: AssetManager
     private lateinit var hcSwimSyncer: HcSwimSyncer
+    private lateinit var notificationSchedules: NotificationSchedules
     private lateinit var activity: Activity
 
     @Before
@@ -66,6 +68,7 @@ class AuthViewModelTest {
         appState = AppState()
         assetManager = mockk(relaxed = true)
         hcSwimSyncer = mockk(relaxed = true)
+        notificationSchedules = mockk(relaxed = true)
         activity = mockk(relaxed = true)
         coEvery { appStateLoader.loadAll() } returns Result.success(Unit)
         coEvery { assetManager.sync() } returns Result.success(Unit)
@@ -76,7 +79,7 @@ class AuthViewModelTest {
     @After fun tearDown() { Dispatchers.resetMain() }
 
     private fun vm() = AuthViewModel(kakao, google, api, tokenStore, guard, appStateLoader, appState,
-        assetManager, hcSwimSyncer, CoroutineScope(UnconfinedTestDispatcher()))
+        assetManager, hcSwimSyncer, notificationSchedules, CoroutineScope(UnconfinedTestDispatcher()))
 
     @Test
     fun `loginWithGoogle on new user routes to Onboarding`() = runTest {
@@ -410,4 +413,31 @@ class AuthViewModelTest {
         lastShellGrantDate = null, gender = null, ageRange = null,
         authProvider = "google", createdAt = 0L,
     )
+
+    @Test
+    fun `loginWithGoogle restores notification schedules after saving tokens`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.success("idtok")
+        coEvery { api.authGoogle(GoogleAuthRequest("idtok")) } returns ApiResponse(
+            success = true,
+            data = AuthData(accessToken = "at", refreshToken = "rt", expiresIn = 3600L, isNewUser = false, user = sampleUser(nickname = "수달이")),
+            error = null,
+        )
+
+        vm().loginWithGoogle(activity)
+
+        // 로그아웃이 예약을 걷었으므로 토큰이 저장된 뒤(=로그인 상태) 설정대로 되살린다 (R45)
+        coVerifyOrder {
+            tokenStore.saveTokens("at", "rt", 3600L)
+            notificationSchedules.restoreIfLoggedIn()
+        }
+    }
+
+    @Test
+    fun `loginWithGoogle does not restore notification schedules when sign-in fails`() = runTest {
+        coEvery { google.signIn(activity) } returns Result.failure(RuntimeException("cancelled"))
+
+        vm().loginWithGoogle(activity)
+
+        coVerify(exactly = 0) { notificationSchedules.restoreIfLoggedIn() }
+    }
 }

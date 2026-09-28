@@ -9,7 +9,7 @@ package kr.ilf.soodalbbobgi.domain.model
  * @param textAlign 텍스트 블록 내부 줄 정렬 ("LEFT" | "RIGHT").
  * @param textX 텍스트 블록 가로 위치 (0~1). 정렬에 따라 좌/우 앵커 기준.
  * @param textY 텍스트 블록 세로 중심 위치 (0~1).
- * @param textScaleStep 블록 크기 단계 (1~5, 3이 기본).
+ * @param textScaleStep 블록 크기 단계 (1~7, 3이 기본 — 서버 검증 범위와 동일).
  * @param showStats 기록(통계) 줄 표시 여부.
  * @param nicknameColor 닉네임 색상 ("#RRGGBB").
  * @param taglineColor 소개 줄 색상 ("#RRGGBB").

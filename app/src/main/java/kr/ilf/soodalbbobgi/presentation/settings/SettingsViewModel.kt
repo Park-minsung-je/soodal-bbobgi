@@ -69,8 +69,9 @@ class SettingsViewModel @Inject constructor(
     val accountAction: StateFlow<AccountActionState> = _accountAction
 
     // 로그아웃/탈퇴 완료 → 화면이 관찰해 Auth로 이동
-    private val _signedOut = MutableStateFlow(false)
-    val signedOut: StateFlow<Boolean> = _signedOut
+    private val _signedOut = MutableStateFlow<SignOut?>(null)
+    /** 로컬 정리가 끝나 앱을 재시작해야 할 때 그 방식. null이면 아직 세션이 살아 있다. */
+    val signedOut: StateFlow<SignOut?> = _signedOut
 
     // ── 알림 설정 (영속화) ──
     private val _reminderEnabled = MutableStateFlow(notificationPrefs.reminderEnabled)
@@ -295,7 +296,7 @@ class SettingsViewModel @Inject constructor(
             // clearSession()이 메모리 프로필을 비우므로 provider를 읽는 정리는 그 앞이어야 한다
             clearProviderSession()
             localDataResetter.clearSession()
-            finishSignOut()
+            finishSignOut(SignOut.LoggedOut)
         }
     }
 
@@ -314,7 +315,7 @@ class SettingsViewModel @Inject constructor(
                     // 재가입 시 온보딩이 처음처럼 권한을 다시 묻도록 — 실패해도 탈퇴는 진행한다
                     healthConnectManager.revokeAllPermissions()
                     localDataResetter.clearAll(keepAssets = true)
-                    finishSignOut()
+                    finishSignOut(SignOut.AccountDeleted)
                 } else {
                     _accountAction.value = AccountActionState.Error(res.error?.message ?: "탈퇴에 실패했어요.")
                 }
@@ -339,11 +340,30 @@ class SettingsViewModel @Inject constructor(
         }.onFailure { Timber.w(it, "프로바이더 세션 정리 실패 — 계속 진행") }
     }
 
-    /** 로컬 정리가 끝난 뒤 화면에 종료를 알린다 — 화면은 이를 보고 앱을 스플래시부터 재시작한다. */
-    private fun finishSignOut() {
+    /**
+     * 로컬 정리가 끝난 뒤 화면에 종료를 알린다 — 화면은 이를 보고 앱을 스플래시부터 재시작한다.
+     *
+     * @param mode 종료 방식 — 로그아웃은 재시작, 탈퇴는 앱 종료(HC 권한 회수가 앱이 포그라운드를 떠난 뒤 적용)
+     */
+    private fun finishSignOut(mode: SignOut) {
         _accountAction.value = AccountActionState.Idle
-        _signedOut.value = true
+        _signedOut.value = mode
     }
+}
+
+/**
+ * 세션 종료 종류 — 화면이 앱을 재시작할지 닫을지 정한다.
+ *
+ * 탈퇴 때 회수한 Health Connect 권한은 시스템이 **앱이 포그라운드를 떠난 뒤** 프로세스를 죽이며 적용한다
+ * (`revokeSelfPermissionsOnKill`: 포그라운드에 있는 동안은 실행되지 않는다). 재시작하면 새 태스크가 곧바로
+ * 포그라운드라 회수가 미뤄지고, 새 계정 온보딩이 권한을 아직 가진 것으로 보고 요청을 건너뛴다. 나중에 앱을
+ * 완전히 끄면 그제야 권한이 사라져 알림·연결이 꺼진다.
+ */
+enum class SignOut {
+    /** 로그아웃 — 액티비티만 재시작(로컬 데이터·권한 유지). */
+    LoggedOut,
+    /** 탈퇴 — 앱을 완전히 닫는다. 다음 실행은 아이콘에서 스플래시부터, 그때는 권한이 회수돼 있다. */
+    AccountDeleted,
 }
 
 /** 닉네임 저장 진행 상태. */

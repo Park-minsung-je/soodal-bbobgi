@@ -233,6 +233,8 @@ data class SwimLogRequest(
     val minHr: Int? = null,
     val avgHr: Int? = null,
     val hrSeries: String? = null,
+    /** 그 날 HC 세션 레코드 ID 목록 — 서버 복원분의 HC 삭제 매칭용. HC 세션이 없으면 null. */
+    val hcRecordIds: List<String>? = null,
 )
 
 /** POST /swim-logs 응답 */
@@ -244,6 +246,11 @@ data class SwimLogResponseData(
 data class ShellRewardData(
     val earned: Int,
     val newBalance: Int,
+)
+
+/** GET /app/version 응답 — 서버가 정한 최소 versionCode. */
+data class AppVersionData(
+    val minVersionCode: Int,
 )
 
 /** GET /swim-logs 응답 */
@@ -270,6 +277,13 @@ data class ServerSwimLog(
     val hrSeries: String? = null,
     val shellsEarned: Int,
     val createdAt: Long,
+    /** 그 날 HC 세션 레코드 ID 목록. 구서버 응답이나 ID를 못 받은 기록은 null/빈 목록. */
+    val hcRecordIds: List<String>? = null,
+)
+
+/** PATCH /swim-logs/by-date/:date/hc-record-ids 요청 — 그 날 HC 세션 레코드 ID 목록을 교체한다. */
+data class UpdateHcRecordIdsRequest(
+    val hcRecordIds: List<String>,
 )
 
 /**

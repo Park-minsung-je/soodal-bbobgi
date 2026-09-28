@@ -37,6 +37,12 @@ interface SoodalApi {
     @POST("auth/logout")
     suspend fun logout(@Body request: RefreshRequest): ApiResponse<Unit>
 
+    // ── App ──
+
+    /** 앱 최소 버전 — 이보다 낮은 versionCode는 즉시(강제) 인앱 업데이트. 인증 없음. */
+    @GET("app/version")
+    suspend fun getAppVersion(): ApiResponse<AppVersionData>
+
     // ── User ──
 
     /** 현재 사용자 정보 조회 */
@@ -118,6 +124,13 @@ interface SoodalApi {
     suspend fun updateSwimLogVitals(
         @Path("date") date: String,
         @Body request: UpdateVitalsRequest,
+    ): ApiResponse<SwimLogResponseData>
+
+    /** 그 날 HC 세션 레코드 ID 목록 교체 — 컬럼 도입 전 기록의 채워 넣기·같은 날 세션 증감 반영 */
+    @PATCH("swim-logs/by-date/{date}/hc-record-ids")
+    suspend fun updateSwimLogHcRecordIds(
+        @Path("date") date: String,
+        @Body request: UpdateHcRecordIdsRequest,
     ): ApiResponse<SwimLogResponseData>
 
     /** 수영 기록 삭제 (soft-delete, 조개 미회수) */

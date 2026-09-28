@@ -32,6 +32,8 @@ data class SwimLogEntity(
     val shellsEarned: Int = 0,
     val synced: Boolean = false,
     val hcRecordId: String? = null,
+    /** 서버 복원 행이 품은 나머지 HC 세션 레코드 ID(쉼표 구분, 첫 ID는 hcRecordId). 없으면 null. */
+    val extraHcRecordIds: String? = null,
     /** 세션 중 최대/최소 심박(bpm). HC에 심박 기록이 없으면 null. */
     val maxHr: Int? = null,
     val minHr: Int? = null,
