@@ -196,4 +196,65 @@ class SwimLogUseCaseTest {
 
         assertThat(useCase.getDateByHcRecordId("missing")).isNull()
     }
+
+    // ── HC 레코드 ID 보관 (R48) ──────────────────────────────
+
+    @Test
+    fun `saveFromServer는 서버가 보관한 HC 레코드 ID를 복원 행에 채운다`() = runTest {
+        // 서버 일 기록의 ID 목록: 첫 ID는 hcRecordId, 나머지는 보조 ID — 하루 여러 세션이 하나의 복원 행에 합쳐진다
+        coEvery { swimLogRepo.getLogsForDateOnce("2026-05-25") } returns emptyList()
+        val restored = testLog.copy(startEpochSec = null, hcRecordId = "hc-1", extraHcRecordIds = listOf("hc-2"), synced = true)
+
+        useCase.saveFromServer(restored)
+
+        coVerify(exactly = 1) {
+            swimLogRepo.addSwimLog(match { it.hcRecordId == "hc-1" && it.extraHcRecordIds == listOf("hc-2") })
+        }
+    }
+
+    @Test
+    fun `saveFromServer는 ID 없는 복원 행이 있으면 서버 ID를 채워 넣는다`() = runTest {
+        // 이 변경 전에 복원된 행(hcRecordId·시작 시각 없음)도 HC 삭제 매칭이 되도록
+        coEvery { swimLogRepo.getLogsForDateOnce("2026-05-25") } returns
+            listOf(testLog.copy(id = 5, hcRecordId = null, startEpochSec = null))
+        val fromServer = testLog.copy(startEpochSec = null, hcRecordId = "hc-1", extraHcRecordIds = listOf("hc-2"), synced = true)
+
+        useCase.saveFromServer(fromServer)
+
+        coVerify(exactly = 1) { swimLogRepo.fillHcRecordIds(5, "hc-1", listOf("hc-2")) }
+    }
+
+    @Test
+    fun `saveFromServer는 HC 유래 행(시작 시각 있음)에는 서버 ID를 덮지 않는다`() = runTest {
+        coEvery { swimLogRepo.getLogsForDateOnce("2026-05-25") } returns
+            listOf(testLog.copy(id = 5, hcRecordId = "hc-9", startEpochSec = 1_000L))
+        val fromServer = testLog.copy(startEpochSec = null, hcRecordId = "hc-1", synced = true)
+
+        useCase.saveFromServer(fromServer)
+
+        coVerify(exactly = 0) { swimLogRepo.fillHcRecordIds(any(), any(), any()) }
+    }
+
+    @Test
+    fun `syncSwimLog는 ID가 채워진 복원 행(시작 시각 없음)도 HC 세션으로 승격시킨다`() = runTest {
+        // 복원 행이 hcRecordId를 갖게 되면서 "hcRecordId 없음"만으로는 서버산 행을 못 가려낸다 —
+        // 시작 시각이 없는 행이 서버산이다. 승격하지 않으면 같은 날 세션이 두 배로 잡힌다.
+        coEvery { swimLogRepo.getByHcRecordId("hc-1") } returns null
+        coEvery { swimLogRepo.getLogsForDateOnce("2026-05-25") } returns
+            listOf(testLog.copy(id = 5, hcRecordId = "hc-9", extraHcRecordIds = listOf("hc-1"), startEpochSec = null))
+
+        val rows = useCase.syncSwimLog("u1", testLog)
+
+        assertThat(rows).isEqualTo(0)
+        coVerify(exactly = 0) { swimLogRepo.addSwimLog(any()) }
+        coVerify(exactly = 1) { swimLogRepo.updateFromHc(5, testLog) }
+    }
+
+    @Test
+    fun `findByHcRecordId는 보조 ID까지 보고 찾는다`() = runTest {
+        val restored = testLog.copy(id = 5, hcRecordId = "hc-1", extraHcRecordIds = listOf("hc-2"), startEpochSec = null)
+        coEvery { swimLogRepo.getByAnyHcRecordId("hc-2") } returns restored
+
+        assertThat(useCase.findByHcRecordId("hc-2")).isEqualTo(restored)
+    }
 }

@@ -13,7 +13,7 @@ class SwimLogUseCase @Inject constructor(
     /**
      * HC 세션을 로컬에 upsert한다 — 하루 여러 세션 전제, 정체성은 hcRecordId.
      * - 같은 hcRecordId 행이 있으면 핵심 필드만 갱신 (영법 편집·조개는 보존)
-     * - 없고 그 날짜에 서버산 행(hcRecordId 없음)이 있으면 그 행에 HC 정체성을 승격
+     * - 없고 그 날짜에 서버산 행(hcRecordId 없음 또는 서버 복원 행)이 있으면 그 행에 HC 정체성을 승격
      * - 둘 다 아니면 새 행 insert (같은 날 다른 세션이 있어도 추가)
      * 조개 지급은 서버에서 처리하므로 여기서는 로컬 저장만 담당.
      *
@@ -27,7 +27,10 @@ class SwimLogUseCase @Inject constructor(
                 swimLogRepo.updateFromHc(existing.id, log)
                 return 0
             }
-            val serverRow = swimLogRepo.getLogsForDateOnce(log.date).firstOrNull { it.hcRecordId == null }
+            // 복원 행은 서버가 보관한 ID를 갖고 있어도 일 집계라 세션 행으로 승격시킨다 —
+            // 새 행을 만들면 같은 날 세션이 두 배로 잡힌다
+            val serverRow = swimLogRepo.getLogsForDateOnce(log.date)
+                .firstOrNull { it.hcRecordId == null || it.isServerRestored }
             if (serverRow != null) {
                 swimLogRepo.updateFromHc(serverRow.id, log)
                 return 0
@@ -58,6 +61,13 @@ class SwimLogUseCase @Inject constructor(
             swimLogRepo.updateShellsEarned(log.date, log.shellsEarned)
         }
         val single = existing.singleOrNull() ?: return
+
+        // 이 변경 전에 복원된 행(ID 없음)에 서버가 보관한 HC 레코드 ID를 채운다 — HC 삭제 매칭용.
+        // HC 유래 행은 자기 ID가 정확하므로 건드리지 않는다.
+        val serverFirstId = log.hcRecordId
+        if (serverFirstId != null && single.hcRecordId == null && single.isServerRestored) {
+            swimLogRepo.fillHcRecordIds(single.id, serverFirstId, log.extraHcRecordIds)
+        }
 
         // 심박은 로컬에 없을 때만 서버 값으로 채운다. 서버 값은 하루치를 합친 것이라
         // 세션별 로컬 값이 더 정확하고, 하루에 세션이 여럿이면 아예 손대지 않는다
@@ -116,6 +126,10 @@ class SwimLogUseCase @Inject constructor(
     /** HC 레코드 UID로 로컬 기록을 찾아 날짜를 반환한다. */
     suspend fun getDateByHcRecordId(hcRecordId: String): String? =
         swimLogRepo.getByHcRecordId(hcRecordId)?.date
+
+    /** HC 레코드 UID로 행을 찾는다 — 서버 복원 행의 보조 ID까지 본다 (HC 삭제 이벤트 매칭용). */
+    suspend fun findByHcRecordId(hcRecordId: String): SwimLog? =
+        swimLogRepo.getByAnyHcRecordId(hcRecordId)
 
     /** 날짜로 로컬 수영 기록을 삭제한다. */
     suspend fun deleteByDate(date: String) = swimLogRepo.deleteByDate(date)

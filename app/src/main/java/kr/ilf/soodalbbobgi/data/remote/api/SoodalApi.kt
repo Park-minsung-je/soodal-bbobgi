@@ -126,6 +126,13 @@ interface SoodalApi {
         @Body request: UpdateVitalsRequest,
     ): ApiResponse<SwimLogResponseData>
 
+    /** 그 날 HC 세션 레코드 ID 목록 교체 — 컬럼 도입 전 기록의 채워 넣기·같은 날 세션 증감 반영 */
+    @PATCH("swim-logs/by-date/{date}/hc-record-ids")
+    suspend fun updateSwimLogHcRecordIds(
+        @Path("date") date: String,
+        @Body request: UpdateHcRecordIdsRequest,
+    ): ApiResponse<SwimLogResponseData>
+
     /** 수영 기록 삭제 (soft-delete, 조개 미회수) */
     @DELETE("swim-logs/by-date/{date}")
     suspend fun deleteSwimLog(@Path("date") date: String): ApiResponse<DeleteSwimLogData>

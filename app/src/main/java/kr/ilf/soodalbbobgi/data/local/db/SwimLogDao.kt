@@ -21,6 +21,17 @@ interface SwimLogDao {
     @Query("SELECT * FROM swim_logs WHERE hcRecordId = :hcRecordId LIMIT 1")
     suspend fun getByHcRecordId(hcRecordId: String): SwimLogEntity?
 
+    /** 대표 ID뿐 아니라 서버 복원 행의 보조 ID 목록(쉼표 구분)에 든 ID로도 찾는다 — HC 삭제 매칭용. */
+    @Query(
+        "SELECT * FROM swim_logs WHERE hcRecordId = :hcRecordId " +
+            "OR (',' || IFNULL(extraHcRecordIds, '') || ',') LIKE ('%,' || :hcRecordId || ',%') LIMIT 1",
+    )
+    suspend fun getByAnyHcRecordId(hcRecordId: String): SwimLogEntity?
+
+    /** 서버에서 받은 HC 레코드 ID를 ID 없는 복원 행에 채운다. */
+    @Query("UPDATE swim_logs SET hcRecordId = :hcRecordId, extraHcRecordIds = :extraHcRecordIds WHERE id = :id")
+    suspend fun fillHcRecordIds(id: Long, hcRecordId: String, extraHcRecordIds: String?)
+
     @Query("SELECT * FROM swim_logs WHERE date BETWEEN :startDate AND :endDate ORDER BY date ASC, startEpochSec ASC, id ASC")
     fun getByDateRange(startDate: String, endDate: String): Flow<List<SwimLogEntity>>
 
@@ -40,7 +51,7 @@ interface SwimLogDao {
      * 편집된 분배는 보존한다. 심박류는 null이면 기존 값을 유지한다.
      */
     @Query(
-        "UPDATE swim_logs SET hcRecordId = :hcRecordId, startEpochSec = :startEpochSec, " +
+        "UPDATE swim_logs SET hcRecordId = :hcRecordId, extraHcRecordIds = NULL, startEpochSec = :startEpochSec, " +
             "distanceMeters = :distance, durationSeconds = :duration, calories = :calories, " +
             "maxHr = COALESCE(:maxHr, maxHr), minHr = COALESCE(:minHr, minHr), " +
             "avgHr = COALESCE(:avgHr, avgHr), " +
