@@ -1,6 +1,8 @@
 ﻿package kr.ilf.soodalbbobgi.presentation.gacha
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -33,12 +35,16 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -93,6 +99,8 @@ private const val SCENE_H = 412f
 private const val SURFACE_Y = 103f        // 수면 y
 private const val CHEST_CY = 261f         // 떠다니는 상자들의 세로 중심
 private const val CHEST_W = 92f
+/** 확정 연출이 끝난 뒤 뽑힌 상자가 유지하는 크기 배율 — 인양 상자도 이 크기에서 이어받는다. */
+private const val LOCK_FINAL_SCALE = 1.1f
 private const val RAFT_W = 132f
 private const val RAFT_H = 16f
 private const val CHEST_HANG = 40f                                // 닻 끝 → 매달린 상자 중심
@@ -341,16 +349,42 @@ private fun SalvageScene(
                 reel.snapTo(0f)
             }
         }
-        val reeling = phase != GachaPhase.Idle && phase != GachaPhase.Spinning && risingBox != null
+        val reeling = phase != GachaPhase.Idle && phase != GachaPhase.Spinning && phase != GachaPhase.Locked && risingBox != null
+
+        // ── 상자 확정 연출: 멈춘 상자가 튀어오르고(팝) 노란 파동 링이 퍼진다 + 짧은 햅틱 ──
+        val haptic = LocalHapticFeedback.current
+        val lockPop = remember { Animatable(1f) }
+        val lockRing = remember { Animatable(0f) }
+        LaunchedEffect(phase) {
+            if (phase == GachaPhase.Locked) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) // 가벼운 틱
+                lockRing.snapTo(0f)
+                lockPop.snapTo(1f)
+                launch { lockRing.animateTo(1f, tween(460, easing = LinearEasing)) }
+                // 커졌다 → 작아졌다 → 다시 커져서 그 크기로 머문다: 뽑힌 상자는 끝까지 조금 큰 채로 올라간다
+                lockPop.animateTo(1.16f, tween(100))
+                lockPop.animateTo(0.95f, tween(120))
+                lockPop.animateTo(LOCK_FINAL_SCALE, spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium))
+            } else if (phase == GachaPhase.Idle) {
+                lockPop.snapTo(1f)
+                lockRing.snapTo(0f)
+            }
+        }
+        val locked = phase == GachaPhase.Locked
         val reelP = if (phase == GachaPhase.Reeling) reel.value else 1f
-        // 닻이 상자에 닿아 걸리는 구간(0.18~0.28) — 인양 상자 페이드 인과
-        // 룰렛 중앙 상자 페이드 아웃이 같은 값으로 교차해 하나가 이어지는 것처럼 보인다.
-        val attachT = ((reelP - 0.18f) / 0.10f).coerceIn(0f, 1f)
+        // 닻이 상자 위에 닿는 순간(REEL_DROP_FRAC) 룰렛 중앙 상자를 인양 상자로 바로 바꿔 끼운다 —
+        // 같은 자리·같은 크기라 끊김 없이 "그 상자가 올라가는" 것으로 보인다. 교차 페이드는 잠깐 둘로 보였다.
+        val attached = reeling && reelP >= REEL_DROP_FRAC
 
         // ── 심해를 떠다니는 상자 줄 (룰렛) ──
         val stripAlpha by animateFloatAsState(
             targetValue = if (phase == GachaPhase.Idle || phase == GachaPhase.Spinning) 1f else 0.32f,
             animationSpec = tween(400), label = "strip",
+        )
+        // 상하 흔들림은 대기 중에만 — 룰렛이 돌기 시작하면 0.3초에 걸쳐 잦아들고, 멈춘 상자도 흔들리지 않는다
+        val bobAmp by animateFloatAsState(
+            targetValue = if (phase == GachaPhase.Idle) 1f else 0f,
+            animationSpec = tween(300), label = "bobAmp",
         )
         val bobT by infinite.animateFloat(
             initialValue = 0f, targetValue = (2 * Math.PI).toFloat(),
@@ -366,11 +400,13 @@ private fun SalvageScene(
                     val boxIndex = ((i % boxes.size) + boxes.size) % boxes.size
                     val box = boxes[boxIndex]
                     val x = centerX + (i * slotW - offset) - CHEST_W / 2f
-                    val bobY = sin(bobT + boxIndex * 1.3f) * 2.5f
-                    val bobRot = sin(bobT + boxIndex * 1.3f) * 1.2f
+                    val bobY = sin(bobT + boxIndex * 1.3f) * 2.5f * bobAmp
+                    val bobRot = sin(bobT + boxIndex * 1.3f) * 1.2f * bobAmp
                     // 중앙(멈춘) 상자는 딤 없이 유지하다가 닻이 걸리는 순간 사라진다 —
                     // 같은 자리에서 페이드 인하는 인양 상자가 이어받아 "그 상자가 올라가는" 연출.
-                    val itemAlpha = if (reeling && di == 0) 1f - attachT else stripAlpha
+                    val itemAlpha = if ((reeling || locked) && di == 0) (if (attached) 0f else 1f) else stripAlpha
+                    // 확정 뒤엔 인양 상자로 바뀔 때까지 커진 크기를 유지한다
+                    val itemScale = if (di == 0 && (locked || reeling)) lockPop.value else 1f
 
                     Box(
                         Modifier
@@ -379,6 +415,8 @@ private fun SalvageScene(
                             .graphicsLayer {
                                 rotationZ = bobRot
                                 alpha = itemAlpha
+                                scaleX = itemScale
+                                scaleY = itemScale
                             },
                         contentAlignment = Alignment.Center,
                     ) {
@@ -394,6 +432,22 @@ private fun SalvageScene(
                     }
                 }
             }
+        }
+
+        // ── 상자 확정 파동 링 — 중앙 상자에서 바깥으로 번지며 사라진다 ──
+        if (locked || lockRing.value in 0.01f..0.99f) {
+            val p = lockRing.value
+            Box(
+                Modifier
+                    .offset(x = (centerX - CHEST_W / 2f).dp, y = (CHEST_CY - CHEST_W / 2f).dp)
+                    .size(CHEST_W.dp)
+                    .graphicsLayer {
+                        val sc = 0.95f + 0.75f * p
+                        scaleX = sc; scaleY = sc
+                        alpha = (1f - p) * 0.6f
+                    }
+                    .border(2.dp, Color(0xFFFFE066), CircleShape),
+            )
         }
 
         // ── 좌우 가장자리 페이드 (수면 아래 영역만) ──
@@ -496,10 +550,11 @@ private fun SalvageScene(
             }
         }
 
-        // ── 닻에 걸려 올라오는 상자 ── (attachT에 맞춰 페이드 인 — 룰렛 중앙 상자와 교차)
+        // ── 닻에 걸려 올라오는 상자 ── (닻이 닿는 순간 룰렛 중앙 상자 자리에서 그대로 이어받는다)
         if (reeling && risingBox != null) {
             val liftT = ((reelP - REEL_DROP_FRAC) / (1f - REEL_DROP_FRAC)).coerceIn(0f, 1f)
-            val chestScale = lerp(1f, 1.15f, liftT)
+            // 확정으로 커진 룰렛 상자(92dp × LOCK_FINAL_SCALE)와 같은 크기에서 출발해 올라오며 조금 더 커진다
+            val chestScale = lerp(CHEST_W / 100f * LOCK_FINAL_SCALE, 1.2f, liftT)
             val wiggle = sin(reelP * 18f) * (1f - liftT) * 2.2f
             val chestCenterY = anchorPos.y + CHEST_HANG
 
@@ -512,7 +567,7 @@ private fun SalvageScene(
                         scaleX = chestScale
                         scaleY = chestScale
                         rotationZ = wiggle
-                        alpha = attachT
+                        alpha = if (attached) 1f else 0f
                     },
                 contentAlignment = Alignment.Center,
             ) {
@@ -668,6 +723,7 @@ private fun SalvageScene(
         // ── 수달 말풍선 ──
         val otterLine = when (phase) {
             GachaPhase.Reeling -> "올라온다…!"
+            GachaPhase.Locked -> "저거다! 건져 올릴게!"
             GachaPhase.Spinning -> "영차… 영차…!"
             // 인양 완료 — 무슨 상자를 건졌는지 자랑한다 (잠시 외친 뒤 결과 팝업)
             GachaPhase.Celebrating, GachaPhase.Result ->

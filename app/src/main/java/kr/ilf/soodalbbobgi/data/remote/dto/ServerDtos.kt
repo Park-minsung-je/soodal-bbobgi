@@ -169,6 +169,8 @@ data class ServerGachaResult(
     val pityCountAtPull: Int,
     val historyId: Long? = null,
     val inventoryItemId: Long? = null,
+    /** 아이템이 나온 박스 — 혼합 뽑기에서 룰렛이 멈출 상자를 맞추는 근거. 구서버 응답엔 없어 null 허용. */
+    val boxId: Long? = null,
 )
 
 data class ServerCurrency(

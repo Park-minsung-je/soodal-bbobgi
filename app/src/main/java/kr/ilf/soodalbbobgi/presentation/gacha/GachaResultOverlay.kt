@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -164,7 +165,9 @@ private fun ResultSingle(
         label = "bounce",
     )
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    // 패널만 가운데 정렬 기준으로 삼는다 — '전체 결과 보기'는 패널 아래에 얹기만 해서
+    // 10연 중간 장과 마지막 장(버튼 없음)의 팝업 위치가 같다.
+    Box(contentAlignment = Alignment.Center) {
         // 모달 프레임 — 공통 글래스: 뒤 콘텐츠 프로스트(블러) + 흰 하이라이트 보더 + 상단 sheen.
         val panelShape = RoundedCornerShape(24.dp)
         Box(
@@ -188,20 +191,19 @@ private fun ResultSingle(
                 }
 
                 SoodalChip("${kindLabel(item.kind)} 상자", color = ChipColor.Blue)
-                Spacer(Modifier.height(12.dp))
-                GradeBadge(item.grade)
                 Spacer(Modifier.height(14.dp))
 
+                // 등급 뱃지는 두지 않는다 — 아이템 이미지가 주인공이라 그 자리를 이미지에 준다(등급은 글로우 색으로).
                 Box(
-                    Modifier.size(64.dp).scale(bounceScale)
-                        .clip(RoundedCornerShape(20.dp))
+                    Modifier.size(104.dp).scale(bounceScale)
+                        .clip(RoundedCornerShape(26.dp))
                         .background(glow.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (!item.imageAsset.isNullOrBlank()) {
                         AssetImage(imageAsset = item.imageAsset, contentDescription = item.name, modifier = Modifier.fillMaxWidth())
                     } else {
-                        SoodalIcon(icon = kindIcon(item.kind), tint = gc, size = 32.dp)
+                        SoodalIcon(icon = kindIcon(item.kind), tint = gc, size = 48.dp)
                     }
                 }
 
@@ -210,10 +212,9 @@ private fun ResultSingle(
                 Spacer(Modifier.height(5.dp))
 
                 if (item.isNew) {
-                    Text("${kindLabel(item.kind)} — 새로 획득!", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = gc)
+                    Text("신규 ${kindLabel(item.kind)} 획득!", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = gc)
                 } else {
-                    Text("이미 보유 중인 ${kindLabel(item.kind)}", fontSize = 11.sp, color = colors.textTertiary)
-                    Spacer(Modifier.height(7.dp))
+                    // 중복은 한 줄 — 진주 지급과 '보유 중'을 같은 줄에 둔다.
                     Row(
                         modifier = Modifier
                             .background(
@@ -227,7 +228,7 @@ private fun ResultSingle(
                     ) {
                         SoodalIcon(icon = SoodalIcons.Pearl, tint = colors.accentPurple, size = 15.dp)
                         Text("진주 +${item.pearlsEarned}", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, fontFamily = JetBrainsMonoFamily, color = colors.accentPurple)
-                        Text("교환 완료", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = colors.accentPurple.copy(alpha = 0.7f))
+                        Text("보유 중", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = colors.accentPurple.copy(alpha = 0.7f))
                     }
                 }
 
@@ -249,15 +250,22 @@ private fun ResultSingle(
         }
 
         if (!isLast && results.size > 1) {
-            Spacer(Modifier.height(14.dp))
             // 이 버튼만 유리 패널 밖, 어둡게 깔린 인양 씬 위에 놓인다 —
             // Ghost 기본 회색은 그 위에서 거의 안 보여 흰색으로 바꾼다.
-            SoodalButton(
-                "전체 결과 보기",
-                onClick = onShowAll,
-                style = ButtonStyle.Ghost,
-                textColorOverride = Color.White,
-            )
+            // 패널 밑변 기준으로 14dp 아래에 띄워 배치 크기에 영향을 주지 않는다.
+            Box(
+                Modifier.align(Alignment.BottomCenter).layout { measurable, constraints ->
+                    val placeable = measurable.measure(constraints)
+                    layout(placeable.width, 0) { placeable.placeRelative(0, 14.dp.roundToPx()) }
+                },
+            ) {
+                SoodalButton(
+                    "전체 결과 보기",
+                    onClick = onShowAll,
+                    style = ButtonStyle.Ghost,
+                    textColorOverride = Color.White,
+                )
+            }
         }
     }
 }
