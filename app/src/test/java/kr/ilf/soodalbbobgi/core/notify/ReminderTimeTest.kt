@@ -38,4 +38,11 @@ class ReminderTimeTest {
         val delay = nextReminderDelayMillis(at(20, 50), 21, 30, zone)
         assertThat(delay).isEqualTo(40 * 60 * 1000L)
     }
+
+    @Test
+    fun `절대 발화 시각은 현재 시각에 지연을 더한 값이다`() {
+        // 지금 22:00, 목표 21:00 → 다음 날 21:00 정각 (RTC 알람에 그대로 쓴다)
+        val trigger = nextReminderTriggerMillis(at(22, 0), 21, 0, zone)
+        assertThat(trigger).isEqualTo(ZonedDateTime.of(2026, 6, 13, 21, 0, 0, 0, zone).toInstant().toEpochMilli())
+    }
 }

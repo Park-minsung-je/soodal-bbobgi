@@ -10,6 +10,10 @@ interface SwimLogRepository {
     fun getByDate(date: String): Flow<List<SwimLog>>
     suspend fun getLogsForDateOnce(date: String): List<SwimLog>
     suspend fun getByHcRecordId(hcRecordId: String): SwimLog?
+    /** 대표 ID 또는 서버 복원 행의 보조 ID로 행을 찾는다 — HC 삭제 이벤트 매칭용. */
+    suspend fun getByAnyHcRecordId(hcRecordId: String): SwimLog?
+    /** 서버에서 받은 HC 레코드 ID를 ID 없는 복원 행([id])에 채운다. */
+    suspend fun fillHcRecordIds(id: Long, hcRecordId: String, extraHcRecordIds: List<String>)
     fun getByDateRange(startDate: String, endDate: String): Flow<List<SwimLog>>
     /** 서버 POST 응답으로 받은 조개 지급량을 그 날짜 첫 행에 반영. (지급은 일 단위) */
     suspend fun updateShellsEarned(date: String, shellsEarned: Int)

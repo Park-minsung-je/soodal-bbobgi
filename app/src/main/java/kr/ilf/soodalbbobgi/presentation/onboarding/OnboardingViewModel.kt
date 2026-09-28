@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kr.ilf.soodalbbobgi.core.state.AppStateLoader
 import kr.ilf.soodalbbobgi.data.remote.api.SoodalApi
+import kr.ilf.soodalbbobgi.data.remote.toApiError
 import kr.ilf.soodalbbobgi.data.remote.dto.UpdateUserRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,7 +48,9 @@ class OnboardingViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "프로필 저장 실패")
-                _saveState.value = OnboardingSaveState.Error("네트워크 오류가 발생했어요.")
+                // 길이·문자는 앱이 먼저 막으므로 여기 오는 서버 거절은 사실상 닉네임 중복(409)뿐 —
+                // Retrofit이 예외로 던지므로 본문을 읽어 서버 문구("이미 사용 중인 닉네임입니다.")를 보여준다.
+                _saveState.value = OnboardingSaveState.Error(e.toApiError()?.message ?: "네트워크 오류가 발생했어요.")
             }
         }
     }

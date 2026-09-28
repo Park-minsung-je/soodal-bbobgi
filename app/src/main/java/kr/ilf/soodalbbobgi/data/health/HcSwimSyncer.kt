@@ -7,6 +7,7 @@ import kr.ilf.soodalbbobgi.data.remote.dto.UpdateStrokesRequest
 import kr.ilf.soodalbbobgi.core.util.averageHr
 import kr.ilf.soodalbbobgi.core.util.decodeHrSeries
 import kr.ilf.soodalbbobgi.data.remote.dto.SwimLogRequest
+import kr.ilf.soodalbbobgi.data.remote.dto.UpdateHcRecordIdsRequest
 import kr.ilf.soodalbbobgi.data.remote.dto.UpdateVitalsRequest
 import kr.ilf.soodalbbobgi.domain.model.SwimLog
 import kr.ilf.soodalbbobgi.domain.usecase.SwimLogUseCase
@@ -71,7 +72,8 @@ class HcSwimSyncer @Inject constructor(
      *    (같은 날짜 재등록의 조개 재지급은 서버가 차단).
      */
     suspend fun deleteSession(log: SwimLog) {
-        log.hcRecordId?.let { hcSyncPreferences.addDeletedHcRecordId(it) }
+        // 서버 복원 행은 하루 여러 세션의 ID를 품을 수 있다 — 전부 막아야 어느 세션도 되살아나지 않는다
+        log.allHcRecordIds.forEach { hcSyncPreferences.addDeletedHcRecordId(it) }
         swimLogUseCase.deleteById(log.id)
         reconcileServerAfterDelete(log.date)
     }
@@ -289,8 +291,11 @@ class HcSwimSyncer @Inject constructor(
             } catch (e: retrofit2.HttpException) {
                 if (e.code() in 400..499) {
                     // 서버의 명시적 거부(409 중복 등) — 재시도 무의미, 전송됨 처리.
-                    // 다만 심박은 아직 비어 있을 수 있으니 그것만 따로 채운다.
-                    if (e.code() == 409) backfillVitals(date)
+                    // 다만 심박·HC 레코드 ID는 아직 비어 있을 수 있으니 그것만 따로 채운다.
+                    if (e.code() == 409) {
+                        backfillVitals(date)
+                        backfillHcRecordIds(date)
+                    }
                     swimLogUseCase.markSynced(date)
                     Timber.w("수영 기록 전송 거부(HTTP %d) — 전송됨 처리: %s", e.code(), date)
                 } else {
@@ -329,6 +334,8 @@ class HcSwimSyncer @Inject constructor(
                 minHr = dayHr.minHr,
                 avgHr = dayHr.avgHr,
                 hrSeries = dayHr.hrSeries,
+                // 서버가 이 날의 HC 세션 ID를 보관해 두면, 다른 기기·재설치에서 복원한 행도 HC 삭제와 매칭된다
+                hcRecordIds = hcRecordIdsOf(rows),
             )
         )
         swimLogUseCase.markSynced(date)
@@ -368,20 +375,51 @@ class HcSwimSyncer @Inject constructor(
         }
     }
 
+    /** 그 날 행들이 대표하는 HC 세션 ID 전부 — 서버 보고용. HC 세션이 없으면 null. */
+    private fun hcRecordIdsOf(rows: List<SwimLog>): List<String>? =
+        rows.flatMap { it.allHcRecordIds }.distinct().takeIf { it.isNotEmpty() }
+
+    /**
+     * 이미 서버에 있는 날짜의 HC 레코드 ID 목록을 채운다.
+     * ID 컬럼이 생기기 전에 올라간 기록은 POST가 409로 막혀 ID를 올릴 길이 없고,
+     * 같은 날 세션이 늘어도 이걸로 맞춘다. 실패해도 다음 동기화에 다시 시도하면 된다.
+     */
+    private suspend fun backfillHcRecordIds(date: String) {
+        try {
+            val ids = hcRecordIdsOf(swimLogUseCase.getLogsForDate(date)) ?: return
+            soodalApi.updateSwimLogHcRecordIds(date, UpdateHcRecordIdsRequest(ids))
+            Timber.d("HC 레코드 ID 백필 완료: $date")
+        } catch (e: Exception) {
+            Timber.w(e, "HC 레코드 ID 백필 실패: $date")
+        }
+    }
+
+    /**
+     * HC 삭제 이벤트를 반영한다 — 서버 복원 행의 보조 ID까지 매칭한다.
+     * 복원 행은 하루치 합계라 세션 하나만 뺄 수 없으므로, 행을 지운 뒤 그 날을 HC에서 다시 읽어
+     * 남은 세션을 되살린다. 그다음 서버 일 기록을 지우고 남은 세션이 있으면 집계를 다시 보고한다.
+     */
     private suspend fun processDeletedRecords(deletedRecordIds: List<String>) {
         for (hcRecordId in deletedRecordIds) {
             try {
-                val date = swimLogUseCase.getDateByHcRecordId(hcRecordId) ?: continue
-                swimLogUseCase.deleteByHcRecordId(hcRecordId)
-                // 같은 날 다른 세션이 남아 있으면 서버 일 기록은 유지한다
-                if (swimLogUseCase.getLogsForDate(date).isEmpty()) {
-                    soodalApi.deleteSwimLog(date)
-                }
-                Timber.d("수영 기록 삭제 동기화: $date ($hcRecordId)")
+                val row = swimLogUseCase.findByHcRecordId(hcRecordId) ?: continue
+                swimLogUseCase.deleteById(row.id)
+                if (row.isServerRestored) rereadDay(row.date)
+                reconcileServerAfterDelete(row.date)
+                Timber.d("수영 기록 삭제 동기화: ${row.date} ($hcRecordId)")
             } catch (e: Exception) {
                 Timber.w(e, "수영 기록 삭제 동기화 실패: $hcRecordId")
             }
         }
+    }
+
+    /** 그 날짜의 HC 세션을 다시 읽어 로컬에 반영한다 — 복원 행을 지운 뒤 남은 세션 복구용. */
+    private suspend fun rereadDay(date: String) {
+        val zone = ZoneId.systemDefault()
+        val day = LocalDate.parse(date)
+        val start = day.atStartOfDay(zone).toInstant()
+        val end = day.plusDays(1).atStartOfDay(zone).toInstant()
+        for (session in healthConnectManager.readSwimSessions(start, end)) upsert(session)
     }
 
     /**
@@ -399,10 +437,14 @@ class HcSwimSyncer @Inject constructor(
                     if (serverLog.date in pendingDeletes) continue
                     // 행 하나의 실패가 나머지 복원을 막지 않게 날짜 단위로 격리한다
                     try {
+                    val serverIds = serverLog.hcRecordIds.orEmpty()
                     swimLogUseCase.saveFromServer(
                         SwimLog(
                             userId = userSession.userId,
                             date = serverLog.date,
+                            // 서버가 보관한 HC 세션 ID — 복원 행도 HC 삭제 이벤트와 매칭되게 한다
+                            hcRecordId = serverIds.firstOrNull(),
+                            extraHcRecordIds = serverIds.drop(1),
                             distanceMeters = serverLog.distanceMeters,
                             durationSeconds = serverLog.durationSeconds,
                             calories = serverLog.calories,
@@ -421,6 +463,9 @@ class HcSwimSyncer @Inject constructor(
                             synced = true, // 서버에서 온 기록 — 되돌려 보낼 필요 없음
                         )
                     )
+                    // 서버에 ID가 없는 날짜(ID 컬럼 도입 전 기록)는 로컬 HC 행의 ID로 한 번 채워 넣는다.
+                    // 채워지면 다음 pull부터 ID가 있으므로 반복되지 않는다.
+                    if (serverIds.isEmpty()) backfillHcRecordIds(serverLog.date)
                     } catch (e: Exception) {
                         Timber.w(e, "서버 기록 복원 실패(계속 진행): ${serverLog.date}")
                     }

@@ -23,6 +23,13 @@ object DatabaseModule {
         }
     }
 
+    /** v11 → v12: 서버 복원 행의 보조 HC 레코드 ID 컬럼 추가 — HC 삭제 이벤트 매칭용 (R48). */
+    private val MIGRATION_11_12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE swim_logs ADD COLUMN extraHcRecordIds TEXT")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): SoodalDatabase {
@@ -30,7 +37,7 @@ object DatabaseModule {
             context,
             SoodalDatabase::class.java,
             "soodal_bbobgi.db"
-        ).addMigrations(MIGRATION_10_11)
+        ).addMigrations(MIGRATION_10_11, MIGRATION_11_12)
          .fallbackToDestructiveMigration()
          .build()
     }

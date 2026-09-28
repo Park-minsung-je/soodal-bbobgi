@@ -20,6 +20,13 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
+import kr.ilf.soodalbbobgi.data.remote.dto.SwimLogsData
+import kr.ilf.soodalbbobgi.data.remote.dto.UpdateHcRecordIdsRequest
+import kr.ilf.soodalbbobgi.data.remote.dto.DeleteSwimLogData
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
+import retrofit2.HttpException
+import retrofit2.Response
 import java.io.IOException
 
 /**
@@ -391,5 +398,154 @@ class HcSwimSyncerTest {
         coVerify(exactly = 0) { hcm.getChangesToken() }
         coVerify(exactly = 0) { hcm.readSwimSessions(any(), any()) }
         coVerify(exactly = 0) { hcm.getChanges(any()) }
+    }
+
+    // ── HC 레코드 ID 보관 (R48) ──────────────────────────────
+    // 서버 일 기록에 그 날 HC 세션들의 레코드 ID를 함께 보관해, 서버에서 복원한 행도
+    // HC 삭제 이벤트(레코드 ID만 담김)와 매칭되게 한다.
+
+    private fun serverItem(date: String, ids: List<String>?) = ServerSwimLog(
+        id = "s-$date", date = date, distanceMeters = 1200, durationSeconds = 3600, calories = 400,
+        strokeFreestyleM = 0, strokeBreastM = 0, strokeBackM = 0, strokeFlyM = 0, strokeMixedM = 1200, strokeKickM = 0,
+        source = "health_connect", shellsEarned = 1, createdAt = 0L, hcRecordIds = ids,
+    )
+
+    private fun deletedOk(date: String) = ApiResponse(true, DeleteSwimLogData(date, true), null)
+
+    private fun rejected409() = HttpException(
+        Response.error<Any>(
+            409,
+            """{"success":false,"error":{"code":"DUPLICATE_DATE","message":"dup"}}""".toResponseBody("application/json".toMediaType()),
+        ),
+    )
+
+    private fun restoredRow() = SwimLog(
+        id = 5L, userId = "u1", date = "2026-06-07", startEpochSec = null, distanceMeters = 1200,
+        durationSeconds = 3600, calories = 400, source = "health_connect",
+        hcRecordId = "hc-a", extraHcRecordIds = listOf("hc-b"), synced = true,
+    )
+
+    @Test
+    fun `일 집계 전송에 그 날 HC 세션들의 레코드 ID를 함께 보낸다`() = runTest {
+        coEvery { useCase.getLogsForDate("2026-06-07") } returns
+            listOf(row(synced = false, id = 1), row(synced = false, id = 2))
+        coEvery { api.addSwimLog(any()) } returns okResponse(earned = 1)
+
+        syncer.sync()
+
+        coVerify(exactly = 1) { api.addSwimLog(match { it.hcRecordIds == listOf("hc-1", "hc-2") }) }
+    }
+
+    @Test
+    fun `수동 입력만 있는 날은 레코드 ID를 보내지 않는다`() = runTest {
+        coEvery { useCase.getLogsForDate("2026-06-07") } returns
+            listOf(row(synced = false, id = 1).copy(hcRecordId = null, source = "manual"))
+        coEvery { api.addSwimLog(any()) } returns okResponse(earned = 1)
+
+        syncer.sync()
+
+        coVerify(exactly = 1) { api.addSwimLog(match { it.hcRecordIds == null }) }
+    }
+
+    @Test
+    fun `서버가 409로 거부하면 그 날 레코드 ID를 PATCH로 채운다`() = runTest {
+        // 이 변경 전에 올라간 날짜는 POST가 막히므로, ID는 따로 채워 넣어야 한다
+        coEvery { useCase.getLogsForDate("2026-06-07") } returns
+            listOf(row(synced = false, id = 1), row(synced = false, id = 2))
+        coEvery { api.addSwimLog(any()) } throws rejected409()
+
+        syncer.sync()
+
+        coVerify(exactly = 1) {
+            api.updateSwimLogHcRecordIds("2026-06-07", UpdateHcRecordIdsRequest(listOf("hc-1", "hc-2")))
+        }
+        coVerify(exactly = 1) { useCase.markSynced("2026-06-07") }
+    }
+
+    @Test
+    fun `pull한 서버 기록에 ID가 없고 로컬 HC 행에 있으면 서버에 채워 넣는다`() = runTest {
+        coEvery { useCase.getUnsyncedDates() } returns emptyList()
+        coEvery { api.getSwimLogs(any(), any()) } returns ApiResponse(
+            true, SwimLogsData(listOf(serverItem("2026-06-07", null), serverItem("2026-06-06", listOf("hc-6")))), null,
+        )
+        coEvery { useCase.getLogsForDate("2026-06-07") } returns listOf(row(synced = true, id = 1), row(synced = true, id = 2))
+        coEvery { useCase.getLogsForDate("2026-06-06") } returns listOf(row(synced = true, id = 6).copy(date = "2026-06-06"))
+
+        syncer.sync()
+
+        coVerify(exactly = 1) {
+            api.updateSwimLogHcRecordIds("2026-06-07", UpdateHcRecordIdsRequest(listOf("hc-1", "hc-2")))
+        }
+        // 서버에 이미 ID가 있는 날짜는 건드리지 않는다 — 매 동기화마다 PATCH가 반복되지 않아야 한다
+        coVerify(exactly = 0) { api.updateSwimLogHcRecordIds("2026-06-06", any()) }
+    }
+
+    @Test
+    fun `pull한 서버 기록의 레코드 ID가 복원 행에 실린다`() = runTest {
+        coEvery { useCase.getUnsyncedDates() } returns emptyList()
+        coEvery { api.getSwimLogs(any(), any()) } returns
+            ApiResponse(true, SwimLogsData(listOf(serverItem("2026-06-05", listOf("hc-a", "hc-b")))), null)
+
+        syncer.sync()
+
+        coVerify(exactly = 1) {
+            useCase.saveFromServer(match {
+                it.date == "2026-06-05" && it.hcRecordId == "hc-a" && it.extraHcRecordIds == listOf("hc-b")
+            })
+        }
+    }
+
+    @Test
+    fun `HC 삭제 이벤트가 복원 행과 맞으면 행을 지우고 그 날을 다시 읽어 서버를 맞춘다`() = runTest {
+        // 복원 행은 하루치 합계라 세션 하나만 뺄 수 없다 — 행을 지우고 HC에서 그 날을 다시 읽어 남은 세션을 되살린 뒤
+        // 서버 일 기록을 삭제·재전송한다
+        every { prefs.getChangesToken() } returns "tok0"
+        coEvery { hcm.getChanges("tok0") } returns HcSyncResult(emptyList(), listOf("hc-b"), "tok1")
+        coEvery { useCase.findByHcRecordId("hc-b") } returns restoredRow()
+        val remaining = hcSession().copy(hcRecordId = "hc-a")
+        coEvery { hcm.readSwimSessions(any(), any()) } returns listOf(remaining)
+        coEvery { useCase.getLogsForDate("2026-06-07") } returns listOf(row(synced = false, id = 1).copy(hcRecordId = "hc-a"))
+        coEvery { useCase.getUnsyncedDates() } returns listOf("2026-06-07")
+        coEvery { api.deleteSwimLog("2026-06-07") } returns deletedOk("2026-06-07")
+        coEvery { api.addSwimLog(any()) } returns okResponse(earned = 0)
+
+        syncer.sync()
+
+        val zone = java.time.ZoneId.systemDefault()
+        val day = java.time.LocalDate.parse("2026-06-07")
+        coVerify(exactly = 1) { useCase.deleteById(5L) }
+        coVerify(exactly = 1) {
+            hcm.readSwimSessions(day.atStartOfDay(zone).toInstant(), day.plusDays(1).atStartOfDay(zone).toInstant())
+        }
+        coVerify(exactly = 1) { useCase.syncSwimLog("u1", match { it.hcRecordId == "hc-a" }) }
+        coVerify(exactly = 1) { api.deleteSwimLog("2026-06-07") }
+        coVerify(atLeast = 1) { api.addSwimLog(match { it.hcRecordIds == listOf("hc-a") }) }
+    }
+
+    @Test
+    fun `HC 삭제 이벤트가 HC 유래 행과 맞으면 다시 읽지 않고 서버 일 기록을 지운다`() = runTest {
+        every { prefs.getChangesToken() } returns "tok0"
+        coEvery { hcm.getChanges("tok0") } returns HcSyncResult(emptyList(), listOf("hc-1"), "tok1")
+        coEvery { useCase.findByHcRecordId("hc-1") } returns row(synced = true, id = 1).copy(startEpochSec = 0L)
+        coEvery { useCase.getLogsForDate("2026-06-07") } returns emptyList()
+        coEvery { useCase.getUnsyncedDates() } returns emptyList()
+        coEvery { api.deleteSwimLog("2026-06-07") } returns deletedOk("2026-06-07")
+
+        syncer.sync()
+
+        coVerify(exactly = 1) { useCase.deleteById(1L) }
+        coVerify(exactly = 1) { api.deleteSwimLog("2026-06-07") }
+        coVerify(exactly = 0) { hcm.readSwimSessions(any(), any()) }
+    }
+
+    @Test
+    fun `세션 삭제는 복원 행의 보조 ID까지 블랙리스트에 올린다`() = runTest {
+        coEvery { useCase.getLogsForDate("2026-06-07") } returns emptyList()
+        coEvery { api.deleteSwimLog("2026-06-07") } returns deletedOk("2026-06-07")
+
+        syncer.deleteSession(restoredRow())
+
+        coVerify(exactly = 1) { prefs.addDeletedHcRecordId("hc-a") }
+        coVerify(exactly = 1) { prefs.addDeletedHcRecordId("hc-b") }
     }
 }

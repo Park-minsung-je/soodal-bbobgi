@@ -21,6 +21,10 @@ class SwimLogRepositoryImpl @Inject constructor(
         dao.getByDateOnce(date).map { it.toDomain() }
     override suspend fun getByHcRecordId(hcRecordId: String): SwimLog? =
         dao.getByHcRecordId(hcRecordId)?.toDomain()
+    override suspend fun getByAnyHcRecordId(hcRecordId: String): SwimLog? =
+        dao.getByAnyHcRecordId(hcRecordId)?.toDomain()
+    override suspend fun fillHcRecordIds(id: Long, hcRecordId: String, extraHcRecordIds: List<String>) =
+        dao.fillHcRecordIds(id, hcRecordId, extraHcRecordIds.toStorage())
     override fun getByDateRange(startDate: String, endDate: String): Flow<List<SwimLog>> =
         dao.getByDateRange(startDate, endDate).map { list -> list.map { it.toDomain() } }
     override suspend fun updateShellsEarned(date: String, shellsEarned: Int) =
@@ -70,7 +74,7 @@ private fun SwimLogEntity.toDomain() = SwimLog(
     strokeBackM = strokeBackM, strokeFlyM = strokeFlyM,
     strokeMixedM = strokeMixedM, strokeKickM = strokeKickM,
     source = source, shellsEarned = shellsEarned, synced = synced,
-    hcRecordId = hcRecordId,
+    hcRecordId = hcRecordId, extraHcRecordIds = extraHcRecordIds.fromStorage(),
     maxHr = maxHr, minHr = minHr, avgHr = avgHr, activeSeconds = activeSeconds, hrSeries = hrSeries,
 )
 
@@ -82,7 +86,13 @@ private fun SwimLog.toEntity() = SwimLogEntity(
     strokeBackM = strokeBackM, strokeFlyM = strokeFlyM,
     strokeMixedM = strokeMixedM, strokeKickM = strokeKickM,
     source = source, shellsEarned = shellsEarned, synced = synced,
-    hcRecordId = hcRecordId,
+    hcRecordId = hcRecordId, extraHcRecordIds = extraHcRecordIds.toStorage(),
     maxHr = maxHr, minHr = minHr, avgHr = avgHr, activeSeconds = activeSeconds, hrSeries = hrSeries,
     createdAt = System.currentTimeMillis(),
 )
+
+/** 보조 HC 레코드 ID 목록의 저장 형식 — 쉼표 구분, 비어 있으면 null. */
+private fun List<String>.toStorage(): String? = takeIf { it.isNotEmpty() }?.joinToString(",")
+
+private fun String?.fromStorage(): List<String> =
+    this?.split(',')?.filter { it.isNotBlank() } ?: emptyList()

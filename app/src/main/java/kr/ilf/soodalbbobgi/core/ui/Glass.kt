@@ -275,8 +275,9 @@ fun BoxScope.GlassSheen(shape: Shape) {
  * 반대로 **액션 버튼은 묶지 않는다** — 서로 다른 동작이라 각자 눌리는 낱개 유리로 둔다.
  * 하나의 바에 담으면 단일 컨트롤처럼 보인다.
  *
- * 안쪽 여백 5dp는 세그먼트 자체 여백 8dp와 합쳐 낱개 칩 시절의 가장자리 13dp를 그대로 맞춘다
- * — 좁힌 건 세그먼트 사이(32dp → 16dp)뿐이다.
+ * 안쪽 여백 9dp는 세그먼트 자체 여백 4dp와 합쳐 낱개 칩 시절의 가장자리 13dp를 그대로 맞춘다.
+ * 세그먼트 사이는 자체 여백 4+4에 Row 간격 4를 더한 12dp — 조개와 진주가 붙어 보인다는 의견(2026-09-28)에
+ * 8dp에서 살짝 벌렸다. 가장자리는 건드리지 않는다.
  */
 @Composable
 fun GlassInfoGroup(content: @Composable RowScope.() -> Unit) {
@@ -289,6 +290,7 @@ fun GlassInfoGroup(content: @Composable RowScope.() -> Unit) {
         Row(
             modifier = Modifier.fillMaxHeight().padding(horizontal = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             content = content,
         )
         GlassSheen(shape)
@@ -305,7 +307,7 @@ fun GlassInfoGroup(content: @Composable RowScope.() -> Unit) {
 @Composable
 fun GlassInfoSegment(icon: SoodalIcons, value: String, tint: Color) {
     Row(
-        // 세그먼트 자체 여백 4 + 패널 여백 9 = 가장자리 13dp(낱개 칩 시절 값), 값 사이 8dp.
+        // 세그먼트 자체 여백 4 + 패널 여백 9 = 가장자리 13dp(낱개 칩 시절 값), 값 사이 4+4+패널 간격 4 = 12dp.
         modifier = Modifier.padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         // 아이콘과 숫자는 한 덩어리로 읽혀야 해서 세그먼트 사이보다 훨씬 좁게 붙인다.
