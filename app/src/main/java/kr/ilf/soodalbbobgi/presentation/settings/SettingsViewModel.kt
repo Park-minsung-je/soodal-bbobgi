@@ -219,6 +219,12 @@ class SettingsViewModel @Inject constructor(
     /** (개발자 전용) 실제 새 기록 알림을 즉시 발송 — 문구/모양 확인용. */
     fun sendTestNewRecord() = notifier.showNewSwimRecord()
 
+    /** (개발자 전용) 동기화 실패 안내 카드를 홈에 띄운다 — 실패를 일부러 낼 방법이 없어 모양 확인용. */
+    fun previewSyncFailureNotice() = appState.showSyncFailureNotice()
+
+    /** (개발자 전용) 다음 동기화 한 번을 실패시킨다 — 캘린더 ↻에서 진행 → 실패로 이어지는 흐름 확인용. */
+    fun failNextSyncForDebug() = hcSwimSyncer.failNextSyncForDebug()
+
     /**
      * (개발자 전용) 동기화 상태를 처음으로 되돌린다 — 변경 토큰·삭제 블랙리스트·로컬 기록.
      *

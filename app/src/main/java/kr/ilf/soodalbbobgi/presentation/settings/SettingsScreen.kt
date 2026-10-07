@@ -457,6 +457,30 @@ fun SettingsScreen(
                         SettingsDivider()
                         SettingsRow(label = "새 기록 알림 보내기", trailing = "🔔", onClick = { viewModel.sendTestNewRecord() })
                         SettingsDivider()
+                        // 동기화 실패는 일부러 낼 수 없다 — 홈이 띄우는 실패 카드를 직접 올려 모양을 본다.
+                        SettingsRow(
+                            label = "동기화 실패 안내 보기",
+                            trailing = "→",
+                            onClick = {
+                                viewModel.previewSyncFailureNotice()
+                                android.widget.Toast.makeText(
+                                    context, "홈으로 돌아가면 실패 안내가 떠요", android.widget.Toast.LENGTH_SHORT,
+                                ).show()
+                            },
+                        )
+                        SettingsDivider()
+                        // 캘린더 ↻의 진행 → 실패 흐름(딤 유지)은 실제 동기화가 실패해야 보인다.
+                        SettingsRow(
+                            label = "다음 동기화 1회 실패시키기",
+                            trailing = "→",
+                            onClick = {
+                                viewModel.failNextSyncForDebug()
+                                android.widget.Toast.makeText(
+                                    context, "캘린더에서 ↻ 동기화를 눌러 보세요", android.widget.Toast.LENGTH_SHORT,
+                                ).show()
+                            },
+                        )
+                        SettingsDivider()
                         // 지운 기록은 블랙리스트에 남아 HC에서 다시 안 들어온다 — 보상 흐름을
                         // 처음부터 다시 보려면 이걸 눌러 잊게 한 뒤 캘린더에서 동기화한다.
                         SettingsRow(

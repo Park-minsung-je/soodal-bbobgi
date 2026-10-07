@@ -42,6 +42,16 @@ class HcSwimSyncer @Inject constructor(
     // 비재진입 — 내부 어디에서도 sync()를 다시 부르지 않는다 (registerManual·deleteSession은 pushUnsyncedDates 직접 호출).
     private val syncMutex = Mutex()
 
+    // 디버그 개발자 메뉴가 켠다 — 프로세스가 살아 있는 동안 다음 sync() 한 번에만 적용된다.
+    @Volatile
+    private var failNextSync = false
+
+    /**
+     * (개발자 전용) 다음 [sync] 한 번을 시작하자마자 실패시킨다 — 동기화 실패 안내를 실제 경로로 확인하는 용도.
+     * 정상 기기에서는 실패를 일부러 낼 방법이 없다: 네트워크 오류는 안에서 삼켜 실패로 올라오지 않는다.
+     */
+    fun failNextSyncForDebug() { failNextSync = true }
+
     /**
      * 전체 동기화를 수행한다. 동시에 들어온 호출은 순서대로 하나씩 처리된다.
      *
@@ -52,6 +62,10 @@ class HcSwimSyncer @Inject constructor(
      * @return 이번 동기화로 서버가 지급한 조개 수
      */
     suspend fun sync(): Int = syncMutex.withLock {
+        if (failNextSync) {
+            failNextSync = false
+            throw IllegalStateException("개발자 메뉴가 요청한 동기화 강제 실패")
+        }
         retryPendingServerDeletes()
         if (healthConnectManager.hasAllPermissions()) syncChanges()
         val earned = pushUnsyncedDates()
