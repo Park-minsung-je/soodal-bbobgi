@@ -59,7 +59,6 @@ fun SplashScreen(
 ) {
     val colors = SoodalDesign.colors
     val destination by viewModel.destination.collectAsStateWithLifecycle()
-    val syncError by viewModel.syncError.collectAsStateWithLifecycle()
     val serverError by viewModel.serverError.collectAsStateWithLifecycle()
     val assetProgress by viewModel.assetSyncProgress.collectAsStateWithLifecycle()
 
@@ -133,15 +132,6 @@ fun SplashScreen(
                         color = if (assetProgress is AssetSyncProgress.Error) colors.warn else colors.textTertiary,
                     )
                 }
-            }
-            if (syncError != null) {
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    text = syncError!!,
-                    fontSize = 12.sp,
-                    color = colors.warn,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                )
             }
 
             // 서버 장애 안내 — 로그인 세션은 살아 있으니 재로그인 대신 재시도를 유도한다.

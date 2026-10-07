@@ -548,4 +548,30 @@ class HcSwimSyncerTest {
         coVerify(exactly = 1) { prefs.addDeletedHcRecordId("hc-a") }
         coVerify(exactly = 1) { prefs.addDeletedHcRecordId("hc-b") }
     }
+
+    // ── 개발자 메뉴: 다음 동기화 1회 강제 실패 (실패 안내 화면을 폰에서 확인하는 용도) ──
+
+    @Test
+    fun `다음 동기화 실패를 걸면 그 한 번은 서버로 아무것도 보내지 않고 실패한다`() = runTest {
+        coEvery { useCase.getLogsForDate("2026-06-07") } returns listOf(row(synced = false))
+        coEvery { api.addSwimLog(any()) } returns okResponse(earned = 0)
+        syncer.failNextSyncForDebug()
+
+        val result = runCatching { syncer.sync() }
+
+        assertThat(result.isFailure).isTrue()
+        coVerify(exactly = 0) { api.addSwimLog(any()) }
+    }
+
+    @Test
+    fun `강제 실패는 한 번뿐이고 그다음 동기화는 정상으로 돈다`() = runTest {
+        coEvery { useCase.getLogsForDate("2026-06-07") } returns listOf(row(synced = false))
+        coEvery { api.addSwimLog(any()) } returns okResponse(earned = 0)
+        syncer.failNextSyncForDebug()
+        runCatching { syncer.sync() }
+
+        syncer.sync()
+
+        coVerify(exactly = 1) { api.addSwimLog(any()) }
+    }
 }

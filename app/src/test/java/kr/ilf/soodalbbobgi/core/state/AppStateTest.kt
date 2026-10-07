@@ -110,12 +110,24 @@ class AppStateTest {
     }
 
     @Test
+    fun `동기화 실패 안내는 올리면 켜지고 닫으면 꺼진다`() {
+        assertThat(state.syncFailureNotice.value).isFalse()
+
+        state.showSyncFailureNotice()
+        assertThat(state.syncFailureNotice.value).isTrue()
+
+        state.dismissSyncFailureNotice()
+        assertThat(state.syncFailureNotice.value).isFalse()
+    }
+
+    @Test
     fun `clear resets everything`() {
         state.applyProfile(UserProfile("u1", "Soo", null, null, "kakao"))
         state.applyCurrency(Currency(shellBalance = 10))
         state.applyInventory(listOf(inventoryItem(1L, 101L)))
         state.mergeItems(listOf(item(101L, "A")))
         state.addPendingShellReward(2)
+        state.showSyncFailureNotice()
 
         state.clear()
 
@@ -124,6 +136,7 @@ class AppStateTest {
         assertThat(state.inventory.value).isEmpty()
         assertThat(state.items.value).isEmpty()
         assertThat(state.pendingShellReward.value).isEqualTo(0)
+        assertThat(state.syncFailureNotice.value).isFalse()
     }
 
     // ─── 헬퍼 ──────────────────────────────────

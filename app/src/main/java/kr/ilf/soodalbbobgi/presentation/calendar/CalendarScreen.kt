@@ -143,6 +143,7 @@ fun CalendarScreen(
     val shellRewardKind by viewModel.shellRewardKind.collectAsState()
     val registerError by viewModel.registerError.collectAsState()
     val syncing by viewModel.syncing.collectAsState()
+    val syncFailed by viewModel.syncFailed.collectAsState()
     val context = LocalContext.current
     // 선택한 날이 바뀌면 열린 수정 시트는 닫는다.
     LaunchedEffect(state.selectedDay) { editTarget = null }
@@ -379,6 +380,14 @@ fun CalendarScreen(
         if (syncing) {
             kr.ilf.soodalbbobgi.core.ui.SyncLoadingOverlay("수영 기록 동기화 중이에요…")
         }
+
+        // ── 동기화 실패 안내 — 로딩 오버레이의 딤을 그대로 둔 채 카드만 실패 문구로 바뀐다 ──
+        // (토스트는 그 카드와 겹쳐서 쓰지 않는다)
+        kr.ilf.soodalbbobgi.core.ui.SyncFailureNotice(
+            visible = syncFailed,
+            onDismiss = viewModel::dismissSyncFailure,
+            dimmed = true,
+        )
     }
 }
 

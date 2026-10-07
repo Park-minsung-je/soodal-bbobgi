@@ -121,6 +121,12 @@ class HomeViewModel @Inject constructor(
     /** 최초 HC 가져오기 진행 여부 — 온보딩이 시작한 동기화를 홈이 표시한다. */
     val hcSyncing: StateFlow<Boolean> = appState.hcSyncing
 
+    /** 앱 시작 동기화 실패 안내 표시 여부 — 스플래시가 넘긴 값을 홈이 카드로 띄운다. */
+    val syncFailed: StateFlow<Boolean> = appState.syncFailureNotice
+
+    /** 실패 안내 카드가 닫혔다(시간 경과·탭) — 다음 홈 진입에 다시 뜨지 않게 내린다. */
+    fun dismissSyncFailure() = appState.dismissSyncFailureNotice()
+
     private val _setupNudge = MutableStateFlow(false)
     /**
      * Health Connect 연결 안내 팝업(R30) 표시 여부 — 재설치·재로그인한 기존 회원은 권한이

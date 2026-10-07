@@ -182,6 +182,26 @@ class SettingsViewModelTest {
         assertThat(appState.pendingShellReward.value).isEqualTo(1)
     }
 
+    // ── 개발자 메뉴: 동기화 실패 안내 미리보기 ──
+
+    @Test
+    fun `개발자 메뉴에서 동기화 실패 안내를 올리면 홈이 띄울 값이 켜진다`() = runTest {
+        val appState = AppState()
+
+        vm(appState = appState).previewSyncFailureNotice()
+
+        assertThat(appState.syncFailureNotice.value).isTrue()
+    }
+
+    @Test
+    fun `개발자 메뉴에서 다음 동기화 실패를 걸면 동기화 오케스트레이터에 전달된다`() = runTest {
+        val hcSwimSyncer = mockk<HcSwimSyncer>(relaxed = true)
+
+        vm(hcSwimSyncer = hcSwimSyncer).failNextSyncForDebug()
+
+        verify(exactly = 1) { hcSwimSyncer.failNextSyncForDebug() }
+    }
+
     // ── 로그아웃 · 탈퇴 초기 상태화 (R16) ──
 
     @Test
