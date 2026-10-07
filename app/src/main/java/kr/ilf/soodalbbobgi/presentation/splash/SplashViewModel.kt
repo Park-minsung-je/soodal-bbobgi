@@ -44,9 +44,6 @@ class SplashViewModel @Inject constructor(
     private val _destination = MutableStateFlow<SplashDestination>(SplashDestination.Loading)
     val destination: StateFlow<SplashDestination> = _destination
 
-    private val _syncError = MutableStateFlow<String?>(null)
-    val syncError: StateFlow<String?> = _syncError
-
     // 서버 장애(연결 불가/5xx)로 진행이 막힌 상태 — 화면이 안내 + 재시도 버튼을 보여준다.
     private val _serverError = MutableStateFlow(false)
     val serverError: StateFlow<Boolean> = _serverError
@@ -130,21 +127,26 @@ class SplashViewModel @Inject constructor(
                 }
 
                 // 수영 기록 동기화 — HC 권한이 없어도 부른다(HC 읽기는 syncer가 건너뛰고 서버 백업은 복원).
+                var syncFailed = false
                 try {
                     syncHealthConnect()
                 } catch (e: Exception) {
                     Timber.w(e, "HC 동기화 중 오류 (앱 계속 진행)")
-                    _syncError.value = "수영 데이터 동기화에 실패했어요."
+                    syncFailed = true
                 }
 
                 // 온보딩 진입은 서버 사실(닉네임 유무)로만 판단한다 — HC 권한은 목적지에 영향을 주지 않는다.
                 // 로컬 완료 표시는 재설치·다른 기기·계정 전환에서 무력하므로 쓰지 않는다(R23). 연결은 설정 > 연동에서.
                 val profile = appState.profile.value
-                _destination.value = if (profile?.nickname.isNullOrBlank()) {
+                val destination = if (profile?.nickname.isNullOrBlank()) {
                     SplashDestination.Onboarding
                 } else {
                     SplashDestination.Home
                 }
+                // 실패 안내는 홈이 카드로 띄운다 — 스플래시는 곧 넘어가 읽을 틈이 없다.
+                // 온보딩으로 갈 때는 넘기지 않는다: 온보딩이 동기화를 다시 돌리므로 지난 실패를 알리면 틀린 안내가 된다.
+                if (syncFailed && destination == SplashDestination.Home) appState.showSyncFailureNotice()
+                _destination.value = destination
             } catch (e: Exception) {
                 Timber.w(e, "자동 로그인 실패")
                 if (classifyServerFailure(e) == ServerFailure.REJECTED) {

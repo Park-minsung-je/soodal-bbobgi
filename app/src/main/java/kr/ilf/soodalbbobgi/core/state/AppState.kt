@@ -61,6 +61,18 @@ class AppState @Inject constructor() {
     private val _pendingShellReward = MutableStateFlow(0)
     val pendingShellReward: StateFlow<Int> = _pendingShellReward
 
+    // ─── 동기화 실패 안내 (Splash → Home 전달) ─────────────────
+    private val _syncFailureNotice = MutableStateFlow(false)
+    /**
+     * 앱 시작 동기화가 실패했는지 — 스플래시는 곧바로 홈으로 넘어가 읽을 틈이 없으므로
+     * 홈이 안내 카드로 띄우고, 닫히면 [dismissSyncFailureNotice]로 내린다.
+     */
+    val syncFailureNotice: StateFlow<Boolean> = _syncFailureNotice
+
+    fun showSyncFailureNotice() { _syncFailureNotice.value = true }
+
+    fun dismissSyncFailureNotice() { _syncFailureNotice.value = false }
+
     // ─── Apply 메서드들 ──────────────────────────────────────
 
     fun applyProfile(p: UserProfile) { _profile.value = p }
@@ -138,6 +150,7 @@ class AppState @Inject constructor() {
         _shopListings.value = emptyList()
         _profileCard.value = null
         _pendingShellReward.value = 0
+        _syncFailureNotice.value = false
         // 진행 중이던 동기화는 함께 취소되므로 홈 상단 필이 재시작 후에도 남지 않게 내린다
         _hcSyncing.value = false
         suppressSetupNudgeOnce = false

@@ -124,13 +124,23 @@ class CalendarViewModel @Inject constructor(
     private val _shellRewardKind = MutableStateFlow(ShellRewardKind.SwimRecord)
     val shellRewardKind: StateFlow<ShellRewardKind> = _shellRewardKind
 
-    /** 수동 등록/동기화 실패 안내 문구 — null이면 표시 없음. */
+    /** 수동 등록·삭제 실패 안내 문구(토스트) — null이면 표시 없음. 동기화 실패는 [syncFailed]가 맡는다. */
     private val _registerError = MutableStateFlow<String?>(null)
     val registerError: StateFlow<String?> = _registerError
 
     /** HC 수동 동기화 진행 중 여부 — 로딩 오버레이 표시용. */
     private val _syncing = MutableStateFlow(false)
     val syncing: StateFlow<Boolean> = _syncing
+
+    /**
+     * 수동 동기화 실패 안내 표시 여부 — 로딩 카드가 내려간 자리에 실패 카드를 띄운다.
+     * 토스트는 로딩 카드와 같은 아래쪽에 겹쳐 떠서 쓰지 않는다.
+     */
+    private val _syncFailed = MutableStateFlow(false)
+    val syncFailed: StateFlow<Boolean> = _syncFailed
+
+    /** 실패 안내 카드가 닫혔다(시간 경과·탭). */
+    fun dismissSyncFailure() { _syncFailed.value = false }
 
     /** 월과 그 달의 로그를 한 묶음으로 — 월만 먼저 바뀌어 이전 달 데이터가 잠깐 보이는 깜빡임을 막는다. */
     private data class MonthLogs(val ym: YearMonth, val logs: List<SwimLog>)
@@ -186,9 +196,11 @@ class CalendarViewModel @Inject constructor(
         if (_syncing.value) return
         viewModelScope.launch {
             _shellReward.value = 0
+            _syncFailed.value = false
             _syncing.value = true
             // 동기화가 순식간에 끝나도 로딩 표시는 최소 1초 유지 — 깜빡임 방지.
             val startedAt = System.currentTimeMillis()
+            var failed = false
             try {
                 // HC 권한이 없어도 돌린다 — HC 읽기는 syncer가 건너뛰고 서버 백업 복원은 한다.
                 val earned = hcSwimSyncer.sync()
@@ -197,11 +209,13 @@ class CalendarViewModel @Inject constructor(
                 _shellReward.value = earned
             } catch (e: Exception) {
                 Timber.e(e, "캘린더 수동 동기화 실패")
-                _registerError.value = "동기화에 실패했어요. 다시 시도해주세요."
+                failed = true
             } finally {
                 val elapsed = System.currentTimeMillis() - startedAt
                 if (elapsed < MIN_SYNC_INDICATOR_MS) delay(MIN_SYNC_INDICATOR_MS - elapsed)
                 _syncing.value = false
+                // 실패 안내는 로딩 카드가 내려간 뒤에 띄운다 — 둘은 같은 자리라 겹치면 안 된다
+                _syncFailed.value = failed
             }
         }
     }

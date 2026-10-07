@@ -115,6 +115,7 @@ fun HomeScreen(
     val shellRewardKind by viewModel.shellRewardKind.collectAsState()
     val hcSyncing by viewModel.hcSyncing.collectAsState()
     val syncError by viewModel.syncError.collectAsState()
+    val syncFailed by viewModel.syncFailed.collectAsState()
     val setupNudge by viewModel.setupNudge.collectAsState()
     val colors = SoodalDesign.colors
     val spacing = SoodalDesign.spacing
@@ -431,6 +432,12 @@ fun HomeScreen(
             viewModel.clearSyncError()
         }
     }
+
+    // ── 앱 시작 동기화 실패 안내 — 스플래시는 곧 넘어가 읽을 틈이 없어 홈이 카드로 띄운다 ──
+    kr.ilf.soodalbbobgi.core.ui.SyncFailureNotice(
+        visible = syncFailed,
+        onDismiss = viewModel::dismissSyncFailure,
+    )
 
     // ── 최초 HC 가져오기 차단 오버레이 (오버레이 레이어 — 탭바까지 덮는다) ─────
     // 온보딩이 시작한 최초 동기화 한 번뿐이다. 도는 동안은 홈·탭바 어디도 누를 수 없고

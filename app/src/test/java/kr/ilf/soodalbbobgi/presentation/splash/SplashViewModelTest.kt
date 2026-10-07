@@ -224,6 +224,56 @@ class SplashViewModelTest {
         coVerify { hcSwimSyncer.sync() }
     }
 
+    // ── 수영 기록 동기화 실패 — 스플래시는 그대로 넘기고 홈이 안내 카드를 띄운다 ──
+
+    @Test
+    fun `동기화가 실패해도 Home으로 가고 홈에 실패 안내를 넘긴다`() = runTest {
+        every { tokenStore.getAccessToken() } returns "access"
+        every { tokenStore.isAccessTokenExpired() } returns false
+        coEvery { appStateLoader.loadAll() } coAnswers {
+            appState.applyProfile(UserProfile("u1", "수달이", null, null, "google"))
+            Result.success(Unit)
+        }
+        coEvery { hcSwimSyncer.sync() } throws java.io.IOException("HC 변경 토큰 발급 실패")
+
+        val viewModel = vm()
+
+        assertThat(viewModel.destination.value).isEqualTo(SplashDestination.Home)
+        assertThat(appState.syncFailureNotice.value).isTrue()
+    }
+
+    @Test
+    fun `동기화가 성공하면 실패 안내를 넘기지 않는다`() = runTest {
+        every { tokenStore.getAccessToken() } returns "access"
+        every { tokenStore.isAccessTokenExpired() } returns false
+        coEvery { appStateLoader.loadAll() } coAnswers {
+            appState.applyProfile(UserProfile("u1", "수달이", null, null, "google"))
+            Result.success(Unit)
+        }
+
+        val viewModel = vm()
+
+        assertThat(viewModel.destination.value).isEqualTo(SplashDestination.Home)
+        assertThat(appState.syncFailureNotice.value).isFalse()
+    }
+
+    @Test
+    fun `온보딩으로 가는 계정은 동기화가 실패해도 실패 안내를 넘기지 않는다`() = runTest {
+        every { tokenStore.getAccessToken() } returns "access"
+        every { tokenStore.isAccessTokenExpired() } returns false
+        coEvery { appStateLoader.loadAll() } coAnswers {
+            appState.applyProfile(UserProfile("u1", null, null, null, "google"))
+            Result.success(Unit)
+        }
+        coEvery { hcSwimSyncer.sync() } throws java.io.IOException("HC 변경 토큰 발급 실패")
+
+        val viewModel = vm()
+
+        // 온보딩이 자기 동기화를 다시 돌린다 — 그 뒤 홈에서 지난 실패를 알리면 틀린 안내가 된다.
+        assertThat(viewModel.destination.value).isEqualTo(SplashDestination.Onboarding)
+        assertThat(appState.syncFailureNotice.value).isFalse()
+    }
+
     @Test
     fun `닉네임이 없는 계정은 Onboarding으로 보낸다`() = runTest {
         every { tokenStore.getAccessToken() } returns "access"

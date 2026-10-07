@@ -90,6 +90,28 @@ class HomeViewModelTest {
         accountPrefs = accountPrefs,
     )
 
+    // ── 스플래시 동기화 실패 안내 — 홈이 카드로 띄우고 닫는다 ───────────────────
+
+    @Test
+    fun `스플래시가 넘긴 동기화 실패를 홈이 안내로 띄운다`() = runTest(testDispatcher) {
+        appState.showSyncFailureNotice()
+
+        val vm = newVm()
+
+        assertThat(vm.syncFailed.value).isTrue()
+    }
+
+    @Test
+    fun `동기화 실패 안내를 닫으면 다음 홈 진입에 다시 뜨지 않는다`() = runTest(testDispatcher) {
+        appState.showSyncFailureNotice()
+        val vm = newVm()
+
+        vm.dismissSyncFailure()
+
+        assertThat(vm.syncFailed.value).isFalse()
+        assertThat(newVm().syncFailed.value).isFalse()
+    }
+
     // ── 기존 회원 설정 안내 팝업 (R30) ─────────────────────────────────────
 
     @Test
